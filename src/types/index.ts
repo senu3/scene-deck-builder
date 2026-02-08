@@ -194,6 +194,9 @@ export interface LipSyncSettings {
   variantAssetIds: string[];    // [half1, half2, open]
   maskAssetId?: string;         // Optional mouth mask
   compositedFrameAssetIds?: string[]; // Optional precomposited [closed, half1, half2, open]
+  ownerAssetId?: string;        // Owner asset ID for generated bundle management
+  ownedGeneratedAssetIds?: string[]; // Generated assets managed as this owner's bundle
+  orphanedGeneratedAssetIds?: string[]; // Old generated assets from previous registrations
   rmsSourceAudioAssetId: string; // Audio asset used for RMS
   thresholds: { t1: number; t2: number; t3: number };
   fps: number;

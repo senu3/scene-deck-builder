@@ -6,6 +6,7 @@ import {
   syncSceneMetadata,
   updateLipSyncSettings,
   removeLipSyncSettings,
+  removeAssetReferences,
 } from '../metadataStore';
 
 const baseStore = {
@@ -62,5 +63,47 @@ describe('metadataStore', () => {
 
     const removed = removeLipSyncSettings(withLipSync, 'asset-1');
     expect(removed.metadata['asset-1']).toBeUndefined();
+  });
+
+  it('removes dangling attached audio references when asset is deleted', () => {
+    const withAudio = attachAudio(baseStore, 'asset-1', 'audio-1', 'audio.wav', 0.5);
+    const cleaned = removeAssetReferences(withAudio, ['audio-1']);
+    expect(cleaned.metadata['asset-1']).toBeUndefined();
+  });
+
+  it('removes lip sync metadata when required frame references are deleted', () => {
+    const withLipSync = updateLipSyncSettings(baseStore, 'asset-1', {
+      baseImageAssetId: 'img-closed',
+      variantAssetIds: ['img-half1', 'img-half2', 'img-open'],
+      compositedFrameAssetIds: ['img-closed-c', 'img-half1-c', 'img-half2-c', 'img-open-c'],
+      maskAssetId: 'mask-1',
+      rmsSourceAudioAssetId: 'audio-1',
+      thresholds: { t1: 0.1, t2: 0.2, t3: 0.3 },
+      fps: 60,
+      version: 2,
+    } as any);
+
+    const cleaned = removeAssetReferences(withLipSync, ['img-open']);
+    expect(cleaned.metadata['asset-1']).toBeUndefined();
+  });
+
+  it('keeps lip sync by dropping optional links only', () => {
+    const withLipSync = updateLipSyncSettings(baseStore, 'asset-1', {
+      baseImageAssetId: 'img-closed',
+      variantAssetIds: ['img-half1', 'img-half2', 'img-open'],
+      compositedFrameAssetIds: ['img-closed-c', 'img-half1-c', 'img-half2-c', 'img-open-c'],
+      maskAssetId: 'mask-1',
+      sourceVideoAssetId: 'video-1',
+      rmsSourceAudioAssetId: 'audio-1',
+      thresholds: { t1: 0.1, t2: 0.2, t3: 0.3 },
+      fps: 60,
+      version: 2,
+    } as any);
+
+    const cleaned = removeAssetReferences(withLipSync, ['mask-1', 'video-1', 'img-open-c']);
+    expect(cleaned.metadata['asset-1']?.lipSync).toBeDefined();
+    expect(cleaned.metadata['asset-1']?.lipSync?.maskAssetId).toBeUndefined();
+    expect(cleaned.metadata['asset-1']?.lipSync?.sourceVideoAssetId).toBeUndefined();
+    expect(cleaned.metadata['asset-1']?.lipSync?.compositedFrameAssetIds).toBeUndefined();
   });
 });

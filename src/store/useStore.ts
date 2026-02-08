@@ -1,11 +1,12 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import type { Scene, Cut, Asset, FileItem, FavoriteFolder, PlaybackMode, PreviewMode, SceneNote, SelectionType, Project, SourceViewMode, SourcePanelState, MetadataStore, CutGroup, LipSyncSettings } from '../types';
-import { loadMetadataStore, saveMetadataStore, attachAudio, detachAudio, updateAudioOffset as updateOffsetInStore, updateAudioAnalysis, updateLipSyncSettings, removeLipSyncSettings, upsertSceneMetadata, removeSceneMetadata, syncSceneMetadata } from '../utils/metadataStore';
+import { loadMetadataStore, saveMetadataStore, attachAudio, detachAudio, updateAudioOffset as updateOffsetInStore, updateAudioAnalysis, updateLipSyncSettings, removeLipSyncSettings, upsertSceneMetadata, removeSceneMetadata, syncSceneMetadata, removeAssetReferences as removeAssetReferencesInStore } from '../utils/metadataStore';
 import { analyzeAudioRms } from '../utils/audioUtils';
 import { clearThumbnailCache } from '../utils/thumbnailCache';
 import type { CutImportSource } from '../utils/cutImport';
 import { buildAssetForCut } from '../utils/cutImport';
+import { collectAssetRefs, getBlockingRefsForAssetIds, type AssetRef } from '../utils/assetRefs';
 
 export interface SourceFolder {
   path: string;
@@ -199,6 +200,12 @@ interface AppState {
   updateAudioOffset: (assetId: string, offset: number) => void;
   setLipSyncForAsset: (assetId: string, settings: LipSyncSettings) => void;
   clearLipSyncForAsset: (assetId: string) => void;
+  removeAssetReferences: (assetIds: string[]) => void;
+  deleteAssetWithPolicy: (params: {
+    assetPath: string;
+    assetIds: string[];
+    reason?: string;
+  }) => Promise<{ success: boolean; reason?: string; blockingRefs?: AssetRef[] }>;
   relinkCutAsset: (sceneId: string, cutId: string, newAsset: Asset) => void;
 
   // Group actions
@@ -1308,7 +1315,39 @@ export const useStore = create<AppState>((set, get) => ({
   setLipSyncForAsset: (assetId, settings) => {
     set((state) => {
       const store = state.metadataStore || { version: 1, metadata: {}, sceneMetadata: {} };
-      const updated = updateLipSyncSettings(store, assetId, settings);
+      const previous = store.metadata[assetId]?.lipSync;
+      const nextSettings: LipSyncSettings = {
+        ...settings,
+        ownerAssetId: settings.ownerAssetId || assetId,
+      };
+
+      const previousIsSameOwner = !!previous && (!previous.ownerAssetId || previous.ownerAssetId === assetId);
+      const previousOwned = previousIsSameOwner
+        ? (
+          previous.ownedGeneratedAssetIds && previous.ownedGeneratedAssetIds.length > 0
+            ? previous.ownedGeneratedAssetIds
+            : [
+              ...(previous.maskAssetId ? [previous.maskAssetId] : []),
+              ...(previous.compositedFrameAssetIds || []),
+            ]
+        )
+        : [];
+      const nextOwned = nextSettings.ownedGeneratedAssetIds || [];
+      const inheritedOrphans = previousIsSameOwner
+        ? (previous.orphanedGeneratedAssetIds || [])
+        : [];
+      const nextOrphans = Array.from(new Set([
+        ...inheritedOrphans,
+        ...previousOwned.filter((id) => !nextOwned.includes(id)),
+      ])).filter((id) => !nextOwned.includes(id));
+
+      if (nextOrphans.length > 0) {
+        nextSettings.orphanedGeneratedAssetIds = nextOrphans;
+      } else {
+        delete nextSettings.orphanedGeneratedAssetIds;
+      }
+
+      const updated = updateLipSyncSettings(store, assetId, nextSettings);
       return { metadataStore: updated };
     });
 
@@ -1323,6 +1362,83 @@ export const useStore = create<AppState>((set, get) => ({
     });
 
     get().saveMetadata();
+  },
+
+  removeAssetReferences: (assetIds) => {
+    const targets = Array.from(new Set(assetIds.filter(Boolean)));
+    if (targets.length === 0) return;
+
+    const previousMetadataStore = get().metadataStore;
+    set((state) => {
+      let metadataStore = state.metadataStore;
+      if (metadataStore) {
+        metadataStore = removeAssetReferencesInStore(metadataStore, targets);
+      }
+
+      const nextCache = new Map(state.assetCache);
+      for (const assetId of targets) {
+        nextCache.delete(assetId);
+      }
+
+      return {
+        metadataStore,
+        assetCache: nextCache,
+      };
+    });
+
+    if (previousMetadataStore !== get().metadataStore) {
+      get().saveMetadata();
+    }
+  },
+
+  deleteAssetWithPolicy: async ({ assetPath, assetIds, reason }) => {
+    const state = get();
+    if (!window.electronAPI?.vaultGateway) {
+      return { success: false, reason: 'electron-unavailable' };
+    }
+
+    const targetAssetIds = Array.from(new Set(assetIds.filter(Boolean)));
+    if (targetAssetIds.length === 0) {
+      return { success: false, reason: 'missing-asset-ids' };
+    }
+
+    const refs = collectAssetRefs(state.scenes, state.metadataStore);
+    const blockingRefs = getBlockingRefsForAssetIds(refs, targetAssetIds);
+    if (blockingRefs.length > 0) {
+      return { success: false, reason: 'asset-in-use', blockingRefs };
+    }
+
+    const targetTrashPath = state.trashPath || (state.vaultPath ? `${state.vaultPath}/.trash` : null);
+    if (!targetTrashPath) {
+      return { success: false, reason: 'trash-path-missing' };
+    }
+
+    const moved = await window.electronAPI.vaultGateway.moveToTrashWithMeta(assetPath, targetTrashPath, {
+      assetId: targetAssetIds[0],
+      reason: reason || 'asset-delete-policy',
+    });
+    if (!moved) {
+      return { success: false, reason: 'trash-move-failed' };
+    }
+
+    if (state.vaultPath) {
+      try {
+        const index = await window.electronAPI.loadAssetIndex(state.vaultPath);
+        const deletedIds = new Set(targetAssetIds);
+        const updatedAssets = index.assets.filter((entry) => !deletedIds.has(entry.id));
+        if (updatedAssets.length !== index.assets.length) {
+          await window.electronAPI.vaultGateway.saveAssetIndex(state.vaultPath, {
+            ...index,
+            assets: updatedAssets,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to update asset index during delete policy:', error);
+      }
+    }
+
+    get().removeAssetReferences(targetAssetIds);
+    return { success: true };
   },
 
   relinkCutAsset: (sceneId, cutId, newAsset) => {

@@ -8,6 +8,7 @@ import { extractVideoMetadata } from '../utils/videoUtils';
 import { getThumbnail } from '../utils/thumbnailCache';
 import { getTimelineMediaType } from '../utils/mediaType';
 import { createAutosaveController, subscribeProjectChanges } from '../utils/autosave';
+import { collectAssetRefs, findDanglingAssetRefs } from '../utils/assetRefs';
 import {
   buildProjectSavePayload,
   serializeProjectSavePayload,
@@ -100,6 +101,7 @@ export function useHeaderProjectController() {
     vaultPath,
     clearProject,
     projectName,
+    metadataStore,
     setProjectLoaded,
     setProjectPath,
     initializeProject,
@@ -152,6 +154,17 @@ export function useHeaderProjectController() {
         const orderedIds = getOrderedAssetIdsFromScenes(normalizedScenes);
         const usageRefs = buildAssetUsageRefs(normalizedScenes);
         const index = await window.electronAPI.loadAssetIndex(vaultPath);
+        const refs = collectAssetRefs(normalizedScenes, metadataStore);
+        const existingAssetIds = new Set(index.assets.map((entry) => entry.id));
+        const danglingRefs = findDanglingAssetRefs(refs, existingAssetIds);
+        if (danglingRefs.length > 0) {
+          const kinds = Array.from(new Set(danglingRefs.map((ref) => ref.kind)));
+          console.warn('[SaveValidation] Dangling asset references detected:', danglingRefs);
+          toast.warning(
+            'Asset reference warning',
+            `Missing references found before save (${kinds.join(', ')}).`
+          );
+        }
         const normalizedAssets = index.assets.map((entry) => ({
           ...entry,
           usageRefs: usageRefs.get(entry.id) || [],
@@ -203,7 +216,7 @@ export function useHeaderProjectController() {
         await window.electronAPI.saveRecentProjects([newRecent, ...filtered.slice(0, 9)]);
       }
     }
-  }, [dialogAlert, getSourcePanelState, loadProject, projectName, scenes, setProjectPath, vaultPath]);
+  }, [dialogAlert, getSourcePanelState, loadProject, metadataStore, projectName, scenes, setProjectPath, toast, vaultPath]);
 
   const handleSaveProject = useCallback(async () => {
     await saveProjectInternal();

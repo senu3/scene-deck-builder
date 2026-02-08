@@ -310,3 +310,120 @@ export function updateAudioOffset(
     attachedAudioOffset: offset,
   });
 }
+
+function isMetadataEntryEmpty(metadata: AssetMetadata): boolean {
+  return Object.keys(metadata).every((key) => key === 'assetId');
+}
+
+/**
+ * Remove references to deleted assets from metadata store.
+ * - Drops metadata entries whose own assetId is deleted
+ * - Detaches audio links pointing to deleted audio assets
+ * - Clears/removes LipSync settings when required frame/audio references are deleted
+ */
+export function removeAssetReferences(
+  store: MetadataStore,
+  removedAssetIds: string[]
+): MetadataStore {
+  const removed = new Set(removedAssetIds.filter(Boolean));
+  if (removed.size === 0) return store;
+
+  let changed = false;
+  const nextMetadata: Record<string, AssetMetadata> = {};
+
+  for (const [assetId, metadata] of Object.entries(store.metadata)) {
+    if (removed.has(assetId)) {
+      changed = true;
+      continue;
+    }
+
+    let next: AssetMetadata = { ...metadata };
+
+    if (next.attachedAudioId && removed.has(next.attachedAudioId)) {
+      const { attachedAudioId: _, attachedAudioSourceName: __, attachedAudioOffset: ___, ...rest } = next;
+      next = rest as AssetMetadata;
+      changed = true;
+    }
+
+    const lipSync = next.lipSync;
+    if (lipSync) {
+      const baseRemoved = removed.has(lipSync.baseImageAssetId);
+      const variantRemoved = lipSync.variantAssetIds.some((id) => removed.has(id));
+      const rmsRemoved = removed.has(lipSync.rmsSourceAudioAssetId);
+
+      if (baseRemoved || variantRemoved || rmsRemoved) {
+        const { lipSync: _, ...rest } = next;
+        next = rest as AssetMetadata;
+        changed = true;
+      } else {
+        const nextLipSync = { ...lipSync };
+        let lipSyncChanged = false;
+
+        if (nextLipSync.maskAssetId && removed.has(nextLipSync.maskAssetId)) {
+          delete nextLipSync.maskAssetId;
+          lipSyncChanged = true;
+        }
+
+        if (nextLipSync.sourceVideoAssetId && removed.has(nextLipSync.sourceVideoAssetId)) {
+          delete nextLipSync.sourceVideoAssetId;
+          lipSyncChanged = true;
+        }
+
+        if (Array.isArray(nextLipSync.compositedFrameAssetIds) && nextLipSync.compositedFrameAssetIds.length > 0) {
+          const filtered = nextLipSync.compositedFrameAssetIds.filter((id) => !removed.has(id));
+          if (filtered.length !== nextLipSync.compositedFrameAssetIds.length) {
+            const requiredLength = 1 + nextLipSync.variantAssetIds.length;
+            if (filtered.length === requiredLength) {
+              nextLipSync.compositedFrameAssetIds = filtered;
+            } else {
+              delete nextLipSync.compositedFrameAssetIds;
+            }
+            lipSyncChanged = true;
+          }
+        }
+
+        if (Array.isArray(nextLipSync.ownedGeneratedAssetIds) && nextLipSync.ownedGeneratedAssetIds.length > 0) {
+          const filteredOwned = nextLipSync.ownedGeneratedAssetIds.filter((id) => !removed.has(id));
+          if (filteredOwned.length !== nextLipSync.ownedGeneratedAssetIds.length) {
+            if (filteredOwned.length > 0) {
+              nextLipSync.ownedGeneratedAssetIds = filteredOwned;
+            } else {
+              delete nextLipSync.ownedGeneratedAssetIds;
+            }
+            lipSyncChanged = true;
+          }
+        }
+
+        if (Array.isArray(nextLipSync.orphanedGeneratedAssetIds) && nextLipSync.orphanedGeneratedAssetIds.length > 0) {
+          const filteredOrphan = nextLipSync.orphanedGeneratedAssetIds.filter((id) => !removed.has(id));
+          if (filteredOrphan.length !== nextLipSync.orphanedGeneratedAssetIds.length) {
+            if (filteredOrphan.length > 0) {
+              nextLipSync.orphanedGeneratedAssetIds = filteredOrphan;
+            } else {
+              delete nextLipSync.orphanedGeneratedAssetIds;
+            }
+            lipSyncChanged = true;
+          }
+        }
+
+        if (lipSyncChanged) {
+          next.lipSync = nextLipSync;
+          changed = true;
+        }
+      }
+    }
+
+    if (!isMetadataEntryEmpty(next)) {
+      nextMetadata[assetId] = next;
+    } else {
+      changed = true;
+    }
+  }
+
+  if (!changed) return store;
+
+  return {
+    ...store,
+    metadata: nextMetadata,
+  };
+}

@@ -2,7 +2,7 @@
 
 **目的**: Vault と asset 管理の不変条件を定義する。
 **適用範囲**: `vault/assets`, `.index.json`, `.metadata.json`, `.trash`。
-**関連ファイル**: `src/utils/assetPath.ts`, `electron/vaultGateway.ts`, `src/components/AssetPanel.tsx`。
+**関連ファイル**: `src/utils/assetPath.ts`, `src/utils/assetRefs.ts`, `src/store/useStore.ts`, `electron/vaultGateway.ts`, `src/components/AssetPanel.tsx`。
 **更新頻度**: 中。
 
 > TODO: export 系フローの仕様が確定したら更新。
@@ -35,7 +35,24 @@ Each entry stores:
 ## `.metadata.json` (Scene Metadata + Attachments)
 Used for information that is not a core asset index:
 - Asset attachments (audio, offsets, analysis)
+- LipSync links (base/variant/mask/composited/rms/sourceVideo) and bundle ownership
 - Scene metadata: name + notes
+
+## Reference Graph (Single Source of Truth)
+- Asset references are collected by `collectAssetRefs(scenes, metadataStore)`.
+- Reference kinds:
+- `cut`
+- `attached-audio`
+- `lipsync-base`
+- `lipsync-variant`
+- `lipsync-mask`
+- `lipsync-composited`
+- `lipsync-rms-audio`
+- `lipsync-source-video`
+- This graph is shared by:
+- Asset usage calculation in `AssetPanel`
+- Delete policy blocking checks
+- Save-time dangling reference validation
 
 ## `.trash/.trash.json` (Trash Log)
 When assets are deleted or rehashed:
@@ -77,6 +94,15 @@ Renderer code must call `window.electronAPI.vaultGateway.*` for:
 - Import + register (hash naming + index update)
 - Index save (ordering + usageRefs update)
 - Trash move (trash file + trash index + index removal)
+
+## Delete Policy (Single Entry in Store)
+- Asset deletion is executed via `deleteAssetWithPolicy` (`useStore`).
+- The policy performs, in order:
+- Reference check via `collectAssetRefs` (block when in use)
+- Physical move to `.trash` via VaultGateway
+- `.index.json` cleanup for deleted `assetId`s
+- `.metadata.json` / `assetCache` reference cleanup
+- UI components must not directly call `moveToTrashWithMeta` for normal asset deletion.
 
 ## Performance Notes
 - Hash calculation for vault import uses streaming SHA-256 in the main process (`createReadStream`), not full-file in-memory reads.

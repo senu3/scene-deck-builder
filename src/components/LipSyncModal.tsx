@@ -613,6 +613,11 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
       variantAssetIds,
       maskAssetId,
       compositedFrameAssetIds,
+      ownerAssetId: asset.id,
+      ownedGeneratedAssetIds: [
+        ...(maskAssetId ? [maskAssetId] : []),
+        ...(compositedFrameAssetIds || []),
+      ],
       rmsSourceAudioAssetId: attachedAudioId,
       thresholds,
       fps: 60,

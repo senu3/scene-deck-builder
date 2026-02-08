@@ -30,6 +30,9 @@ type LipSyncSettings = {
   variantAssetIds: string[];        // [half1, half2, open]
   maskAssetId?: string;             // Optional mouth mask
   compositedFrameAssetIds?: string[]; // Optional [closed, half1, half2, open]
+  ownerAssetId?: string;            // LipSync owner (target assetId)
+  ownedGeneratedAssetIds?: string[]; // Current generated bundle (mask/composited)
+  orphanedGeneratedAssetIds?: string[]; // Old generated assets from re-register
   rmsSourceAudioAssetId: string;
   thresholds: { t1: number; t2: number; t3: number };
   fps: number;
@@ -44,6 +47,12 @@ type LipSyncSettings = {
 - 再生で使うフレーム列は `getLipSyncFrameAssetIds(settings)` で解決する。
   - 優先: `compositedFrameAssetIds`
   - fallback: `[baseImageAssetId, ...variantAssetIds]`
+
+## Bundle Ownership
+- LipSync 生成物（mask/composited）は `ownerAssetId` を軸に同一バンドルとして扱う。
+- 現在有効な生成物は `ownedGeneratedAssetIds` に保持する。
+- 再登録時に前回バンドルとの差分は `orphanedGeneratedAssetIds` に自動移行する。
+- 物理保存先は当面 `vault/assets` のまま（論理管理のみ実施）。
 
 ## Mask Preprocess (Register Time)
 1. `LipSyncModal` で closed/half1/half2/open + mask を用意する。  
@@ -68,6 +77,7 @@ type LipSyncSettings = {
 - `compositedFrameAssetIds` は再生用であり、編集用入力に使わない。
 - これにより「マスク二重適用」や「口形状の潰れ」を回避する。
 - 再登録時は未変更フレームを既存 asset のまま再利用し、再キャプチャ分のみ更新する。
+- 再登録時は `ownerAssetId = target assetId` を維持し、生成物バンドルを更新する。
 
 ## Playback
 - `PreviewModal` / `DetailsPanel` は `getLipSyncFrameAssetIds` でフレーム列を取得する。

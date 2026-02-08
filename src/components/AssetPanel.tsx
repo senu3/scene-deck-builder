@@ -17,10 +17,11 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
-import type { Asset, Scene, MetadataStore, AssetIndexEntry } from '../types';
+import type { Asset, AssetIndexEntry } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { getCachedThumbnail, getThumbnail, removeThumbnailCache } from '../utils/thumbnailCache';
 import { getMediaType as getAnyMediaType } from '../utils/mediaType';
+import { collectAssetRefs, getBlockingRefsForAssetIds, type AssetRefMap } from '../utils/assetRefs';
 import { useToast } from '../ui';
 import {
   CutContextMenu,
@@ -62,51 +63,31 @@ export interface AssetPanelProps {
 
 // Build usage map from Storyline cuts only.
 export function buildUsedAssetsMap(
-  scenes: Scene[],
-  _metadataStore: MetadataStore | null
+  refs: AssetRefMap
 ): Map<string, { count: number; type: 'cut' | 'audio' | 'both' }> {
   const used = new Map<string, { count: number; type: 'cut' | 'audio' | 'both' }>();
 
-  // 1. Assets used in cuts
-  for (const scene of scenes) {
-    for (const cut of scene.cuts) {
-      const cutAssetId = cut.asset?.id || cut.assetId;
-      if (cutAssetId) {
-        const existing = used.get(cutAssetId);
-        if (existing) {
-          existing.count += 1;
-        } else {
-          used.set(cutAssetId, { count: 1, type: 'cut' });
-        }
-      }
+  for (const [assetId, refsForAsset] of refs.entries()) {
+    const cutCount = refsForAsset.filter((ref) => ref.kind === 'cut').length;
+    if (cutCount <= 0) continue;
+    const existing = used.get(assetId);
+    if (existing) {
+      existing.count += cutCount;
+    } else {
+      used.set(assetId, { count: cutCount, type: 'cut' });
     }
   }
 
   return used;
 }
 
-function buildLinkedAssetIds(metadataStore: MetadataStore | null): Set<string> {
+function buildLinkedAssetIds(refs: AssetRefMap): Set<string> {
   const linked = new Set<string>();
-  if (!metadataStore) return linked;
 
-  for (const meta of Object.values(metadataStore.metadata)) {
-    if (meta.attachedAudioId) {
-      linked.add(meta.attachedAudioId);
+  for (const [assetId, refsForAsset] of refs.entries()) {
+    if (refsForAsset.some((ref) => ref.kind !== 'cut')) {
+      linked.add(assetId);
     }
-
-    const lipSync = meta.lipSync;
-    if (!lipSync) continue;
-
-    linked.add(lipSync.baseImageAssetId);
-    for (const id of lipSync.variantAssetIds || []) {
-      linked.add(id);
-    }
-    for (const id of lipSync.compositedFrameAssetIds || []) {
-      linked.add(id);
-    }
-    if (lipSync.maskAssetId) linked.add(lipSync.maskAssetId);
-    if (lipSync.rmsSourceAudioAssetId) linked.add(lipSync.rmsSourceAudioAssetId);
-    if (lipSync.sourceVideoAssetId) linked.add(lipSync.sourceVideoAssetId);
   }
 
   return linked;
@@ -172,7 +153,7 @@ export default function AssetPanel({
     canPaste,
     pasteCuts,
     getAsset,
-    trashPath,
+    deleteAssetWithPolicy,
     getCutGroup,
     updateGroupCutOrder,
     closeDetailsPanel,
@@ -210,14 +191,19 @@ export default function AssetPanel({
   const panelRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  // Build usage map
-  const usedAssetsMap = useMemo(
-    () => buildUsedAssetsMap(scenes, metadataStore),
+  const assetRefs = useMemo(
+    () => collectAssetRefs(scenes, metadataStore),
     [scenes, metadataStore]
   );
+
+  // Build usage map
+  const usedAssetsMap = useMemo(
+    () => buildUsedAssetsMap(assetRefs),
+    [assetRefs]
+  );
   const linkedAssetIds = useMemo(
-    () => buildLinkedAssetIds(metadataStore),
-    [metadataStore]
+    () => buildLinkedAssetIds(assetRefs),
+    [assetRefs]
   );
 
   // Load asset index from .index.json
@@ -724,34 +710,30 @@ export default function AssetPanel({
     }
 
     const asset = unusedContextMenu.asset;
-    const targetTrashPath = trashPath || (vaultPath ? `${vaultPath}/.trash` : null);
-    if (!targetTrashPath) {
-      alert('Trash path not set. Please set up a vault first.');
+    const assetIds = asset.linkedAssetIds.length ? asset.linkedAssetIds : [asset.id];
+    const blockingRefs = getBlockingRefsForAssetIds(assetRefs, assetIds);
+    if (blockingRefs.length > 0) {
+      const firstKind = blockingRefs[0]?.kind || 'unknown';
+      alert(`Cannot delete this asset because it is still referenced (${firstKind}).`);
       setUnusedContextMenu(null);
       return;
     }
 
-    const assetIds = asset.linkedAssetIds.length ? asset.linkedAssetIds : [asset.id];
     try {
-      const moved = await window.electronAPI.vaultGateway.moveToTrashWithMeta(asset.path, targetTrashPath, {
-        assetId: assetIds[0],
+      const result = await deleteAssetWithPolicy({
+        assetPath: asset.path,
+        assetIds,
         reason: 'asset-panel-delete',
       });
-      if (!moved) {
-        alert('Failed to move asset to trash.');
+      if (!result.success) {
+        if (result.reason === 'asset-in-use') {
+          const firstKind = result.blockingRefs?.[0]?.kind || 'unknown';
+          alert(`Cannot delete this asset because it is still referenced (${firstKind}).`);
+        } else {
+          alert('Failed to move asset to trash.');
+        }
         setUnusedContextMenu(null);
         return;
-      }
-
-      if (vaultPath) {
-        const index = await window.electronAPI.loadAssetIndex(vaultPath);
-        const updatedAssets = index.assets.filter((entry) => entry.filename !== asset.name);
-        if (updatedAssets.length !== index.assets.length) {
-          await window.electronAPI.vaultGateway.saveAssetIndex(vaultPath, {
-            ...index,
-            assets: updatedAssets,
-          });
-        }
       }
     } catch (error) {
       alert(`Failed to move asset to trash: ${error}`);
