@@ -285,7 +285,12 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
     const loadExistingSettings = async () => {
       if (!lipSyncSettings) return;
 
-      const frameIds = getLipSyncFrameAssetIds(lipSyncSettings).slice(0, 4);
+      // Editing should always use original captured frames.
+      // Using composited frames here would apply mask repeatedly on re-register.
+      const frameIds = [
+        lipSyncSettings.baseImageAssetId,
+        ...lipSyncSettings.variantAssetIds,
+      ].slice(0, 4);
       const slots: (keyof FrameData)[] = ["closed", "half1", "half2", "open"];
       const nextFrameAssetIds: FrameAssetData = { closed: null, half1: null, half2: null, open: null };
       const nextFramePreviews: FrameData = { closed: null, half1: null, half2: null, open: null };
@@ -469,18 +474,35 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
     let maskAssetId: string | undefined;
     let compositedFrameAssetIds: string[] | undefined;
     let frameSourceDataUrls: string[] = [];
+    let frameSourcePaths: string[] = [];
 
     if (isVideo) {
+      const resolvedFrameAssets: Asset[] = [];
       const resolvedVideoFrameDataUrls: string[] = [];
       for (const entry of frameEntries) {
         if (entry.dataUrl) {
-          resolvedVideoFrameDataUrls.push(entry.dataUrl);
+          const dataUrl = entry.dataUrl;
+          resolvedVideoFrameDataUrls.push(dataUrl);
+          const assetId = generateAssetId();
+          const name = `${asset.name}_${entry.label}`;
+          const imported = await importDataUrlAssetToVault(dataUrl, vaultPath, assetId, name);
+          if (!imported) {
+            toast.error("Lip Sync registration failed", `Failed to import "${entry.label}" frame.`);
+            return;
+          }
+          cacheAsset(imported);
+          resolvedFrameAssets.push(imported);
           continue;
         }
+
         const existingFrameAssetId = frameAssetIds[entry.key];
-        const fallbackDataUrl = existingFrameAssetId
-          ? await resolveFrameDataUrlFromAssetId(existingFrameAssetId)
-          : null;
+        const existingFrameAsset = existingFrameAssetId ? getAsset(existingFrameAssetId) : undefined;
+        if (!existingFrameAsset || !existingFrameAsset.path) {
+          toast.warning("Missing frame", `Please capture the "${entry.label}" frame.`);
+          return;
+        }
+        resolvedFrameAssets.push(existingFrameAsset);
+        const fallbackDataUrl = await resolveFrameDataUrlFromAssetId(existingFrameAsset.id);
         if (!fallbackDataUrl) {
           toast.warning("Missing frame", `Please capture the "${entry.label}" frame.`);
           return;
@@ -488,25 +510,11 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
         resolvedVideoFrameDataUrls.push(fallbackDataUrl);
       }
 
-      const importedAssets: Asset[] = [];
-      for (let i = 0; i < frameEntries.length; i++) {
-        const entry = frameEntries[i];
-        const dataUrl = resolvedVideoFrameDataUrls[i];
-        const assetId = generateAssetId();
-        const name = `${asset.name}_${entry.label}`;
-        const imported = await importDataUrlAssetToVault(dataUrl, vaultPath, assetId, name);
-        if (!imported) {
-          toast.error("Lip Sync registration failed", `Failed to import "${entry.label}" frame.`);
-          return;
-        }
-        cacheAsset(imported);
-        importedAssets.push(imported);
-      }
-
-      const [baseAsset, ...variantAssets] = importedAssets;
+      const [baseAsset, ...variantAssets] = resolvedFrameAssets;
       baseImageAssetId = baseAsset.id;
       variantAssetIds = variantAssets.map((item) => item.id);
       frameSourceDataUrls = resolvedVideoFrameDataUrls;
+      frameSourcePaths = resolvedFrameAssets.map((item) => item.path).filter(Boolean);
     } else {
       const frameIds = [
         frameAssetIds.closed,
@@ -534,6 +542,9 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
         return;
       }
       frameSourceDataUrls = selectedFrameDataUrls as string[];
+      frameSourcePaths = frameIds
+        .map((frameId) => getAsset(frameId as string)?.path || "")
+        .filter(Boolean);
     }
 
     if (maskDataUrl) {
@@ -546,10 +557,27 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
       cacheAsset(maskAsset);
       maskAssetId = maskAsset.id;
 
-      const baseSource = frameSourceDataUrls[0];
-      const compositedDataUrls = await Promise.all(
-        frameSourceDataUrls.map((variantSource) => createCompositedFrameDataUrl(baseSource, variantSource, maskDataUrl))
-      );
+      let compositedDataUrls: Array<string | null> = [];
+      const precomposeLipSyncFrames = window.electronAPI?.precomposeLipSyncFrames;
+      if (typeof precomposeLipSyncFrames === "function" && frameSourcePaths.length === frameSourceDataUrls.length && maskAsset.path) {
+        const precomposeResult = await precomposeLipSyncFrames({
+          baseImagePath: frameSourcePaths[0],
+          frameImagePaths: frameSourcePaths,
+          maskImagePath: maskAsset.path,
+        });
+        if (precomposeResult.success && precomposeResult.frameDataUrls?.length === frameSourceDataUrls.length) {
+          compositedDataUrls = precomposeResult.frameDataUrls;
+        } else {
+          console.warn("[LipSync] ffmpeg precompose failed, falling back to canvas:", precomposeResult.error);
+        }
+      }
+      if (compositedDataUrls.length === 0) {
+        const baseSource = frameSourceDataUrls[0];
+        compositedDataUrls = await Promise.all(
+          frameSourceDataUrls.map((variantSource) => createCompositedFrameDataUrl(baseSource, variantSource, maskDataUrl))
+        );
+      }
+
       const missingCompositeIndex = compositedDataUrls.findIndex((dataUrl) => !dataUrl);
       if (missingCompositeIndex >= 0) {
         toast.error(

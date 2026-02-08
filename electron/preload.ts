@@ -127,6 +127,18 @@ export interface ExtractFrameResult {
   error?: string;
 }
 
+export interface PrecomposeLipSyncFramesOptions {
+  baseImagePath: string;
+  frameImagePaths: string[];
+  maskImagePath: string;
+}
+
+export interface PrecomposeLipSyncFramesResult {
+  success: boolean;
+  frameDataUrls?: string[];
+  error?: string;
+}
+
 export interface SequenceItem {
   type: 'image' | 'video' | 'audio';
   path: string;
@@ -339,6 +351,10 @@ const electronAPI = {
   // Video frame extraction
   extractVideoFrame: (options: ExtractFrameOptions): Promise<ExtractFrameResult> =>
     ipcRenderer.invoke('extract-video-frame', options),
+
+  // LipSync precompose (ffmpeg)
+  precomposeLipSyncFrames: (options: PrecomposeLipSyncFramesOptions): Promise<PrecomposeLipSyncFramesResult> =>
+    ipcRenderer.invoke('precompose-lipsync-frames', options),
 
   // Sequence export
   showSaveSequenceDialog: (defaultName: string): Promise<string | null> =>

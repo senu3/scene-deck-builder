@@ -1431,6 +1431,18 @@ interface ExtractFrameResult {
   error?: string;
 }
 
+interface PrecomposeLipSyncFramesOptions {
+  baseImagePath: string;
+  frameImagePaths: string[]; // Includes closed + variants
+  maskImagePath: string;
+}
+
+interface PrecomposeLipSyncFramesResult {
+  success: boolean;
+  frameDataUrls?: string[];
+  error?: string;
+}
+
 // ============================================
 // Sequence Export (ffmpeg)
 // ============================================
@@ -1724,4 +1736,70 @@ ipcMain.handle('extract-video-frame', async (_, options: ExtractFrameOptions): P
       });
     });
   }));
+});
+
+ipcMain.handle('precompose-lipsync-frames', async (_, options: PrecomposeLipSyncFramesOptions): Promise<PrecomposeLipSyncFramesResult> => {
+  const { baseImagePath, frameImagePaths, maskImagePath } = options;
+  const ffmpegBinary = ffmpegPath as string | null;
+  if (!ffmpegBinary) {
+    return { success: false, error: 'ffmpeg not found' };
+  }
+  if (!baseImagePath || !maskImagePath || !Array.isArray(frameImagePaths) || frameImagePaths.length === 0) {
+    return { success: false, error: 'Invalid precompose options' };
+  }
+
+  const tempDir = app.getPath('temp');
+  const sessionId = `lipsync_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  const tempFiles: string[] = [];
+
+  try {
+    const frameDataUrls: string[] = [];
+    for (let i = 0; i < frameImagePaths.length; i++) {
+      const framePath = frameImagePaths[i];
+      const outputPath = path.join(tempDir, `${sessionId}_${i}.png`);
+      tempFiles.push(outputPath);
+
+      const filterComplex = [
+        '[1:v][0:v]scale2ref[variant][base]',
+        '[2:v]format=gray[masksrc]',
+        '[masksrc][base]scale2ref[mask][base2]',
+        '[variant][mask]alphamerge[masked]',
+        '[base2][masked]overlay=0:0:format=auto[out]',
+      ].join(';');
+
+      const args = [
+        '-y',
+        '-i', baseImagePath,
+        '-i', framePath,
+        '-i', maskImagePath,
+        '-filter_complex', filterComplex,
+        '-map', '[out]',
+        '-frames:v', '1',
+        '-c:v', 'png',
+        outputPath,
+      ];
+
+      await runFfmpeg(ffmpegBinary, args);
+
+      if (!fs.existsSync(outputPath)) {
+        return { success: false, error: `Composited frame was not created (index: ${i})` };
+      }
+      const buffer = fs.readFileSync(outputPath);
+      frameDataUrls.push(`data:image/png;base64,${buffer.toString('base64')}`);
+    }
+
+    return { success: true, frameDataUrls };
+  } catch (error) {
+    return { success: false, error: `Precompose failed: ${String(error)}` };
+  } finally {
+    for (const tempFile of tempFiles) {
+      try {
+        if (fs.existsSync(tempFile)) {
+          fs.unlinkSync(tempFile);
+        }
+      } catch (cleanupError) {
+        console.warn('Failed to clean up precompose temp file:', tempFile, cleanupError);
+      }
+    }
+  }
 });

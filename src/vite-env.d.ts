@@ -146,6 +146,18 @@ interface ExtractFrameResult {
   error?: string;
 }
 
+interface PrecomposeLipSyncFramesOptions {
+  baseImagePath: string;
+  frameImagePaths: string[];
+  maskImagePath: string;
+}
+
+interface PrecomposeLipSyncFramesResult {
+  success: boolean;
+  frameDataUrls?: string[];
+  error?: string;
+}
+
 interface SequenceItem {
   type: 'image' | 'video' | 'audio';
   path: string;
@@ -255,6 +267,7 @@ interface ElectronAPI {
 
   // Video frame extraction
   extractVideoFrame: (options: ExtractFrameOptions) => Promise<ExtractFrameResult>;
+  precomposeLipSyncFrames: (options: PrecomposeLipSyncFramesOptions) => Promise<PrecomposeLipSyncFramesResult>;
 
   // Sequence export
   showSaveSequenceDialog: (defaultName: string) => Promise<string | null>;
