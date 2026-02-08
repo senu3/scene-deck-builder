@@ -1,4 +1,4 @@
-import { DndContext, DragEndEvent, DragOverEvent, DragStartEvent, pointerWithin, useDroppable, useSensors, useSensor, PointerSensor, useDndMonitor } from '@dnd-kit/core';
+import { DndContext, DragEndEvent, DragOverEvent, DragStartEvent, pointerWithin, useSensors, useSensor, PointerSensor, useDndMonitor } from '@dnd-kit/core';
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useStore } from './store/useStore';
 import { useHistoryStore } from './store/historyStore';
@@ -13,32 +13,12 @@ import StartupModal from './components/StartupModal';
 import ExportModal, { type ExportSettings } from './components/ExportModal';
 import EnvironmentSettingsModal from './components/EnvironmentSettingsModal';
 import NotificationTestModal from './components/NotificationTestModal';
-import { Trash2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import type { Asset } from './types';
 import { getThumbnail } from './utils/thumbnailCache';
 import { importFileToVault } from './utils/assetPath';
 import { getDragKind, queueExternalFilesToScene } from './utils/dragDrop';
 import './styles/App.css';
-
-function TrashZone({ isActive }: { isActive: boolean }) {
-  const { setNodeRef, isOver } = useDroppable({
-    id: 'trash-zone',
-    data: { type: 'trash' },
-  });
-
-  if (!isActive) return null;
-
-  return (
-    <div
-      ref={setNodeRef}
-      className={`trash-zone ${isOver ? 'over' : ''}`}
-    >
-      <Trash2 size={24} />
-      <span>Drop to remove</span>
-    </div>
-  );
-}
 
 function DndMonitorShim({ onDragStart }: { onDragStart: () => void }) {
   useDndMonitor({
@@ -47,28 +27,11 @@ function DndMonitorShim({ onDragStart }: { onDragStart: () => void }) {
   return null;
 }
 
-// Helper to check if other cuts reference the same asset
-function hasOtherCutsWithSameAsset(
-  scenes: Array<{ cuts: Array<{ id: string; assetId: string }> }>,
-  excludeCutId: string,
-  assetId: string
-): boolean {
-  for (const scene of scenes) {
-    for (const cut of scene.cuts) {
-      if (cut.id !== excludeCutId && cut.assetId === assetId) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
 function App() {
   const {
     projectLoaded,
     scenes,
     removeCut,
-    trashPath,
     vaultPath,
     selectedSceneId,
     getSelectedCutIds,
@@ -83,7 +46,6 @@ function App() {
     cacheAsset,
     updateCutAsset,
     createCutFromImport,
-    refreshAllSourceFolders,
     toggleAssetDrawer,
     sidebarOpen,
     toggleSidebar,
@@ -275,31 +237,6 @@ function App() {
     }
 
     const overData = over.data.current as { sceneId?: string; index?: number; type?: string; groupId?: string } | undefined;
-
-    // Handle trash drop - move file to .trash folder
-    if (overData?.type === 'trash' && activeData.type === 'cut' && activeData.sceneId) {
-      const cutId = active.id as string;
-      const cutToRemove = scenes.flatMap(s => s.cuts).find(c => c.id === cutId);
-
-      // Only move file to trash if no other cuts reference the same asset
-      const shouldDeleteFile = cutToRemove?.assetId &&
-        !hasOtherCutsWithSameAsset(scenes, cutId, cutToRemove.assetId);
-
-      const removedCut = removeCut(activeData.sceneId, cutId);
-
-      // Move file to trash if we have the API and no other cuts use this asset
-      if (shouldDeleteFile && removedCut?.asset?.path && trashPath && window.electronAPI?.vaultGateway) {
-        const assetId = removedCut.asset.id || removedCut.assetId;
-        await window.electronAPI.vaultGateway.moveToTrashWithMeta(removedCut.asset.path, trashPath, {
-          assetId,
-          originRefs: [{ sceneId: activeData.sceneId, cutId }],
-          reason: 'trash-drop',
-        });
-        // Refresh sidebar after moving to trash
-        refreshAllSourceFolders();
-      }
-      return;
-    }
 
     // Handle group drag - move all cuts in the group together
     if (activeData.type === 'group' && activeData.sceneId && activeData.cutIds && overData?.sceneId) {
@@ -648,7 +585,6 @@ function App() {
             <DetailsPanel />
           </div>
         </div>
-        <TrashZone isActive={activeType === 'cut'} />
         {showPreview && (
           <PreviewModal
             onClose={() => setShowPreview(false)}

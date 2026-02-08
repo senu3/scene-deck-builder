@@ -60,10 +60,10 @@ export interface AssetPanelProps {
   enableDragDrop?: boolean;     // drawer=true, modal=false
 }
 
-// Build a map of used assets from scenes and metadata
+// Build usage map from Storyline cuts only.
 export function buildUsedAssetsMap(
   scenes: Scene[],
-  metadataStore: MetadataStore | null
+  _metadataStore: MetadataStore | null
 ): Map<string, { count: number; type: 'cut' | 'audio' | 'both' }> {
   const used = new Map<string, { count: number; type: 'cut' | 'audio' | 'both' }>();
 
@@ -82,24 +82,34 @@ export function buildUsedAssetsMap(
     }
   }
 
-  // 2. Audio assets attached via metadata
-  if (metadataStore) {
-    for (const meta of Object.values(metadataStore.metadata)) {
-      if (meta.attachedAudioId) {
-        const existing = used.get(meta.attachedAudioId);
-        if (existing) {
-          if (existing.type === 'cut') {
-            existing.type = 'both';
-          }
-          existing.count += 1;
-        } else {
-          used.set(meta.attachedAudioId, { count: 1, type: 'audio' });
-        }
-      }
+  return used;
+}
+
+function buildLinkedAssetIds(metadataStore: MetadataStore | null): Set<string> {
+  const linked = new Set<string>();
+  if (!metadataStore) return linked;
+
+  for (const meta of Object.values(metadataStore.metadata)) {
+    if (meta.attachedAudioId) {
+      linked.add(meta.attachedAudioId);
     }
+
+    const lipSync = meta.lipSync;
+    if (!lipSync) continue;
+
+    linked.add(lipSync.baseImageAssetId);
+    for (const id of lipSync.variantAssetIds || []) {
+      linked.add(id);
+    }
+    for (const id of lipSync.compositedFrameAssetIds || []) {
+      linked.add(id);
+    }
+    if (lipSync.maskAssetId) linked.add(lipSync.maskAssetId);
+    if (lipSync.rmsSourceAudioAssetId) linked.add(lipSync.rmsSourceAudioAssetId);
+    if (lipSync.sourceVideoAssetId) linked.add(lipSync.sourceVideoAssetId);
   }
 
-  return used;
+  return linked;
 }
 
 // Get media type from filename
@@ -204,6 +214,10 @@ export default function AssetPanel({
   const usedAssetsMap = useMemo(
     () => buildUsedAssetsMap(scenes, metadataStore),
     [scenes, metadataStore]
+  );
+  const linkedAssetIds = useMemo(
+    () => buildLinkedAssetIds(metadataStore),
+    [metadataStore]
   );
 
   // Load asset index from .index.json
@@ -488,6 +502,15 @@ export default function AssetPanel({
       result = result.filter((a) => a.type === filterType);
     }
 
+    // In drawer mode, hide linked-only non-audio assets (e.g. LipSync generated images).
+    if (mode === 'drawer') {
+      result = result.filter((a) => {
+        if (a.type === 'audio') return true;
+        if (a.usageCount > 0) return true;
+        return !a.linkedAssetIds.some((id) => linkedAssetIds.has(id));
+      });
+    }
+
     // Apply sort
     switch (sortMode) {
       case 'name':
@@ -506,7 +529,7 @@ export default function AssetPanel({
     }
 
     return result;
-  }, [assets, searchQuery, filterType, sortMode]);
+  }, [assets, searchQuery, filterType, sortMode, mode, linkedAssetIds]);
 
   const findCutForAsset = useCallback((assetIds: string[]) => {
     const idSet = new Set(assetIds);
