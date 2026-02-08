@@ -14,7 +14,7 @@ import MaskPaintModal from "./MaskPaintModal";
 import { useStore } from "../store/useStore";
 import { useToast } from "../ui";
 import { generateAssetId } from "../utils/assetPath";
-import { importDataUrlAssetToVault } from "../utils/lipSyncUtils";
+import { getLipSyncFrameAssetIds, importDataUrlAssetToVault } from "../utils/lipSyncUtils";
 import { getMediaUrl } from "../utils/videoUtils";
 import { getThumbnail } from "../utils/thumbnailCache";
 import { useLipSyncPreview } from "../hooks/useLipSyncPreview";
@@ -48,6 +48,96 @@ const FRAME_PHASES = [
   { id: "half2", label: "Half 2", desc: "Normal / T2 ≤ RMS < T3" },
   { id: "open", label: "Open", desc: "Loud / RMS ≥ T3" },
 ] as const;
+
+async function loadImageElement(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
+    img.src = src;
+  });
+}
+
+async function imageSrcToDataUrl(src: string): Promise<string | null> {
+  try {
+    const img = await loadImageElement(src);
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth || img.width;
+    canvas.height = img.naturalHeight || img.height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/png");
+  } catch {
+    return null;
+  }
+}
+
+async function resolveAssetPreviewSource(asset: Asset): Promise<string | null> {
+  if (asset.thumbnail) return asset.thumbnail;
+  if (!asset.path) return null;
+  try {
+    return await getThumbnail(asset.path, "image");
+  } catch {
+    return null;
+  }
+}
+
+async function createCompositedFrameDataUrl(
+  baseSrc: string,
+  variantSrc: string,
+  maskSrc: string
+): Promise<string | null> {
+  try {
+    const [baseImg, variantImg, maskImg] = await Promise.all([
+      loadImageElement(baseSrc),
+      loadImageElement(variantSrc),
+      loadImageElement(maskSrc),
+    ]);
+
+    const width = baseImg.naturalWidth || baseImg.width;
+    const height = baseImg.naturalHeight || baseImg.height;
+    if (!width || !height) return null;
+
+    const outputCanvas = document.createElement("canvas");
+    outputCanvas.width = width;
+    outputCanvas.height = height;
+    const outputCtx = outputCanvas.getContext("2d");
+    if (!outputCtx) return null;
+    outputCtx.drawImage(baseImg, 0, 0, width, height);
+
+    const variantCanvas = document.createElement("canvas");
+    variantCanvas.width = width;
+    variantCanvas.height = height;
+    const variantCtx = variantCanvas.getContext("2d");
+    if (!variantCtx) return null;
+    variantCtx.drawImage(variantImg, 0, 0, width, height);
+
+    const maskCanvas = document.createElement("canvas");
+    maskCanvas.width = width;
+    maskCanvas.height = height;
+    const maskCtx = maskCanvas.getContext("2d");
+    if (!maskCtx) return null;
+    maskCtx.drawImage(maskImg, 0, 0, width, height);
+
+    const variantData = variantCtx.getImageData(0, 0, width, height);
+    const maskData = maskCtx.getImageData(0, 0, width, height);
+    const variantPixels = variantData.data;
+    const maskPixels = maskData.data;
+
+    for (let i = 0; i < variantPixels.length; i += 4) {
+      const maskValue = maskPixels[i];
+      variantPixels[i + 3] = Math.round((variantPixels[i + 3] * maskValue) / 255);
+    }
+
+    variantCtx.putImageData(variantData, 0, 0);
+    outputCtx.drawImage(variantCanvas, 0, 0, width, height);
+    return outputCanvas.toDataURL("image/png");
+  } catch {
+    return null;
+  }
+}
 
 export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSyncModalProps) {
   const { vaultPath, metadataStore, setLipSyncForAsset, cacheAsset, updateCutLipSync, getAsset } = useStore();
@@ -115,12 +205,14 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
   const FRAME_STEP = 1 / 30;
 
   const getFrameValue = (key: keyof FrameData): string | null => {
-    if (isVideo) return frames[key];
-    return framePreviews[key];
+    return frames[key] || framePreviews[key];
   };
 
   // Captured frame count
-  const capturedCount = Object.values(isVideo ? frames : frameAssetIds).filter(Boolean).length;
+  const capturedCount = Math.max(
+    Object.values(frameAssetIds).filter(Boolean).length,
+    Object.values(frames).filter(Boolean).length
+  );
   const allFramesCaptured = capturedCount === 4;
 
   useEffect(() => {
@@ -156,10 +248,7 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
         return;
       }
 
-      const frameAssetIds = [
-        lipSyncSettings.baseImageAssetId,
-        ...lipSyncSettings.variantAssetIds,
-      ];
+      const frameAssetIds = getLipSyncFrameAssetIds(lipSyncSettings);
       const sources: string[] = [];
 
       for (const frameAssetId of frameAssetIds) {
@@ -190,6 +279,59 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
       isActive = false;
     };
   }, [lipSyncSettings, getAsset, asset.thumbnail]);
+
+  useEffect(() => {
+    let isActive = true;
+    const loadExistingSettings = async () => {
+      if (!lipSyncSettings) return;
+
+      const frameIds = getLipSyncFrameAssetIds(lipSyncSettings).slice(0, 4);
+      const slots: (keyof FrameData)[] = ["closed", "half1", "half2", "open"];
+      const nextFrameAssetIds: FrameAssetData = { closed: null, half1: null, half2: null, open: null };
+      const nextFramePreviews: FrameData = { closed: null, half1: null, half2: null, open: null };
+      const nextFrames: FrameData = { closed: null, half1: null, half2: null, open: null };
+
+      for (let i = 0; i < frameIds.length; i++) {
+        const frameAssetId = frameIds[i];
+        const slot = slots[i];
+        if (!frameAssetId || !slot) continue;
+        nextFrameAssetIds[slot] = frameAssetId;
+
+        const frameAsset = getAsset(frameAssetId);
+        if (!frameAsset) continue;
+        const preview = await resolveAssetPreviewSource(frameAsset);
+        if (preview) {
+          nextFramePreviews[slot] = preview;
+        }
+        const dataUrl = await imageSrcToDataUrl(frameAsset.path ? getMediaUrl(frameAsset.path) : (preview || ""));
+        if (dataUrl) {
+          nextFrames[slot] = dataUrl;
+        }
+      }
+
+      let existingMaskDataUrl: string | null = null;
+      if (lipSyncSettings.maskAssetId) {
+        const maskAsset = getAsset(lipSyncSettings.maskAssetId);
+        if (maskAsset) {
+          const maskPreview = await resolveAssetPreviewSource(maskAsset);
+          existingMaskDataUrl = await imageSrcToDataUrl(maskAsset.path ? getMediaUrl(maskAsset.path) : (maskPreview || ""));
+        }
+      }
+
+      if (!isActive) return;
+      setFrameAssetIds(nextFrameAssetIds);
+      setFramePreviews(nextFramePreviews);
+      setFrames(nextFrames);
+      setThresholds(lipSyncSettings.thresholds);
+      setMaskDataUrl(existingMaskDataUrl);
+      setActiveFrameSlot(null);
+    };
+
+    void loadExistingSettings();
+    return () => {
+      isActive = false;
+    };
+  }, [lipSyncSettings, getAsset]);
 
   const handleVideoTimeUpdate = () => {
     if (videoRef.current) {
@@ -287,6 +429,14 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
     setThresholds((prev) => ({ ...prev, [key]: value }));
   };
 
+  const resolveFrameDataUrlFromAssetId = async (frameAssetId: string): Promise<string | null> => {
+    const frameAsset = getAsset(frameAssetId);
+    if (!frameAsset) return null;
+    const src = frameAsset.path ? getMediaUrl(frameAsset.path) : frameAsset.thumbnail || "";
+    if (!src) return null;
+    return imageSrcToDataUrl(src);
+  };
+
   const handleRegister = async () => {
     if (!vaultPath) {
       toast.error("Lip Sync registration failed", "Vault path is not set.");
@@ -317,17 +467,31 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
     let baseImageAssetId = "";
     let variantAssetIds: string[] = [];
     let maskAssetId: string | undefined;
+    let compositedFrameAssetIds: string[] | undefined;
+    let frameSourceDataUrls: string[] = [];
 
     if (isVideo) {
-      const missing = frameEntries.find((entry) => !entry.dataUrl);
-      if (missing) {
-        toast.warning("Missing frame", `Please capture the "${missing.label}" frame.`);
-        return;
+      const resolvedVideoFrameDataUrls: string[] = [];
+      for (const entry of frameEntries) {
+        if (entry.dataUrl) {
+          resolvedVideoFrameDataUrls.push(entry.dataUrl);
+          continue;
+        }
+        const existingFrameAssetId = frameAssetIds[entry.key];
+        const fallbackDataUrl = existingFrameAssetId
+          ? await resolveFrameDataUrlFromAssetId(existingFrameAssetId)
+          : null;
+        if (!fallbackDataUrl) {
+          toast.warning("Missing frame", `Please capture the "${entry.label}" frame.`);
+          return;
+        }
+        resolvedVideoFrameDataUrls.push(fallbackDataUrl);
       }
 
       const importedAssets: Asset[] = [];
-      for (const entry of frameEntries) {
-        const dataUrl = entry.dataUrl!;
+      for (let i = 0; i < frameEntries.length; i++) {
+        const entry = frameEntries[i];
+        const dataUrl = resolvedVideoFrameDataUrls[i];
         const assetId = generateAssetId();
         const name = `${asset.name}_${entry.label}`;
         const imported = await importDataUrlAssetToVault(dataUrl, vaultPath, assetId, name);
@@ -342,6 +506,7 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
       const [baseAsset, ...variantAssets] = importedAssets;
       baseImageAssetId = baseAsset.id;
       variantAssetIds = variantAssets.map((item) => item.id);
+      frameSourceDataUrls = resolvedVideoFrameDataUrls;
     } else {
       const frameIds = [
         frameAssetIds.closed,
@@ -356,6 +521,19 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
       }
       baseImageAssetId = frameIds[0]!;
       variantAssetIds = frameIds.slice(1) as string[];
+
+      const selectedFrameDataUrls = await Promise.all(
+        frameIds.map((frameId) => resolveFrameDataUrlFromAssetId(frameId as string))
+      );
+      const missingUrlIndex = selectedFrameDataUrls.findIndex((url) => !url);
+      if (missingUrlIndex >= 0) {
+        toast.error(
+          "Lip Sync registration failed",
+          `Failed to load "${FRAME_PHASES[missingUrlIndex].label}" frame source image.`
+        );
+        return;
+      }
+      frameSourceDataUrls = selectedFrameDataUrls as string[];
     }
 
     if (maskDataUrl) {
@@ -367,17 +545,51 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
       }
       cacheAsset(maskAsset);
       maskAssetId = maskAsset.id;
+
+      const baseSource = frameSourceDataUrls[0];
+      const compositedDataUrls = await Promise.all(
+        frameSourceDataUrls.map((variantSource) => createCompositedFrameDataUrl(baseSource, variantSource, maskDataUrl))
+      );
+      const missingCompositeIndex = compositedDataUrls.findIndex((dataUrl) => !dataUrl);
+      if (missingCompositeIndex >= 0) {
+        toast.error(
+          "Lip Sync registration failed",
+          `Failed to precompose "${FRAME_PHASES[missingCompositeIndex].label}" frame with mask.`
+        );
+        return;
+      }
+
+      const importedCompositedAssets: Asset[] = [];
+      for (let i = 0; i < compositedDataUrls.length; i++) {
+        const compositedDataUrl = compositedDataUrls[i]!;
+        const compositedId = generateAssetId();
+        const compositedName = `${asset.name}_${FRAME_PHASES[i].label}_Masked`;
+        const importedComposited = await importDataUrlAssetToVault(
+          compositedDataUrl,
+          vaultPath,
+          compositedId,
+          compositedName
+        );
+        if (!importedComposited) {
+          toast.error("Lip Sync registration failed", `Failed to import "${FRAME_PHASES[i].label}" masked frame.`);
+          return;
+        }
+        cacheAsset(importedComposited);
+        importedCompositedAssets.push(importedComposited);
+      }
+      compositedFrameAssetIds = importedCompositedAssets.map((item) => item.id);
     }
 
     setLipSyncForAsset(asset.id, {
       baseImageAssetId,
       variantAssetIds,
       maskAssetId,
+      compositedFrameAssetIds,
       rmsSourceAudioAssetId: attachedAudioId,
       thresholds,
       fps: 60,
       sourceVideoAssetId: isVideo ? asset.id : undefined,
-      version: 1,
+      version: compositedFrameAssetIds ? 2 : 1,
     });
 
     if (cutId) {
@@ -391,8 +603,8 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
 
   // Open mask editor - requires a base image (closed frame or thumbnail for testing)
   const handleOpenMaskEditor = () => {
-    // Use the closed frame as base image, or fall back to thumbnail for testing
-    const baseFrame = frames.closed || asset.thumbnail;
+    // Use selected/captured closed frame as base image, or fall back to thumbnail for testing
+    const baseFrame = getFrameValue("closed") || asset.thumbnail;
     if (!baseFrame) {
       alert("No base image available. Please capture the 'Closed' frame or ensure asset has a thumbnail.");
       return;
@@ -556,7 +768,7 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
                   <div
                     key={phase.id}
                     className={`progress-dot ${
-                      frames[phase.id] ? "filled" : ""
+                      getFrameValue(phase.id as keyof FrameData) ? "filled" : ""
                     } ${activeFrameSlot === phase.id ? "current" : ""}`}
                   />
                 ))}
@@ -578,7 +790,7 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
                     key={phase.id}
                     className={`lipsync-frame-slot ${
                       activeFrameSlot === phase.id ? "active" : ""
-                    } ${frames[phase.id] ? "captured" : ""}`}
+                    } ${getFrameValue(phase.id as keyof FrameData) ? "captured" : ""}`}
                     onClick={() => handleFrameSlotClick(phase.id as keyof FrameData)}
                   >
                     <div className="frame-preview">
@@ -612,7 +824,7 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
                       <button
                         className="mask-edit-btn"
                         onClick={handleOpenMaskEditor}
-                        disabled={!frames.closed && !asset.thumbnail}
+                        disabled={!getFrameValue("closed") && !asset.thumbnail}
                       >
                         Edit Mask
                       </button>
@@ -622,16 +834,16 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
                   <button
                     className="lipsync-create-mask-btn"
                     onClick={handleOpenMaskEditor}
-                    disabled={!frames.closed && !asset.thumbnail}
+                    disabled={!getFrameValue("closed") && !asset.thumbnail}
                   >
                     <Brush size={16} />
                     Create Mouth Mask
                   </button>
                 )}
-                {!frames.closed && !asset.thumbnail && (
+                {!getFrameValue("closed") && !asset.thumbnail && (
                   <p className="mask-hint">Capture "Closed" frame first</p>
                 )}
-                {!frames.closed && asset.thumbnail && (
+                {!getFrameValue("closed") && asset.thumbnail && (
                   <p className="mask-hint">Using thumbnail as base (dev mode)</p>
                 )}
               </div>
@@ -704,9 +916,9 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
       </div>
 
       {/* Mask Paint Modal */}
-      {showMaskEditor && (frames.closed || asset.thumbnail) && (
+      {showMaskEditor && (getFrameValue("closed") || asset.thumbnail) && (
         <MaskPaintModal
-          baseImage={frames.closed || asset.thumbnail!}
+          baseImage={getFrameValue("closed") || asset.thumbnail!}
           imageWidth={baseImageSize.width}
           imageHeight={baseImageSize.height}
           existingMask={maskDataUrl || undefined}

@@ -193,11 +193,12 @@ export interface LipSyncSettings {
   baseImageAssetId: string;     // Closed frame (base)
   variantAssetIds: string[];    // [half1, half2, open]
   maskAssetId?: string;         // Optional mouth mask
+  compositedFrameAssetIds?: string[]; // Optional precomposited [closed, half1, half2, open]
   rmsSourceAudioAssetId: string; // Audio asset used for RMS
   thresholds: { t1: number; t2: number; t3: number };
   fps: number;
   sourceVideoAssetId?: string;  // Source video asset for edit preview
-  version?: 1;
+  version?: 1 | 2;
 }
 
 // Metadata store (file structure)

@@ -6,6 +6,7 @@ import { createVideoObjectUrl } from '../utils/videoUtils';
 import { formatTime, cyclePlaybackSpeed } from '../utils/timeUtils';
 import { AudioManager } from '../utils/audioUtils';
 import { createImageMediaSource, createLipSyncImageMediaSource, createVideoMediaSource } from '../utils/previewMedia';
+import { getLipSyncFrameAssetIds } from '../utils/lipSyncUtils';
 import { useSequencePlaybackController } from '../utils/previewPlaybackController';
 import { getThumbnail } from '../utils/thumbnailCache';
 import {
@@ -891,7 +892,7 @@ export default function PreviewModal({
         displayTime: resolvedDisplayTime,
         order: 0,
         isLipSync: !!lipSyncSettings,
-        lipSyncFrameCount: lipSyncSettings ? 1 + lipSyncSettings.variantAssetIds.length : undefined,
+        lipSyncFrameCount: lipSyncSettings ? getLipSyncFrameAssetIds(lipSyncSettings).length : undefined,
       };
 
       setItems([{
@@ -922,7 +923,8 @@ export default function PreviewModal({
         let thumbnail: string | null = cutAsset.thumbnail || null;
 
         if (lipSyncSettings) {
-          const baseAsset = getAsset(lipSyncSettings.baseImageAssetId);
+          const firstFrameAssetId = getLipSyncFrameAssetIds(lipSyncSettings)[0];
+          const baseAsset = firstFrameAssetId ? getAsset(firstFrameAssetId) : undefined;
           if (baseAsset?.thumbnail) {
             thumbnail = baseAsset.thumbnail;
           } else if (baseAsset?.path) {
@@ -979,7 +981,8 @@ export default function PreviewModal({
           let thumbnail: string | null = cutAsset?.thumbnail || null;
 
           if (lipSyncSettings) {
-            const baseAsset = getAsset(lipSyncSettings.baseImageAssetId);
+            const firstFrameAssetId = getLipSyncFrameAssetIds(lipSyncSettings)[0];
+            const baseAsset = firstFrameAssetId ? getAsset(firstFrameAssetId) : undefined;
             if (baseAsset?.thumbnail) {
               thumbnail = baseAsset.thumbnail;
             } else if (baseAsset?.path) {
@@ -1310,8 +1313,7 @@ export default function PreviewModal({
       let isActive = true;
       const loadLipSyncSources = async () => {
         const frameAssetIds = [
-          lipSyncSettings.baseImageAssetId,
-          ...lipSyncSettings.variantAssetIds,
+          ...getLipSyncFrameAssetIds(lipSyncSettings),
         ];
 
         const sources: string[] = [];

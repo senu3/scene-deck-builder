@@ -35,6 +35,7 @@ import {
 } from "../store/commands";
 import { getThumbnail } from "../utils/thumbnailCache";
 import { extractVideoMetadata } from "../utils/videoUtils";
+import { getLipSyncFrameAssetIds } from "../utils/lipSyncUtils";
 import { importFileToVault } from "../utils/assetPath";
 // Note: getAudioDuration was removed - duration comes from asset.duration after import
 import PreviewModal from "./PreviewModal";
@@ -247,10 +248,7 @@ export default function DetailsPanel() {
 
       if (!lipSyncSettings) return;
 
-      const frameAssetIds = [
-        lipSyncSettings.baseImageAssetId,
-        ...lipSyncSettings.variantAssetIds,
-      ];
+      const frameAssetIds = getLipSyncFrameAssetIds(lipSyncSettings);
 
       const sources: string[] = [];
       for (const frameAssetId of frameAssetIds) {
@@ -284,7 +282,7 @@ export default function DetailsPanel() {
   }, [lipSyncSettings, getAsset, thumbnail]);
 
   const lipSyncFrameLabels = (() => {
-    const count = lipSyncFrames.length || (lipSyncSettings ? 1 + lipSyncSettings.variantAssetIds.length : 0);
+    const count = lipSyncFrames.length || (lipSyncSettings ? getLipSyncFrameAssetIds(lipSyncSettings).length : 0);
     if (count === 4) return ["Closed", "Half 1", "Half 2", "Open"];
     if (count <= 0) return [];
     return Array.from({ length: count }, (_, index) => (index === 0 ? "Base" : `Frame ${index + 1}`));

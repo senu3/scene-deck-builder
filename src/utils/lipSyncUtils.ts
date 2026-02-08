@@ -77,11 +77,18 @@ export function buildLipSyncSources(
   assetMap: Map<string, Asset>,
   thumbnailMap: Map<string, string>
 ): string[] {
-  const ids = [settings.baseImageAssetId, ...settings.variantAssetIds];
+  const ids = getLipSyncFrameAssetIds(settings);
   return ids.map((id, index) => {
     const cached = thumbnailMap.get(id);
     if (cached) return cached;
     const asset = assetMap.get(id);
     return asset?.thumbnail || (index === 0 ? asset?.thumbnail || '' : '');
   });
+}
+
+export function getLipSyncFrameAssetIds(settings: LipSyncSettings): string[] {
+  if (Array.isArray(settings.compositedFrameAssetIds) && settings.compositedFrameAssetIds.length > 0) {
+    return settings.compositedFrameAssetIds;
+  }
+  return [settings.baseImageAssetId, ...settings.variantAssetIds];
 }
