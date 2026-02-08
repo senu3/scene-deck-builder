@@ -11,6 +11,7 @@
 
 ### Single Mode
 - Activated when `PreviewModal` receives a single `asset` prop.
+- In Storyline, video cut preview is opened via `openVideoPreview(cutId)` and always enters Single Mode.
 - Video: uses direct `<video>` rendering with per-element handlers.
 - Image: uses the Sequence playback engine (`useSequencePlaybackController` + `createImageMediaSource`) even in Single Mode.
 - Image display time resolves from metadata (`displayTime`) and falls back to `1.0s` (clamped to `>= 0.1s`).
@@ -21,6 +22,7 @@
 
 ### Sequence Mode
 - Activated when no single `asset` is provided.
+- In Storyline, non-video cut preview (image/lipsync) is opened via `openSequencePreview(cutId)`.
 - Builds `PreviewItem[]` from cuts, then drives playback through a controller.
 - Uses `useSequencePlaybackController` to unify play/pause/seek/loop/range/buffering state.
 - Each cut creates a `MediaSource`.

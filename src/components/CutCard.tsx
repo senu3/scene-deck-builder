@@ -50,6 +50,7 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden }: C
     canPaste,
     pasteCuts,
     vaultPath,
+    openVideoPreview,
     openSequencePreview,
     metadataStore,
     getCutGroup,
@@ -160,9 +161,13 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden }: C
 
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // Open sequence-mode preview for the selected cut
+    // Video cuts use Single Mode preview. Image/lipsync cuts use Sequence Mode.
     if (asset) {
-      openSequencePreview(cut.id);
+      if (asset.type === 'video') {
+        openVideoPreview(cut.id);
+      } else {
+        openSequencePreview(cut.id);
+      }
     }
   };
 
