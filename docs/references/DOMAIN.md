@@ -7,6 +7,36 @@
 
 > 注意: 本書は用語の正本です。重複説明は最小にし、他ドキュメントは本書を参照します。
 
+## Pre-Export Naming Conventions (Interim)
+
+- 軸の命名は次で固定する:
+  - 編集軸: `StoryTimeline`
+  - 再生軸: public `useSequencePlaybackController` / internal `SequenceClock`
+  - 出力軸(暫定): `RenderSequence` / 実行制御 `ExportRunner`
+- `MediaSource` は Web API 名と衝突しやすいため、docsでは「Preview向けの app-specific abstraction」を明記する。
+- `source` は文脈ごとに分離する:
+  - UI状態: `SourcePanel`
+  - ファイル由来パス: `ImportSourcePath`（または `OriginPath`）
+
+## High-Risk Term Disambiguation
+
+- `Scene` / `Storyline` / `StoryTimeline`
+  - `Scene`: データモデル単位
+  - `Storyline`: 編集UI
+  - `StoryTimeline`: 編集軸の概念名
+- `Preview` / `PreviewModal` / `PreviewMode`
+  - `Preview`: 機能ドメイン名（再生機能）
+  - `PreviewModal`: 画面コンポーネント名
+  - `PreviewMode`: 状態値（`scene` / `all`）
+- `Metadata Store` / `AssetMetadata` / `SceneMetadata`
+  - `Metadata Store`: `.metadata.json` 全体
+  - `AssetMetadata` / `SceneMetadata`: エントリ型
+- `Asset Index` / `Asset Reference Graph`
+  - `Asset Index`: 永続インデックス（`assets/.index.json`）
+  - `Asset Reference Graph`: 実行時に計算される参照集合
+- `Controller`
+  - 編集文脈は `DragController`、再生文脈は `PlaybackController` / `SequenceClock` を優先する。
+
 ## Core Data Model
 
 | 用語 | 定義 | 境界（含む / 含まない） | 主要操作 | 関連TS型 / ファイル |
@@ -37,7 +67,8 @@
 | **プレビュー** | `PreviewModal` が単体/シーケンス再生を行う。 | **含む:** Single/Sequence モードと再生 UI。 | **起動:** `CutCard`。 | `PreviewModal.tsx` |
 | **プレビュー項目** | `PreviewItem` は Sequence 用の派生構造体。 | **含む:** cut/sceneName/thumbnail。 | **構築:** `PreviewModal` 内で生成。 | `PreviewModal.tsx` |
 | **プレビュー制御** | public APIは `useSequencePlaybackController`、内部概念は `SequenceClock` として再生状態を管理。 | **含む:** currentIndex/localProgress/range/loop/buffering。 | **操作:** `setSource/seek/skip` 等。 | `PlaybackState`、`previewPlaybackController.ts` |
-| **メディアソース** | `MediaSource` は Video/Image を共通化する抽象。 | **含む:** play/pause/seek/setRate/getCurrentTime/dispose と JSX 要素。 | **生成:** `createVideoMediaSource` / `createImageMediaSource`。 | `previewMedia.tsx` |
+| **プレビューメディアソース** | `MediaSource` は Preview再生専用の app-specific abstraction（Web APIの `MediaSource` とは別）。 | **含む:** play/pause/seek/setRate/getCurrentTime/dispose と JSX 要素。 | **生成:** `createVideoMediaSource` / `createImageMediaSource`。 | `previewMedia.tsx` |
+| **レンダーシーケンス（暫定）** | Export向けの出力軸。再生軸とは分離して扱う。 | **含む:** Export時の時間進行と素材列。**含まない:** Preview再生状態。 | **実行制御:** `ExportRunner`（命名暫定）。 | （Export実装で確定） |
 
 ## Vault / Sync
 

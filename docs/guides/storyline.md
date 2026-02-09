@@ -1,0 +1,47 @@
+# Storyline Guide
+
+**目的**: `Storyline` と `useStorylineDragController` の仕様と運用ルールを整理する。
+**適用範囲**: `src/components/Storyline.tsx`, `src/hooks/useStorylineDragController.ts`, `src/components/CutCard.tsx`, `src/components/SceneDurationBar.tsx`。
+**関連ファイル**: `docs/references/DOMAIN.md`, `docs/references/MAPPING.md`, `docs/ui/scene-duration-bar.md`, `docs/guides/preview.md`。
+**更新頻度**: 中。
+
+## Naming Boundaries (Must Follow)
+- `Storyline`: 編集UI。
+- `StoryTimeline`: 編集軸の概念名（UI名ではない）。
+- `SceneDurationBar`: `StoryTimeline` を要約表示するHeader UI。
+- `Preview`: 再生機能ドメイン。
+- `PreviewModal`: 再生UIコンポーネント。
+- `PreviewMode`: 再生状態値（`scene` / `all`）。
+- 再生制御の命名は public `useSequencePlaybackController` / internal `SequenceClock` を使う。
+
+## Core Responsibilities
+- Handles drag-and-drop interactions for cuts and external file drops.
+- Manages placeholder state for cross-scene moves and external drops.
+- Creates new cuts for external assets using `createCutFromImport`.
+- `Storyline` is the primary inbound drop handler for scene-targeted drops.
+- `App` keeps a workspace-level fallback drop handler for drops outside scene columns (imports to selected/first scene).
+
+## Preview Routing Rules
+- Storyline cut double-click uses media type routing.
+- Video cuts open Single Mode preview via `openVideoPreview(cut.id)`.
+- Non-video cuts (image/lipsync) open Sequence Mode preview via `openSequencePreview(cut.id)`.
+
+## External D&D Rules
+- StoryTimeline/Storyline drop targets accept image/video assets.
+- Audio files are excluded from StoryTimeline/Storyline external D&D targets.
+- Unsupported external payloads do not create cuts.
+
+## Interaction Performance Notes
+- During native drag, `closeDetailsPanel()` is triggered once on drag-enter (not every drag-over event) to avoid repeated store updates and re-renders.
+- External file drops are queued sequentially in `queueExternalFilesToScene` so multi-file imports do not burst heavy work at once.
+- Each queued import yields back to the event loop between items (`setTimeout(..., 0)`) to preserve drag/scroll responsiveness.
+- Drop handlers prioritize immediate UI return; long-running import/thumbnail/vault work continues asynchronously via loading cuts.
+
+## Scroll Ownership
+- `Storyline` owns scene scrolling and follows `selectedSceneId`.
+- `SceneDurationBar` only emits scene selection events; it does not control Storyline DOM directly.
+
+## Disambiguation Notes
+- `Scene` is a data unit; `Storyline` is the editing UI that renders scenes.
+- `SceneDurationBar` is not a playback timeline. It summarizes edit-axis duration only.
+- Preview route switching (`openVideoPreview` / `openSequencePreview`) is playback behavior and must not rename editing-axis concepts.

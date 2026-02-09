@@ -7,6 +7,7 @@
 
 > TODO: UI変更に合わせた文言の更新は必要になりうる。
 > 命名方針: public APIは `useSequencePlaybackController`、内部概念名は `SequenceClock` を使う。
+> 用語注意: 本ガイドの `MediaSource` は Preview向け app-specific abstraction を指し、Web APIの `MediaSource` とは別。
 
 ## Modes
 
@@ -31,7 +32,7 @@
 - Image: `createImageMediaSource`.
 - Cut changes are triggered by `onEnded` from the current `MediaSource`.
 
-## Media Source Abstraction
+## Preview Media Source Abstraction
 `MediaSource` provides a common interface:
 - `play()` / `pause()`
 - `seek(localTimeSec)`

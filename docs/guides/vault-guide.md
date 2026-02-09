@@ -20,6 +20,7 @@ JSON + Vault must be enough to restore:
 - `assets/.index.json` is the canonical index and must always be updated.
 - `assetId -> filename` mapping is always stored in `.index.json` (even for duplicates).
 - `originalPath` is vault-relative (relative to vault root), not absolute.
+- Naming note: `SourcePanel` (UI state) and file-origin paths must be written separately in docs (`ImportSourcePath` / `OriginPath`).
 
 ## `.index.json` (Asset Index)
 Each entry stores:

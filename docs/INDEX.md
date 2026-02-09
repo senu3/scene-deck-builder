@@ -15,6 +15,7 @@
 - `docs/references/DOMAIN.md`
 - `docs/references/MAPPING.md`
 - `docs/guides/preview.md`
+- `docs/guides/storyline.md`
 - `docs/guides/media-handling.md`
 - `docs/guides/buffer-guide.md`
 - `docs/guides/vault-guide.md`
@@ -25,6 +26,7 @@
 - `docs/ui/color-system.md`
 - `docs/ui/scene-duration-bar.md`
 - `docs/notes/autosave-toast-notes.md`
+- `docs/notes/export-naming-plan.md`（Export実装時に参照）
 
 ## 追加時のルール
 - 追加・更新ルールは `docs/DOCS_GUIDE.md` を参照。

@@ -25,7 +25,9 @@
 | ストーリーライン | （専用TS型なし）Scene/Cut構造（編集軸: `StoryTimeline`）。 | D&D・外部投入・vault 取込（主処理は `Storyline`、ワークスペース全体に `App` フォールバックあり）。 | `Storyline`、`SceneDurationBar`、`App` |
 | プレビュー | `PreviewMode`（scene/all）。 | `setPreviewMode`。 | `PreviewModal` |
 | プレビュー制御 | `PlaybackState`。 | public: `useSequencePlaybackController` / internal concept: `SequenceClock`。 | `PreviewModal` |
-| メディアソース | `MediaSource`。 | `createVideoMediaSource` / `createImageMediaSource`。 | `PreviewModal` |
+| プレビューメディアソース | `MediaSource`（Preview専用 abstraction）。 | `createVideoMediaSource` / `createImageMediaSource`。 | `PreviewModal` |
+| 出力軸（暫定） | `RenderSequence`（命名暫定）。 | 実行制御 `ExportRunner`（命名暫定）。 | `ExportModal`（実装時に確定） |
 | カット可能メディア判定 | `CuttableMediaType`（`image`/`video`）。 | `getCuttableMediaType`（新規） / `getTimelineMediaType`（互換エイリアス・移行中）。 | `Sidebar`、`StartupModal`、`dragDrop` |
 | ソースパネル状態 | `SourcePanelState` / `SourceViewMode`。 | `initializeSourcePanel` / `getSourcePanelState`（`Project.sourcePanel` に保存）。 | `Sidebar` |
+| ソース由来パス規約 | `ImportSourcePath` / `OriginPath`（docs規約）。 | `SourcePanel`（UI）とは別概念として記述。 | guides で適用 |
 | アプリメニュー（ネイティブ） | （専用TS型なし） | `electron/preload.ts`（IPC橋渡し） | `electron/main.ts`（Menu定義＋set）/ `App.tsx`（`onToggleSidebar` 購読） |

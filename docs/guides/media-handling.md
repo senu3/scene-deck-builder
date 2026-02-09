@@ -6,6 +6,7 @@
 **更新頻度**: 中。
 
 > 仮: 実装は進行中のため、詳細はコード参照が正。
+> 用語注意: 本ガイドの `MediaSource` は Preview向け app-specific abstraction を指し、Web APIの `MediaSource` とは別。
 
 ## Video
 - Playback
