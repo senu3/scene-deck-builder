@@ -122,7 +122,7 @@ Notes
 
 ### Timeline Scene Colors
 
-Scene segments in TimelineBar and Storyline cycle through these tokens:
+Scene segments in SceneDurationBar and Storyline cycle through these tokens:
 
 | Token | Mapped Accent | Color |
 |-------|---------------|-------|

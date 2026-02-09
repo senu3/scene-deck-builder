@@ -1,5 +1,5 @@
-export { TimelineMarkers } from './TimelineMarkers';
-export type { FocusedMarker } from './TimelineMarkers';
+export { PlaybackRangeMarkers } from './PlaybackRangeMarkers';
+export type { FocusedMarker } from './PlaybackRangeMarkers';
 export { ClipRangeControls } from './ClipRangeControls';
 export { VolumeControl } from './VolumeControl';
 export { PlaybackSpeedControl } from './PlaybackSpeedControl';

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import type { Scene } from '../types';
-import { formatTimeCode } from '../hooks/useTimelinePosition';
-import styles from './TimelineBar.module.css';
+import { formatTimeCode } from '../hooks/useStoryTimelinePosition';
+import styles from './SceneDurationBar.module.css';
 
 // Scene color palette - cycles through for each scene
 const SCENE_COLORS = [
@@ -14,13 +14,13 @@ const SCENE_COLORS = [
 
 const getSceneColor = (index: number) => SCENE_COLORS[index % SCENE_COLORS.length];
 
-interface TimelineBarProps {
+interface SceneDurationBarProps {
   scenes: Scene[];
   selectedSceneId: string | null;
   onSelectScene: (sceneId: string) => void;
 }
 
-export default function TimelineBar({ scenes, selectedSceneId, onSelectScene }: TimelineBarProps) {
+export default function SceneDurationBar({ scenes, selectedSceneId, onSelectScene }: SceneDurationBarProps) {
   const sceneDurations = useMemo(
     () =>
       scenes.map((scene) =>
@@ -37,14 +37,14 @@ export default function TimelineBar({ scenes, selectedSceneId, onSelectScene }: 
 
   if (scenes.length === 0) {
     return (
-      <div className={styles.timelineBar} aria-label="Timeline">
+      <div className={styles.timelineBar} aria-label="Scene duration bar">
         <div className={styles.empty}>No scenes</div>
       </div>
     );
   }
 
   return (
-    <div className={styles.timelineBar} role="list" aria-label="Timeline">
+    <div className={styles.timelineBar} role="list" aria-label="Scene duration bar">
       {scenes.map((scene, index) => {
         const duration = sceneDurations[index];
         const isSelected = selectedSceneId === scene.id;

@@ -1,5 +1,5 @@
 import { Repeat } from 'lucide-react';
-import './timeline-common.css';
+import './playback-controls.css';
 
 interface LoopToggleProps {
   isLooping: boolean;

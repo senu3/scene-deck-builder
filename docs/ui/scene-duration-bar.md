@@ -1,8 +1,8 @@
-# Storyline Controller & TimelineBar
+# Storyline Controller & SceneDurationBar
 
-**目的**: StorylineのD&D制御とTimelineBarの役割を整理する。
-**適用範囲**: `Storyline` / `useStorylineDragController` / `TimelineBar`。
-**関連ファイル**: `src/components/Storyline.tsx`, `src/hooks/useStorylineDragController.ts`, `src/components/TimelineBar.tsx`。
+**目的**: StorylineのD&D制御とSceneDurationBarの役割を整理する。
+**適用範囲**: `Storyline` / `useStorylineDragController` / `SceneDurationBar`。
+**関連ファイル**: `src/components/Storyline.tsx`, `src/hooks/useStorylineDragController.ts`, `src/components/SceneDurationBar.tsx`。
 **更新頻度**: 中。
 
 > TODO: UI設計が固まったら表現の調整が必要。
@@ -37,16 +37,17 @@
 - `useStorylineDragController` receives `executeCommand` for undo/redo integration and `createCutFromImport` for import flows.
 - `createCutFromImport` no longer refreshes all source folders per item; caller-side bulk flows should refresh explicitly only when needed.
 
-## TimelineBar
+## SceneDurationBar
 
 **Location**
-- `src/components/TimelineBar.tsx`
-- `src/components/TimelineBar.module.css`
+- `src/components/SceneDurationBar.tsx`
+- `src/components/SceneDurationBar.module.css`
 
 **Purpose**
 - Replaces `SceneChipBar` as the primary scene navigation in the Header.
 - Shows per-scene segments sized by scene duration.
 - Clicking a segment selects the scene; Storyline handles scrolling.
+- `SceneDurationBar` is a UI for the edit axis (`StoryTimeline`) and does not represent preview playback time.
 
 **Props / API**
 - `scenes: Scene[]`
@@ -80,15 +81,15 @@ The Header displays project statistics alongside the action buttons.
 - Current position: cyan (`--accent-primary`), monospace, bold — shows timeline start time of the selected cut.
 - Total duration: secondary text (`--text-secondary`), monospace.
 - When no cut is selected: current position shows `--`.
-- Format uses `formatTimeCode()` from `useTimelinePosition`.
+- Format uses `formatTimeCode()` from `useStoryTimelinePosition`.
 
 **Header Background**
 - Uses depth gradient: `linear-gradient(180deg, var(--bg-depth-1), var(--bg-depth-2))`.
 
 ## Integration Points
-- `Header` renders `TimelineBar` under the main header row.
+- `Header` renders `SceneDurationBar` under the main header row.
 - `SceneChipBar` was removed.
 
 ## Known Constraints
 - Header must not use `document.querySelector` to scroll Storyline.
-- TimelineBar does not own scroll behavior; it only emits selection events.
+- SceneDurationBar does not own scroll behavior; it only emits selection events.

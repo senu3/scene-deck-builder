@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useStore } from '../store/useStore';
 
-export interface TimelinePosition {
+export interface StoryTimelinePosition {
   /** Current position in seconds (start of selected scene/cut) */
   currentPosition: number;
   /** Total duration in seconds */
@@ -18,7 +18,7 @@ export interface TimelinePosition {
  * Hook to calculate the timeline position of the currently selected scene/cut.
  * Returns the position as the start time of the selected item in the overall timeline.
  */
-export function useTimelinePosition(): TimelinePosition {
+export function useStoryTimelinePosition(): StoryTimelinePosition {
   const { scenes, selectedSceneId, selectedCutId } = useStore();
 
   return useMemo(() => {

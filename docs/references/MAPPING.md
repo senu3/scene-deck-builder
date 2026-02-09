@@ -22,9 +22,9 @@
 | LipSync バンドル所有 | `LipSyncSettings.ownerAssetId` / `ownedGeneratedAssetIds` / `orphanedGeneratedAssetIds`。 | `setLipSyncForAsset`（再登録時の orphan 移行）。 | `LipSyncModal`、`PreviewModal` |
 | アセットパネル | `Asset` / `AssetIndexEntry`。 | `loadAssetIndex` / `getFolderContents` / `metadataStore` 集計。 | `AssetPanel` |
 | アセットモーダル | `Asset`（選択結果）。 | `AssetPanel` をモーダルでラップ。 | `AssetModal` |
-| ストーリーライン | （専用TS型なし）Scene/Cut構造。 | D&D・外部投入・vault 取込（主処理は `Storyline`、ワークスペース全体に `App` フォールバックあり）。 | `Storyline`、`App` |
+| ストーリーライン | （専用TS型なし）Scene/Cut構造（編集軸: `StoryTimeline`）。 | D&D・外部投入・vault 取込（主処理は `Storyline`、ワークスペース全体に `App` フォールバックあり）。 | `Storyline`、`SceneDurationBar`、`App` |
 | プレビュー | `PreviewMode`（scene/all）。 | `setPreviewMode`。 | `PreviewModal` |
-| プレビュー制御 | `PlaybackState`。 | `useSequencePlaybackController`。 | `PreviewModal` |
+| プレビュー制御 | `PlaybackState`。 | public: `useSequencePlaybackController` / internal concept: `SequenceClock`。 | `PreviewModal` |
 | メディアソース | `MediaSource`。 | `createVideoMediaSource` / `createImageMediaSource`。 | `PreviewModal` |
 | ソースパネル状態 | `SourcePanelState` / `SourceViewMode`。 | `initializeSourcePanel` / `getSourcePanelState`（`Project.sourcePanel` に保存）。 | `Sidebar` |
 | アプリメニュー（ネイティブ） | （専用TS型なし） | `electron/preload.ts`（IPC橋渡し） | `electron/main.ts`（Menu定義＋set）/ `App.tsx`（`onToggleSidebar` 購読） |

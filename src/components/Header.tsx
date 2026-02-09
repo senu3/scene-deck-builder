@@ -4,8 +4,8 @@ import { useStore } from '../store/useStore';
 import { useHistoryStore } from '../store/historyStore';
 import MissingAssetRecoveryModal from './MissingAssetRecoveryModal';
 import { useHeaderProjectController } from '../hooks/useHeaderProjectController';
-import { formatTimeCode } from '../hooks/useTimelinePosition';
-import TimelineBar from './TimelineBar';
+import { formatTimeCode } from '../hooks/useStoryTimelinePosition';
+import SceneDurationBar from './SceneDurationBar';
 import './Header.css';
 
 interface HeaderProps {
@@ -201,7 +201,7 @@ export default function Header({ onOpenSettings, onPreview, onExport, isExportin
         </div>
 
         <div className="header-timeline">
-          <TimelineBar
+          <SceneDurationBar
             scenes={scenes}
             selectedSceneId={selectedSceneId}
             onSelectScene={selectScene}

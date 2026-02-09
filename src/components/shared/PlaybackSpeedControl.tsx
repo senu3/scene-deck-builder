@@ -1,5 +1,5 @@
 import { cyclePlaybackSpeed } from '../../utils/timeUtils';
-import './timeline-common.css';
+import './playback-controls.css';
 
 interface PlaybackSpeedControlProps {
   speed: number;

@@ -33,10 +33,10 @@
 | **アセットドロワー** | vault のアセット一覧 Drawer。 | **含む:** vault/assets の一覧・検索・使用状況表示。 | **一覧構築:** `loadAssetIndex` / `metadataStore` 集計。 | `AssetDrawer.tsx` |
 | **アセットパネル** | アセット一覧の共通 UI。 | **含む:** 検索/フィルタ/並び替え/選択。 | **一覧構築:** `loadAssetIndex` / `getFolderContents`。 | `AssetPanel.tsx` |
 | **アセットモーダル** | `AssetPanel` のモーダルラッパー。 | **含む:** オーバーレイ/ESC/閉じる挙動。 | **選択結果の返却。** | `AssetModal.tsx` |
-| **ストーリーライン** | シーン列とカットの D&D 配置を扱うタイムライン UI。 | **含む:** シーン/カット D&D、外部ファイル投入。 | **ドロップ処理:** vault 取込とカット追加。 | `Storyline.tsx` |
+| **ストーリーライン** | シーン列とカットの D&D 配置を扱う編集軸（`StoryTimeline`）のUI。 | **含む:** シーン/カット D&D、外部ファイル投入。 | **ドロップ処理:** vault 取込とカット追加。 | `Storyline.tsx` |
 | **プレビュー** | `PreviewModal` が単体/シーケンス再生を行う。 | **含む:** Single/Sequence モードと再生 UI。 | **起動:** `CutCard`。 | `PreviewModal.tsx` |
 | **プレビュー項目** | `PreviewItem` は Sequence 用の派生構造体。 | **含む:** cut/sceneName/thumbnail。 | **構築:** `PreviewModal` 内で生成。 | `PreviewModal.tsx` |
-| **プレビュー制御** | `useSequencePlaybackController` が再生状態を管理。 | **含む:** currentIndex/localProgress/range/loop/buffering。 | **操作:** `setSource/seek/skip` 等。 | `PlaybackState`、`previewPlaybackController.ts` |
+| **プレビュー制御** | public APIは `useSequencePlaybackController`、内部概念は `SequenceClock` として再生状態を管理。 | **含む:** currentIndex/localProgress/range/loop/buffering。 | **操作:** `setSource/seek/skip` 等。 | `PlaybackState`、`previewPlaybackController.ts` |
 | **メディアソース** | `MediaSource` は Video/Image を共通化する抽象。 | **含む:** play/pause/seek/setRate/getCurrentTime/dispose と JSX 要素。 | **生成:** `createVideoMediaSource` / `createImageMediaSource`。 | `previewMedia.tsx` |
 
 ## Vault / Sync

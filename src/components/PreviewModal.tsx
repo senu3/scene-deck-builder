@@ -10,14 +10,14 @@ import { getLipSyncFrameAssetIds } from '../utils/lipSyncUtils';
 import { useSequencePlaybackController } from '../utils/previewPlaybackController';
 import { getThumbnail } from '../utils/thumbnailCache';
 import {
-  TimelineMarkers,
+  PlaybackRangeMarkers,
   VolumeControl,
   TimeDisplay,
 } from './shared';
 import type { FocusedMarker } from './shared';
 import { useMiniToast } from '../ui';
 import './PreviewModal.css';
-import './shared/timeline-common.css';
+import './shared/playback-controls.css';
 
 // 再生保証付き LazyLoad constants
 const PLAY_SAFE_AHEAD = 2.0; // seconds - minimum buffer required for playback
@@ -2118,7 +2118,7 @@ export default function PreviewModal({
                       ref={progressBarRef}
                       onClick={handleSingleModeProgressClick}
                     >
-                      <TimelineMarkers
+                      <PlaybackRangeMarkers
                         inPoint={inPoint}
                         outPoint={outPoint}
                         duration={singleModePlaybackDuration}
@@ -2394,7 +2394,7 @@ export default function PreviewModal({
                   onMouseMove={handleProgressBarHover}
                   onMouseLeave={handleProgressBarLeave}
                 >
-                  <TimelineMarkers
+                  <PlaybackRangeMarkers
                     inPoint={inPoint}
                     outPoint={outPoint}
                     duration={sequenceTotalDuration}

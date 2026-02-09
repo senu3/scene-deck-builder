@@ -1,6 +1,6 @@
 import { Save } from 'lucide-react';
 import { formatTime } from '../../utils/timeUtils';
-import './timeline-common.css';
+import './playback-controls.css';
 
 interface ClipRangeControlsProps {
   inPoint: number | null;

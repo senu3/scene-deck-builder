@@ -1,5 +1,5 @@
 import { Maximize2, Minimize2 } from 'lucide-react';
-import './timeline-common.css';
+import './playback-controls.css';
 
 interface FullscreenToggleProps {
   isFullscreen: boolean;

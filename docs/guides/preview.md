@@ -6,6 +6,7 @@
 **更新頻度**: 中。
 
 > TODO: UI変更に合わせた文言の更新は必要になりうる。
+> 命名方針: public APIは `useSequencePlaybackController`、内部概念名は `SequenceClock` を使う。
 
 ## Modes
 

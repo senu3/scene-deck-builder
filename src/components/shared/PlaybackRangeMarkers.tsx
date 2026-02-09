@@ -1,10 +1,10 @@
 import { useRef, useCallback, useState } from 'react';
 import { formatTime } from '../../utils/timeUtils';
-import './timeline-common.css';
+import './playback-controls.css';
 
 export type FocusedMarker = 'in' | 'out' | null;
 
-interface TimelineMarkersProps {
+interface PlaybackRangeMarkersProps {
   inPoint: number | null;
   outPoint: number | null;
   duration: number;
@@ -16,7 +16,7 @@ interface TimelineMarkersProps {
   progressBarRef?: React.RefObject<HTMLDivElement>;
 }
 
-export function TimelineMarkers({
+export function PlaybackRangeMarkers({
   inPoint,
   outPoint,
   duration,
@@ -26,7 +26,7 @@ export function TimelineMarkers({
   onMarkerDrag,
   onMarkerDragEnd,
   progressBarRef,
-}: TimelineMarkersProps) {
+}: PlaybackRangeMarkersProps) {
   const draggingMarkerRef = useRef<'in' | 'out' | null>(null);
   const [hoveredMarker, setHoveredMarker] = useState<'in' | 'out' | null>(null);
 

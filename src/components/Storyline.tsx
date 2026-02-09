@@ -11,7 +11,7 @@ import type { Asset, CutGroup, Cut } from '../types';
 import { useStorylineDragController, type PlaceholderState } from '../hooks/useStorylineDragController';
 import './Storyline.css';
 
-// Scene color palette - uses --timeline-scene-* tokens to match TimelineBar
+// Scene color palette - uses --timeline-scene-* tokens to match SceneDurationBar
 const SCENE_COLORS = [
   'var(--timeline-scene-1)',  // cyan
   'var(--timeline-scene-2)',  // blue

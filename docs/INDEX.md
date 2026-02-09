@@ -23,7 +23,7 @@
 - `docs/guides/lip-sync-requirements.md`
 - `docs/ui/components.md`
 - `docs/ui/color-system.md`
-- `docs/ui/timelinebar.md`
+- `docs/ui/scene-duration-bar.md`
 - `docs/notes/autosave-toast-notes.md`
 
 ## 追加時のルール
