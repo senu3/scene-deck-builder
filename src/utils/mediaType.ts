@@ -1,5 +1,8 @@
 export type MediaType = 'image' | 'video' | 'audio';
-export type TimelineMediaType = 'image' | 'video';
+export type CuttableMediaType = 'image' | 'video';
+// TODO(rename-cleanup): Remove TimelineMediaType alias after all callers migrate to CuttableMediaType.
+// Backward compatibility alias. Prefer CuttableMediaType for new code.
+export type TimelineMediaType = CuttableMediaType;
 
 const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg']);
 const VIDEO_EXTS = new Set(['mp4', 'webm', 'mov', 'avi', 'mkv']);
@@ -17,10 +20,16 @@ export function getMediaType(filename: string): MediaType | null {
   return null;
 }
 
-export function getTimelineMediaType(filename: string): TimelineMediaType | null {
+export function getCuttableMediaType(filename: string): CuttableMediaType | null {
   const mediaType = getMediaType(filename);
   if (mediaType === 'image' || mediaType === 'video') {
     return mediaType;
   }
   return null;
+}
+
+// Backward compatibility alias. Prefer getCuttableMediaType for new code.
+// TODO(rename-cleanup): Remove getTimelineMediaType alias after all callers migrate to getCuttableMediaType.
+export function getTimelineMediaType(filename: string): TimelineMediaType | null {
+  return getCuttableMediaType(filename);
 }

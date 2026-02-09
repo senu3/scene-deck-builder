@@ -26,5 +26,6 @@
 | プレビュー | `PreviewMode`（scene/all）。 | `setPreviewMode`。 | `PreviewModal` |
 | プレビュー制御 | `PlaybackState`。 | public: `useSequencePlaybackController` / internal concept: `SequenceClock`。 | `PreviewModal` |
 | メディアソース | `MediaSource`。 | `createVideoMediaSource` / `createImageMediaSource`。 | `PreviewModal` |
+| カット可能メディア判定 | `CuttableMediaType`（`image`/`video`）。 | `getCuttableMediaType`（新規） / `getTimelineMediaType`（互換エイリアス・移行中）。 | `Sidebar`、`StartupModal`、`dragDrop` |
 | ソースパネル状態 | `SourcePanelState` / `SourceViewMode`。 | `initializeSourcePanel` / `getSourcePanelState`（`Project.sourcePanel` に保存）。 | `Sidebar` |
 | アプリメニュー（ネイティブ） | （専用TS型なし） | `electron/preload.ts`（IPC橋渡し） | `electron/main.ts`（Menu定義＋set）/ `App.tsx`（`onToggleSidebar` 購読） |
