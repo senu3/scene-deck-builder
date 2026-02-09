@@ -27,6 +27,7 @@
 - `docs/ui/scene-duration-bar.md`
 - `docs/notes/autosave-toast-notes.md`
 - `docs/notes/export-naming-plan.md`（Export実装時に参照）
+- `docs/notes/aviutl-exo-export-research.md`（Export調査の最新版）
 
 ## 追加時のルール
 - 追加・更新ルールは `docs/DOCS_GUIDE.md` を参照。
