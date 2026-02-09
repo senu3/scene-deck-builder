@@ -6,7 +6,7 @@ import type { MissingAssetInfo, RecoveryDecision } from '../components/MissingAs
 import { importFileToVault } from '../utils/assetPath';
 import { extractVideoMetadata } from '../utils/videoUtils';
 import { getThumbnail } from '../utils/thumbnailCache';
-import { getTimelineMediaType } from '../utils/mediaType';
+import { getCuttableMediaType } from '../utils/mediaType';
 import { createAutosaveController, subscribeProjectChanges } from '../utils/autosave';
 import { collectAssetRefs, findDanglingAssetRefs } from '../utils/assetRefs';
 import {
@@ -252,7 +252,7 @@ export function useHeaderProjectController() {
                 if (cut.id === decision.cutId && cut.asset) {
                   const newPath = decision.newPath!;
                   const newName = newPath.split(/[/\\]/).pop() || cut.asset.name;
-                  const newType = getTimelineMediaType(newName) || 'image';
+                  const newType = getCuttableMediaType(newName) || 'image';
 
                   // Get new thumbnail and metadata
                   let thumbnail: string | undefined;

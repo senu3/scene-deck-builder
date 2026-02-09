@@ -18,7 +18,7 @@ import { useStore } from '../store/useStore';
 import type { FileItem, Asset } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { getCachedThumbnail, getThumbnail } from '../utils/thumbnailCache';
-import { getTimelineMediaType } from '../utils/mediaType';
+import { getCuttableMediaType } from '../utils/mediaType';
 import './Sidebar.css';
 
 export default function Sidebar() {
@@ -191,7 +191,7 @@ export default function Sidebar() {
 
   const renderFileItem = (item: FileItem, depth: number = 0) => {
     const isExpanded = expandedFolders.has(item.path);
-    const mediaType = getTimelineMediaType(item.name);
+    const mediaType = getCuttableMediaType(item.name);
 
     if (item.isDirectory) {
       return (

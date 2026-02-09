@@ -1,12 +1,12 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { CutImportSource } from './cutImport';
-import { getTimelineMediaType } from './mediaType';
+import { getCuttableMediaType } from './mediaType';
 
-export type SupportedMediaType = 'image' | 'video';
+export type CuttableMediaType = 'image' | 'video';
 export type DragKind = 'asset' | 'externalFiles' | 'none';
 
-export function getMediaType(filename: string): SupportedMediaType | null {
-  return getTimelineMediaType(filename);
+export function getMediaType(filename: string): CuttableMediaType | null {
+  return getCuttableMediaType(filename);
 }
 
 export function getFilePath(file: File): string | undefined {
