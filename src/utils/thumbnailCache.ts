@@ -10,7 +10,7 @@ interface ThumbnailCacheLimits {
 interface ThumbnailRequestOptions {
   timeOffset?: number;
   key?: string;
-  profile?: 'timeline-card' | 'asset-grid';
+  profile?: 'timeline-card' | 'asset-grid' | 'sequence-preview' | 'details-panel';
 }
 
 interface CacheEntry {

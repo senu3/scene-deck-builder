@@ -3,7 +3,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useState, useEffect, useRef } from 'react';
 import { Film, Image, Clock, Scissors, Loader2, Mic, Music } from 'lucide-react';
 import { useStore } from '../store/useStore';
-import type { Asset } from '../types';
+import type { Asset, CutAudioBinding } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import './CutCard.css';
 import { getThumbnail } from '../utils/thumbnailCache';
@@ -26,6 +26,7 @@ interface CutCardProps {
     // Lip sync fields
     isLipSync?: boolean;
     lipSyncFrameCount?: number;
+    audioBindings?: CutAudioBinding[];
   };
   sceneId: string;
   index: number;
@@ -52,7 +53,6 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden }: C
     vaultPath,
     openVideoPreview,
     openSequencePreview,
-    metadataStore,
     getCutGroup,
     createGroup,
     removeCutFromGroup,
@@ -112,7 +112,7 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden }: C
   const isMultiSelected = selectedCutIds.size > 1 && selectedCutIds.has(cut.id);
   const isVideo = asset?.type === 'video';
   const isLipSync = cut.isLipSync;
-  const hasAttachedAudio = asset?.id && metadataStore?.metadata[asset.id]?.attachedAudioId;
+  const hasAttachedAudio = !!cut.audioBindings?.some((binding) => binding.enabled !== false);
 
   // Check if this cut is in a group
   const cutGroup = getCutGroup(sceneId, cut.id);

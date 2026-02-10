@@ -895,7 +895,7 @@ ipcMain.handle('generate-thumbnail', async (_, options: {
   filePath: string;
   type: 'image' | 'video';
   timeOffset?: number;
-  profile?: 'timeline-card' | 'asset-grid';
+  profile?: 'timeline-card' | 'asset-grid' | 'sequence-preview' | 'details-panel';
 }) => {
   if (!thumbnailService) return { success: false, error: 'ffmpeg not found' };
   return thumbnailService.generateThumbnail({

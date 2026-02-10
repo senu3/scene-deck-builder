@@ -595,6 +595,7 @@ function App() {
         {previewData && (
           <PreviewModal
             asset={previewData.asset}
+            focusCutId={previewData.cut.id}
             onClose={closeVideoPreview}
             initialInPoint={previewData.cut.inPoint}
             initialOutPoint={previewData.cut.outPoint}

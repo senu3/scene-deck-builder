@@ -2,6 +2,22 @@ import { Command } from './historyStore';
 import { useStore } from './useStore';
 import type { Asset, Cut, Scene, CutGroup } from '../types';
 
+function restoreCutState(
+  store: ReturnType<typeof useStore.getState>,
+  sceneId: string,
+  cutId: string,
+  sourceCut: Cut
+) {
+  store.updateCutDisplayTime(sceneId, cutId, sourceCut.displayTime);
+
+  if (sourceCut.isClip && sourceCut.inPoint !== undefined && sourceCut.outPoint !== undefined) {
+    store.updateCutClipPoints(sceneId, cutId, sourceCut.inPoint, sourceCut.outPoint);
+  }
+
+  store.updateCutLipSync(sceneId, cutId, !!sourceCut.isLipSync, sourceCut.lipSyncFrameCount);
+  store.setCutAudioBindings(sceneId, cutId, sourceCut.audioBindings || []);
+}
+
 /**
  * カット追加コマンド
  */
@@ -86,11 +102,7 @@ export class RemoveCutCommand implements Command {
 
     // カットを復元
     const newCutId = store.addCutToScene(this.sceneId, this.removedCut.asset!);
-    store.updateCutDisplayTime(
-      this.sceneId,
-      newCutId,
-      this.removedCut.displayTime
-    );
+    restoreCutState(store, this.sceneId, newCutId, this.removedCut);
 
     // 元の位置に移動（可能な場合）
     if (this.removedCutIndex !== undefined && this.removedCutIndex > 0) {
@@ -249,7 +261,7 @@ export class DuplicateSceneCommand implements Command {
     sourceScene.cuts.forEach((cut) => {
       if (cut.asset) {
         const newCutId = store.addCutToScene(this.newSceneId!, cut.asset);
-        store.updateCutDisplayTime(this.newSceneId!, newCutId, cut.displayTime);
+        restoreCutState(store, this.newSceneId!, newCutId, cut);
         this.newCutIds.push(newCutId);
       }
     });
@@ -356,7 +368,7 @@ export class RemoveSceneCommand implements Command {
     this.removedScene.cuts.forEach((cut) => {
       if (cut.asset) {
         const newCutId = store.addCutToScene(newSceneId, cut.asset);
-        store.updateCutDisplayTime(newSceneId, newCutId, cut.displayTime);
+        restoreCutState(store, newSceneId, newCutId, cut);
       }
     });
 

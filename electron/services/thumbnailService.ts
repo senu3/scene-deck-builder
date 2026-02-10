@@ -5,7 +5,7 @@ import * as path from 'path';
 import type { FfmpegController } from './ffmpegController';
 
 export type ThumbnailMediaType = 'image' | 'video';
-export type ThumbnailProfile = 'timeline-card' | 'asset-grid';
+export type ThumbnailProfile = 'timeline-card' | 'asset-grid' | 'sequence-preview' | 'details-panel';
 
 export interface GenerateThumbnailRequest {
   filePath: string;
@@ -37,6 +37,16 @@ const THUMBNAIL_PROFILES: Record<ThumbnailProfile, ThumbnailProfileSpec> = {
     maxWidth: 256,
     maxHeight: 256,
     quality: 7,
+  },
+  'sequence-preview': {
+    maxWidth: 1024,
+    maxHeight: 1024,
+    quality: 3,
+  },
+  'details-panel': {
+    maxWidth: 1024,
+    maxHeight: 1024,
+    quality: 3,
   },
 };
 

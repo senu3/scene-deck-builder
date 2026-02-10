@@ -140,7 +140,7 @@ async function createCompositedFrameDataUrl(
 }
 
 export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSyncModalProps) {
-  const { vaultPath, metadataStore, setLipSyncForAsset, cacheAsset, updateCutLipSync, getAsset } = useStore();
+  const { vaultPath, metadataStore, scenes, setLipSyncForAsset, cacheAsset, updateCutLipSync, getAsset } = useStore();
   const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -186,9 +186,13 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
     : isVideo
       ? asset
       : null;
+  const selectedCut = cutId
+    ? scenes.find((scene) => scene.id === sceneId)?.cuts.find((cut) => cut.id === cutId)
+    : undefined;
+  const primaryAudioBinding = selectedCut?.audioBindings?.[0];
   const rmsSourceId = lipSyncSettings?.rmsSourceAudioAssetId;
   const rmsAnalysis = rmsSourceId ? metadataStore?.metadata[rmsSourceId]?.audioAnalysis : undefined;
-  const audioOffset = metadataStore?.metadata[asset.id]?.attachedAudioOffset ?? 0;
+  const audioOffset = primaryAudioBinding?.offsetSec ?? 0;
   const [previewSources, setPreviewSources] = useState<string[]>([]);
   const [isPreviewReady, setIsPreviewReady] = useState(false);
   const hasLipSyncPreview = !!lipSyncSettings && !!rmsAnalysis?.rms?.length;
@@ -456,7 +460,7 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
       return;
     }
 
-    const attachedAudioId = metadataStore?.metadata[asset.id]?.attachedAudioId;
+    const attachedAudioId = primaryAudioBinding?.audioAssetId;
     if (!attachedAudioId) {
       toast.error("Lip Sync registration failed", "Attached audio not found.");
       return;

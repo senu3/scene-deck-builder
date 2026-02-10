@@ -86,6 +86,7 @@ export interface Cut {
   asset?: Asset;
   displayTime: number;
   order: number;
+  audioBindings?: CutAudioBinding[];
   // Video clip fields (for non-destructive trimming)
   inPoint?: number;   // Start time in seconds
   outPoint?: number;  // End time in seconds
@@ -96,6 +97,22 @@ export interface Cut {
   // Lip sync fields
   isLipSync?: boolean;  // True if this is a lip sync cut
   lipSyncFrameCount?: number; // Number of registered frames (e.g., 4)
+}
+
+export type AudioTrackKind =
+  | 'voice.lipsync'
+  | 'voice.other'
+  | 'se'
+  | 'embedded';
+
+export interface CutAudioBinding {
+  id: string;
+  audioAssetId: string;
+  sourceName?: string;
+  offsetSec: number;
+  gain?: number;
+  enabled: boolean;
+  kind: Exclude<AudioTrackKind, 'embedded'>;
 }
 
 export interface ClipData {

@@ -15,6 +15,7 @@
 - `docs/references/DOMAIN.md`
 - `docs/references/MAPPING.md`
 - `docs/guides/preview.md`
+- `docs/guides/thumbnail-profiles.md`
 - `docs/guides/storyline.md`
 - `docs/guides/media-handling.md`
 - `docs/guides/buffer-guide.md`

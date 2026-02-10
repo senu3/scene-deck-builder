@@ -64,10 +64,10 @@ export default function DetailsPanel() {
     updateCutAsset,
     vaultPath,
     metadataStore,
-    attachAudioToAsset,
-    detachAudioFromAsset,
-    getAttachedAudio,
-    updateAudioOffset,
+    attachAudioToCut,
+    detachAudioFromCut,
+    getAttachedAudioForCut,
+    updateCutAudioOffset,
     relinkCutAsset,
   } = useStore();
 
@@ -113,10 +113,10 @@ export default function DetailsPanel() {
   const cutScene = selectedCutData?.scene;
   const asset =
     cut?.asset || (cut?.assetId ? getAsset(cut.assetId) : undefined);
-  const attachedAudioMeta = asset?.id ? metadataStore?.metadata[asset.id] : undefined;
+  const primaryAudioBinding = cut?.audioBindings?.[0];
   const attachedAudioSourceName =
-    attachedAudioMeta?.attachedAudioSourceName || attachedAudio?.name || "Unknown";
-  const hasAttachedAudio = !!attachedAudioMeta?.attachedAudioId;
+    primaryAudioBinding?.sourceName || attachedAudio?.name || "Unknown";
+  const hasAttachedAudio = !!primaryAudioBinding?.audioAssetId;
   const lipSyncSettings = asset?.id ? metadataStore?.metadata[asset.id]?.lipSync : undefined;
   const isLipSyncCut = !!cut?.isLipSync;
   const showLipSyncDetails = isLipSyncCut && !!lipSyncSettings;
@@ -183,21 +183,19 @@ export default function DetailsPanel() {
       setAttachedAudio(undefined);
       setAttachedAudioDuration(null);
 
-      if (!asset?.id) return;
+      if (!cutScene?.id || !cut?.id) return;
 
-      const audio = getAttachedAudio(asset.id);
+      const audio = getAttachedAudioForCut(cutScene.id, cut.id);
       setAttachedAudio(audio);
 
-      // Load offset from metadata
-      const meta = metadataStore?.metadata[asset.id];
-      setAudioOffset((meta?.attachedAudioOffset ?? 0).toFixed(1));
+      setAudioOffset((primaryAudioBinding?.offsetSec ?? 0).toFixed(1));
 
       // Use duration from asset (set during import)
       setAttachedAudioDuration(audio?.duration ?? null);
     };
 
     loadAttachedAudio();
-  }, [asset?.id, metadataStore, getAttachedAudio]);
+  }, [cutScene?.id, cut?.id, getAttachedAudioForCut, primaryAudioBinding?.offsetSec]);
 
   // Load thumbnail and metadata
   useEffect(() => {
@@ -207,10 +205,19 @@ export default function DetailsPanel() {
 
       if (!asset?.path) return;
 
-      // Load thumbnail
-      if (asset.thumbnail) {
+      // Keep Details preview in thumbnail flow; use larger profile for readability.
+      if (asset.type === 'image' && asset.path) {
+        try {
+          const cached = await getThumbnail(asset.path, 'image', { profile: 'details-panel' });
+          if (cached) {
+            setThumbnail(cached);
+          }
+        } catch {
+          // Failed to load
+        }
+      } else if (asset.thumbnail) {
         setThumbnail(asset.thumbnail);
-      } else if (asset.type === 'image' || asset.type === 'video') {
+      } else if (asset.type === 'video' && asset.path) {
         try {
           const cached = await getThumbnail(asset.path, asset.type);
           if (cached) {
@@ -389,16 +396,14 @@ export default function DetailsPanel() {
   // Attach audio handler - opens AssetModal with audio filter
   const handleAttachAudio = () => {
     setPendingLipSyncOpen(false);
-    if (attachedAudioMeta?.attachedAudioId) {
+    if (hasAttachedAudio) {
       return;
     }
     setShowAssetModal(true);
   };
 
   const handleQuickLipSync = () => {
-    if (!asset) return;
-    const attachedAudioId = metadataStore?.metadata[asset.id]?.attachedAudioId;
-    if (!attachedAudioId) {
+    if (!hasAttachedAudio) {
       setPendingLipSyncOpen(true);
       setShowAssetModal(true);
       return;
@@ -408,8 +413,8 @@ export default function DetailsPanel() {
 
   // Handle audio selection from AssetModal
   const handleAssetModalConfirm = (selectedAsset: Asset) => {
-    if (asset) {
-      attachAudioToAsset(asset.id, selectedAsset);
+    if (cutScene && cut) {
+      attachAudioToCut(cutScene.id, cut.id, selectedAsset);
     }
     setShowAssetModal(false);
     if (pendingLipSyncOpen) {
@@ -425,7 +430,7 @@ export default function DetailsPanel() {
 
   // Detach audio handler
   const handleDetachAudio = async () => {
-    if (!asset) return;
+    if (!cutScene || !cut) return;
     if (lipSyncSettings) {
       const confirmed = await confirm({
         title: "Clear attached audio?",
@@ -435,7 +440,7 @@ export default function DetailsPanel() {
       });
       if (!confirmed) return;
     }
-    detachAudioFromAsset(asset.id);
+    detachAudioFromCut(cutScene.id, cut.id);
   };
 
   // Relink file handler
@@ -509,8 +514,8 @@ export default function DetailsPanel() {
   const handleAudioOffsetChange = (value: string) => {
     setAudioOffset(value);
     const numValue = parseFloat(value);
-    if (!isNaN(numValue) && asset) {
-      updateAudioOffset(asset.id, numValue);
+    if (!isNaN(numValue) && cutScene && cut) {
+      updateCutAudioOffset(cutScene.id, cut.id, numValue);
     }
   };
 
@@ -1201,6 +1206,7 @@ export default function DetailsPanel() {
         {showVideoPreview && asset && (
           <PreviewModal
             asset={asset}
+            focusCutId={cut?.id}
             onClose={() => setShowVideoPreview(false)}
             initialInPoint={cut?.inPoint}
             initialOutPoint={cut?.outPoint}

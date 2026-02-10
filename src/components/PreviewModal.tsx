@@ -203,20 +203,20 @@ export default function PreviewModal({
 
   // ===== ATTACHED AUDIO HELPER =====
 
-  // Get attached audio for an asset from metadata store
-  const getAttachedAudioForAsset = useCallback((assetId: string): Asset | undefined => {
-    if (!metadataStore) return undefined;
-    const metadata = metadataStore.metadata[assetId];
-    if (!metadata?.attachedAudioId) return undefined;
-    return getAsset(metadata.attachedAudioId);
-  }, [metadataStore, getAsset]);
+  const getPrimaryAudioBindingForCut = useCallback((cut: Cut | null | undefined) => {
+    if (!cut?.audioBindings?.length) return undefined;
+    return cut.audioBindings.find((binding) => binding.enabled !== false) ?? cut.audioBindings[0];
+  }, []);
 
-  // Get audio offset for an asset
-  const getAudioOffsetForAsset = useCallback((assetId: string): number => {
-    if (!metadataStore) return 0;
-    const metadata = metadataStore.metadata[assetId];
-    return metadata?.attachedAudioOffset ?? 0;
-  }, [metadataStore]);
+  const getAttachedAudioForCut = useCallback((cut: Cut | null | undefined): Asset | undefined => {
+    const binding = getPrimaryAudioBindingForCut(cut);
+    if (!binding?.audioAssetId) return undefined;
+    return getAsset(binding.audioAssetId);
+  }, [getPrimaryAudioBindingForCut, getAsset]);
+
+  const getAudioOffsetForCut = useCallback((cut: Cut | null | undefined): number => {
+    return getPrimaryAudioBindingForCut(cut)?.offsetSec ?? 0;
+  }, [getPrimaryAudioBindingForCut]);
 
   const getDisplayTimeForAsset = useCallback((assetId: string): number | null => {
     if (!metadataStore) return null;
@@ -274,14 +274,11 @@ export default function PreviewModal({
           setVideoObjectUrl({ assetId: asset.id, url });
         }
       } else if (asset.type === 'image') {
-        // Load image as base64
-        if (asset.thumbnail) {
-          setSingleModeImageData(asset.thumbnail);
-        } else if (asset.path) {
+        if (asset.path) {
           try {
-            const thumbnail = await getThumbnail(asset.path, 'image');
-            if (isMounted && thumbnail) {
-              setSingleModeImageData(thumbnail);
+            const previewImage = await getThumbnail(asset.path, 'image', { profile: 'sequence-preview' });
+            if (isMounted && previewImage) {
+              setSingleModeImageData(previewImage);
             }
           } catch {
             // Failed to load image
@@ -697,7 +694,7 @@ export default function PreviewModal({
       return;
     }
 
-    const attachedAudio = getAttachedAudioForAsset(asset.id);
+    const attachedAudio = getAttachedAudioForCut(focusCutData?.cut ?? null);
     singleAudioManagerRef.current.unload();
     setAudioLoaded(false);
     singleAudioPlayingRef.current = false;
@@ -708,7 +705,7 @@ export default function PreviewModal({
     if (manager.isDisposed()) return;
 
     const loadAudio = async () => {
-      const offset = getAudioOffsetForAsset(asset.id);
+      const offset = getAudioOffsetForCut(focusCutData?.cut ?? null);
       manager.setOffset(offset);
       const expectedLoadId = manager.getLoadId() + 1;
       const loaded = await manager.load(attachedAudio.path);
@@ -719,7 +716,7 @@ export default function PreviewModal({
     };
 
     loadAudio();
-  }, [isSingleMode, asset?.id, getAttachedAudioForAsset, getAudioOffsetForAsset]);
+  }, [isSingleMode, asset?.id, focusCutData?.cut, getAttachedAudioForCut, getAudioOffsetForCut]);
 
   // Sync Single Mode audio with video playback (only on play/pause change)
   useEffect(() => {
@@ -922,6 +919,15 @@ export default function PreviewModal({
 
         let thumbnail: string | null = cutAsset.thumbnail || null;
 
+        if (cutAsset.type === 'image' && cutAsset.path) {
+          try {
+            const cached = await getThumbnail(cutAsset.path, 'image', { profile: 'sequence-preview' });
+            if (cached) thumbnail = cached;
+          } catch {
+            // ignore
+          }
+        }
+
         if (lipSyncSettings) {
           const firstFrameAssetId = getLipSyncFrameAssetIds(lipSyncSettings)[0];
           const baseAsset = firstFrameAssetId ? getAsset(firstFrameAssetId) : undefined;
@@ -929,7 +935,7 @@ export default function PreviewModal({
             thumbnail = baseAsset.thumbnail;
           } else if (baseAsset?.path) {
             try {
-              const cached = await getThumbnail(baseAsset.path, 'image');
+              const cached = await getThumbnail(baseAsset.path, 'image', { profile: 'sequence-preview' });
               if (cached) thumbnail = cached;
             } catch {
               // ignore
@@ -942,7 +948,7 @@ export default function PreviewModal({
             if (cutAsset.type === 'video') {
               thumbnail = await getThumbnail(cutAsset.path, 'video');
             } else {
-              thumbnail = await getThumbnail(cutAsset.path, 'image');
+              thumbnail = await getThumbnail(cutAsset.path, 'image', { profile: 'sequence-preview' });
             }
           } catch {
             // Failed to load
@@ -980,6 +986,15 @@ export default function PreviewModal({
 
           let thumbnail: string | null = cutAsset?.thumbnail || null;
 
+          if (cutAsset?.type === 'image' && cutAsset.path) {
+            try {
+              const cached = await getThumbnail(cutAsset.path, 'image', { profile: 'sequence-preview' });
+              if (cached) thumbnail = cached;
+            } catch {
+              // ignore
+            }
+          }
+
           if (lipSyncSettings) {
             const firstFrameAssetId = getLipSyncFrameAssetIds(lipSyncSettings)[0];
             const baseAsset = firstFrameAssetId ? getAsset(firstFrameAssetId) : undefined;
@@ -987,7 +1002,7 @@ export default function PreviewModal({
               thumbnail = baseAsset.thumbnail;
             } else if (baseAsset?.path) {
               try {
-                const cached = await getThumbnail(baseAsset.path, 'image');
+                const cached = await getThumbnail(baseAsset.path, 'image', { profile: 'sequence-preview' });
                 if (cached) thumbnail = cached;
               } catch {
                 // ignore
@@ -1000,7 +1015,7 @@ export default function PreviewModal({
               if (cutAsset.type === 'video') {
                 thumbnail = await getThumbnail(cutAsset.path, 'video');
               } else {
-                thumbnail = await getThumbnail(cutAsset.path, 'image');
+                thumbnail = await getThumbnail(cutAsset.path, 'image', { profile: 'sequence-preview' });
               }
             } catch {
               // Failed to load
@@ -1183,15 +1198,15 @@ export default function PreviewModal({
     }
 
     const currentItem = items[currentIndex];
-    const assetId = currentItem?.cut?.asset?.id ?? currentItem?.cut?.assetId;
-    if (!assetId) {
+    const currentCut = currentItem?.cut;
+    if (!currentCut) {
       sequenceAudioManagerRef.current.unload();
       setAudioLoaded(false);
       sequenceAudioPlayingRef.current = false;
       return;
     }
 
-    const attachedAudio = getAttachedAudioForAsset(assetId);
+    const attachedAudio = getAttachedAudioForCut(currentCut);
     sequenceAudioManagerRef.current.unload();
     setAudioLoaded(false);
     sequenceAudioPlayingRef.current = false;
@@ -1202,7 +1217,7 @@ export default function PreviewModal({
     if (manager.isDisposed()) return;
 
     const loadAudio = async () => {
-      const offset = getAudioOffsetForAsset(assetId);
+      const offset = getAudioOffsetForCut(currentCut);
       manager.setOffset(offset);
       const expectedLoadId = manager.getLoadId() + 1;
       const loaded = await manager.load(attachedAudio.path);
@@ -1213,7 +1228,7 @@ export default function PreviewModal({
     };
 
     loadAudio();
-  }, [isSingleMode, currentIndex, items, getAttachedAudioForAsset, getAudioOffsetForAsset]);
+  }, [isSingleMode, currentIndex, items, getAttachedAudioForCut, getAudioOffsetForCut]);
 
   // Sync Sequence Mode audio with playback state (separate effect)
   useEffect(() => {
@@ -1366,7 +1381,7 @@ export default function PreviewModal({
           rmsFps: analysis.fps,
           thresholds: lipSyncSettings.thresholds,
           getAbsoluteTime: getSequenceLiveAbsoluteTime,
-          audioOffsetSec: getAudioOffsetForAsset(currentItem.cut.asset?.id ?? currentItem.cut.assetId),
+          audioOffsetSec: getAudioOffsetForCut(currentItem.cut),
           onTimeUpdate: sequenceTick,
           onEnded: sequenceGoToNext,
         });
@@ -1442,7 +1457,7 @@ export default function PreviewModal({
     getLipSyncSettingsForAsset,
     getAudioAnalysisForAsset,
     getSequenceLiveAbsoluteTime,
-    getAudioOffsetForAsset,
+    getAudioOffsetForCut,
     showMiniToast,
     getAsset,
   ]);

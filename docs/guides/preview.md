@@ -53,6 +53,7 @@ Video sources queue play/seek until the element is mounted, avoiding the cut bou
 - Initial preload warms the first `INITIAL_PRELOAD_ITEMS`.
 - Video URL cache is pruned as the playhead moves (keeps a small rewind window).
 - Video URL cache is keyed by **assetId** to prevent mismatched URLs.
+- Image preview sources use thumbnail IPC with a sequence-only profile (`sequence-preview`) instead of asset-grid sizing.
 
 ## Must NOT Do
 - Do not control Sequence Mode playback by directly calling `<video>` methods.
@@ -65,4 +66,5 @@ Video sources queue play/seek until the element is mounted, avoiding the cut bou
 
 ## Related Docs
 - `docs/guides/media-handling.md`
+- `docs/guides/thumbnail-profiles.md`
 - `docs/references/DOMAIN.md`

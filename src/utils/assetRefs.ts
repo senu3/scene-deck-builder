@@ -2,6 +2,7 @@ import type { MetadataStore, Scene } from '../types';
 
 export type AssetRefKind =
   | 'cut'
+  | 'cut-audio-binding'
   | 'attached-audio'
   | 'lipsync-base'
   | 'lipsync-variant'
@@ -42,6 +43,16 @@ export function collectAssetRefs(scenes: Scene[], metadataStore: MetadataStore |
         sceneId: scene.id,
         cutId: cut.id,
       });
+
+      for (const binding of cut.audioBindings || []) {
+        if (!binding.audioAssetId) continue;
+        pushRef(refs, {
+          assetId: binding.audioAssetId,
+          kind: 'cut-audio-binding',
+          sceneId: scene.id,
+          cutId: cut.id,
+        });
+      }
     }
   }
 

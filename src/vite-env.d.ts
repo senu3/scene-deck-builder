@@ -218,7 +218,7 @@ interface ElectronAPI {
     generateThumbnail: (
       filePath: string,
       type: 'image' | 'video',
-      options?: { timeOffset?: number; profile?: 'timeline-card' | 'asset-grid' }
+      options?: { timeOffset?: number; profile?: 'timeline-card' | 'asset-grid' | 'sequence-preview' | 'details-panel' }
     ) => Promise<{ success: boolean; thumbnail?: string; error?: string } | null>;
     generateVideoThumbnail: (filePath: string, timeOffset?: number) => Promise<{ success: boolean; thumbnail?: string; error?: string } | null>;
 

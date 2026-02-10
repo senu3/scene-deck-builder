@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import type { Scene, Cut, Asset, FileItem, FavoriteFolder, PlaybackMode, PreviewMode, SceneNote, SelectionType, Project, SourceViewMode, SourcePanelState, MetadataStore, CutGroup, LipSyncSettings } from '../types';
-import { loadMetadataStore, saveMetadataStore, attachAudio, detachAudio, updateAudioOffset as updateOffsetInStore, updateAudioAnalysis, updateLipSyncSettings, removeLipSyncSettings, upsertSceneMetadata, removeSceneMetadata, syncSceneMetadata, removeAssetReferences as removeAssetReferencesInStore } from '../utils/metadataStore';
+import type { Scene, Cut, Asset, FileItem, FavoriteFolder, PlaybackMode, PreviewMode, SceneNote, SelectionType, Project, SourceViewMode, SourcePanelState, MetadataStore, CutGroup, LipSyncSettings, CutAudioBinding } from '../types';
+import { loadMetadataStore, saveMetadataStore, updateAudioAnalysis, updateLipSyncSettings, removeLipSyncSettings, upsertSceneMetadata, removeSceneMetadata, syncSceneMetadata, removeAssetReferences as removeAssetReferencesInStore } from '../utils/metadataStore';
 import { analyzeAudioRms } from '../utils/audioUtils';
 import { clearThumbnailCache } from '../utils/thumbnailCache';
 import type { CutImportSource } from '../utils/cutImport';
@@ -19,6 +19,7 @@ interface ClipboardCut {
   assetId: string;
   asset: Asset;
   displayTime: number;
+  audioBindings?: CutAudioBinding[];
   // Video clip fields
   inPoint?: number;
   outPoint?: number;
@@ -138,6 +139,7 @@ interface AppState {
   clearCutClipPoints: (sceneId: string, cutId: string) => void;
   updateCutAsset: (sceneId: string, cutId: string, assetUpdates: Partial<Asset>) => void;
   updateCutLipSync: (sceneId: string, cutId: string, isLipSync: boolean, frameCount?: number) => void;
+  setCutAudioBindings: (sceneId: string, cutId: string, bindings: CutAudioBinding[]) => void;
 
   // Actions - Selection
   selectScene: (sceneId: string | null) => void;
@@ -190,14 +192,14 @@ interface AppState {
   cacheAsset: (asset: Asset) => void;
   getAsset: (assetId: string) => Asset | undefined;
 
-  // Actions - Metadata (audio attachments)
+  // Actions - Metadata
   loadMetadata: (vaultPath: string) => Promise<void>;
   saveMetadata: () => Promise<void>;
-  attachAudioToAsset: (assetId: string, audioAsset: Asset, offset?: number) => void;
+  attachAudioToCut: (sceneId: string, cutId: string, audioAsset: Asset, offset?: number) => void;
   analyzeAudioAsset: (audioAsset: Asset, fps?: number) => Promise<void>;
-  detachAudioFromAsset: (assetId: string) => void;
-  getAttachedAudio: (assetId: string) => Asset | undefined;
-  updateAudioOffset: (assetId: string, offset: number) => void;
+  detachAudioFromCut: (sceneId: string, cutId: string) => void;
+  getAttachedAudioForCut: (sceneId: string, cutId: string) => Asset | undefined;
+  updateCutAudioOffset: (sceneId: string, cutId: string, offset: number) => void;
   setLipSyncForAsset: (assetId: string, settings: LipSyncSettings) => void;
   clearLipSyncForAsset: (assetId: string) => void;
   removeAssetReferences: (assetIds: string[]) => void;
@@ -603,6 +605,7 @@ export const useStore = create<AppState>((set, get) => ({
       asset,
       displayTime: 1.0,
       order: actualIndex,
+      audioBindings: [],
     };
 
     set((state) => {
@@ -642,6 +645,7 @@ export const useStore = create<AppState>((set, get) => ({
       asset: undefined,
       displayTime: 1.0,
       order: actualIndex,
+      audioBindings: [],
       isLoading: true,
       loadingName,
     };
@@ -828,6 +832,21 @@ export const useStore = create<AppState>((set, get) => ({
                     isLipSync,
                     lipSyncFrameCount: isLipSync ? frameCount : undefined,
                   }
+                : c
+            ),
+          }
+        : s
+    ),
+  })),
+
+  setCutAudioBindings: (sceneId, cutId, bindings) => set((state) => ({
+    scenes: state.scenes.map((s) =>
+      s.id === sceneId
+        ? {
+            ...s,
+            cuts: s.cuts.map((c) =>
+              c.id === cutId
+                ? { ...c, audioBindings: bindings.map((binding) => ({ ...binding })) }
                 : c
             ),
           }
@@ -1109,6 +1128,7 @@ export const useStore = create<AppState>((set, get) => ({
       assetId: cut.assetId,
       asset: cut.asset!,
       displayTime: cut.displayTime,
+      audioBindings: cut.audioBindings?.map((binding) => ({ ...binding })),
       // Include clip points
       inPoint: cut.inPoint,
       outPoint: cut.outPoint,
@@ -1138,6 +1158,7 @@ export const useStore = create<AppState>((set, get) => ({
         asset: clipCut.asset,
         displayTime: clipCut.displayTime,
         order: insertIndex + idx,
+        audioBindings: clipCut.audioBindings?.map((binding) => ({ ...binding })),
         // Include clip points
         inPoint: clipCut.inPoint,
         outPoint: clipCut.outPoint,
@@ -1226,32 +1247,41 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
-  attachAudioToAsset: (assetId, audioAsset, offset = 0) => {
+  attachAudioToCut: (sceneId, cutId, audioAsset, offset = 0) => {
     set((state) => {
-      // Cache the audio asset
       const newCache = new Map(state.assetCache);
       newCache.set(audioAsset.id, audioAsset);
 
-      // Update metadata store
-      const currentStore = state.metadataStore || { version: 1, metadata: {}, sceneMetadata: {} };
-      const newStore = attachAudio(
-        currentStore,
-        assetId,
-        audioAsset.id,
-        audioAsset.name,
-        offset
-      );
-
       return {
+        scenes: state.scenes.map((scene) =>
+          scene.id === sceneId
+            ? {
+                ...scene,
+                cuts: scene.cuts.map((cut) =>
+                  cut.id === cutId
+                    ? {
+                        ...cut,
+                        audioBindings: [
+                          {
+                            id: uuidv4(),
+                            audioAssetId: audioAsset.id,
+                            sourceName: audioAsset.name,
+                            offsetSec: offset,
+                            gain: 1,
+                            enabled: true,
+                            kind: 'se',
+                          },
+                        ],
+                      }
+                    : cut
+                ),
+              }
+            : scene
+        ),
         assetCache: newCache,
-        metadataStore: newStore,
       };
     });
 
-    // Save metadata to disk
-    get().saveMetadata();
-
-    // Kick off RMS analysis for the audio asset (non-blocking)
     void get().analyzeAudioAsset(audioAsset, 60);
   },
 
@@ -1278,38 +1308,58 @@ export const useStore = create<AppState>((set, get) => ({
     await get().saveMetadata();
   },
 
-  detachAudioFromAsset: (assetId) => {
+  detachAudioFromCut: (sceneId, cutId) => {
     set((state) => {
-      if (!state.metadataStore) return state;
-
-      const newStore = detachAudio(state.metadataStore, assetId);
-      return { metadataStore: newStore };
+      return {
+        scenes: state.scenes.map((scene) =>
+          scene.id === sceneId
+            ? {
+                ...scene,
+                cuts: scene.cuts.map((cut) =>
+                  cut.id === cutId
+                    ? { ...cut, audioBindings: [] }
+                    : cut
+                ),
+              }
+            : scene
+        ),
+      };
     });
-
-    // Save metadata to disk
-    get().saveMetadata();
   },
 
-  getAttachedAudio: (assetId) => {
+  getAttachedAudioForCut: (sceneId, cutId) => {
     const state = get();
-    if (!state.metadataStore) return undefined;
-
-    const metadata = state.metadataStore.metadata[assetId];
-    if (!metadata?.attachedAudioId) return undefined;
-
-    return state.assetCache.get(metadata.attachedAudioId);
+    const scene = state.scenes.find((s) => s.id === sceneId);
+    const cut = scene?.cuts.find((c) => c.id === cutId);
+    const primaryBinding = cut?.audioBindings?.[0];
+    if (!primaryBinding?.audioAssetId) return undefined;
+    return state.assetCache.get(primaryBinding.audioAssetId);
   },
 
-  updateAudioOffset: (assetId, offset) => {
+  updateCutAudioOffset: (sceneId, cutId, offset) => {
     set((state) => {
-      if (!state.metadataStore) return state;
-
-      const newStore = updateOffsetInStore(state.metadataStore, assetId, offset);
-      return { metadataStore: newStore };
+      return {
+        scenes: state.scenes.map((scene) =>
+          scene.id === sceneId
+            ? {
+                ...scene,
+                cuts: scene.cuts.map((cut) => {
+                  if (cut.id !== cutId) return cut;
+                  const current = cut.audioBindings || [];
+                  if (current.length === 0) return cut;
+                  return {
+                    ...cut,
+                    audioBindings: [
+                      { ...current[0], offsetSec: offset },
+                      ...current.slice(1),
+                    ],
+                  };
+                }),
+              }
+            : scene
+        ),
+      };
     });
-
-    // Save metadata to disk
-    get().saveMetadata();
   },
 
   setLipSyncForAsset: (assetId, settings) => {
@@ -1375,12 +1425,22 @@ export const useStore = create<AppState>((set, get) => ({
         metadataStore = removeAssetReferencesInStore(metadataStore, targets);
       }
 
+      const removedSet = new Set(targets);
+      const scenes = state.scenes.map((scene) => ({
+        ...scene,
+        cuts: scene.cuts.map((cut) => ({
+          ...cut,
+          audioBindings: (cut.audioBindings || []).filter((binding) => !removedSet.has(binding.audioAssetId)),
+        })),
+      }));
+
       const nextCache = new Map(state.assetCache);
       for (const assetId of targets) {
         nextCache.delete(assetId);
       }
 
       return {
+        scenes,
         metadataStore,
         assetCache: nextCache,
       };
