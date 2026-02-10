@@ -68,6 +68,16 @@ interface Cut {
 - 表示条件: Video cut のみ
 - PreviewModal は再生責務を維持し、設定UIを増やさない
 
+### 2.4 PreviewModal 連動（実装済み）
+- `useEmbeddedAudio=false` の cut は、Preview で内蔵音声（video要素側）をミュートする。
+- 判定は `globalMuted || !useEmbeddedAudio`。
+- 適用対象は Single/Sequence の両モード。
+- AttachAudio 側は現状維持（global volume/mute 連動）。
+
+### 2.5 既存データの扱い（確定）
+- `useEmbeddedAudio` が未定義の cut は `true` 扱い。
+- 保存済み `useEmbeddedAudio=false` はユーザー設定として維持する（自動移行しない）。
+
 ---
 
 ## 3. ExportPlan / AudioPlan（実装前固定）
@@ -137,7 +147,13 @@ interface Cut {
 ## 6. テスト計画（更新）
 1. `Cut.useEmbeddedAudio` の保存/復元（実装済み）
 2. `setCutUseEmbeddedAudio` 更新と既定値 `true` の担保（実装済み）
-3. DetailsPanel トグルで store/project が更新されること（未着手）
+3. DetailsPanel トグルで store/project が更新されること（実装済み）
 4. ExportPlan 生成で `kind` ごとの出力分離が正しいこと
 5. voice素材コピー列挙（重複除去/命名安定）
 6. metadata attachedAudio 削除後の参照列挙回帰（assetRefs）
+
+---
+
+## 7. TODO（次フェーズ）
+- AttachAudio の ON/OFF は新しい状態を増やさず `audioBindings[].enabled` を UI で切り替えるだけで実現可能。
+- 先に ON/OFF だけ実装し、個別音量（内蔵音声/AttachAudio 分離）は後続フェーズで検討する。

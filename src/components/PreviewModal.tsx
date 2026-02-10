@@ -218,6 +218,11 @@ export default function PreviewModal({
     return getPrimaryAudioBindingForCut(cut)?.offsetSec ?? 0;
   }, [getPrimaryAudioBindingForCut]);
 
+  const shouldMuteEmbeddedAudio = useCallback((cut: Cut | null | undefined): boolean => {
+    const useEmbeddedAudio = cut?.useEmbeddedAudio ?? true;
+    return globalMuted || !useEmbeddedAudio;
+  }, [globalMuted]);
+
   const getDisplayTimeForAsset = useCallback((assetId: string): number | null => {
     if (!metadataStore) return null;
     const metadata = metadataStore.metadata[assetId];
@@ -674,14 +679,6 @@ export default function PreviewModal({
       videoRef.current.playbackRate = playbackSpeed;
     }
   }, [isSingleModeVideo, playbackSpeed]);
-
-  // Apply global volume (Single Mode)
-  useEffect(() => {
-    if (isSingleModeVideo && videoRef.current) {
-      videoRef.current.volume = globalVolume;
-      videoRef.current.muted = globalMuted;
-    }
-  }, [isSingleModeVideo, globalVolume, globalMuted]);
 
   // ===== SINGLE MODE ATTACHED AUDIO =====
 
@@ -1415,7 +1412,7 @@ export default function PreviewModal({
         src: videoObjectUrl.url,
         key: videoObjectUrl.url,
         className: 'preview-media',
-        muted: globalMuted,
+        muted: shouldMuteEmbeddedAudio(currentItem.cut),
         refObject: videoRef,
         inPoint: clipInPoint,
         outPoint: clipOutPoint,
@@ -1449,7 +1446,7 @@ export default function PreviewModal({
     sequenceState.currentIndex,
     videoObjectUrl,
     playbackSpeed,
-    globalMuted,
+    shouldMuteEmbeddedAudio,
     setSequenceSource,
     sequenceTick,
     sequenceGoToNext,
@@ -1901,13 +1898,23 @@ export default function PreviewModal({
     }
   }, [isDragging, handleProgressBarMouseMove, handleProgressBarMouseUp]);
 
-  // Apply global volume to video element
+  // Apply volume/mute to the active video element (embedded audio only)
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.volume = globalVolume;
-      videoRef.current.muted = globalMuted;
+      const activeCut = isSingleMode
+        ? (focusCutData?.cut ?? null)
+        : (items[sequenceState.currentIndex]?.cut ?? null);
+      videoRef.current.muted = shouldMuteEmbeddedAudio(activeCut);
     }
-  }, [globalVolume, globalMuted]);
+  }, [
+    globalVolume,
+    isSingleMode,
+    focusCutData?.cut,
+    items,
+    sequenceState.currentIndex,
+    shouldMuteEmbeddedAudio,
+  ]);
 
   // ===== SHARED COMPUTED VALUES =====
   const currentItem = items[currentIndex];

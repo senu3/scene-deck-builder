@@ -47,6 +47,8 @@ Video sources queue play/seek until the element is mounted, avoiding the cut bou
 - Audio uses `AudioManager.play(absoluteTimeSec)`.
 - Absolute time is derived from the controller’s `currentIndex + localProgress`.
 - Audio managers are separate for Single and Sequence to prevent cross-mode races.
+- Embedded audio (video element) mute is controlled by `globalMuted || !cut.useEmbeddedAudio`.
+- Attached audio keeps the current shared control (`globalMuted/globalVolume`) for now.
 
 ## Buffering / Preload
 - Sequence preloads URLs in a time window (`PLAY_SAFE_AHEAD`, `PRELOAD_AHEAD`).
