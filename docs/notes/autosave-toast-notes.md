@@ -5,9 +5,11 @@
 **関連ファイル**: `src/hooks/useHeaderProjectController.ts`, `src/ui/feedback/Toast.tsx`。
 **更新頻度**: 低。
 
-> 仮: Toast仕様が確定したら更新。
+## ステータス（2026-02-10）
+- 完了（Done）
+- 現在の実装は運用中。追加要件が出るまで保守のみ。
 
-## 現状の仮実装
+## 現行実装
 - 発火: autosave の save が失敗したとき (1回のみ、成功でリセット)
 - 表示: `toast.error('Autosave failed', 'Please save manually.', { id: 'autosave-failed' })`
 - 重複抑止: toast ID 固定で上書き

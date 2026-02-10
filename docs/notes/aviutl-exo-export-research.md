@@ -5,7 +5,19 @@
 **関連ファイル**: `docs/references/DOMAIN.md`, `docs/references/MAPPING.md`, `docs/guides/preview.md`, `docs/guides/media-handling.md`, `docs/guides/storyline.md`, `docs/notes/export-naming-plan.md`, `.notes/export_plan.md`。  
 **更新頻度**: 中。  
 
-> 未決: EXOの詳細互換（動画トリム表現、cover厳密再現、文字コード運用の最終判断）は実装調査で確定する。
+## ステータス（2026-02-10）
+- 進捗: 「1. 命名・境界（実装前に固定）」まで完了
+- 判断: EXO 出力は中止し、MP4 export 実装へ移行
+- 扱い: 本ノートはアーカイブ（履歴参照用）。新規実装の正本としては使わない
+
+## 中止理由（要約）
+- 最新 AviUtl 環境で EXO の互換運用に問題があり、実運用リスクが高い。
+- 既存パイプラインとの親和性・保守性を優先し、出力軸は MP4 に一本化する。
+
+## 引き継ぎ先（MP4）
+- `docs/notes/export-timeline-integrity-plan.md`
+- `docs/notes/audio_pre_export_design.md`
+- `docs/notes/export-naming-plan.md`
 
 ## 0. ゴール（最終アウトプット）
 1. EXO最小仕様ドラフト（対応範囲 / 非対応 / 例外）
@@ -13,6 +25,8 @@
 3. 実装分割案（純粋関数 / 副作用 / IPC / queue）
 4. テスト計画（unit/integration、配置、ケース）
 5. 既存 Export/ffmpeg queue と衝突しない接続設計
+
+> 注: 上記ゴールは EXO 方針時点のもの。現在は新規作業対象外。
 
 ## 0.1 現在の前提（2026-02 時点）
 - docs側の命名境界は反映済み（`DOMAIN.md`/`MAPPING.md`）。
@@ -106,12 +120,12 @@
 - Preview用語（`SequenceClock`, `PreviewMediaSource`）とExport用語（`RenderSequence`, `ExportRunner`）を混在させない
 
 ## 6. 実行チェックリスト
-- [ ] 用語を `DOMAIN.md` / `MAPPING.md` と一致させる
-- [ ] `RenderSequence` と `ExportRunner` の仮名を実装で採用
-- [ ] `AviUtlExportPlan` の型ドラフト作成
-- [ ] EXO最小テンプレを確定
-- [ ] `start/end` とゼロ長カットのフレーム規約を確定
-- [ ] 相対/絶対パス方針を確定（既定: 相対）
-- [ ] unit/integration のテストファイル配置を決定
-- [ ] 失敗系と進捗イベントの契約を決定
-- [ ] キャンセル時の partial出力物ポリシーを決定
+- [x] 用語を `DOMAIN.md` / `MAPPING.md` と一致させる
+- [ ] `RenderSequence` と `ExportRunner` の仮名を実装で採用（MP4 側で継続判断）
+- [ ] `AviUtlExportPlan` の型ドラフト作成（中止）
+- [ ] EXO最小テンプレを確定（中止）
+- [ ] `start/end` とゼロ長カットのフレーム規約を確定（中止）
+- [ ] 相対/絶対パス方針を確定（既定: 相対）（中止）
+- [ ] unit/integration のテストファイル配置を決定（中止）
+- [ ] 失敗系と進捗イベントの契約を決定（MP4 側へ移管）
+- [ ] キャンセル時の partial出力物ポリシーを決定（MP4 側へ移管）

@@ -26,11 +26,11 @@
 - `docs/ui/components.md`
 - `docs/ui/color-system.md`
 - `docs/ui/scene-duration-bar.md`
-- `docs/notes/autosave-toast-notes.md`
+- `docs/notes/autosave-toast-notes.md`（完了）
 - `docs/notes/audio_pre_export_design.md`（Audio/Export前提の最新メモ）
 - `docs/notes/export-timeline-integrity-plan.md`（時系列整合性の是正計画）
-- `docs/notes/export-naming-plan.md`（Export実装時に参照）
-- `docs/notes/aviutl-exo-export-research.md`（Export調査の最新版）
+- `docs/notes/export-naming-plan.md`（Phase 1完了、Phase 2以降継続）
+- `docs/notes/aviutl-exo-export-research.md`（EXO中止の履歴アーカイブ）
 
 ## 追加時のルール
 - 追加・更新ルールは `docs/DOCS_GUIDE.md` を参照。

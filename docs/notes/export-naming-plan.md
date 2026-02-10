@@ -5,7 +5,12 @@
 **関連ファイル**: `docs/references/DOMAIN.md`, `docs/references/MAPPING.md`, `docs/guides/preview.md`, `docs/guides/media-handling.md`, `src/utils/mediaType.ts`。  
 **更新頻度**: 中。  
 
-> TODO: Export実装の詳細仕様（UI/レンダリング方式）が確定したら、Phase 2の名称を最終確定する。
+## ステータス（2026-02-10）
+- Phase 1: 完了
+- Phase 2: 未着手（MP4 export 実装側の詳細確定待ち）
+- Phase 3: 一部完了（正本 docs への反映は実施済み、最終統一は継続）
+
+> TODO: MP4 export の最終仕様（UI/実行方式）が確定したら、Phase 2/3 を最終化する。
 
 ## 背景
 - 編集軸（`StoryTimeline`）と再生軸（public: `useSequencePlaybackController`, internal: `SequenceClock`）は整理済み。
@@ -47,10 +52,10 @@ Export: `ExportRunner` / `RenderSequence`。
 改名より責務説明の固定を優先。
 
 ## 実行チェックリスト
-- [ ] `DOMAIN.md` に「命名ルール（編集/再生/出力）」節を追加
-- [ ] `MAPPING.md` に Export軸の概念/実装対応を追加
-- [ ] `preview.md` と `media-handling.md` に `MediaSource` 用語注記を追加
-- [ ] `source` 用語（UI/ファイル）の使い分けを guides に明記
+- [x] `DOMAIN.md` に「命名ルール（編集/再生/出力）」節を追加
+- [x] `MAPPING.md` に Export軸の概念/実装対応を追加
+- [x] `preview.md` と `media-handling.md` に `MediaSource` 用語注記を追加
+- [x] `source` 用語（UI/ファイル）の使い分けを guides に明記
 - [ ] `rg -n "Timeline.*Export|Export.*Timeline"` で禁止パターンがないことを確認
 
 ## 完了条件
