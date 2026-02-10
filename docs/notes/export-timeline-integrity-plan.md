@@ -2,8 +2,12 @@
 
 **目的**: Scene/Cut の時系列整合性を export で破綻させないための不変条件と是正計画を固定する。  
 **適用範囲**: `useStore`, `commands`, `App.handleExport`, `projectSave`, 関連テスト。  
-**関連ファイル**: `src/store/useStore.ts`, `src/store/commands.ts`, `src/App.tsx`, `src/utils/projectSave.ts`, `src/store/__tests__/*`, `src/utils/__tests__/*`。  
+**関連ファイル**: `src/store/useStore.ts`, `src/store/commands.ts`, `src/App.tsx`, `src/utils/projectSave.ts`, `src/utils/timelineOrder.ts`, `src/utils/exportSequence.ts`, `src/store/__tests__/*`, `src/utils/__tests__/*`。  
 **更新頻度**: 中。  
+
+## 実装ステータス（2026-02-10）
+- A〜D は実装済み。
+- 本ドキュメントは「計画 + 実装結果」の記録として維持する。
 
 ## 背景
 - 現状は「配列順」と `order` フィールドの二重管理が混在している。
@@ -60,6 +64,49 @@
 4. `RemoveSceneCommand.undo` を元インデックス復元へ変更。
 5. `displayTime` ガードを export 入力生成へ追加。
 6. テスト追加。
+
+## 実装結果（2026-02-10）
+
+### A. マルチ移動順序の固定（実装済み）
+- `src/App.tsx`:
+  - Multi-select drag で `selectedIds` を `getCutIdsInTimelineOrder` で正規化してから `MoveCutsToSceneCommand` に渡すよう変更。
+  - グループ連動 (`removeCutsFromGroups` / `insertCutsIntoGroup`) も同一の正規化順序を使用。
+- `src/store/useStore.ts`:
+  - `moveCutsToScene` 内でも `getScenesAndCutsInTimelineOrder` を用いて収集順を時系列化。
+  - 呼び出し側の入力順に依存しないよう二重化ガード。
+
+### B. export の順序源単一化（実装済み）
+- `src/utils/timelineOrder.ts`:
+  - Scene/Cut の時系列正規化ヘルパーを追加。
+- `src/utils/exportSequence.ts`:
+  - export 入力生成ロジックを集約し、必ず時系列正規化済み列を返す。
+- `src/App.tsx`:
+  - `handleExport` は `buildSequenceItemsForExport(scenes)` のみを参照。
+
+### C. Scene 削除 Undo の時系列復元（実装済み）
+- `src/store/commands.ts`:
+  - `RemoveSceneCommand.undo` を「末尾追加 + 再構築」から「元インデックス復元」に変更。
+  - 復元後に `scene.order` を再採番。
+  - `syncSceneMetadata` で metadata を同期。
+
+### D. `displayTime` export 前ガード（実装済み）
+- `src/utils/exportSequence.ts`:
+  - `Number.isFinite(displayTime) && displayTime > 0` を満たさない場合に補正。
+  - 補正ルール:
+    - `video` かつ `asset.duration > 0` の場合は `asset.duration`
+    - それ以外は `1.0`
+  - 補正時は `console.warn` を出力。
+
+## 実装済みテスト
+- `src/utils/__tests__/timelineOrder.test.ts`
+  - Scene/Cut の時系列正規化
+  - 選択順非依存の cutId 正規化
+- `src/utils/__tests__/exportSequence.test.ts`
+  - export 順序が `order` 規約に従うこと
+  - `displayTime` 不正値の補正 + 警告
+- `src/store/__tests__/timelineIntegrityCommands.test.ts`
+  - `RemoveSceneCommand.undo` の元インデックス復元
+  - `moveCutsToScene` が入力ID順でなく時系列順を維持
 
 ## テスト計画（全是正対象）
 

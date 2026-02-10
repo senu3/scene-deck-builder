@@ -45,3 +45,8 @@
 - `Scene` is a data unit; `Storyline` is the editing UI that renders scenes.
 - `SceneDurationBar` is not a playback timeline. It summarizes edit-axis duration only.
 - Preview route switching (`openVideoPreview` / `openSequencePreview`) is playback behavior and must not rename editing-axis concepts.
+
+## Timeline Integrity Rules
+- Multi-select drag (`MoveCutsToSceneCommand`) must normalize selected cut IDs by timeline order before move.
+- `moveCutsToScene` must preserve timeline order even if caller passes IDs in arbitrary order.
+- Scene/Cut chronology source for export must be the same `order` normalization used by timeline helpers (`src/utils/timelineOrder.ts`).

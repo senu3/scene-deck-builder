@@ -7,6 +7,7 @@ import { clearThumbnailCache } from '../utils/thumbnailCache';
 import type { CutImportSource } from '../utils/cutImport';
 import { buildAssetForCut } from '../utils/cutImport';
 import { collectAssetRefs, getBlockingRefsForAssetIds, type AssetRef } from '../utils/assetRefs';
+import { getScenesAndCutsInTimelineOrder } from '../utils/timelineOrder';
 
 export interface SourceFolder {
   path: string;
@@ -937,19 +938,17 @@ export const useStore = create<AppState>((set, get) => ({
     };
   }),
 
-  // Move multiple cuts to a scene (preserves relative order)
+  // Move multiple cuts to a scene (always preserves timeline order)
   moveCutsToScene: (cutIds, toSceneId, toIndex) => set((state) => {
-    // Collect cuts to move with their current data (preserving order in cutIds)
+    // Collect cuts in current timeline order (scene order -> cut order)
     const cutsToMove: Cut[] = [];
     const cutIdSet = new Set(cutIds);
 
-    // Get cuts in the order specified by cutIds
-    for (const cutId of cutIds) {
-      for (const scene of state.scenes) {
-        const cut = scene.cuts.find((c) => c.id === cutId);
-        if (cut) {
+    const orderedScenes = getScenesAndCutsInTimelineOrder(state.scenes);
+    for (const scene of orderedScenes) {
+      for (const cut of scene.cuts) {
+        if (cutIdSet.has(cut.id)) {
           cutsToMove.push(cut);
-          break;
         }
       }
     }

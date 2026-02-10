@@ -1,6 +1,7 @@
 import { Command } from './historyStore';
 import { useStore } from './useStore';
 import type { Asset, Cut, Scene, CutGroup } from '../types';
+import { syncSceneMetadata } from '../utils/metadataStore';
 
 function restoreCutState(
   store: ReturnType<typeof useStore.getState>,
@@ -361,25 +362,25 @@ export class RemoveSceneCommand implements Command {
     if (!confirmed) return;
 
     const store = useStore.getState();
+    const restoreIndex = Math.min(
+      Math.max(this.removedSceneIndex ?? store.scenes.length, 0),
+      store.scenes.length
+    );
 
-    // シーンを復元（簡易実装: 末尾に追加）
-    const newSceneId = store.addScene(this.removedScene.name);
+    useStore.setState((state) => {
+      const scenes = [...state.scenes];
+      scenes.splice(restoreIndex, 0, this.removedScene as Scene);
+      const reindexedScenes = scenes.map((scene, idx) => ({ ...scene, order: idx }));
+      const currentStore = state.metadataStore || { version: 1, metadata: {}, sceneMetadata: {} };
+      const metadataStore = syncSceneMetadata(currentStore, reindexedScenes);
 
-    // カットを復元
-    this.removedScene.cuts.forEach((cut) => {
-      if (cut.asset) {
-        const newCutId = store.addCutToScene(newSceneId, cut.asset);
-        restoreCutState(store, newSceneId, newCutId, cut);
-      }
+      return {
+        scenes: reindexedScenes,
+        metadataStore,
+      };
     });
 
-    // ノートを復元
-    this.removedScene.notes?.forEach((note) => {
-      store.addSceneNote(newSceneId, {
-        type: note.type,
-        content: note.content,
-      });
-    });
+    store.saveMetadata();
   }
 }
 

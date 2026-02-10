@@ -12,7 +12,7 @@
 | プロジェクト | `Project`（vaultPath, scenes, sourcePanel）。 | `initializeProject` / `loadProject` / `window.electronAPI.saveProject`。 | `StartupModal`、`Header` |
 | シーン | `Scene`（cuts/order/notes/groups）。 | `addScene/removeScene/renameScene`。 | `Storyline` |
 | シーンノート | `SceneNote`。 | `addSceneNote/updateSceneNote/removeSceneNote`。 | `DetailsPanel` |
-| カット | `Cut`（assetId/displayTime/in/out）。 | `addCutToScene/updateCutDisplayTime/moveCutToScene`。 | `CutCard`、`PreviewModal` |
+| カット | `Cut`（assetId/displayTime/in/out/useEmbeddedAudio/audioBindings）。 | `addCutToScene/updateCutDisplayTime/moveCutToScene/moveCutsToScene`。 | `CutCard`、`DetailsPanel`、`PreviewModal` |
 | カットグループ | `CutGroup`（cutIds/isCollapsed）。 | `createGroup/deleteGroup/toggleGroupCollapsed/renameGroup`。 | `CutGroupCard`、`Storyline` |
 | アセット | `Asset`（path/type/vaultRelativePath 等）。 | `assetPath` 同期/解決/インポート（VaultGateway 経由）。 | `Sidebar`、`CutCard`、`PreviewModal` |
 | Asset Index | `AssetIndex` / `AssetIndexEntry`。 | `loadAssetIndex` / `vaultGateway.saveAssetIndex`。 | `AssetDrawer`、`AssetPanel` |

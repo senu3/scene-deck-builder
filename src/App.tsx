@@ -18,6 +18,8 @@ import type { Asset } from './types';
 import { getThumbnail } from './utils/thumbnailCache';
 import { importFileToVault } from './utils/assetPath';
 import { getDragKind, queueExternalFilesToScene } from './utils/dragDrop';
+import { buildSequenceItemsForExport } from './utils/exportSequence';
+import { getCutIdsInTimelineOrder } from './utils/timelineOrder';
 import './styles/App.css';
 
 function DndMonitorShim({ onDragStart }: { onDragStart: () => void }) {
@@ -291,20 +293,21 @@ function App() {
         const toIndex = overData.type === 'dropzone' ?
           (scenes.find(s => s.id === toSceneId)?.cuts.length || 0) :
           (overData.index ?? 0);
+        const orderedSelectedIds = getCutIdsInTimelineOrder(scenes, selectedIds);
 
         try {
-          await executeCommand(new MoveCutsToSceneCommand(selectedIds, toSceneId, toIndex));
+          await executeCommand(new MoveCutsToSceneCommand(orderedSelectedIds, toSceneId, toIndex));
         } catch (error) {
           console.error('Failed to move cuts:', error);
         }
 
         // Remove from group if moving out
         if (isMovingOutOfGroup) {
-          removeCutsFromGroups(fromSceneId, selectedIds, targetGroupId);
+          removeCutsFromGroups(fromSceneId, orderedSelectedIds, targetGroupId);
         }
 
         if (targetGroupId) {
-          insertCutsIntoGroup(toSceneId, targetGroupId, selectedIds, targetGroupInsertIndex);
+          insertCutsIntoGroup(toSceneId, targetGroupId, orderedSelectedIds, targetGroupInsertIndex);
         }
       } else if (fromSceneId === toSceneId) {
         // Single drag: Reorder within same scene
@@ -401,15 +404,7 @@ function App() {
 
     try {
       // Build sequence items
-      const sequenceItems = scenes.flatMap(scene =>
-        scene.cuts.map(cut => ({
-          type: cut.asset?.type || 'image' as const,
-          path: cut.asset?.path || '',
-          duration: cut.displayTime,
-          inPoint: cut.isClip ? cut.inPoint : undefined,
-          outPoint: cut.isClip ? cut.outPoint : undefined,
-        }))
-      ).filter(item => item.path);
+      const sequenceItems = buildSequenceItemsForExport(scenes);
 
       if (sequenceItems.length === 0) {
         alert('No items to export. Add some cuts to the timeline first.');
