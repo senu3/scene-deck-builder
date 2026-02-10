@@ -6,6 +6,7 @@ import {
   Music,
   Trash2,
   Clock,
+  Volume2,
   FileImage,
   Film,
   Plus,
@@ -43,7 +44,7 @@ import LipSyncModal from "./LipSyncModal";
 import AssetModal from "./AssetModal";
 import type { ImageMetadata, Asset } from "../types";
 import { v4 as uuidv4 } from "uuid";
-import { useDialog } from "../ui";
+import { Toggle, useDialog } from "../ui";
 import "./DetailsPanel.css";
 
 export default function DetailsPanel() {
@@ -68,6 +69,7 @@ export default function DetailsPanel() {
     detachAudioFromCut,
     getAttachedAudioForCut,
     updateCutAudioOffset,
+    setCutUseEmbeddedAudio,
     relinkCutAsset,
   } = useStore();
 
@@ -114,6 +116,7 @@ export default function DetailsPanel() {
   const asset =
     cut?.asset || (cut?.assetId ? getAsset(cut.assetId) : undefined);
   const primaryAudioBinding = cut?.audioBindings?.[0];
+  const useEmbeddedAudio = cut?.useEmbeddedAudio ?? true;
   const attachedAudioSourceName =
     primaryAudioBinding?.sourceName || attachedAudio?.name || "Unknown";
   const hasAttachedAudio = !!primaryAudioBinding?.audioAssetId;
@@ -523,6 +526,11 @@ export default function DetailsPanel() {
     const currentOffset = parseFloat(audioOffset) || 0;
     const newOffset = (currentOffset + delta).toFixed(1);
     handleAudioOffsetChange(newOffset);
+  };
+
+  const handleUseEmbeddedAudioToggle = (enabled: boolean) => {
+    if (!cutScene || !cut) return;
+    setCutUseEmbeddedAudio(cutScene.id, cut.id, enabled);
   };
 
   const handleFrameCapture = async (timestamp: number): Promise<string | void> => {
@@ -1053,6 +1061,19 @@ export default function DetailsPanel() {
                 <span className="time-unit">seconds</span>
               </div>
             </div>
+            {isVideo && (
+              <div className="info-row">
+                <span className="info-label">
+                  <Volume2 size={14} />
+                  Audio from the video:
+                </span>
+                <Toggle
+                  checked={useEmbeddedAudio}
+                  onChange={handleUseEmbeddedAudioToggle}
+                  size="sm"
+                />
+              </div>
+            )}
           </div>
 
           {/* Clip Info Section (for video clips) */}

@@ -19,6 +19,7 @@ interface ClipboardCut {
   assetId: string;
   asset: Asset;
   displayTime: number;
+  useEmbeddedAudio?: boolean;
   audioBindings?: CutAudioBinding[];
   // Video clip fields
   inPoint?: number;
@@ -140,6 +141,7 @@ interface AppState {
   updateCutAsset: (sceneId: string, cutId: string, assetUpdates: Partial<Asset>) => void;
   updateCutLipSync: (sceneId: string, cutId: string, isLipSync: boolean, frameCount?: number) => void;
   setCutAudioBindings: (sceneId: string, cutId: string, bindings: CutAudioBinding[]) => void;
+  setCutUseEmbeddedAudio: (sceneId: string, cutId: string, enabled: boolean) => void;
 
   // Actions - Selection
   selectScene: (sceneId: string | null) => void;
@@ -230,6 +232,16 @@ interface AppState {
   getSelectedCutIds: () => string[];
 }
 
+function normalizeScenesUseEmbeddedAudio(scenes: Scene[]): Scene[] {
+  return scenes.map((scene) => ({
+    ...scene,
+    cuts: scene.cuts.map((cut) => ({
+      ...cut,
+      useEmbeddedAudio: cut.useEmbeddedAudio ?? true,
+    })),
+  }));
+}
+
 export const useStore = create<AppState>((set, get) => ({
   // Initial state
   projectLoaded: false,
@@ -287,7 +299,7 @@ export const useStore = create<AppState>((set, get) => ({
       vaultPath: project.vaultPath || null,
       trashPath: project.vaultPath ? `${project.vaultPath}/.trash` : null,
       projectName: project.name || 'Untitled Project',
-      scenes: project.scenes || defaultScenes,
+      scenes: normalizeScenesUseEmbeddedAudio(project.scenes || defaultScenes),
       selectedSceneId: null,
       selectedCutId: null,
       selectedCutIds: new Set(),
@@ -320,7 +332,7 @@ export const useStore = create<AppState>((set, get) => ({
     });
   },
 
-  loadProject: (scenes) => set({ scenes }),
+  loadProject: (scenes) => set({ scenes: normalizeScenesUseEmbeddedAudio(scenes) }),
 
   // Folder browser actions
   setRootFolder: (folder) => set((state) => {
@@ -605,6 +617,7 @@ export const useStore = create<AppState>((set, get) => ({
       asset,
       displayTime: 1.0,
       order: actualIndex,
+      useEmbeddedAudio: true,
       audioBindings: [],
     };
 
@@ -645,6 +658,7 @@ export const useStore = create<AppState>((set, get) => ({
       asset: undefined,
       displayTime: 1.0,
       order: actualIndex,
+      useEmbeddedAudio: true,
       audioBindings: [],
       isLoading: true,
       loadingName,
@@ -847,6 +861,21 @@ export const useStore = create<AppState>((set, get) => ({
             cuts: s.cuts.map((c) =>
               c.id === cutId
                 ? { ...c, audioBindings: bindings.map((binding) => ({ ...binding })) }
+                : c
+            ),
+          }
+        : s
+    ),
+  })),
+
+  setCutUseEmbeddedAudio: (sceneId, cutId, enabled) => set((state) => ({
+    scenes: state.scenes.map((s) =>
+      s.id === sceneId
+        ? {
+            ...s,
+            cuts: s.cuts.map((c) =>
+              c.id === cutId
+                ? { ...c, useEmbeddedAudio: enabled }
                 : c
             ),
           }
@@ -1128,6 +1157,7 @@ export const useStore = create<AppState>((set, get) => ({
       assetId: cut.assetId,
       asset: cut.asset!,
       displayTime: cut.displayTime,
+      useEmbeddedAudio: cut.useEmbeddedAudio,
       audioBindings: cut.audioBindings?.map((binding) => ({ ...binding })),
       // Include clip points
       inPoint: cut.inPoint,
@@ -1158,6 +1188,7 @@ export const useStore = create<AppState>((set, get) => ({
         asset: clipCut.asset,
         displayTime: clipCut.displayTime,
         order: insertIndex + idx,
+        useEmbeddedAudio: clipCut.useEmbeddedAudio ?? true,
         audioBindings: clipCut.audioBindings?.map((binding) => ({ ...binding })),
         // Include clip points
         inPoint: clipCut.inPoint,

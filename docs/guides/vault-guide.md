@@ -35,7 +35,8 @@ Each entry stores:
 
 ## `.metadata.json` (Scene Metadata + Attachments)
 Used for information that is not a core asset index:
-- Asset attachments (audio, offsets, analysis)
+- Asset metadata (displayTime, analysis, lipSync)
+- Legacy attached-audio fields (`attachedAudio*`) remain for compatibility cleanup
 - LipSync links (base/variant/mask/composited/rms/sourceVideo) and bundle ownership
 - Scene metadata: name + notes
 
@@ -43,7 +44,8 @@ Used for information that is not a core asset index:
 - Asset references are collected by `collectAssetRefs(scenes, metadataStore)`.
 - Reference kinds:
 - `cut`
-- `attached-audio`
+- `cut-audio-binding`
+- `attached-audio` (legacy)
 - `lipsync-base`
 - `lipsync-variant`
 - `lipsync-mask`
@@ -77,7 +79,7 @@ All paths must end with `.index.json` being updated via VaultGateway.
 ### 2) Attach Audio
 - Attaching audio creates or registers an audio asset:
 - Audio file is imported into `vault/assets/`
-- `.metadata.json` stores attachment links and offset
+- Cut側 (`Cut.audioBindings`) に attachment link/offset/kind を保存
 - `.index.json` stores the audio asset entry via VaultGateway
 - Audio assets are attachment-only and do not become cuts on the timeline.
 
@@ -112,7 +114,7 @@ Renderer code must call `window.electronAPI.vaultGateway.*` for:
 ## Recovery Priority
 1. `project.sdp` for story order and cuts
 2. `.index.json` for assetId -> file mapping + usageRefs
-3. `.metadata.json` for scene notes/labels and asset attachments
+3. `.metadata.json` for scene notes/labels and asset metadata (analysis/lipSync/displayTime)
 4. `.trash/.trash.json` for audit/history
 
 ## Related Docs

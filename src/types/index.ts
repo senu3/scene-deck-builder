@@ -86,6 +86,7 @@ export interface Cut {
   asset?: Asset;
   displayTime: number;
   order: number;
+  useEmbeddedAudio?: boolean;
   audioBindings?: CutAudioBinding[];
   // Video clip fields (for non-destructive trimming)
   inPoint?: number;   // Start time in seconds

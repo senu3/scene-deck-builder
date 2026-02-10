@@ -27,6 +27,7 @@
 - `docs/ui/color-system.md`
 - `docs/ui/scene-duration-bar.md`
 - `docs/notes/autosave-toast-notes.md`
+- `docs/notes/audio_pre_export_design.md`（Audio/Export前提の最新メモ）
 - `docs/notes/export-naming-plan.md`（Export実装時に参照）
 - `docs/notes/aviutl-exo-export-research.md`（Export調査の最新版）
 

@@ -16,6 +16,7 @@ function restoreCutState(
 
   store.updateCutLipSync(sceneId, cutId, !!sourceCut.isLipSync, sourceCut.lipSyncFrameCount);
   store.setCutAudioBindings(sceneId, cutId, sourceCut.audioBindings || []);
+  store.setCutUseEmbeddedAudio(sceneId, cutId, sourceCut.useEmbeddedAudio ?? true);
 }
 
 /**
