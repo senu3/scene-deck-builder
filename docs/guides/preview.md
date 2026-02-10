@@ -14,6 +14,7 @@
 ### Single Mode
 - Activated when `PreviewModal` receives a single `asset` prop.
 - In Storyline, video cut preview is opened via `openVideoPreview(cutId)` and always enters Single Mode.
+- If `focusCutId` is missing, Single Mode runs as **asset-only preview** (no cut-bound settings).
 - Video: uses direct `<video>` rendering with per-element handlers.
 - Image: uses the Sequence playback engine (`useSequencePlaybackController` + `createImageMediaSource`) even in Single Mode.
 - Image display time resolves from metadata (`displayTime`) and falls back to `1.0s` (clamped to `>= 0.1s`).
@@ -49,6 +50,11 @@ Video sources queue play/seek until the element is mounted, avoiding the cut bou
 - Audio managers are separate for Single and Sequence to prevent cross-mode races.
 - Embedded audio (video element) mute is controlled by `globalMuted || !cut.useEmbeddedAudio`.
 - Attached audio keeps the current shared control (`globalMuted/globalVolume`) for now.
+- Attached audio binding selection priority is deterministic: `voice.lipsync` > `voice.other` > `se` (enabled entries only).
+
+## Focused Cut Fallback
+- When `focusCutId` is specified but not found, Preview does not fall back to full-sequence playback.
+- Instead it shows an empty state (`Selected cut is no longer available`).
 
 ## Buffering / Preload
 - Sequence preloads URLs in a time window (`PLAY_SAFE_AHEAD`, `PRELOAD_AHEAD`).

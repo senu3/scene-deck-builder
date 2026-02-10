@@ -124,6 +124,9 @@ export default function PreviewModal({
     }
     return null;
   }, [focusCutId, scenes]);
+  const hasCutContext = !!focusCutData?.cut;
+  const isAssetOnlyPreview = isSingleMode && !hasCutContext;
+  const missingFocusedCut = !isSingleMode && !!focusCutId && !focusCutData;
 
   const [items, setItems] = useState<PreviewItem[]>([]);
   const [singleModeIsPlaying, setSingleModeIsPlaying] = useState(false);
@@ -205,7 +208,18 @@ export default function PreviewModal({
 
   const getPrimaryAudioBindingForCut = useCallback((cut: Cut | null | undefined) => {
     if (!cut?.audioBindings?.length) return undefined;
-    return cut.audioBindings.find((binding) => binding.enabled !== false) ?? cut.audioBindings[0];
+    const enabledBindings = cut.audioBindings.filter((binding) => binding.enabled !== false);
+    if (enabledBindings.length === 0) return cut.audioBindings[0];
+
+    const kindPriority: Record<'voice.lipsync' | 'voice.other' | 'se', number> = {
+      'voice.lipsync': 0,
+      'voice.other': 1,
+      'se': 2,
+    };
+
+    return enabledBindings
+      .slice()
+      .sort((a, b) => kindPriority[a.kind] - kindPriority[b.kind])[0];
   }, []);
 
   const getAttachedAudioForCut = useCallback((cut: Cut | null | undefined): Asset | undefined => {
@@ -691,6 +705,13 @@ export default function PreviewModal({
       return;
     }
 
+    if (!hasCutContext) {
+      singleAudioManagerRef.current.unload();
+      setAudioLoaded(false);
+      singleAudioPlayingRef.current = false;
+      return;
+    }
+
     const attachedAudio = getAttachedAudioForCut(focusCutData?.cut ?? null);
     singleAudioManagerRef.current.unload();
     setAudioLoaded(false);
@@ -713,7 +734,7 @@ export default function PreviewModal({
     };
 
     loadAudio();
-  }, [isSingleMode, asset?.id, focusCutData?.cut, getAttachedAudioForCut, getAudioOffsetForCut]);
+  }, [isSingleMode, asset?.id, hasCutContext, focusCutData?.cut, getAttachedAudioForCut, getAudioOffsetForCut]);
 
   // Sync Single Mode audio with video playback (only on play/pause change)
   useEffect(() => {
@@ -900,6 +921,10 @@ export default function PreviewModal({
     }
 
     if (isSingleMode) return;
+    if (missingFocusedCut) {
+      setItems([]);
+      return;
+    }
 
     if (focusCutData) {
       const buildFocusedItems = async () => {
@@ -1046,6 +1071,7 @@ export default function PreviewModal({
     getDisplayTimeForAsset,
     getLipSyncSettingsForAsset,
     focusCutData,
+    missingFocusedCut,
   ]);
 
   useEffect(() => {
@@ -2002,6 +2028,9 @@ export default function PreviewModal({
             <div className="preview-header preview-header--compact">
               <div className="preview-header-left">
                 <span className="preview-title">{asset.name}</span>
+                {isAssetOnlyPreview && (
+                  <span className="preview-badge">Asset Preview</span>
+                )}
               </div>
               <div className="preview-header-right">
                 <button className="preview-close-btn" onClick={onClose} title="Close (Esc)">
@@ -2275,8 +2304,17 @@ export default function PreviewModal({
             </button>
           </div>
           <div className="preview-empty">
-            <p>No cuts to preview</p>
-            <p className="hint">Add some images or videos to your timeline first.</p>
+            {missingFocusedCut ? (
+              <>
+                <p>Selected cut is no longer available</p>
+                <p className="hint">The cut may have been deleted or moved.</p>
+              </>
+            ) : (
+              <>
+                <p>No cuts to preview</p>
+                <p className="hint">Add some images or videos to your timeline first.</p>
+              </>
+            )}
           </div>
         </div>
       </div>
