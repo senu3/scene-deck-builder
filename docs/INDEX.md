@@ -29,6 +29,7 @@
 - `docs/notes/autosave-toast-notes.md`（完了）
 - `docs/notes/audio_pre_export_design.md`（Audio/Export前提の最新メモ）
 - `docs/notes/export-timeline-integrity-plan.md`（時系列整合性の是正計画）
+- `docs/notes/export-mp4-lipsync-videoclip-plan.md`（LipSync/VideoClip 先行方針、解像度検討前）
 - `docs/notes/export-naming-plan.md`（Phase 1完了、Phase 2以降継続）
 - `docs/notes/aviutl-exo-export-research.md`（EXO中止の履歴アーカイブ）
 

@@ -11,6 +11,7 @@
 - Phase 3: 一部完了（正本 docs への反映は実施済み、最終統一は継続）
 
 > TODO: MP4 export の最終仕様（UI/実行方式）が確定したら、Phase 2/3 を最終化する。
+> 補足（2026-02-11）: 解像度シミュレータ要件を先に確定するため、LipSync/VideoClip の export 実装は計画のみ先行し、着手は次フェーズ。
 
 ## 背景
 - 編集軸（`StoryTimeline`）と再生軸（public: `useSequencePlaybackController`, internal: `SequenceClock`）は整理済み。

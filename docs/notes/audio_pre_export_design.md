@@ -2,6 +2,11 @@
 
 最終更新: 2026-02-10
 
+## ステータス補足（2026-02-11）
+- Export 実装は段階分離する。
+- 次実装フェーズの対象は `LipSync` と `VideoClip` のみ。
+- 解像度シミュレータ仕様は先に別途確定し、本ノートの export 記述には後から反映する。
+
 ## 0. 現在地（実装済み）
 - AttachAudio は `AssetMetadata.attachedAudioId` ではなく、`Cut.audioBindings` が主経路。
 - `CutAudioBinding.kind` により音声分類を cut 単位で保持できる状態。
