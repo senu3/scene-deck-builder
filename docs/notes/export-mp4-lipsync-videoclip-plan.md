@@ -19,6 +19,7 @@
 - Electron 側も LipSync payload を検証し、`framePaths/rms/rmsFps/thresholds` の不正時は export を失敗させる。
 - PreviewModal の export 操作は App 側 export 実行へ委譲し、実行経路を一本化。
 - Framing 既定値（`cover + center`）は `projectDefaults` として定数化し、Preview/Export 双方の解決入口へ供給。
+- Export 設定の正規化/実行計画を `resolveExportPlan` へ分離し、モーダルUI仕様変更前の非UI実装境界を確立。
 - `exportSequence` テストに統合回帰ケース（順序/clip/lipsync/framing）を追加済み。
 - `framingParity` テストで Preview (`object-fit/object-position`) と Export (ffmpeg filter) の一致を自動検証。
 - `lipSyncExport` テストで LipSync concat 生成（threshold/offset反映）を自動検証。

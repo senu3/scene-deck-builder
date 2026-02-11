@@ -10,7 +10,7 @@ import DetailsPanel from './components/DetailsPanel';
 import PreviewModal from './components/PreviewModal';
 import Header from './components/Header';
 import StartupModal from './components/StartupModal';
-import ExportModal, { type ExportSettings } from './components/ExportModal';
+import ExportModal from './components/ExportModal';
 import EnvironmentSettingsModal from './components/EnvironmentSettingsModal';
 import NotificationTestModal from './components/NotificationTestModal';
 import { v4 as uuidv4 } from 'uuid';
@@ -22,6 +22,9 @@ import { buildSequenceItemsForCuts } from './utils/exportSequence';
 import { getCutIdsInTimelineOrder, getScenesAndCutsInTimelineOrder } from './utils/timelineOrder';
 import { DEFAULT_EXPORT_RESOLUTION } from './constants/export';
 import { EXPORT_FRAMING_DEFAULTS } from './constants/framing';
+import { resolveExportPlan } from './features/export/plan';
+import type { ResolutionInput } from './features/export/plan';
+import type { ExportSettings } from './features/export/types';
 import './styles/App.css';
 
 function DndMonitorShim({ onDragStart }: { onDragStart: () => void }) {
@@ -401,7 +404,7 @@ function App() {
 
   const exportMp4Sequence = useCallback(async (
     cuts: Cut[],
-    resolution: { width: number; height: number }
+    config: ResolutionInput & { fps: number }
   ) => {
     if (!window.electronAPI || isExporting) return;
 
@@ -424,15 +427,15 @@ function App() {
         return;
       }
 
-      const width = resolution.width > 0 ? resolution.width : DEFAULT_EXPORT_RESOLUTION.width;
-      const height = resolution.height > 0 ? resolution.height : DEFAULT_EXPORT_RESOLUTION.height;
+      const width = config.width > 0 ? config.width : DEFAULT_EXPORT_RESOLUTION.width;
+      const height = config.height > 0 ? config.height : DEFAULT_EXPORT_RESOLUTION.height;
 
       const result = await window.electronAPI.exportSequence({
         items: sequenceItems,
         outputPath,
         width,
         height,
-        fps: 30,
+        fps: config.fps,
       });
 
       if (result.success) {
@@ -461,15 +464,22 @@ function App() {
         return;
       }
 
-      // For now, use existing MP4 export logic
-      // TODO: Implement AviUtl export based on settings.format
-      if (settings.format === 'aviutl') {
+      const plan = resolveExportPlan({
+        settings,
+        resolution: exportResolution,
+      });
+
+      if (plan.format === 'aviutl') {
         // Placeholder: AviUtl export not yet implemented
-        alert(`AviUtl export to:\n${settings.outputPath}\n\nRounding: ${settings.aviutl.roundingMode}\nCopy media: ${settings.aviutl.copyMedia}\n\n(Export logic not yet implemented)`);
+        alert(`AviUtl export to:\n${plan.outputPathHint}\n\nRounding: ${plan.roundingMode}\nCopy media: ${plan.copyMedia}\n\n(Export logic not yet implemented)`);
         return;
       }
 
-      await exportMp4Sequence(orderedCuts, exportResolution);
+      await exportMp4Sequence(orderedCuts, {
+        width: plan.width,
+        height: plan.height,
+        fps: plan.fps,
+      });
     } catch (error) {
       alert(`Export error: ${String(error)}`);
     }
@@ -479,7 +489,23 @@ function App() {
     cuts: Cut[],
     resolution: { width: number; height: number }
   ) => {
-    await exportMp4Sequence(cuts, resolution);
+    const mp4Plan = resolveExportPlan({
+      settings: {
+        format: 'mp4',
+        outputPath: '',
+        aviutl: { roundingMode: 'round', copyMedia: true },
+        mp4: { quality: 'medium' },
+      },
+      resolution,
+    });
+    if (mp4Plan.format !== 'mp4') {
+      return;
+    }
+    await exportMp4Sequence(cuts, {
+      width: mp4Plan.width,
+      height: mp4Plan.height,
+      fps: mp4Plan.fps,
+    });
   }, [exportMp4Sequence]);
 
   // Find cut data for Single Mode preview modal
