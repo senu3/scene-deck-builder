@@ -35,6 +35,7 @@
 - App / Preview / Electron の export 経路を同一 framing 入力で接続。
 - LipSync cut 用に Export入力へ `framePaths/rms/thresholds` を追加し、ffmpeg 側でフレーム列セグメント生成を実装。
 - LipSync cut で必要データ不足時は export 入力生成で明示エラー化し、silent fallback を禁止。
+- Electron 側でも LipSync payload を厳密検証し、IPC境界での silent fallback を禁止。
 - Preview からの export 実行は App 側へ委譲し、実行経路の入口を一本化。
 - Free 既定値 `1280x720` の参照を定数化し、App/Preview/Crop の重複参照を削減。
 - Framing の `projectDefaults`（`cover + center`）を定数化し、Preview/Export の両方へ明示供給。

@@ -10,6 +10,7 @@ import { createSaveProjectHandler } from './handlers/saveProject';
 import { createFfmpegController } from './services/ffmpegController';
 import { createThumbnailService } from './services/thumbnailService';
 import { buildFramingVideoFilter } from './framing';
+import { createLipSyncConcatList, validateLipSyncExportPayload } from './lipSyncExport';
 const IPC_TOGGLE_SIDEBAR = 'toggle-sidebar';
 const IPC_AUTOSAVE_FLUSH_REQUEST = 'autosave-flush-request';
 const IPC_AUTOSAVE_FLUSH_COMPLETE = 'autosave-flush-complete';
@@ -1550,74 +1551,6 @@ interface ExportSequenceResult {
 const DEFAULT_EXPORT_WIDTH = 1280;
 const DEFAULT_EXPORT_HEIGHT = 720;
 
-function clamp01(value: number): number {
-  if (!Number.isFinite(value)) return 0;
-  return Math.max(0, Math.min(1, value));
-}
-
-function normalizeThresholds(thresholds: { t1: number; t2: number; t3: number }) {
-  const t1 = clamp01(thresholds.t1);
-  const t2 = clamp01(Math.max(t1, thresholds.t2));
-  const t3 = clamp01(Math.max(t2, thresholds.t3));
-  return { t1, t2, t3 };
-}
-
-function rmsValueToVariantIndex(value: number, thresholds: { t1: number; t2: number; t3: number }): number {
-  const normalized = normalizeThresholds(thresholds);
-  const v = clamp01(value);
-  if (v >= normalized.t3) return 3;
-  if (v >= normalized.t2) return 2;
-  if (v >= normalized.t1) return 1;
-  return 0;
-}
-
-function absoluteTimeToRmsIndex(
-  absoluteTimeSec: number,
-  fps: number,
-  length: number,
-  offsetSec: number = 0
-): number {
-  if (length <= 0 || fps <= 0) return 0;
-  const effectiveTime = Math.max(0, absoluteTimeSec + offsetSec);
-  const index = Math.floor(effectiveTime * fps);
-  if (index < 0) return 0;
-  if (index >= length) return length - 1;
-  return index;
-}
-
-function quoteConcatPath(filePath: string): string {
-  return filePath.replace(/\\/g, '/').replace(/'/g, "'\\''");
-}
-
-function createLipSyncConcatList(
-  lipSync: NonNullable<SequenceItem['lipSync']>,
-  durationSec: number,
-  outputFps: number
-): string {
-  const duration = Number.isFinite(durationSec) && durationSec > 0 ? durationSec : 1;
-  const fps = Number.isFinite(outputFps) && outputFps > 0 ? outputFps : 30;
-  const frameStep = 1 / fps;
-  const frameCount = Math.max(1, Math.round(duration * fps));
-
-  const fallbackPath = lipSync.framePaths[0];
-  const lines: string[] = [];
-  let lastFramePath = fallbackPath;
-
-  for (let frame = 0; frame < frameCount; frame++) {
-    const time = frame / fps;
-    const rmsIndex = absoluteTimeToRmsIndex(time, lipSync.rmsFps, lipSync.rms.length, lipSync.audioOffsetSec);
-    const rmsValue = lipSync.rms[rmsIndex] ?? 0;
-    const variant = rmsValueToVariantIndex(rmsValue, lipSync.thresholds);
-    const framePath = lipSync.framePaths[Math.min(variant, lipSync.framePaths.length - 1)] || fallbackPath;
-    lastFramePath = framePath;
-    lines.push(`file '${quoteConcatPath(framePath)}'`);
-    lines.push(`duration ${frameStep.toFixed(6)}`);
-  }
-
-  lines.push(`file '${quoteConcatPath(lastFramePath)}'`);
-  return lines.join('\n');
-}
-
 // Show save dialog for sequence export
 ipcMain.handle('show-save-sequence-dialog', async (_, defaultName: string) => {
   const result = await dialog.showSaveDialog(mainWindow!, {
@@ -1685,7 +1618,11 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
         `[export][framing] segment=${i} mode=${item.framingMode ?? 'cover'} anchor=${item.framingAnchor ?? 'center'}`
       );
 
-      if (item.lipSync && item.lipSync.framePaths.length > 0 && item.lipSync.rms.length > 0) {
+      if (item.lipSync) {
+        const lipSyncValidationError = validateLipSyncExportPayload(item.lipSync);
+        if (lipSyncValidationError) {
+          throw new Error(`[export] Invalid lipSync payload for segment ${i}: ${lipSyncValidationError}`);
+        }
         const listFile = path.join(tempDir, `lipsync_${sessionId}_${i}.txt`);
         const concatBody = createLipSyncConcatList(item.lipSync, item.duration, fps);
         fs.writeFileSync(listFile, concatBody, 'utf-8');
