@@ -1,5 +1,6 @@
-import type { Cut, FramingAnchor, FramingMode, Scene } from '../types';
+import type { Asset, AssetMetadata, Cut, FramingAnchor, FramingMode, Scene } from '../types';
 import { getScenesAndCutsInTimelineOrder } from './timelineOrder';
+import { getLipSyncFrameAssetIds, normalizeThresholds } from './lipSyncUtils';
 
 export interface ExportSequenceItem {
   type: 'image' | 'video';
@@ -9,6 +10,13 @@ export interface ExportSequenceItem {
   outPoint?: number;
   framingMode: FramingMode;
   framingAnchor: FramingAnchor;
+  lipSync?: {
+    framePaths: string[];
+    rms: number[];
+    rmsFps: number;
+    thresholds: { t1: number; t2: number; t3: number };
+    audioOffsetSec: number;
+  };
 }
 
 export interface ExportFramingDefaults {
@@ -19,6 +27,8 @@ export interface ExportFramingDefaults {
 export interface BuildExportSequenceOptions {
   framingDefaults?: ExportFramingDefaults;
   debugFraming?: boolean;
+  metadataByAssetId?: Record<string, AssetMetadata>;
+  resolveAssetById?: (assetId: string) => Asset | undefined;
 }
 
 interface ResolvedFramingParams {
@@ -99,6 +109,8 @@ function buildExportSequenceItemFromCut(
     );
   }
 
+  const lipSync = resolveLipSyncExport(cut, options, context);
+
   return {
     type: cut.asset?.type || 'image',
     path,
@@ -107,6 +119,72 @@ function buildExportSequenceItemFromCut(
     outPoint: cut.isClip ? cut.outPoint : undefined,
     framingMode: framing.mode,
     framingAnchor: framing.anchor,
+    lipSync: lipSync ?? undefined,
+  };
+}
+
+function getPrimaryAudioOffset(cut: Cut): number {
+  if (!cut.audioBindings?.length) return 0;
+  const enabledBindings = cut.audioBindings.filter((binding) => binding.enabled !== false);
+  if (enabledBindings.length === 0) {
+    return cut.audioBindings[0]?.offsetSec ?? 0;
+  }
+
+  const kindPriority: Record<'voice.lipsync' | 'voice.other' | 'se', number> = {
+    'voice.lipsync': 0,
+    'voice.other': 1,
+    'se': 2,
+  };
+  const binding = enabledBindings
+    .slice()
+    .sort((a, b) => kindPriority[a.kind] - kindPriority[b.kind])[0];
+  return binding?.offsetSec ?? 0;
+}
+
+function resolveLipSyncExport(
+  cut: Cut,
+  options: BuildExportSequenceOptions,
+  context: { sceneId?: string; cutId: string }
+): ExportSequenceItem['lipSync'] | null {
+  if (!cut.isLipSync) return null;
+
+  const cutAssetId = cut.asset?.id ?? cut.assetId;
+  const metadata = cutAssetId ? options.metadataByAssetId?.[cutAssetId] : undefined;
+  const lipSyncSettings = metadata?.lipSync;
+  if (!lipSyncSettings) {
+    console.warn(`[export] LipSync cut ${context.cutId} is missing lipSync settings.`);
+    return null;
+  }
+
+  const analysis = options.metadataByAssetId?.[lipSyncSettings.rmsSourceAudioAssetId]?.audioAnalysis;
+  if (!analysis?.rms?.length || !Number.isFinite(analysis.fps) || analysis.fps <= 0) {
+    console.warn(`[export] LipSync cut ${context.cutId} is missing RMS analysis.`);
+    return null;
+  }
+
+  if (!options.resolveAssetById) {
+    console.warn(`[export] LipSync cut ${context.cutId} cannot resolve frame assets (resolver missing).`);
+    return null;
+  }
+
+  const frameIds = getLipSyncFrameAssetIds(lipSyncSettings);
+  const framePathsRaw = frameIds
+    .map((id) => options.resolveAssetById?.(id)?.path)
+    .filter((path): path is string => typeof path === 'string' && path.length > 0);
+  if (framePathsRaw.length === 0) {
+    console.warn(`[export] LipSync cut ${context.cutId} has no resolvable frame paths.`);
+    return null;
+  }
+
+  const fallbackPath = framePathsRaw[0];
+  const framePaths = frameIds.map((id) => options.resolveAssetById?.(id)?.path || fallbackPath);
+
+  return {
+    framePaths,
+    rms: analysis.rms,
+    rmsFps: analysis.fps,
+    thresholds: normalizeThresholds(lipSyncSettings.thresholds),
+    audioOffsetSec: getPrimaryAudioOffset(cut),
   };
 }
 

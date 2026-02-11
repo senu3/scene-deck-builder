@@ -14,6 +14,7 @@
 ## 現在地
 - 事前整備（画像Crop導線、Free既定値 `1280x720`）は導入済み。
 - 本線は **LipSync + VideoClip + Framing を export 経路へ統合** する段階。
+- LipSync cut は export 入力へ `framePaths + rms + thresholds` を渡し、ffmpeg 側でフレーム列化して MP4 へ反映する実装を導入済み。
 
 ## In Scope（現行フェーズ）
 1. LipSync cut の見た目を MP4 出力へ反映（silent fallback しない）。

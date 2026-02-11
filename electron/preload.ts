@@ -172,6 +172,13 @@ export interface SequenceItem {
     | 'bottom-left'
     | 'bottom'
     | 'bottom-right';
+  lipSync?: {
+    framePaths: string[];
+    rms: number[];
+    rmsFps: number;
+    thresholds: { t1: number; t2: number; t3: number };
+    audioOffsetSec: number;
+  };
 }
 
 export interface ExportSequenceOptions {

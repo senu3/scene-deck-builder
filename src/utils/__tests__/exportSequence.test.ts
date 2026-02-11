@@ -113,4 +113,69 @@ describe('buildSequenceItemsForExport', () => {
     expect(items[0].framingAnchor).toBe('left');
     expect(warnSpy).toHaveBeenCalledTimes(1);
   });
+
+  it('attaches lipSync payload when metadata and frame assets are available', () => {
+    const lipOwner = {
+      id: 'asset-lip-owner',
+      name: 'lip.png',
+      path: '/tmp/lip.png',
+      type: 'image' as const,
+    };
+    const frames = [
+      { id: 'cmp-1', name: 'cmp-1.png', path: '/tmp/cmp-1.png', type: 'image' as const },
+      { id: 'cmp-2', name: 'cmp-2.png', path: '/tmp/cmp-2.png', type: 'image' as const },
+      { id: 'cmp-3', name: 'cmp-3.png', path: '/tmp/cmp-3.png', type: 'image' as const },
+      { id: 'cmp-4', name: 'cmp-4.png', path: '/tmp/cmp-4.png', type: 'image' as const },
+    ];
+    const assets = new Map([lipOwner, ...frames].map((asset) => [asset.id, asset]));
+
+    const items = buildSequenceItemsForCuts(
+      [{
+        id: 'cut-lipsync',
+        assetId: lipOwner.id,
+        asset: lipOwner,
+        order: 0,
+        displayTime: 1,
+        isLipSync: true,
+        audioBindings: [{
+          id: 'b1',
+          audioAssetId: 'aud-1',
+          offsetSec: 0.2,
+          enabled: true,
+          kind: 'voice.lipsync',
+        }],
+      }],
+      {
+        metadataByAssetId: {
+          [lipOwner.id]: {
+            assetId: lipOwner.id,
+            lipSync: {
+              baseImageAssetId: 'cmp-1',
+              variantAssetIds: ['cmp-2', 'cmp-3', 'cmp-4'],
+              compositedFrameAssetIds: ['cmp-1', 'cmp-2', 'cmp-3', 'cmp-4'],
+              rmsSourceAudioAssetId: 'aud-1',
+              thresholds: { t1: 0.1, t2: 0.2, t3: 0.3 },
+              fps: 30,
+            },
+          },
+          'aud-1': {
+            assetId: 'aud-1',
+            audioAnalysis: {
+              fps: 30,
+              rms: [0, 0.12, 0.24, 0.5],
+              duration: 0.12,
+              sampleRate: 48000,
+              channels: 2,
+            },
+          },
+        },
+        resolveAssetById: (assetId) => assets.get(assetId),
+      }
+    );
+
+    expect(items).toHaveLength(1);
+    expect(items[0].lipSync).toBeDefined();
+    expect(items[0].lipSync?.framePaths).toEqual(frames.map((frame) => frame.path));
+    expect(items[0].lipSync?.audioOffsetSec).toBe(0.2);
+  });
 });

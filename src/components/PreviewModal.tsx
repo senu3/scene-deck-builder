@@ -1716,7 +1716,11 @@ export default function PreviewModal({
 
       const sequenceItems = buildSequenceItemsForCuts(
         items.map((item) => item.cut),
-        { debugFraming: true }
+        {
+          debugFraming: true,
+          metadataByAssetId: metadataStore?.metadata,
+          resolveAssetById: getAsset,
+        }
       );
 
       const result = await window.electronAPI.exportSequence({
@@ -1737,7 +1741,7 @@ export default function PreviewModal({
     } finally {
       setIsExporting(false);
     }
-  }, [items, selectedResolution, usesSequenceController, sequencePause]);
+  }, [items, selectedResolution, usesSequenceController, sequencePause, metadataStore, getAsset]);
 
   // Export with IN/OUT range (Save button) - kept for future UI implementation
   const _handleExportRange = useCallback(async () => {

@@ -55,6 +55,8 @@ function App() {
     getCutGroup,
     removeCutFromGroup,
     updateGroupCutOrder,
+    getAsset,
+    metadataStore,
     selectionType,
     detailsPanelOpen,
     closeDetailsPanel,
@@ -405,7 +407,11 @@ function App() {
 
     try {
       // Build sequence items
-      const sequenceItems = buildSequenceItemsForExport(scenes, { debugFraming: true });
+      const sequenceItems = buildSequenceItemsForExport(scenes, {
+        debugFraming: true,
+        metadataByAssetId: metadataStore?.metadata,
+        resolveAssetById: getAsset,
+      });
 
       if (sequenceItems.length === 0) {
         alert('No items to export. Add some cuts to the timeline first.');
@@ -451,7 +457,7 @@ function App() {
     } finally {
       setIsExporting(false);
     }
-  }, [scenes, exportResolution, isExporting]);
+  }, [scenes, exportResolution, isExporting, metadataStore, getAsset]);
 
   // Find cut data for Single Mode preview modal
   const previewCutData = useCallback(() => {
