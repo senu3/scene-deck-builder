@@ -35,6 +35,7 @@ describe('assetPath', () => {
     resetElectronMocks();
     const result = await importFileToVault('C:/src/image.png', 'C:/vault', 'asset-1');
     expect(result?.vaultRelativePath).toBe('assets/img_abc.png');
+    expect(result?.path).toBe('C:/mock/vault/assets/img_abc.png');
     expect(result?.hash).toBe('abc');
   });
 
@@ -44,6 +45,18 @@ describe('assetPath', () => {
     electronAPI.isPathInVault.mockResolvedValueOnce(true);
     const result = await importFileToVault('C:/vault/assets/original.png', 'C:/vault', 'asset-1');
     expect(result?.vaultRelativePath).toBe('assets/img_abc.png');
+    expect(result?.path).toBe('C:/mock/vault/assets/img_abc.png');
     expect(electronAPI.vaultGateway.moveToTrashWithMeta).toHaveBeenCalled();
+  });
+
+  it('does not let existingAsset.path override imported vault path', async () => {
+    resetElectronMocks();
+    const result = await importFileToVault('C:/src/generated.png', 'C:/vault', 'asset-1', {
+      path: 'C:/src/generated.png',
+      name: 'generated.png',
+      type: 'image',
+    });
+    expect(result?.path).toBe('C:/mock/vault/assets/img_abc.png');
+    expect(result?.vaultRelativePath).toBe('assets/img_abc.png');
   });
 });

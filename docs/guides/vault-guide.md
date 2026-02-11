@@ -91,6 +91,11 @@ All paths must end with `.index.json` being updated via VaultGateway.
 - Exported clip is saved to `vault/assets/`, then re-imported for hash naming.
 - The resulting asset is indexed via VaultGateway and a Cut is created.
 
+### 5) Image Crop (Finalize-equivalent)
+- Cropped image output is saved to `vault/assets/`, then re-imported for hash naming.
+- The resulting asset is indexed via VaultGateway and a new Cut is inserted (source cut remains unchanged).
+- Crop is launched from Cut context menu (`Crop Image (Add Cut)`), not DetailsPanel.
+
 ## VaultGateway (Single Write Entry)
 VaultGateway is the only writer for `.index.json` and `.trash/.trash.json`.
 Renderer code must call `window.electronAPI.vaultGateway.*` for:

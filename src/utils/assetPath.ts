@@ -146,6 +146,7 @@ export async function importFileToVault(
   }
 
   return {
+    ...existingAsset,
     id: assetId,
     name: existingAsset?.name || sourcePath.split(/[/\\]/).pop() || 'Unknown',
     path: result.vaultPath || sourcePath,
@@ -153,7 +154,6 @@ export async function importFileToVault(
     vaultRelativePath: result.relativePath,
     originalPath: sourcePath,
     hash: result.hash,
-    ...existingAsset,
   } as Asset;
 }
 

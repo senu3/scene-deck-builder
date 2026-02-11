@@ -428,9 +428,9 @@ function App() {
         return;
       }
 
-      // Use selected resolution (default FHD)
-      const width = exportResolution.width > 0 ? exportResolution.width : 1920;
-      const height = exportResolution.height > 0 ? exportResolution.height : 1080;
+      // Use selected resolution (Free -> 1280x720)
+      const width = exportResolution.width > 0 ? exportResolution.width : 1280;
+      const height = exportResolution.height > 0 ? exportResolution.height : 720;
 
       const result = await window.electronAPI.exportSequence({
         items: sequenceItems,
@@ -574,7 +574,7 @@ function App() {
             onDragLeave={handleWorkspaceDragLeave}
             onDrop={handleWorkspaceDrop}
           >
-            <Storyline activeId={activeId} activeType={activeType} />
+            <Storyline activeId={activeId} activeType={activeType} cropBaseResolution={exportResolution} />
           </main>
           <div className={`details-panel-wrapper ${detailsPanelOpen && selectionType ? 'open' : ''}`}>
             <DetailsPanel />

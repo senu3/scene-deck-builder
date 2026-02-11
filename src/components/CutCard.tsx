@@ -8,6 +8,14 @@ import { v4 as uuidv4 } from 'uuid';
 import './CutCard.css';
 import { getThumbnail } from '../utils/thumbnailCache';
 import { CutContextMenu } from './context-menus';
+import ImageCropModal, { type ImageCropConfig } from './ImageCropModal';
+import { useToast } from '../ui';
+
+interface ResolutionPresetType {
+  name: string;
+  width: number;
+  height: number;
+}
 
 interface CutCardProps {
   cut: {
@@ -32,9 +40,10 @@ interface CutCardProps {
   index: number;
   isDragging: boolean;
   isHidden?: boolean;
+  cropBaseResolution: ResolutionPresetType;
 }
 
-export default function CutCard({ cut, sceneId, index, isDragging, isHidden }: CutCardProps) {
+export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cropBaseResolution }: CutCardProps) {
   const {
     selectedCutId,
     selectedCutIds,
@@ -59,8 +68,10 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden }: C
     createCutFromImport,
     updateGroupCutOrder,
   } = useStore();
+  const { toast } = useToast();
   const [thumbnail, setThumbnail] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [showCropModal, setShowCropModal] = useState(false);
   const [showLoadingSpinner, setShowLoadingSpinner] = useState(false);
   const loadingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -339,6 +350,99 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden }: C
   const handleReverseClip = () => handleFinalizeClip(true);
   const handleFinalizeClipNormal = () => handleFinalizeClip(false);
 
+  const handleOpenCropModal = () => {
+    setContextMenu(null);
+    setShowCropModal(true);
+  };
+
+  const handleCropImage = async (config: ImageCropConfig) => {
+    if (!asset?.path || asset.type !== 'image') {
+      setShowCropModal(false);
+      return;
+    }
+
+    if (!window.electronAPI) {
+      toast.error('Crop failed', 'electronAPI not available. Please restart the app.');
+      setShowCropModal(false);
+      return;
+    }
+
+    if (!vaultPath) {
+      toast.warning('Vault path not set', 'Please set up a vault first.');
+      setShowCropModal(false);
+      return;
+    }
+
+    if (
+      typeof window.electronAPI.cropImageToAspect !== 'function' ||
+      typeof window.electronAPI.ensureAssetsFolder !== 'function'
+    ) {
+      toast.warning('Crop feature requires restart', 'Please restart the Electron app.');
+      setShowCropModal(false);
+      return;
+    }
+
+    try {
+      const assetsFolder = await window.electronAPI.ensureAssetsFolder(vaultPath);
+      if (!assetsFolder) {
+        toast.error('Crop failed', 'Failed to access assets folder in vault.');
+        setShowCropModal(false);
+        return;
+      }
+
+      const baseName = asset.name.replace(/\.[^/.]+$/, '');
+      const timestamp = Date.now();
+      const fileName = `${baseName}_crop_${config.width}x${config.height}_${timestamp}.png`;
+      const outputPath = `${assetsFolder}/${fileName}`.replace(/\\/g, '/');
+
+      const result = await window.electronAPI.cropImageToAspect({
+        sourcePath: asset.path,
+        outputPath,
+        targetWidth: config.width,
+        targetHeight: config.height,
+        anchorX: config.anchorX,
+        anchorY: config.anchorY,
+      });
+
+      if (!result.success) {
+        toast.error('Crop failed', result.error || 'Unknown error');
+        setShowCropModal(false);
+        return;
+      }
+
+      const newCutId = await createCutFromImport(
+        sceneId,
+        {
+          assetId: uuidv4(),
+          name: fileName,
+          sourcePath: outputPath,
+          type: 'image',
+          fileSize: result.fileSize,
+          preferredThumbnail: thumbnail || undefined,
+        },
+        index + 1,
+        vaultPath
+      );
+
+      const latestGroup = getCutGroup(sceneId, cut.id);
+      if (latestGroup && !latestGroup.cutIds.includes(newCutId)) {
+        const insertAt = Math.max(0, latestGroup.cutIds.indexOf(cut.id) + 1);
+        const nextOrder = [...latestGroup.cutIds];
+        nextOrder.splice(insertAt, 0, newCutId);
+        updateGroupCutOrder(sceneId, latestGroup.id, nextOrder);
+      }
+
+      toast.success('Image cropped', fileName);
+    } catch (error) {
+      toast.error('Crop failed', String(error));
+    }
+
+    setShowCropModal(false);
+  };
+
+  const cropInitialWidth = cropBaseResolution.width > 0 ? cropBaseResolution.width : 1280;
+  const cropInitialHeight = cropBaseResolution.height > 0 ? cropBaseResolution.height : 720;
+
   // If loading, show loading card
   if (cut.isLoading) {
     return (
@@ -443,6 +547,7 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden }: C
         currentSceneId={sceneId}
         canPaste={canPaste()}
         isClip={!!cut.isClip}
+        isImage={asset?.type === 'image'}
         isInGroup={isInGroup}
         onClose={() => setContextMenu(null)}
         onCopy={handleCopy}
@@ -451,10 +556,21 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden }: C
         onMoveToScene={handleMoveToScene}
         onFinalizeClip={handleFinalizeClipNormal}
         onReverseClip={handleReverseClip}
+        onCropImage={handleOpenCropModal}
         onCreateGroup={isMultiSelected ? handleCreateGroup : undefined}
         onRemoveFromGroup={isInGroup ? handleRemoveFromGroup : undefined}
       />
     )}
+
+    <ImageCropModal
+      open={showCropModal}
+      onClose={() => setShowCropModal(false)}
+      onConfirm={handleCropImage}
+      initialWidth={cropInitialWidth}
+      initialHeight={cropInitialHeight}
+      sourcePath={asset?.path}
+      previewSrc={null}
+    />
     </>
   );
 }

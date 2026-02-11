@@ -14,9 +14,10 @@ interface CutGroupCardProps {
   sceneId: string;
   index: number;
   isDragging: boolean;
+  cropBaseResolution: { name: string; width: number; height: number };
 }
 
-export default function CutGroupCard({ group, cuts, sceneId, index, isDragging }: CutGroupCardProps) {
+export default function CutGroupCard({ group, cuts, sceneId, index, isDragging, cropBaseResolution }: CutGroupCardProps) {
   const {
     selectedGroupId,
     selectGroup,
@@ -173,6 +174,7 @@ export default function CutGroupCard({ group, cuts, sceneId, index, isDragging }
             sceneId={sceneId}
             index={index}
             isDragging={false}
+            cropBaseResolution={cropBaseResolution}
           />
         ))}
       </div>

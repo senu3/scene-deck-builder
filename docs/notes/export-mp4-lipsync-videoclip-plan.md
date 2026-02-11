@@ -10,6 +10,12 @@
 - 今回は docs 記録のみで、コード変更は行わない。
 - 解像度シミュレータ要件は次フェーズで別途確定する。
 
+## 実装メモ追記（2026-02-11）
+- 画像cut向けに `Crop Image (Add Cut)` を context menu へ追加（Finalize相当の派生asset生成）。
+- Cropモーダルは `ui/primitives/Modal` を使用し、サイズ(px) + 3x3アンカーを指定。
+- `Free` 解像度の既定値は export 実行時に `1280x720` を適用。
+- Crop後assetの取り込みでは vault path を優先保持する（`importFileToVault` のpath上書き不具合を修正）。
+
 ## In Scope（次実装フェーズ）
 1. LipSync カットを MP4 出力へ正しく反映する（見た目を焼き込み）。
 2. VideoClip (`inPoint/outPoint`) を非破壊で export に適用する。

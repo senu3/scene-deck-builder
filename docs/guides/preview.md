@@ -33,6 +33,10 @@
 - Image: `createImageMediaSource`.
 - Cut changes are triggered by `onEnded` from the current `MediaSource`.
 
+## Resolution Defaults (Export Trigger)
+- `Free` resolution is treated as `1280x720` when invoking MP4 export from Preview/App.
+- Fixed presets (`FHD/HD/4K/SD`) use their explicit width/height values.
+
 ## Preview Media Source Abstraction
 `MediaSource` provides a common interface:
 - `play()` / `pause()`

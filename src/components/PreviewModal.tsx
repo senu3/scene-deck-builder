@@ -1703,8 +1703,8 @@ export default function PreviewModal({
     }
 
     try {
-      const exportWidth = selectedResolution.width > 0 ? selectedResolution.width : 1920;
-      const exportHeight = selectedResolution.height > 0 ? selectedResolution.height : 1080;
+      const exportWidth = selectedResolution.width > 0 ? selectedResolution.width : 1280;
+      const exportHeight = selectedResolution.height > 0 ? selectedResolution.height : 720;
 
       const outputPath = await window.electronAPI.showSaveSequenceDialog('sequence_export.mp4');
       if (!outputPath) {
@@ -1756,8 +1756,8 @@ export default function PreviewModal({
     }
 
     try {
-      const exportWidth = selectedResolution.width > 0 ? selectedResolution.width : 1920;
-      const exportHeight = selectedResolution.height > 0 ? selectedResolution.height : 1080;
+      const exportWidth = selectedResolution.width > 0 ? selectedResolution.width : 1280;
+      const exportHeight = selectedResolution.height > 0 ? selectedResolution.height : 720;
 
       const outputPath = await window.electronAPI.showSaveSequenceDialog('sequence_export.mp4');
       if (!outputPath) {

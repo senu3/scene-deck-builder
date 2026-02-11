@@ -25,9 +25,10 @@ const getSceneColor = (index: number) => SCENE_COLORS[index % SCENE_COLORS.lengt
 interface StorylineProps {
   activeId: string | null;
   activeType: 'cut' | 'scene' | null;
+  cropBaseResolution: { name: string; width: number; height: number };
 }
 
-export default function Storyline({ activeId }: StorylineProps) {
+export default function Storyline({ activeId, cropBaseResolution }: StorylineProps) {
   const { scenes, selectedSceneId, selectScene, vaultPath, createCutFromImport, closeDetailsPanel } = useStore();
   const { executeCommand } = useHistoryStore();
   const storylineRef = useRef<HTMLDivElement>(null);
@@ -95,6 +96,7 @@ export default function Storyline({ activeId }: StorylineProps) {
             isSelected={selectedSceneId === scene.id}
             onSelect={() => selectScene(scene.id)}
             activeId={activeId}
+            cropBaseResolution={cropBaseResolution}
             placeholder={placeholder?.sceneId === scene.id ? placeholder : null}
             sourceSceneId={sourceSceneId}
             isOverDifferentScene={!!isOverDifferentScene}
@@ -132,6 +134,7 @@ interface SceneColumnProps {
   isSelected: boolean;
   onSelect: () => void;
   activeId: string | null;
+  cropBaseResolution: { name: string; width: number; height: number };
   placeholder: PlaceholderState | null;
   sourceSceneId?: string;
   isOverDifferentScene?: boolean;
@@ -146,6 +149,7 @@ function SceneColumn({
   isSelected,
   onSelect,
   activeId,
+  cropBaseResolution,
   placeholder,
   sourceSceneId,
   isOverDifferentScene,
@@ -270,6 +274,7 @@ function SceneColumn({
               sceneId={sceneId}
               index={i}
               isDragging={activeId === `group-${group.id}`}
+              cropBaseResolution={cropBaseResolution}
             />
           );
         } else {
@@ -293,6 +298,7 @@ function SceneColumn({
                     index={cuts.findIndex(c => c.id === groupCut.id)}
                     isDragging={activeId === groupCut.id}
                     isHidden={isHidden}
+                    cropBaseResolution={cropBaseResolution}
                   />
                 );
               })}
@@ -311,6 +317,7 @@ function SceneColumn({
             index={i}
             isDragging={activeId === cut.id}
             isHidden={isHidden}
+            cropBaseResolution={cropBaseResolution}
           />
         );
       }

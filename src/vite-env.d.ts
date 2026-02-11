@@ -146,6 +146,22 @@ interface ExtractFrameResult {
   error?: string;
 }
 
+interface CropImageOptions {
+  sourcePath: string;
+  outputPath: string;
+  targetWidth: number;
+  targetHeight: number;
+  anchorX: number;
+  anchorY: number;
+}
+
+interface CropImageResult {
+  success: boolean;
+  outputPath?: string;
+  fileSize?: number;
+  error?: string;
+}
+
 interface PrecomposeLipSyncFramesOptions {
   baseImagePath: string;
   frameImagePaths: string[];
@@ -267,6 +283,7 @@ interface ElectronAPI {
 
   // Video frame extraction
   extractVideoFrame: (options: ExtractFrameOptions) => Promise<ExtractFrameResult>;
+  cropImageToAspect: (options: CropImageOptions) => Promise<CropImageResult>;
   precomposeLipSyncFrames: (options: PrecomposeLipSyncFramesOptions) => Promise<PrecomposeLipSyncFramesResult>;
 
   // Sequence export

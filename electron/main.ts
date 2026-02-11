@@ -1431,6 +1431,22 @@ interface ExtractFrameResult {
   error?: string;
 }
 
+interface CropImageOptions {
+  sourcePath: string;
+  outputPath: string;
+  targetWidth: number;
+  targetHeight: number;
+  anchorX: number;
+  anchorY: number;
+}
+
+interface CropImageResult {
+  success: boolean;
+  outputPath?: string;
+  fileSize?: number;
+  error?: string;
+}
+
 interface PrecomposeLipSyncFramesOptions {
   baseImagePath: string;
   frameImagePaths: string[]; // Includes closed + variants
@@ -1442,6 +1458,48 @@ interface PrecomposeLipSyncFramesResult {
   frameDataUrls?: string[];
   error?: string;
 }
+
+ipcMain.handle('crop-image-to-aspect', async (_, options: CropImageOptions): Promise<CropImageResult> => {
+  const ffmpegBinary = ffmpegPath as string | null;
+  if (!ffmpegBinary) {
+    return { success: false, error: 'ffmpeg not found' };
+  }
+
+  const { sourcePath, outputPath } = options;
+  const targetWidth = Math.max(1, Math.round(options.targetWidth));
+  const targetHeight = Math.max(1, Math.round(options.targetHeight));
+  const anchorX = Math.max(0, Math.min(1, options.anchorX));
+  const anchorY = Math.max(0, Math.min(1, options.anchorY));
+  const targetAspect = targetWidth / targetHeight;
+
+  const cropFilter = `crop=w='if(gte(iw/ih,${targetAspect}),ih*${targetAspect},iw)':h='if(gte(iw/ih,${targetAspect}),ih,iw/${targetAspect})':x='(iw-ow)*${anchorX}':y='(ih-oh)*${anchorY}'`;
+
+  const args = [
+    '-y',
+    '-i', sourcePath,
+    '-frames:v', '1',
+    '-vf', cropFilter,
+    outputPath,
+  ];
+
+  try {
+    await runFfmpeg(ffmpegBinary, args);
+    if (!fs.existsSync(outputPath)) {
+      return { success: false, error: 'Output file was not created' };
+    }
+    const stats = fs.statSync(outputPath);
+    return {
+      success: true,
+      outputPath,
+      fileSize: stats.size,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: String(error),
+    };
+  }
+});
 
 // ============================================
 // Sequence Export (ffmpeg)

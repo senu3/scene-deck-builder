@@ -127,6 +127,22 @@ export interface ExtractFrameResult {
   error?: string;
 }
 
+export interface CropImageOptions {
+  sourcePath: string;
+  outputPath: string;
+  targetWidth: number;
+  targetHeight: number;
+  anchorX: number; // 0..1
+  anchorY: number; // 0..1
+}
+
+export interface CropImageResult {
+  success: boolean;
+  outputPath?: string;
+  fileSize?: number;
+  error?: string;
+}
+
 export interface PrecomposeLipSyncFramesOptions {
   baseImagePath: string;
   frameImagePaths: string[];
@@ -351,6 +367,10 @@ const electronAPI = {
   // Video frame extraction
   extractVideoFrame: (options: ExtractFrameOptions): Promise<ExtractFrameResult> =>
     ipcRenderer.invoke('extract-video-frame', options),
+
+  // Image crop finalization
+  cropImageToAspect: (options: CropImageOptions): Promise<CropImageResult> =>
+    ipcRenderer.invoke('crop-image-to-aspect', options),
 
   // LipSync precompose (ffmpeg)
   precomposeLipSyncFrames: (options: PrecomposeLipSyncFramesOptions): Promise<PrecomposeLipSyncFramesResult> =>

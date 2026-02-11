@@ -13,6 +13,7 @@ import {
   RotateCcw,
   Layers,
   FolderMinus,
+  Crop,
 } from 'lucide-react';
 import {
   ContextMenu,
@@ -39,6 +40,8 @@ export interface CutContextMenuProps {
   canPaste: boolean;
   /** Whether this cut is a video clip (has in/out points) */
   isClip: boolean;
+  /** Whether this cut is an image */
+  isImage?: boolean;
   /** Whether this cut belongs to a group */
   isInGroup: boolean;
   /** Copy handler */
@@ -53,6 +56,8 @@ export interface CutContextMenuProps {
   onFinalizeClip?: () => void;
   /** Reverse clip handler (export reversed clip) */
   onReverseClip?: () => void;
+  /** Crop image handler (create cropped image cut) */
+  onCropImage?: () => void;
   /** Create group from selection */
   onCreateGroup?: () => void;
   /** Remove cut from its group */
@@ -68,6 +73,7 @@ export function CutContextMenu({
   currentSceneId,
   canPaste,
   isClip,
+  isImage = false,
   isInGroup,
   onCopy,
   onPaste,
@@ -75,6 +81,7 @@ export function CutContextMenu({
   onMoveToScene,
   onFinalizeClip,
   onReverseClip,
+  onCropImage,
   onCreateGroup,
   onRemoveFromGroup,
 }: CutContextMenuProps) {
@@ -134,6 +141,19 @@ export function CutContextMenu({
         >
           Reverse Clip (Add Cut)
         </MenuItem>
+      )}
+
+      {isImage && !isMultiSelect && onCropImage && (
+        <>
+          {!isClip && <MenuSeparator />}
+          <MenuItem
+            icon={<Crop size={14} />}
+            variant="action"
+            onClick={onCropImage}
+          >
+            Crop Image (Add Cut)
+          </MenuItem>
+        </>
       )}
 
       {/* Group operations */}
