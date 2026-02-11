@@ -33,7 +33,7 @@ describe('cut actions', () => {
   });
 
   it('finalizes clip and creates derived cut', async () => {
-    const finalizeClip = vi.fn(async () => ({ success: true, fileSize: 1024 * 1024 }));
+    const finalizeClip = vi.fn(async (_options: { outputPath: string }) => ({ success: true, fileSize: 1024 * 1024 }));
     const ensureAssetsFolder = vi.fn(async () => 'C:/vault/assets');
     Object.defineProperty(window, 'electronAPI', {
       value: {
@@ -105,7 +105,7 @@ describe('cut actions', () => {
   });
 
   it('uses source path basename for derived filenames when display name is noisy', async () => {
-    const finalizeClip = vi.fn(async () => ({ success: true, fileSize: 1024 }));
+    const finalizeClip = vi.fn(async (_options: { outputPath: string }) => ({ success: true, fileSize: 1024 }));
     const ensureAssetsFolder = vi.fn(async () => 'C:/vault/assets');
     Object.defineProperty(window, 'electronAPI', {
       value: {
@@ -135,7 +135,8 @@ describe('cut actions', () => {
     });
 
     expect(result.success).toBe(true);
-    const finalizeArg = finalizeClip.mock.calls[0]?.[0];
+    expect(finalizeClip).toHaveBeenCalledTimes(1);
+    const finalizeArg = finalizeClip.mock.calls[0]![0];
     expect(finalizeArg.outputPath).toContain('/clean_source_clip_');
     expect(finalizeArg.outputPath).not.toContain('This is not a crop');
   });
