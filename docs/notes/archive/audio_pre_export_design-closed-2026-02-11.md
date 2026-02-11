@@ -1,4 +1,4 @@
-# Audio整備 + Export前提仕様（現行）
+# Audio整備 + Export前提仕様 [Archive]
 
 **目的**: AudioモデルとExport前提の音声仕様を、実装中ラインに絞って管理する。  
 **最終更新**: 2026-02-11
@@ -8,9 +8,9 @@
 - Workstream履歴: `docs/notes/archive/export-workstreams-implemented-2026-02-11.md`
 - 実装済みアーカイブ: `docs/notes/archive/audio_pre_export_design-implemented-2026-02-11.md`
 
-## 現在地
+## 現在地（クローズ時点）
 - 基本モデル（`Cut.audioBindings` / `useEmbeddedAudio`）は実装済み。
-- 以後は Export 実装に必要な差分のみを進める。
+- 運用メモは `docs/guides/export-guide.md` に集約済み。
 
 ## 完了済み（2026-02-11）
 1. metadata attachedAudio 残骸の削除
@@ -36,8 +36,7 @@
 
 ## 依存関係
 - Line B（MP4 export）に `kind` と `enabled/useEmbeddedAudio` の意味を提供。
-- Line C（命名）に audio用語の最終表記を追従。
+- 命名ガバナンスは `docs/guides/export-guide.md` の固定ルールへ追従。
 
 ## 注意
-- 実装済み事項の再説明はアーカイブへ寄せる。
-- このファイルには「次に実装すること」だけを書く。
+- 本ファイルは履歴保管用。

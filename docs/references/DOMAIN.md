@@ -7,12 +7,16 @@
 
 > 注意: 本書は用語の正本です。重複説明は最小にし、他ドキュメントは本書を参照します。
 
-## Pre-Export Naming Conventions (Interim)
+## Naming Conventions
 
 - 軸の命名は次で固定する:
   - 編集軸: `StoryTimeline`
   - 再生軸: public `useSequencePlaybackController` / internal `SequenceClock`
-  - 出力軸(暫定): `RenderSequence` / 実行制御 `ExportRunner`
+  - 出力軸:
+    - 実行計画: `ExportPlan` / `Mp4ExportPlan` / `AviUtlExportPlan`
+    - 計画解決: `resolveExportPlan`
+    - 出力シーケンス: `ExportSequenceItem` / `buildSequenceItemsForExport`
+    - 実行境界(IPC): `window.electronAPI.exportSequence`
 - `MediaSource` は Web API 名と衝突しやすいため、docsでは「Preview向けの app-specific abstraction」を明記する。
 - `source` は文脈ごとに分離する:
   - UI状態: `SourcePanel`
@@ -68,7 +72,8 @@
 | **プレビュー項目** | `PreviewItem` は Sequence 用の派生構造体。 | **含む:** cut/sceneName/thumbnail。 | **構築:** `PreviewModal` 内で生成。 | `PreviewModal.tsx` |
 | **プレビュー制御** | public APIは `useSequencePlaybackController`、内部概念は `SequenceClock` として再生状態を管理。 | **含む:** currentIndex/localProgress/range/loop/buffering。 | **操作:** `setSource/seek/skip` 等。 | `PlaybackState`、`previewPlaybackController.ts` |
 | **プレビューメディアソース** | `MediaSource` は Preview再生専用の app-specific abstraction（Web APIの `MediaSource` とは別）。 | **含む:** play/pause/seek/setRate/getCurrentTime/dispose と JSX 要素。 | **生成:** `createVideoMediaSource` / `createImageMediaSource`。 | `previewMedia.tsx` |
-| **レンダーシーケンス（暫定）** | Export向けの出力軸。再生軸とは分離して扱う。 | **含む:** Export時の時間進行と素材列。**含まない:** Preview再生状態。 | **実行制御:** `ExportRunner`（命名暫定）。 | （Export実装で確定） |
+| **エクスポート実行計画** | `ExportPlan` は出力形式別の実行パラメータを保持する。 | **含む:** `Mp4ExportPlan` / `AviUtlExportPlan`。**含まない:** Preview再生状態。 | **生成:** `resolveExportPlan`。 | `src/features/export/plan.ts` |
+| **エクスポート出力シーケンス** | `ExportSequenceItem` は export 実行用の時系列素材列を表す。 | **含む:** path/duration/clip/framing/lipSync payload。**含まない:** UI状態。 | **生成:** `buildSequenceItemsForCuts` / `buildSequenceItemsForExport`。 | `src/utils/exportSequence.ts` |
 
 ## Vault / Sync
 

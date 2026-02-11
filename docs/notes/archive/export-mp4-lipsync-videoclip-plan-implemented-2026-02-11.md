@@ -1,4 +1,4 @@
-# MP4 Export Plan (LipSync + VideoClip + Framing)
+# MP4 Export Plan (LipSync + VideoClip + Framing) [Archive]
 
 **目的**: MP4 export の実装ラインを、現行の未完了タスク中心に管理する。  
 **最終更新**: 2026-02-11
@@ -6,10 +6,11 @@
 ## ライン位置
 - Workstream: **Line B (MP4 Export)**
 - Workstream履歴: `docs/notes/archive/export-workstreams-implemented-2026-02-11.md`
+- 現行運用: `docs/guides/export-guide.md`
 - 参照:
-  - `docs/notes/export-timeline-integrity-plan.md`
+  - `docs/notes/archive/export-timeline-integrity-plan-implemented-2026-02-11.md`
   - `docs/notes/cut-refactor-plan.md`
-  - `docs/notes/audio_pre_export_design.md`
+  - `docs/notes/archive/audio_pre_export_design-closed-2026-02-11.md`
 
 ## 現在地
 - 事前整備（画像Crop導線、Free既定値 `1280x720`）は導入済み。

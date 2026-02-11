@@ -4,7 +4,11 @@
 
 ## 収録ファイル
 - `docs/notes/archive/audio_pre_export_design-implemented-2026-02-11.md`
+- `docs/notes/archive/audio_pre_export_design-closed-2026-02-11.md`
 - `docs/notes/archive/export-workstreams-implemented-2026-02-11.md`
+- `docs/notes/archive/export-mp4-lipsync-videoclip-plan-implemented-2026-02-11.md`
+- `docs/notes/archive/export-naming-plan-implemented-2026-02-11.md`
+- `docs/notes/archive/export-timeline-integrity-plan-implemented-2026-02-11.md`
 - `docs/notes/archive/autosave-toast-notes.md`
 - `docs/notes/archive/aviutl-exo-export-research.md`
 

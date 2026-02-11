@@ -26,7 +26,9 @@
 | プレビュー | `PreviewMode`（scene/all）。 | `setPreviewMode`。 | `PreviewModal` |
 | プレビュー制御 | `PlaybackState`。 | public: `useSequencePlaybackController` / internal concept: `SequenceClock`。 | `PreviewModal` |
 | プレビューメディアソース | `MediaSource`（Preview専用 abstraction）。 | `createVideoMediaSource` / `createImageMediaSource`。 | `PreviewModal` |
-| 出力軸（暫定） | `RenderSequence`（命名暫定）。 | 実行制御 `ExportRunner`（命名暫定）。 | `ExportModal`（実装時に確定） |
+| エクスポート実行計画 | `ExportPlan` / `Mp4ExportPlan` / `AviUtlExportPlan`。 | `resolveExportPlan`。 | `ExportModal`、`App` |
+| エクスポート出力シーケンス | `ExportSequenceItem`。 | `buildSequenceItemsForCuts` / `buildSequenceItemsForExport`。 | `PreviewModal`、`App` |
+| エクスポート実行境界 | `ExportSequenceOptions` / `ExportSequenceResult`（IPC payload）。 | `window.electronAPI.exportSequence`。 | `App`、`PreviewModal` |
 | カット可能メディア判定 | `CuttableMediaType`（`image`/`video`）。 | `getCuttableMediaType`（新規） / `getTimelineMediaType`（互換エイリアス・移行中）。 | `Sidebar`、`StartupModal`、`dragDrop` |
 | ソースパネル状態 | `SourcePanelState` / `SourceViewMode`。 | `initializeSourcePanel` / `getSourcePanelState`（`Project.sourcePanel` に保存）。 | `Sidebar` |
 | ソース由来パス規約 | `ImportSourcePath` / `OriginPath`（docs規約）。 | `SourcePanel`（UI）とは別概念として記述。 | guides で適用 |

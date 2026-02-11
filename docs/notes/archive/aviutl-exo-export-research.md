@@ -2,7 +2,7 @@
 
 **目的**: EXO Export 実装着手前に、仕様・命名・責務分割・テスト計画を統合して確定する。  
 **適用範囲**: AviUtl(EXO) 出力の設計調査（実装前）。  
-**関連ファイル**: `docs/references/DOMAIN.md`, `docs/references/MAPPING.md`, `docs/guides/preview.md`, `docs/guides/media-handling.md`, `docs/guides/storyline.md`, `docs/notes/export-naming-plan.md`, `.notes/export_plan.md`。  
+**関連ファイル**: `docs/references/DOMAIN.md`, `docs/references/MAPPING.md`, `docs/guides/preview.md`, `docs/guides/media-handling.md`, `docs/guides/storyline.md`, `docs/guides/export-guide.md`, `.notes/export_plan.md`。  
 **更新頻度**: 中。  
 
 ## ステータス（2026-02-10）
@@ -15,9 +15,9 @@
 - 既存パイプラインとの親和性・保守性を優先し、出力軸は MP4 に一本化する。
 
 ## 引き継ぎ先（MP4）
-- `docs/notes/export-timeline-integrity-plan.md`
-- `docs/notes/audio_pre_export_design.md`
-- `docs/notes/export-naming-plan.md`
+- `docs/notes/archive/export-timeline-integrity-plan-implemented-2026-02-11.md`
+- `docs/notes/archive/audio_pre_export_design-closed-2026-02-11.md`
+- `docs/notes/archive/export-naming-plan-implemented-2026-02-11.md`
 
 ## 0. ゴール（最終アウトプット）
 1. EXO最小仕様ドラフト（対応範囲 / 非対応 / 例外）
