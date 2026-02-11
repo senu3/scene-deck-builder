@@ -9,7 +9,8 @@ import './CutCard.css';
 import { getThumbnail } from '../utils/thumbnailCache';
 import { CutContextMenu } from './context-menus';
 import ImageCropModal, { type ImageCropConfig } from './ImageCropModal';
-import { useToast } from '../ui';
+import { useDialog, useToast } from '../ui';
+import { createDerivedCutAndSyncGroup, finalizeClipAndAddCut } from '../features/cut/actions';
 
 interface ResolutionPresetType {
   name: string;
@@ -69,6 +70,7 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
     updateGroupCutOrder,
   } = useStore();
   const { toast } = useToast();
+  const { confirm: dialogConfirm } = useDialog();
   const [thumbnail, setThumbnail] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [showCropModal, setShowCropModal] = useState(false);
@@ -259,29 +261,19 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
       return;
     }
 
-    if (!window.electronAPI) {
-      alert('electronAPI not available. Please restart the app.');
-      setContextMenu(null);
-      return;
-    }
-
-    // Check if vault path is set
     if (!vaultPath) {
-      alert('Vault path not set. Please set up a vault first.');
-      setContextMenu(null);
-      return;
-    }
-
-    // Check if the API methods exist
-    if (typeof window.electronAPI.finalizeClip !== 'function' ||
-        typeof window.electronAPI.ensureAssetsFolder !== 'function') {
-      alert('Finalize Clip feature requires app restart after update.\nPlease restart the Electron app.');
+      toast.warning('Vault path not set', 'Please set up a vault first.');
       setContextMenu(null);
       return;
     }
 
     if (reverseOutput) {
-      const proceed = confirm('Reverse export is memory intensive and may temporarily pause the app.\nContinue?');
+      const proceed = await dialogConfirm({
+        title: 'Reverse Clip',
+        message: 'Reverse export is memory intensive and may temporarily pause the app.',
+        variant: 'warning',
+        confirmLabel: 'Continue',
+      });
       if (!proceed) {
         setContextMenu(null);
         return;
@@ -289,59 +281,29 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
     }
 
     try {
-      // Ensure assets folder exists
-      const assetsFolder = await window.electronAPI.ensureAssetsFolder(vaultPath);
-      if (!assetsFolder) {
-        alert('Failed to access assets folder in vault.');
-        setContextMenu(null);
-        return;
-      }
-
-      const clipStart = Math.min(cut.inPoint, cut.outPoint);
-      const clipEnd = Math.max(cut.inPoint, cut.outPoint);
-      const clipDuration = Math.abs(cut.outPoint - cut.inPoint);
-
-      // Generate unique filename: {original_name}_clip_{timestamp}.mp4
-      const baseName = asset.name.replace(/\.[^/.]+$/, ''); // Remove extension
-      const timestamp = Date.now();
-      const clipFileName = reverseOutput
-        ? `${baseName}_clip_reverse_${timestamp}.mp4`
-        : `${baseName}_clip_${timestamp}.mp4`;
-      const outputPath = `${assetsFolder}/${clipFileName}`.replace(/\\/g, '/');
-
-      // Finalize the clip (auto-save to vault assets)
-      const result = await window.electronAPI.finalizeClip({
-        sourcePath: asset.path,
-        outputPath,
-        inPoint: clipStart,
-        outPoint: clipEnd,
-        reverse: reverseOutput,
+      const result = await finalizeClipAndAddCut({
+        sceneId,
+        sourceCutId: cut.id,
+        insertIndex: index + 1,
+        sourceAssetPath: asset.path,
+        sourceAssetName: asset.name,
+        inPoint: cut.inPoint,
+        outPoint: cut.outPoint,
+        reverseOutput,
+        vaultPath,
+        createCutFromImport,
+        getCutGroup,
+        updateGroupCutOrder,
       });
 
       if (result.success) {
-        const newCutId = await createCutFromImport(sceneId, {
-          assetId: uuidv4(),
-          name: clipFileName,
-          sourcePath: outputPath,
-          type: 'video',
-          fileSize: result.fileSize,
-          preferredDuration: clipDuration,
-        }, index + 1, vaultPath);
-
-        const latestGroup = getCutGroup(sceneId, cut.id);
-        if (latestGroup && !latestGroup.cutIds.includes(newCutId)) {
-          const insertAt = Math.max(0, latestGroup.cutIds.indexOf(cut.id) + 1);
-          const nextOrder = [...latestGroup.cutIds];
-          nextOrder.splice(insertAt, 0, newCutId);
-          updateGroupCutOrder(sceneId, latestGroup.id, nextOrder);
-        }
-
-        alert(`Clip exported and added to timeline!\n\nFile: ${clipFileName}\nSize: ${(result.fileSize! / 1024 / 1024).toFixed(2)} MB`);
+        const sizeText = result.fileSize ? `${(result.fileSize / 1024 / 1024).toFixed(2)} MB` : 'Unknown size';
+        toast.success('Clip exported', `${result.fileName} (${sizeText})`);
       } else {
-        alert(`Failed to export clip: ${result.error}`);
+        toast.error('Finalize Clip failed', result.error || 'Unknown error');
       }
     } catch (error) {
-      alert(`Error finalizing clip: ${error}`);
+      toast.error('Finalize Clip failed', String(error));
     }
 
     setContextMenu(null);
@@ -410,9 +372,11 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
         return;
       }
 
-      const newCutId = await createCutFromImport(
+      await createDerivedCutAndSyncGroup({
         sceneId,
-        {
+        sourceCutId: cut.id,
+        insertIndex: index + 1,
+        source: {
           assetId: uuidv4(),
           name: fileName,
           sourcePath: outputPath,
@@ -420,17 +384,11 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
           fileSize: result.fileSize,
           preferredThumbnail: thumbnail || undefined,
         },
-        index + 1,
-        vaultPath
-      );
-
-      const latestGroup = getCutGroup(sceneId, cut.id);
-      if (latestGroup && !latestGroup.cutIds.includes(newCutId)) {
-        const insertAt = Math.max(0, latestGroup.cutIds.indexOf(cut.id) + 1);
-        const nextOrder = [...latestGroup.cutIds];
-        nextOrder.splice(insertAt, 0, newCutId);
-        updateGroupCutOrder(sceneId, latestGroup.id, nextOrder);
-      }
+        vaultPath,
+        createCutFromImport,
+        getCutGroup,
+        updateGroupCutOrder,
+      });
 
       toast.success('Image cropped', fileName);
     } catch (error) {

@@ -22,11 +22,12 @@ import { v4 as uuidv4 } from 'uuid';
 import { getCachedThumbnail, getThumbnail, removeThumbnailCache } from '../utils/thumbnailCache';
 import { getMediaType as getAnyMediaType } from '../utils/mediaType';
 import { collectAssetRefs, getBlockingRefsForAssetIds, type AssetRefMap } from '../utils/assetRefs';
-import { useToast } from '../ui';
+import { useDialog, useToast } from '../ui';
 import {
   CutContextMenu,
   AssetContextMenu,
 } from './context-menus';
+import { finalizeClipAndAddCut } from '../features/cut/actions';
 import './AssetPanel.css';
 
 export type SortMode = 'name' | 'type' | 'used' | 'unused';
@@ -190,6 +191,7 @@ export default function AssetPanel({
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const { confirm: dialogConfirm } = useDialog();
 
   const assetRefs = useMemo(
     () => collectAssetRefs(scenes, metadataStore),
@@ -615,27 +617,19 @@ export default function AssetPanel({
       return;
     }
 
-    if (!window.electronAPI) {
-      alert('electronAPI not available. Please restart the app.');
-      setCutContextMenu(null);
-      return;
-    }
-
     if (!vaultPath) {
-      alert('Vault path not set. Please set up a vault first.');
-      setCutContextMenu(null);
-      return;
-    }
-
-    if (typeof window.electronAPI.finalizeClip !== 'function' ||
-        typeof window.electronAPI.ensureAssetsFolder !== 'function') {
-      alert('Finalize Clip feature requires app restart after update.\nPlease restart the Electron app.');
+      toast.warning('Vault path not set', 'Please set up a vault first.');
       setCutContextMenu(null);
       return;
     }
 
     if (reverseOutput) {
-      const proceed = confirm('Reverse export is memory intensive and may temporarily pause the app.\nContinue?');
+      const proceed = await dialogConfirm({
+        title: 'Reverse Clip',
+        message: 'Reverse export is memory intensive and may temporarily pause the app.',
+        variant: 'warning',
+        confirmLabel: 'Continue',
+      });
       if (!proceed) {
         setCutContextMenu(null);
         return;
@@ -643,56 +637,29 @@ export default function AssetPanel({
     }
 
     try {
-      const assetsFolder = await window.electronAPI.ensureAssetsFolder(vaultPath);
-      if (!assetsFolder) {
-        alert('Failed to access assets folder in vault.');
-        setCutContextMenu(null);
-        return;
-      }
-
-      const clipStart = Math.min(cut.inPoint, cut.outPoint);
-      const clipEnd = Math.max(cut.inPoint, cut.outPoint);
-      const clipDuration = Math.abs(cut.outPoint - cut.inPoint);
-
-      const baseName = asset.name.replace(/\.[^/.]+$/, '');
-      const timestamp = Date.now();
-      const clipFileName = reverseOutput
-        ? `${baseName}_clip_reverse_${timestamp}.mp4`
-        : `${baseName}_clip_${timestamp}.mp4`;
-      const outputPath = `${assetsFolder}/${clipFileName}`.replace(/\\/g, '/');
-
-      const result = await window.electronAPI.finalizeClip({
-        sourcePath: asset.path,
-        outputPath,
-        inPoint: clipStart,
-        outPoint: clipEnd,
-        reverse: reverseOutput,
+      const result = await finalizeClipAndAddCut({
+        sceneId,
+        sourceCutId: cutId,
+        insertIndex: cutContextMenu.index + 1,
+        sourceAssetPath: asset.path,
+        sourceAssetName: asset.name,
+        inPoint: cut.inPoint,
+        outPoint: cut.outPoint,
+        reverseOutput,
+        vaultPath,
+        createCutFromImport,
+        getCutGroup,
+        updateGroupCutOrder,
       });
 
       if (result.success) {
-        const newCutId = await createCutFromImport(sceneId, {
-          assetId: uuidv4(),
-          name: clipFileName,
-          sourcePath: outputPath,
-          type: 'video',
-          fileSize: result.fileSize,
-          preferredDuration: clipDuration,
-        }, cutContextMenu.index + 1, vaultPath);
-
-        const latestGroup = getCutGroup(sceneId, cutId);
-        if (latestGroup && !latestGroup.cutIds.includes(newCutId)) {
-          const insertAt = Math.max(0, latestGroup.cutIds.indexOf(cutId) + 1);
-          const nextOrder = [...latestGroup.cutIds];
-          nextOrder.splice(insertAt, 0, newCutId);
-          updateGroupCutOrder(sceneId, latestGroup.id, nextOrder);
-        }
-
-        alert(`Clip exported and added to timeline!\n\nFile: ${clipFileName}\nSize: ${(result.fileSize! / 1024 / 1024).toFixed(2)} MB`);
+        const sizeText = result.fileSize ? `${(result.fileSize / 1024 / 1024).toFixed(2)} MB` : 'Unknown size';
+        toast.success('Clip exported', `${result.fileName} (${sizeText})`);
       } else {
-        alert(`Failed to export clip: ${result.error}`);
+        toast.error('Finalize Clip failed', result.error || 'Unknown error');
       }
     } catch (error) {
-      alert(`Error finalizing clip: ${error}`);
+      toast.error('Finalize Clip failed', String(error));
     }
 
     setCutContextMenu(null);
