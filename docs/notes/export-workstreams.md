@@ -15,10 +15,19 @@
 ### Line B: MP4 Export (LipSync + VideoClip + Framing)
 - 主ノート: `docs/notes/export-mp4-lipsync-videoclip-plan.md`
 - 目的: MP4 exportの実行経路と見た目整合（preview/export）を確定・実装する。
-- 現在地: **進行中（解像度/Faming確定前提で段階実装）**
+- 現在地: **進行中（解像度/Framing確定前提で段階実装）**
 - 依存:
   - Line A の音声分類
   - Line C の命名規約
+
+#### Line B 補足方針（2026-02-11）
+- Framing は当面「Preview/Export で同一パラメータを使う」最小仕様で進める。
+- 画像Crop追加後の適用順は `crop -> framing -> export` で固定する。
+- Framing既定値は `cover + center`（center crop）とする。
+- Framing解決優先順位は `cut値 -> global値 -> 固定値` とする。
+- ただし将来のグローバルFraming設定追加に備え、実装境界は先に分離する。
+  - 例: `resolveFramingParams(cut, projectDefaults)` を単一入口にし、現時点では `projectDefaults` は固定値運用。
+  - 後続で設定画面を追加する場合は、`projectDefaults` の供給元のみ差し替える。
 
 ### Line C: Naming / Glossary Governance
 - 主ノート: `docs/notes/export-naming-plan.md`
@@ -31,6 +40,13 @@
 1. **Line B を先行**（Framing + Export の実装を優先）
 2. Line A は Export実装に必要な最小範囲を並行で補強
 3. Line C は実装に合わせて追従（都度固定）
+
+## Line B 実装前チェックポイント
+1. Framing入力構造（mode/anchor）の型を Preview/Export 共通で一本化する。
+2. Free 解像度既定値（`1280x720`）の参照箇所を単一化し、Preview/Crop/Exportでズレないようにする。
+3. LipSync/VideoClip 経路で Framing適用漏れが起きないよう、出力シーケンス生成点で必ず解決する。
+4. `assets/` 内生成物（crop/finalize）は再インポート再命名しない方針を維持する。
+5. Export入力生成時に「各cutの最終Framing値（解決後）」を確認できるログ/デバッグ表示を用意する。
 
 ## アーカイブ方針
 - 実装済みで今後変更予定が低い内容は `docs/notes/archive/` に退避。
