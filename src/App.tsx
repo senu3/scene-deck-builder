@@ -21,6 +21,7 @@ import { getDragKind, queueExternalFilesToScene } from './utils/dragDrop';
 import { buildSequenceItemsForCuts } from './utils/exportSequence';
 import { getCutIdsInTimelineOrder, getScenesAndCutsInTimelineOrder } from './utils/timelineOrder';
 import { DEFAULT_EXPORT_RESOLUTION } from './constants/export';
+import { EXPORT_FRAMING_DEFAULTS } from './constants/framing';
 import './styles/App.css';
 
 function DndMonitorShim({ onDragStart }: { onDragStart: () => void }) {
@@ -408,6 +409,7 @@ function App() {
     try {
       const sequenceItems = buildSequenceItemsForCuts(cuts, {
         debugFraming: true,
+        framingDefaults: EXPORT_FRAMING_DEFAULTS,
         metadataByAssetId: metadataStore?.metadata,
         resolveAssetById: getAsset,
       });

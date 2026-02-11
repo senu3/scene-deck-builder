@@ -37,6 +37,7 @@
 - LipSync cut で必要データ不足時は export 入力生成で明示エラー化し、silent fallback を禁止。
 - Preview からの export 実行は App 側へ委譲し、実行経路の入口を一本化。
 - Free 既定値 `1280x720` の参照を定数化し、App/Preview/Crop の重複参照を削減。
+- Framing の `projectDefaults`（`cover + center`）を定数化し、Preview/Export の両方へ明示供給。
 - 回帰テストに統合ケース（`order + clip + lipsync + framing`）を追加。
 - Preview framing 表示と export framing filter の整合を parity テストで自動検証。
 

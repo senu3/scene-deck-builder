@@ -11,6 +11,7 @@ import { useSequencePlaybackController } from '../utils/previewPlaybackControlle
 import { getThumbnail } from '../utils/thumbnailCache';
 import { buildSequenceItemsForCuts } from '../utils/exportSequence';
 import { DEFAULT_EXPORT_RESOLUTION } from '../constants/export';
+import { EXPORT_FRAMING_DEFAULTS } from '../constants/framing';
 import { buildPreviewViewportFramingStyle } from '../utils/previewFraming';
 import {
   PlaybackRangeMarkers,
@@ -1731,6 +1732,7 @@ export default function PreviewModal({
         exportCuts,
         {
           debugFraming: true,
+          framingDefaults: EXPORT_FRAMING_DEFAULTS,
           metadataByAssetId: metadataStore?.metadata,
           resolveAssetById: getAsset,
         }
@@ -1975,7 +1977,7 @@ export default function PreviewModal({
     const targetCut = isSingleMode
       ? focusCutData?.cut
       : currentItem?.cut;
-    return buildPreviewViewportFramingStyle(targetCut?.framing);
+    return buildPreviewViewportFramingStyle(targetCut?.framing, EXPORT_FRAMING_DEFAULTS);
   }, [isSingleMode, focusCutData?.cut, currentItem?.cut]);
 
   // _hasRange kept for future range export UI implementation

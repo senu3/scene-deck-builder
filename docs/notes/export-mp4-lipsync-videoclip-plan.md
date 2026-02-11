@@ -17,6 +17,7 @@
 - LipSync cut は export 入力へ `framePaths + rms + thresholds` を渡し、ffmpeg 側でフレーム列化して MP4 へ反映する実装を導入済み。
 - LipSync cut で設定/RMS/フレームが不足する場合は export 入力生成でエラーにし、silent fallback を抑止。
 - PreviewModal の export 操作は App 側 export 実行へ委譲し、実行経路を一本化。
+- Framing 既定値（`cover + center`）は `projectDefaults` として定数化し、Preview/Export 双方の解決入口へ供給。
 - `exportSequence` テストに統合回帰ケース（順序/clip/lipsync/framing）を追加済み。
 - `framingParity` テストで Preview (`object-fit/object-position`) と Export (ffmpeg filter) の一致を自動検証。
 
