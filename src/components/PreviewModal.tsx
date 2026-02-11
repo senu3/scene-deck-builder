@@ -55,6 +55,7 @@ interface BasePreviewModalProps {
   exportResolution?: ResolutionPresetType;
   onResolutionChange?: (resolution: ResolutionPresetType) => void;
   focusCutId?: string;
+  onExportSequence?: (cuts: Cut[], resolution: { width: number; height: number }) => Promise<void> | void;
 }
 
 // PreviewModal can be called in Single Mode (with asset) or Sequence Mode (without asset)
@@ -88,6 +89,7 @@ export default function PreviewModal({
   exportResolution,
   onResolutionChange,
   focusCutId,
+  onExportSequence,
   // Single Mode props
   asset,
   initialInPoint,
@@ -1695,7 +1697,7 @@ export default function PreviewModal({
 
   // Export full sequence (no range)
   const handleExportFull = useCallback(async () => {
-    if (!window.electronAPI || items.length === 0) return;
+    if (items.length === 0) return;
 
     setIsExporting(true);
     if (!usesSequenceController) {
@@ -1707,6 +1709,16 @@ export default function PreviewModal({
     try {
       const exportWidth = selectedResolution.width > 0 ? selectedResolution.width : DEFAULT_EXPORT_RESOLUTION.width;
       const exportHeight = selectedResolution.height > 0 ? selectedResolution.height : DEFAULT_EXPORT_RESOLUTION.height;
+      const exportCuts = items.map((item) => item.cut);
+
+      if (onExportSequence) {
+        await onExportSequence(exportCuts, { width: exportWidth, height: exportHeight });
+        return;
+      }
+
+      if (!window.electronAPI) {
+        return;
+      }
 
       const outputPath = await window.electronAPI.showSaveSequenceDialog('sequence_export.mp4');
       if (!outputPath) {
@@ -1715,7 +1727,7 @@ export default function PreviewModal({
       }
 
       const sequenceItems = buildSequenceItemsForCuts(
-        items.map((item) => item.cut),
+        exportCuts,
         {
           debugFraming: true,
           metadataByAssetId: metadataStore?.metadata,
@@ -1741,7 +1753,7 @@ export default function PreviewModal({
     } finally {
       setIsExporting(false);
     }
-  }, [items, selectedResolution, usesSequenceController, sequencePause, metadataStore, getAsset]);
+  }, [items, selectedResolution, usesSequenceController, sequencePause, metadataStore, getAsset, onExportSequence]);
 
   // Export with IN/OUT range (Save button) - kept for future UI implementation
   const _handleExportRange = useCallback(async () => {

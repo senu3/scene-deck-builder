@@ -14,12 +14,12 @@ import ExportModal, { type ExportSettings } from './components/ExportModal';
 import EnvironmentSettingsModal from './components/EnvironmentSettingsModal';
 import NotificationTestModal from './components/NotificationTestModal';
 import { v4 as uuidv4 } from 'uuid';
-import type { Asset } from './types';
+import type { Asset, Cut } from './types';
 import { getThumbnail } from './utils/thumbnailCache';
 import { importFileToVault } from './utils/assetPath';
 import { getDragKind, queueExternalFilesToScene } from './utils/dragDrop';
-import { buildSequenceItemsForExport } from './utils/exportSequence';
-import { getCutIdsInTimelineOrder } from './utils/timelineOrder';
+import { buildSequenceItemsForCuts } from './utils/exportSequence';
+import { getCutIdsInTimelineOrder, getScenesAndCutsInTimelineOrder } from './utils/timelineOrder';
 import { DEFAULT_EXPORT_RESOLUTION } from './constants/export';
 import './styles/App.css';
 
@@ -398,16 +398,15 @@ function App() {
     setShowNotificationTests(true);
   }, []);
 
-  // Handle export from ExportModal
-  const handleExport = useCallback(async (settings: ExportSettings) => {
+  const exportMp4Sequence = useCallback(async (
+    cuts: Cut[],
+    resolution: { width: number; height: number }
+  ) => {
     if (!window.electronAPI || isExporting) return;
 
-    setShowExportModal(false);
     setIsExporting(true);
-
     try {
-      // Build sequence items
-      const sequenceItems = buildSequenceItemsForExport(scenes, {
+      const sequenceItems = buildSequenceItemsForCuts(cuts, {
         debugFraming: true,
         metadataByAssetId: metadataStore?.metadata,
         resolveAssetById: getAsset,
@@ -415,29 +414,16 @@ function App() {
 
       if (sequenceItems.length === 0) {
         alert('No items to export. Add some cuts to the timeline first.');
-        setIsExporting(false);
         return;
       }
 
-      // For now, use existing MP4 export logic
-      // TODO: Implement AviUtl export based on settings.format
-      if (settings.format === 'aviutl') {
-        // Placeholder: AviUtl export not yet implemented
-        alert(`AviUtl export to:\n${settings.outputPath}\n\nRounding: ${settings.aviutl.roundingMode}\nCopy media: ${settings.aviutl.copyMedia}\n\n(Export logic not yet implemented)`);
-        setIsExporting(false);
-        return;
-      }
-
-      // MP4 export (existing logic)
       const outputPath = await window.electronAPI.showSaveSequenceDialog('sequence_export.mp4');
       if (!outputPath) {
-        setIsExporting(false);
         return;
       }
 
-      // Use selected resolution (Free -> 1280x720)
-      const width = exportResolution.width > 0 ? exportResolution.width : DEFAULT_EXPORT_RESOLUTION.width;
-      const height = exportResolution.height > 0 ? exportResolution.height : DEFAULT_EXPORT_RESOLUTION.height;
+      const width = resolution.width > 0 ? resolution.width : DEFAULT_EXPORT_RESOLUTION.width;
+      const height = resolution.height > 0 ? resolution.height : DEFAULT_EXPORT_RESOLUTION.height;
 
       const result = await window.electronAPI.exportSequence({
         items: sequenceItems,
@@ -457,7 +443,42 @@ function App() {
     } finally {
       setIsExporting(false);
     }
-  }, [scenes, exportResolution, isExporting, metadataStore, getAsset]);
+  }, [getAsset, isExporting, metadataStore]);
+
+  // Handle export from ExportModal
+  const handleExport = useCallback(async (settings: ExportSettings) => {
+    if (!window.electronAPI || isExporting) return;
+
+    setShowExportModal(false);
+
+    try {
+      const orderedCuts = getScenesAndCutsInTimelineOrder(scenes).flatMap((scene) => scene.cuts);
+
+      if (orderedCuts.length === 0) {
+        alert('No items to export. Add some cuts to the timeline first.');
+        return;
+      }
+
+      // For now, use existing MP4 export logic
+      // TODO: Implement AviUtl export based on settings.format
+      if (settings.format === 'aviutl') {
+        // Placeholder: AviUtl export not yet implemented
+        alert(`AviUtl export to:\n${settings.outputPath}\n\nRounding: ${settings.aviutl.roundingMode}\nCopy media: ${settings.aviutl.copyMedia}\n\n(Export logic not yet implemented)`);
+        return;
+      }
+
+      await exportMp4Sequence(orderedCuts, exportResolution);
+    } catch (error) {
+      alert(`Export error: ${String(error)}`);
+    }
+  }, [scenes, exportResolution, isExporting, exportMp4Sequence]);
+
+  const handlePreviewExport = useCallback(async (
+    cuts: Cut[],
+    resolution: { width: number; height: number }
+  ) => {
+    await exportMp4Sequence(cuts, resolution);
+  }, [exportMp4Sequence]);
 
   // Find cut data for Single Mode preview modal
   const previewCutData = useCallback(() => {
@@ -592,6 +613,7 @@ function App() {
             onClose={() => setShowPreview(false)}
             exportResolution={exportResolution}
             onResolutionChange={setExportResolution}
+            onExportSequence={handlePreviewExport}
           />
         )}
         {previewData && (
@@ -605,6 +627,7 @@ function App() {
             onFrameCapture={handleVideoPreviewFrameCapture}
             exportResolution={exportResolution}
             onResolutionChange={setExportResolution}
+            onExportSequence={handlePreviewExport}
           />
         )}
         {sequencePreviewCutId && (
@@ -613,6 +636,7 @@ function App() {
             focusCutId={sequencePreviewCutId}
             exportResolution={exportResolution}
             onResolutionChange={setExportResolution}
+            onExportSequence={handlePreviewExport}
           />
         )}
         <ExportModal
