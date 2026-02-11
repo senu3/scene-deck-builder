@@ -10,7 +10,13 @@ describe('assetRefs', () => {
         order: 0,
         notes: [],
         cuts: [
-          { id: 'cut-1', assetId: 'img-1', order: 0, displayTime: 1 },
+          {
+            id: 'cut-1',
+            assetId: 'img-1',
+            order: 0,
+            displayTime: 1,
+            audioBindings: [{ id: 'b1', audioAssetId: 'aud-1', offsetSec: 0, enabled: true, kind: 'se' }],
+          },
         ],
       },
     ] as any;
@@ -19,7 +25,6 @@ describe('assetRefs', () => {
       metadata: {
         'img-1': {
           assetId: 'img-1',
-          attachedAudioId: 'aud-1',
           lipSync: {
             baseImageAssetId: 'img-1',
             variantAssetIds: ['img-2', 'img-3', 'img-4'],
@@ -37,26 +42,36 @@ describe('assetRefs', () => {
 
     const refs = collectAssetRefs(scenes, metadataStore);
     expect(refs.get('img-1')?.some((ref) => ref.kind === 'cut')).toBe(true);
-    expect(refs.get('aud-1')?.some((ref) => ref.kind === 'attached-audio')).toBe(true);
+    expect(refs.get('aud-1')?.some((ref) => ref.kind === 'cut-audio-binding')).toBe(true);
     expect(refs.get('mask-1')?.some((ref) => ref.kind === 'lipsync-mask')).toBe(true);
     expect(refs.get('cmp-3')?.some((ref) => ref.kind === 'lipsync-composited')).toBe(true);
   });
 
   it('returns blocking refs and detects dangling refs', () => {
     const refs = collectAssetRefs(
-      [{ id: 'scene-1', name: 'S1', order: 0, notes: [], cuts: [{ id: 'cut-1', assetId: 'img-1', order: 0, displayTime: 1 }] }] as any,
+      [{
+        id: 'scene-1',
+        name: 'S1',
+        order: 0,
+        notes: [],
+        cuts: [{
+          id: 'cut-1',
+          assetId: 'img-1',
+          order: 0,
+          displayTime: 1,
+          audioBindings: [{ id: 'b1', audioAssetId: 'aud-1', offsetSec: 0, enabled: true, kind: 'se' }],
+        }],
+      }] as any,
       {
         version: 1,
-        metadata: {
-          'img-1': { assetId: 'img-1', attachedAudioId: 'aud-1' },
-        },
+        metadata: {},
         sceneMetadata: {},
       } as any
     );
 
     const blocking = getBlockingRefsForAssetIds(refs, ['aud-1']);
     expect(blocking.length).toBe(1);
-    expect(blocking[0]?.kind).toBe('attached-audio');
+    expect(blocking[0]?.kind).toBe('cut-audio-binding');
 
     const dangling = findDanglingAssetRefs(refs, new Set(['img-1']));
     expect(dangling.some((ref) => ref.assetId === 'aud-1')).toBe(true);

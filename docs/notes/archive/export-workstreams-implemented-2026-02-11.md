@@ -9,8 +9,8 @@
 - ステータス: 継続中（MP4本線から分離）
 - 実装済み:
   - `Cut.audioBindings` / `useEmbeddedAudio` 基本モデル導入
-- 継続タスク:
-  - metadata attachedAudio 残骸削除
+- 実装済み（追記）:
+  - metadata attachedAudio 残骸削除（`AssetMetadata`/`metadataStore`/`assetRefs` から legacy 削除）
 - メモ化:
   - AttachAudio ON/OFF（`audioBindings[].enabled`）UI最小導入案
 - 中止:

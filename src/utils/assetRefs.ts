@@ -3,7 +3,6 @@ import type { MetadataStore, Scene } from '../types';
 export type AssetRefKind =
   | 'cut'
   | 'cut-audio-binding'
-  | 'attached-audio'
   | 'lipsync-base'
   | 'lipsync-variant'
   | 'lipsync-mask'
@@ -59,14 +58,6 @@ export function collectAssetRefs(scenes: Scene[], metadataStore: MetadataStore |
   if (!metadataStore) return refs;
 
   for (const [ownerAssetId, meta] of Object.entries(metadataStore.metadata)) {
-    if (meta.attachedAudioId) {
-      pushRef(refs, {
-        assetId: meta.attachedAudioId,
-        kind: 'attached-audio',
-        ownerAssetId,
-      });
-    }
-
     const lipSync = meta.lipSync;
     if (!lipSync) continue;
 

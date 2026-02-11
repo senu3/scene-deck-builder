@@ -12,14 +12,14 @@
 - 基本モデル（`Cut.audioBindings` / `useEmbeddedAudio`）は実装済み。
 - 以後は Export 実装に必要な差分のみを進める。
 
-## 未完了タスク（優先順）
+## 完了済み（2026-02-11）
 1. metadata attachedAudio 残骸の削除
-- 対象:
-  - `src/types/index.ts` の `AssetMetadata.attachedAudio*`
-  - `src/utils/metadataStore.ts` の attachedAudio系API
-  - `src/utils/assetRefs.ts` の `attached-audio` 参照
-- 完了条件:
-  - AttachAudio 正経路が `Cut.audioBindings` のみになる
+- 実施:
+  - `src/types/index.ts` から `AssetMetadata.attachedAudio*` を削除
+  - `src/utils/metadataStore.ts` から attachedAudio系APIを削除
+  - `src/utils/assetRefs.ts` から `attached-audio` 参照を削除
+- 結果:
+  - AttachAudio 正経路は `Cut.audioBindings` のみに統一
 
 ## メモ（タスク化保留）
 1. AttachAudio ON/OFF UI の最小導入案

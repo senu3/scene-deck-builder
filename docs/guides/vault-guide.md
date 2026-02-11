@@ -36,7 +36,6 @@ Each entry stores:
 ## `.metadata.json` (Scene Metadata + Attachments)
 Used for information that is not a core asset index:
 - Asset metadata (displayTime, analysis, lipSync)
-- Legacy attached-audio fields (`attachedAudio*`) remain for compatibility cleanup
 - LipSync links (base/variant/mask/composited/rms/sourceVideo) and bundle ownership
 - Scene metadata: name + notes
 
@@ -45,7 +44,6 @@ Used for information that is not a core asset index:
 - Reference kinds:
 - `cut`
 - `cut-audio-binding`
-- `attached-audio` (legacy)
 - `lipsync-base`
 - `lipsync-variant`
 - `lipsync-mask`

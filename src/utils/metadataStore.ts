@@ -238,79 +238,6 @@ export function removeAssetMetadata(
   };
 }
 
-/**
- * Attach audio to an asset (immutable)
- * @param store - Current MetadataStore
- * @param assetId - Asset to attach audio to
- * @param audioAssetId - Audio asset ID
- * @param offset - Optional audio offset in seconds
- * @returns New MetadataStore with audio attached
- */
-export function attachAudio(
-  store: MetadataStore,
-  assetId: string,
-  audioAssetId: string,
-  sourceName: string,
-  offset: number = 0
-): MetadataStore {
-  const existing = store.metadata[assetId] || { assetId };
-  return updateAssetMetadata(store, {
-    ...existing,
-    attachedAudioId: audioAssetId,
-    attachedAudioSourceName: sourceName,
-    attachedAudioOffset: offset,
-  });
-}
-
-/**
- * Detach audio from an asset (immutable)
- * @param store - Current MetadataStore
- * @param assetId - Asset to detach audio from
- * @returns New MetadataStore with audio detached
- */
-export function detachAudio(
-  store: MetadataStore,
-  assetId: string
-): MetadataStore {
-  const existing = store.metadata[assetId];
-  if (!existing) return store;
-
-  const {
-    attachedAudioId: _,
-    attachedAudioSourceName: __,
-    attachedAudioOffset: ___,
-    ...rest
-  } = existing;
-
-  // If no other metadata, remove the entry entirely
-  if (Object.keys(rest).length <= 1) { // Only assetId remains
-    return removeAssetMetadata(store, assetId);
-  }
-
-  return updateAssetMetadata(store, rest as AssetMetadata);
-}
-
-/**
- * Update audio offset for an asset (immutable)
- * @param store - Current MetadataStore
- * @param assetId - Asset ID
- * @param offset - New offset in seconds
- * @returns New MetadataStore with updated offset
- */
-export function updateAudioOffset(
-  store: MetadataStore,
-  assetId: string,
-  offset: number
-): MetadataStore {
-  const existing = store.metadata[assetId];
-  if (!existing || !existing.attachedAudioId) return store;
-
-  return updateAssetMetadata(store, {
-    ...existing,
-    attachedAudioOffset: offset,
-  });
-}
-
 function isMetadataEntryEmpty(metadata: AssetMetadata): boolean {
   return Object.keys(metadata).every((key) => key === 'assetId');
 }
@@ -318,7 +245,6 @@ function isMetadataEntryEmpty(metadata: AssetMetadata): boolean {
 /**
  * Remove references to deleted assets from metadata store.
  * - Drops metadata entries whose own assetId is deleted
- * - Detaches audio links pointing to deleted audio assets
  * - Clears/removes LipSync settings when required frame/audio references are deleted
  */
 export function removeAssetReferences(
@@ -338,12 +264,6 @@ export function removeAssetReferences(
     }
 
     let next: AssetMetadata = { ...metadata };
-
-    if (next.attachedAudioId && removed.has(next.attachedAudioId)) {
-      const { attachedAudioId: _, attachedAudioSourceName: __, attachedAudioOffset: ___, ...rest } = next;
-      next = rest as AssetMetadata;
-      changed = true;
-    }
 
     const lipSync = next.lipSync;
     if (lipSync) {
