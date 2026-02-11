@@ -40,6 +40,7 @@
 - Phase 0-3: save/load 資産パス整合の回帰テストを追加済み（`assetPath`）。
 - Phase 0-4: `crop image` の副作用も action 層へ移管（`cropImageAndAddCut`）。
 - Phase 0-5: `AssetPanel` の delete 系フィードバックを `useToast` + `useDialog` に移行。
+- Phase 0-6: crop/finalize 生成物が `assets/` 内再取り込みで hash 名へ再命名される問題を修正。`importFileToVault` は `assets/` 内ファイルを再インポートせず、既存ファイル名のまま index 登録する方針に変更。
 
 ### Phase 0: Guard Rails（先行・小規模）
 1. Cut副作用ヘルパー追加（既存呼び出しの薄い置換）。
@@ -49,6 +50,7 @@
 **受け入れ条件**
 - 既存機能の挙動差が出ない。  
 - crop/finalize 後の cut 追加が安定。  
+- crop/finalize 生成ファイルが意図した命名のまま維持される。  
 - save/load 後に loading が残らない。
 
 ### Phase 1: Export + Framing 実装
@@ -85,6 +87,8 @@
 対策: Phase ごとにテスト固定（cut追加・group同期・save/load）。
 3. **仕様ブレ（Framing/Resolution）**  
 対策: 既定値と適用順（crop -> framing -> export）を docs で固定。
+4. **生成アセットの命名が保存時に崩れる**  
+対策: 「`assets/` 内生成物は再インポートしない」を共通規約化し、`assetPath` テストで固定。
 
 ## 直近アクション（推奨）
 1. Phase 0 のタスクを issue 化（1日以内で終わる粒度）。

@@ -16,6 +16,14 @@ const electronAPIMock = {
     absolutePath: `C:/mock/${relativePath}`,
     exists: true,
   })),
+  getRelativePath: vi.fn(async (_vaultPath: string, absolutePath: string) => {
+    const normalized = absolutePath.replace(/\\/g, '/');
+    const idx = normalized.indexOf('/assets/');
+    return idx >= 0 ? normalized.slice(idx + 1) : null;
+  }),
+  calculateFileHash: vi.fn(async () => 'abc'),
+  getFileInfo: vi.fn(async () => ({ size: 1234 })),
+  loadAssetIndex: vi.fn(async () => ({ version: 1, assets: [] })),
   isPathInVault: vi.fn(async () => false),
   vaultGateway: {
     importAndRegisterAsset: vi.fn(async () => ({
@@ -32,6 +40,7 @@ const electronAPIMock = {
       hash: 'data',
       isDuplicate: false,
     })),
+    saveAssetIndex: vi.fn(async () => true),
     moveToTrashWithMeta: vi.fn(async () => 'C:/mock/vault/.trash/img_abc.png'),
   },
 };

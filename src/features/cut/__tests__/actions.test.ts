@@ -103,4 +103,40 @@ describe('cut actions', () => {
     expect(cropImageToAspect).toHaveBeenCalledTimes(1);
     expect(createCutFromImport).toHaveBeenCalledTimes(1);
   });
+
+  it('uses source path basename for derived filenames when display name is noisy', async () => {
+    const finalizeClip = vi.fn(async () => ({ success: true, fileSize: 1024 }));
+    const ensureAssetsFolder = vi.fn(async () => 'C:/vault/assets');
+    Object.defineProperty(window, 'electronAPI', {
+      value: {
+        finalizeClip,
+        ensureAssetsFolder,
+      },
+      writable: true,
+    });
+
+    const createCutFromImport = vi.fn(async () => 'new-cut');
+    const getCutGroup = vi.fn(() => undefined);
+    const updateGroupCutOrder = vi.fn();
+
+    const result = await finalizeClipAndAddCut({
+      sceneId: 'scene-1',
+      sourceCutId: 'cut-a',
+      insertIndex: 1,
+      sourceAssetPath: 'C:/assets/clean_source.mp4',
+      sourceAssetName: '._This is not a crop, zoom, 366084.mp4',
+      inPoint: 0,
+      outPoint: 1,
+      reverseOutput: false,
+      vaultPath: 'C:/vault',
+      createCutFromImport,
+      getCutGroup,
+      updateGroupCutOrder,
+    });
+
+    expect(result.success).toBe(true);
+    const finalizeArg = finalizeClip.mock.calls[0]?.[0];
+    expect(finalizeArg.outputPath).toContain('/clean_source_clip_');
+    expect(finalizeArg.outputPath).not.toContain('This is not a crop');
+  });
 });

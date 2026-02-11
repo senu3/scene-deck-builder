@@ -128,21 +128,61 @@ export async function importFileToVault(
 
   const inVault = await isPathInVaultAssets(vaultPath, sourcePath);
 
+  if (inVault) {
+    const relativePath = await window.electronAPI.getRelativePath(vaultPath, sourcePath);
+    if (!relativePath) {
+      return null;
+    }
+
+    const normalizedRelativePath = relativePath.replace(/\\/g, '/');
+    const filename = normalizedRelativePath.split('/').pop() || sourcePath.split(/[/\\]/).pop() || 'Unknown';
+    const hash = (await window.electronAPI.calculateFileHash(sourcePath)) || existingAsset?.hash || '';
+    const fileSize = existingAsset?.fileSize || (await window.electronAPI.getFileInfo?.(sourcePath))?.size || 0;
+    const mediaType = existingAsset?.type || getMediaTypeFromPath(sourcePath);
+
+    const index = await window.electronAPI.loadAssetIndex(vaultPath);
+    const nextAssets = [...(index.assets || [])];
+    const entry = {
+      id: assetId,
+      hash,
+      filename,
+      originalName: existingAsset?.name || filename,
+      originalPath: normalizedRelativePath,
+      type: mediaType,
+      fileSize,
+      importedAt: new Date().toISOString(),
+    };
+    const existingIndex = nextAssets.findIndex((item) => item.id === assetId);
+    if (existingIndex >= 0) {
+      nextAssets[existingIndex] = entry;
+    } else {
+      nextAssets.push(entry);
+    }
+
+    await window.electronAPI.vaultGateway.saveAssetIndex(vaultPath, {
+      version: index.version || 1,
+      assets: nextAssets,
+    });
+
+    return {
+      ...existingAsset,
+      id: assetId,
+      name: existingAsset?.name || filename,
+      path: sourcePath,
+      type: mediaType,
+      vaultRelativePath: normalizedRelativePath,
+      originalPath: sourcePath,
+      hash,
+      fileSize,
+    } as Asset;
+  }
+
   // Import to vault
   const result = await window.electronAPI.vaultGateway.importAndRegisterAsset(sourcePath, vaultPath, assetId);
 
   if (!result.success) {
     console.error('Failed to import asset to vault:', result.error);
     return null;
-  }
-
-  // If the source was already inside assets/ but got re-hashed, move the original to trash
-  if (inVault && result.vaultPath && result.vaultPath !== sourcePath) {
-    const trashPath = `${vaultPath}/.trash`.replace(/\\/g, '/');
-    await window.electronAPI.vaultGateway.moveToTrashWithMeta(sourcePath, trashPath, {
-      assetId,
-      reason: 'rehash',
-    });
   }
 
   return {
@@ -160,10 +200,13 @@ export async function importFileToVault(
 /**
  * Get media type from file path
  */
-function getMediaTypeFromPath(filePath: string): 'image' | 'video' {
+function getMediaTypeFromPath(filePath: string): 'image' | 'video' | 'audio' {
   const ext = filePath.toLowerCase().split('.').pop() || '';
   const videoExts = ['mp4', 'webm', 'mov', 'avi', 'mkv'];
-  return videoExts.includes(ext) ? 'video' : 'image';
+  const audioExts = ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'];
+  if (videoExts.includes(ext)) return 'video';
+  if (audioExts.includes(ext)) return 'audio';
+  return 'image';
 }
 
 /**

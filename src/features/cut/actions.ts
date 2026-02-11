@@ -2,6 +2,48 @@ import { v4 as uuidv4 } from 'uuid';
 import type { CutImportSource } from '../../utils/cutImport';
 import type { CutGroup } from '../../types';
 
+function getFileNameFromPath(filePath: string): string {
+  const normalized = filePath.replace(/\\/g, '/');
+  const lastSlash = normalized.lastIndexOf('/');
+  return lastSlash >= 0 ? normalized.slice(lastSlash + 1) : normalized;
+}
+
+function stripExtension(fileName: string): string {
+  return fileName.replace(/\.[^/.]+$/, '');
+}
+
+function sanitizeFileStem(raw: string): string {
+  const sanitized = raw
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, '')
+    .replace(/\s+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/[. ]+$/g, '')
+    .trim();
+
+  if (!sanitized) return 'asset';
+  return sanitized.slice(0, 48);
+}
+
+function getStableBaseName(sourceAssetPath: string, sourceAssetName: string): string {
+  const fromPath = stripExtension(getFileNameFromPath(sourceAssetPath));
+  if (fromPath) return sanitizeFileStem(fromPath);
+  return sanitizeFileStem(stripExtension(sourceAssetName));
+}
+
+function buildDerivedFileName(
+  sourceAssetPath: string,
+  sourceAssetName: string,
+  operation: 'clip' | 'clip_reverse' | 'crop',
+  extension: 'mp4' | 'png',
+  extra?: string
+): string {
+  const baseName = getStableBaseName(sourceAssetPath, sourceAssetName);
+  const timestamp = Date.now();
+  const unique = uuidv4().slice(0, 8);
+  const extraPart = extra ? `_${extra}` : '';
+  return `${baseName}_${operation}${extraPart}_${timestamp}_${unique}.${extension}`;
+}
+
 interface GroupSyncDeps {
   getCutGroup: (sceneId: string, cutId: string) => CutGroup | undefined;
   updateGroupCutOrder: (sceneId: string, groupId: string, cutIds: string[]) => void;
@@ -94,11 +136,12 @@ export async function finalizeClipAndAddCut({
   const clipStart = Math.min(inPoint, outPoint);
   const clipEnd = Math.max(inPoint, outPoint);
   const clipDuration = Math.abs(outPoint - inPoint);
-  const baseName = sourceAssetName.replace(/\.[^/.]+$/, '');
-  const timestamp = Date.now();
-  const fileName = reverseOutput
-    ? `${baseName}_clip_reverse_${timestamp}.mp4`
-    : `${baseName}_clip_${timestamp}.mp4`;
+  const fileName = buildDerivedFileName(
+    sourceAssetPath,
+    sourceAssetName,
+    reverseOutput ? 'clip_reverse' : 'clip',
+    'mp4'
+  );
   const outputPath = `${assetsFolder}/${fileName}`.replace(/\\/g, '/');
 
   const result = await window.electronAPI.finalizeClip({
@@ -187,9 +230,13 @@ export async function cropImageAndAddCut({
     return { success: false, error: 'Failed to access assets folder in vault.' };
   }
 
-  const baseName = sourceAssetName.replace(/\.[^/.]+$/, '');
-  const timestamp = Date.now();
-  const fileName = `${baseName}_crop_${targetWidth}x${targetHeight}_${timestamp}.png`;
+  const fileName = buildDerivedFileName(
+    sourceAssetPath,
+    sourceAssetName,
+    'crop',
+    'png',
+    `${targetWidth}x${targetHeight}`
+  );
   const outputPath = `${assetsFolder}/${fileName}`.replace(/\\/g, '/');
 
   const result = await window.electronAPI.cropImageToAspect({
