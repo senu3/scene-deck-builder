@@ -466,7 +466,7 @@ export function useHeaderProjectController() {
       onError: (error) => {
         console.error('Autosave failed:', error);
         // TODO(autosave-toast): Update message/UX once autosave toast design is finalized.
-        // See `docs/notes/autosave-toast-notes.md` for required fields/behavior.
+        // See `docs/notes/archive/autosave-toast-notes.md` for required fields/behavior.
         toast.error('Autosave failed', 'Please save manually.', { id: 'autosave-failed' });
       },
     });

@@ -2,7 +2,7 @@
 
 **目的**: 自動保存とスナップショットの現行仕様を明文化する。
 **適用範囲**: Renderer の autosave 実装、Electron の flush、設定UIの現状。
-**関連ファイル**: `src/hooks/useHeaderProjectController.ts`, `src/utils/autosave.ts`, `electron/main.ts`, `electron/preload.ts`, `src/components/EnvironmentSettingsModal.tsx`, `docs/notes/autosave-toast-notes.md`。
+**関連ファイル**: `src/hooks/useHeaderProjectController.ts`, `src/utils/autosave.ts`, `electron/main.ts`, `electron/preload.ts`, `src/components/EnvironmentSettingsModal.tsx`, `docs/notes/archive/autosave-toast-notes.md`。
 **更新頻度**: 中。
 
 ## Autosave（現行）

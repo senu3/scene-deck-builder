@@ -26,13 +26,18 @@
 - `docs/ui/components.md`
 - `docs/ui/color-system.md`
 - `docs/ui/scene-duration-bar.md`
-- `docs/notes/autosave-toast-notes.md`（完了）
-- `docs/notes/audio_pre_export_design.md`（Audio/Export前提の最新メモ）
+- `docs/notes/export-workstreams.md`（Export関連ライン管理の親ノート）
+- `docs/notes/cut-refactor-plan.md`（Cut操作の段階的リファクタ計画）
+- `docs/notes/audio_pre_export_design.md`（Line A: Audioモデル/Export前提）
+- `docs/notes/export-mp4-lipsync-videoclip-plan.md`（Line B: MP4 export実装）
+- `docs/notes/export-naming-plan.md`（Line C: 命名ガバナンス）
 - `docs/notes/export-timeline-integrity-plan.md`（時系列整合性の是正計画）
-- `docs/notes/export-mp4-lipsync-videoclip-plan.md`（LipSync/VideoClip 先行方針、解像度検討前）
-- `docs/notes/export-naming-plan.md`（Phase 1完了、Phase 2以降継続）
-- `docs/notes/aviutl-exo-export-research.md`（EXO中止の履歴アーカイブ）
+
+## アーカイブ
+- `docs/notes/archive/INDEX.md`（アーカイブ目次）
+- `docs/notes/archive/audio_pre_export_design-implemented-2026-02-11.md`
+- `docs/notes/archive/autosave-toast-notes.md`（完了済み）
+- `docs/notes/archive/aviutl-exo-export-research.md`（EXO中止履歴）
 
 ## 追加時のルール
 - 追加・更新ルールは `docs/DOCS_GUIDE.md` を参照。
-
