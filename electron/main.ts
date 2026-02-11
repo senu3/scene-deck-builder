@@ -9,6 +9,7 @@ import { calculateFileHashStream, getMediaType, importAssetToVaultInternal, move
 import { createSaveProjectHandler } from './handlers/saveProject';
 import { createFfmpegController } from './services/ffmpegController';
 import { createThumbnailService } from './services/thumbnailService';
+import { buildFramingVideoFilter } from './framing';
 const IPC_TOGGLE_SIDEBAR = 'toggle-sidebar';
 const IPC_AUTOSAVE_FLUSH_REQUEST = 'autosave-flush-request';
 const IPC_AUTOSAVE_FLUSH_COMPLETE = 'autosave-flush-complete';
@@ -1549,49 +1550,6 @@ interface ExportSequenceResult {
 const DEFAULT_EXPORT_WIDTH = 1280;
 const DEFAULT_EXPORT_HEIGHT = 720;
 
-function resolveFramingAnchor(anchor: SequenceItem['framingAnchor']): { x: number; y: number } {
-  switch (anchor) {
-    case 'top-left':
-      return { x: 0, y: 0 };
-    case 'top':
-      return { x: 0.5, y: 0 };
-    case 'top-right':
-      return { x: 1, y: 0 };
-    case 'left':
-      return { x: 0, y: 0.5 };
-    case 'right':
-      return { x: 1, y: 0.5 };
-    case 'bottom-left':
-      return { x: 0, y: 1 };
-    case 'bottom':
-      return { x: 0.5, y: 1 };
-    case 'bottom-right':
-      return { x: 1, y: 1 };
-    case 'center':
-    default:
-      return { x: 0.5, y: 0.5 };
-  }
-}
-
-function buildFramingVideoFilter(item: SequenceItem, width: number, height: number): string {
-  const framingMode = item.framingMode ?? 'cover';
-  const anchor = resolveFramingAnchor(item.framingAnchor);
-
-  if (framingMode === 'fit') {
-    return [
-      `scale=${width}:${height}:force_original_aspect_ratio=decrease`,
-      `pad=${width}:${height}:x='(ow-iw)*${anchor.x}':y='(oh-ih)*${anchor.y}':color=black`,
-      'format=yuv420p',
-    ].join(',');
-  }
-
-  return [
-    `scale=${width}:${height}:force_original_aspect_ratio=increase`,
-    `crop=${width}:${height}:x='(in_w-out_w)*${anchor.x}':y='(in_h-out_h)*${anchor.y}'`,
-    'format=yuv420p',
-  ].join(',');
-}
-
 function clamp01(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(1, value));
@@ -1716,7 +1674,12 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
       const item = items[i];
       const segmentFile = path.join(tempDir, `segment_${sessionId}_${i}.mp4`);
       tempFiles.push(segmentFile);
-      const filter = buildFramingVideoFilter(item, width, height);
+      const filter = buildFramingVideoFilter({
+        width,
+        height,
+        mode: item.framingMode,
+        anchor: item.framingAnchor,
+      });
 
       console.info(
         `[export][framing] segment=${i} mode=${item.framingMode ?? 'cover'} anchor=${item.framingAnchor ?? 'center'}`

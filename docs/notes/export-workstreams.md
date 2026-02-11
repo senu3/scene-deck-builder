@@ -38,6 +38,7 @@
 - Preview からの export 実行は App 側へ委譲し、実行経路の入口を一本化。
 - Free 既定値 `1280x720` の参照を定数化し、App/Preview/Crop の重複参照を削減。
 - 回帰テストに統合ケース（`order + clip + lipsync + framing`）を追加。
+- Preview framing 表示と export framing filter の整合を parity テストで自動検証。
 
 ### Line C: Naming / Glossary Governance
 - 主ノート: `docs/notes/export-naming-plan.md`

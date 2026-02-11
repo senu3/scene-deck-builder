@@ -11,6 +11,7 @@ import { useSequencePlaybackController } from '../utils/previewPlaybackControlle
 import { getThumbnail } from '../utils/thumbnailCache';
 import { buildSequenceItemsForCuts } from '../utils/exportSequence';
 import { DEFAULT_EXPORT_RESOLUTION } from '../constants/export';
+import { buildPreviewViewportFramingStyle } from '../utils/previewFraming';
 import {
   PlaybackRangeMarkers,
   VolumeControl,
@@ -1970,6 +1971,12 @@ export default function PreviewModal({
     }
     return null;
   }, [isSingleMode, asset, currentItem]);
+  const currentFraming = useMemo(() => {
+    const targetCut = isSingleMode
+      ? focusCutData?.cut
+      : currentItem?.cut;
+    return buildPreviewViewportFramingStyle(targetCut?.framing);
+  }, [isSingleMode, focusCutData?.cut, currentItem?.cut]);
 
   // _hasRange kept for future range export UI implementation
   const _hasRange = inPoint !== null && outPoint !== null;
@@ -2080,6 +2087,7 @@ export default function PreviewModal({
                       style={{
                         width: viewportStyle.width,
                         height: viewportStyle.height,
+                        ...currentFraming,
                       }}
                     >
                       <div className="resolution-label">
@@ -2120,6 +2128,7 @@ export default function PreviewModal({
                       style={{
                         width: viewportStyle.width,
                         height: viewportStyle.height,
+                        ...currentFraming,
                       }}
                     >
                       <div className="resolution-label">
@@ -2383,6 +2392,7 @@ export default function PreviewModal({
                   style={{
                     width: viewportStyle.width,
                     height: viewportStyle.height,
+                    ...currentFraming,
                   }}
                 >
                   <div className="resolution-label">
