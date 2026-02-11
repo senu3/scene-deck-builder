@@ -5,7 +5,7 @@
 
 ## ライン位置
 - Workstream: **Line A (Audio Model / Routing)**
-- 親ノート: `docs/notes/export-workstreams.md`
+- Workstream履歴: `docs/notes/archive/export-workstreams-implemented-2026-02-11.md`
 - 実装済みアーカイブ: `docs/notes/archive/audio_pre_export_design-implemented-2026-02-11.md`
 
 ## 現在地
@@ -21,18 +21,18 @@
 - 完了条件:
   - AttachAudio 正経路が `Cut.audioBindings` のみになる
 
-2. AttachAudio ON/OFF UI の最小導入
-- 方針:
+## メモ（タスク化保留）
+1. AttachAudio ON/OFF UI の最小導入案
+- 方針メモ:
   - 新規状態を増やさず `audioBindings[].enabled` を切り替える
-- 完了条件:
-  - preview/export前処理で `enabled=false` が確実に除外される
+- 現状メモ:
+  - `audioBindings[]` は拡張可能な型だが、操作系は primary（先頭要素）前提が中心。
+  - Preview/export 側は `enabled !== false` を参照済みで、UI追加時の受け皿は存在する。
 
-3. Export向け音声出力仕様の最終確定
-- 成果物候補:
-  - `audio_master.wav`（`se` + `voice.other` + `embedded ON`）
-  - `audio_lipsync.wav`（`voice.lipsync`）
-- 完了条件:
-  - Line B の実装で参照可能な形で spec を固定
+## 中止事項
+1. Export向け音声出力仕様の最終確定（`audio_master.wav` / `audio_lipsync.wav`）
+- 判断:
+  - 現フェーズでは中止し、MP4エクスポート本線には含めない。
 
 ## 依存関係
 - Line B（MP4 export）に `kind` と `enabled/useEmbeddedAudio` の意味を提供。

@@ -5,7 +5,7 @@
 
 ## ライン位置
 - Workstream: **Line B (MP4 Export)**
-- 親ノート: `docs/notes/export-workstreams.md`
+- Workstream履歴: `docs/notes/archive/export-workstreams-implemented-2026-02-11.md`
 - 参照:
   - `docs/notes/export-timeline-integrity-plan.md`
   - `docs/notes/cut-refactor-plan.md`

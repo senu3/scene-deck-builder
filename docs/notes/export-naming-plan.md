@@ -5,7 +5,7 @@
 
 ## ライン位置
 - Workstream: **Line C (Naming / Glossary Governance)**
-- 親ノート: `docs/notes/export-workstreams.md`
+- Workstream履歴: `docs/notes/archive/export-workstreams-implemented-2026-02-11.md`
 
 ## 現在地
 - Phase 1（docs先行の基本固定）は完了。
