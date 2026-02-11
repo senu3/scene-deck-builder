@@ -1,0 +1,7 @@
+export const DEFAULT_EXPORT_WIDTH = 1280;
+export const DEFAULT_EXPORT_HEIGHT = 720;
+
+export const DEFAULT_EXPORT_RESOLUTION = {
+  width: DEFAULT_EXPORT_WIDTH,
+  height: DEFAULT_EXPORT_HEIGHT,
+} as const;

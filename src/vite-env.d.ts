@@ -180,6 +180,17 @@ interface SequenceItem {
   duration: number;
   inPoint?: number;
   outPoint?: number;
+  framingMode?: 'cover' | 'fit';
+  framingAnchor?:
+    | 'top-left'
+    | 'top'
+    | 'top-right'
+    | 'left'
+    | 'center'
+    | 'right'
+    | 'bottom-left'
+    | 'bottom'
+    | 'bottom-right';
 }
 
 interface ExportSequenceOptions {

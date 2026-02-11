@@ -9,6 +9,8 @@ import { createImageMediaSource, createLipSyncImageMediaSource, createVideoMedia
 import { getLipSyncFrameAssetIds } from '../utils/lipSyncUtils';
 import { useSequencePlaybackController } from '../utils/previewPlaybackController';
 import { getThumbnail } from '../utils/thumbnailCache';
+import { buildSequenceItemsForCuts } from '../utils/exportSequence';
+import { DEFAULT_EXPORT_RESOLUTION } from '../constants/export';
 import {
   PlaybackRangeMarkers,
   VolumeControl,
@@ -1703,8 +1705,8 @@ export default function PreviewModal({
     }
 
     try {
-      const exportWidth = selectedResolution.width > 0 ? selectedResolution.width : 1280;
-      const exportHeight = selectedResolution.height > 0 ? selectedResolution.height : 720;
+      const exportWidth = selectedResolution.width > 0 ? selectedResolution.width : DEFAULT_EXPORT_RESOLUTION.width;
+      const exportHeight = selectedResolution.height > 0 ? selectedResolution.height : DEFAULT_EXPORT_RESOLUTION.height;
 
       const outputPath = await window.electronAPI.showSaveSequenceDialog('sequence_export.mp4');
       if (!outputPath) {
@@ -1712,16 +1714,10 @@ export default function PreviewModal({
         return;
       }
 
-      const sequenceItems = items.map(item => {
-        const asset = item.cut.asset;
-        return {
-          type: asset?.type || 'image' as const,
-          path: asset?.path || '',
-          duration: item.cut.displayTime,
-          inPoint: item.cut.isClip ? item.cut.inPoint : undefined,
-          outPoint: item.cut.isClip ? item.cut.outPoint : undefined,
-        };
-      }).filter(item => item.path);
+      const sequenceItems = buildSequenceItemsForCuts(
+        items.map((item) => item.cut),
+        { debugFraming: true }
+      );
 
       const result = await window.electronAPI.exportSequence({
         items: sequenceItems,
@@ -1756,8 +1752,8 @@ export default function PreviewModal({
     }
 
     try {
-      const exportWidth = selectedResolution.width > 0 ? selectedResolution.width : 1280;
-      const exportHeight = selectedResolution.height > 0 ? selectedResolution.height : 720;
+      const exportWidth = selectedResolution.width > 0 ? selectedResolution.width : DEFAULT_EXPORT_RESOLUTION.width;
+      const exportHeight = selectedResolution.height > 0 ? selectedResolution.height : DEFAULT_EXPORT_RESOLUTION.height;
 
       const outputPath = await window.electronAPI.showSaveSequenceDialog('sequence_export.mp4');
       if (!outputPath) {

@@ -29,6 +29,12 @@
   - 例: `resolveFramingParams(cut, projectDefaults)` を単一入口にし、現時点では `projectDefaults` は固定値運用。
   - 後続で設定画面を追加する場合は、`projectDefaults` の供給元のみ差し替える。
 
+#### Line B 実装進捗（2026-02-11）
+- `resolveFramingParams(cut, projectDefaults)` を導入し、解決優先順位を `cut -> global -> fixed` で実装。
+- Export入力 (`SequenceItem`) に `framingMode` / `framingAnchor` を追加。
+- App / Preview / Electron の export 経路を同一 framing 入力で接続。
+- Free 既定値 `1280x720` の参照を定数化し、App/Preview/Crop の重複参照を削減。
+
 ### Line C: Naming / Glossary Governance
 - 主ノート: `docs/notes/export-naming-plan.md`
 - 目的: Export実装中の用語ブレを防ぎ、docs/code命名の一貫性を維持する。

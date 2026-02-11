@@ -1511,6 +1511,17 @@ interface SequenceItem {
   duration: number;  // Duration in seconds
   inPoint?: number;  // For video clips
   outPoint?: number; // For video clips
+  framingMode?: 'cover' | 'fit';
+  framingAnchor?:
+    | 'top-left'
+    | 'top'
+    | 'top-right'
+    | 'left'
+    | 'center'
+    | 'right'
+    | 'bottom-left'
+    | 'bottom'
+    | 'bottom-right';
 }
 
 interface ExportSequenceOptions {
@@ -1526,6 +1537,52 @@ interface ExportSequenceResult {
   outputPath?: string;
   fileSize?: number;
   error?: string;
+}
+
+const DEFAULT_EXPORT_WIDTH = 1280;
+const DEFAULT_EXPORT_HEIGHT = 720;
+
+function resolveFramingAnchor(anchor: SequenceItem['framingAnchor']): { x: number; y: number } {
+  switch (anchor) {
+    case 'top-left':
+      return { x: 0, y: 0 };
+    case 'top':
+      return { x: 0.5, y: 0 };
+    case 'top-right':
+      return { x: 1, y: 0 };
+    case 'left':
+      return { x: 0, y: 0.5 };
+    case 'right':
+      return { x: 1, y: 0.5 };
+    case 'bottom-left':
+      return { x: 0, y: 1 };
+    case 'bottom':
+      return { x: 0.5, y: 1 };
+    case 'bottom-right':
+      return { x: 1, y: 1 };
+    case 'center':
+    default:
+      return { x: 0.5, y: 0.5 };
+  }
+}
+
+function buildFramingVideoFilter(item: SequenceItem, width: number, height: number): string {
+  const framingMode = item.framingMode ?? 'cover';
+  const anchor = resolveFramingAnchor(item.framingAnchor);
+
+  if (framingMode === 'fit') {
+    return [
+      `scale=${width}:${height}:force_original_aspect_ratio=decrease`,
+      `pad=${width}:${height}:x='(ow-iw)*${anchor.x}':y='(oh-ih)*${anchor.y}':color=black`,
+      'format=yuv420p',
+    ].join(',');
+  }
+
+  return [
+    `scale=${width}:${height}:force_original_aspect_ratio=increase`,
+    `crop=${width}:${height}:x='(in_w-out_w)*${anchor.x}':y='(in_h-out_h)*${anchor.y}'`,
+    'format=yuv420p',
+  ].join(',');
 }
 
 // Show save dialog for sequence export
@@ -1562,7 +1619,9 @@ function runFfmpeg(ffmpegBinary: string, args: string[]): Promise<void> {
 
 // Export sequence to MP4 using ffmpeg
 ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Promise<ExportSequenceResult> => {
-  const { items, outputPath, width, height, fps } = options;
+  const { items, outputPath, fps } = options;
+  const width = Number.isFinite(options.width) && options.width > 0 ? Math.floor(options.width) : DEFAULT_EXPORT_WIDTH;
+  const height = Number.isFinite(options.height) && options.height > 0 ? Math.floor(options.height) : DEFAULT_EXPORT_HEIGHT;
 
   const ffmpegBinary = ffmpegPath as string | null;
   if (!ffmpegBinary) {
@@ -1582,6 +1641,11 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
       const item = items[i];
       const segmentFile = path.join(tempDir, `segment_${sessionId}_${i}.mp4`);
       tempFiles.push(segmentFile);
+      const filter = buildFramingVideoFilter(item, width, height);
+
+      console.info(
+        `[export][framing] segment=${i} mode=${item.framingMode ?? 'cover'} anchor=${item.framingAnchor ?? 'center'}`
+      );
 
       if (item.type === 'image') {
         // Convert image to video with specified duration
@@ -1590,7 +1654,7 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
           '-loop', '1',
           '-i', item.path,
           '-t', item.duration.toString(),
-          '-vf', `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:black,format=yuv420p`,
+          '-vf', filter,
           '-r', fps.toString(),
           '-c:v', 'libx264',
           '-preset', 'fast',
@@ -1612,7 +1676,7 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
           '-ss', inPoint.toString(),
           '-i', item.path,
           '-t', duration.toString(),
-          '-vf', `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:black,format=yuv420p`,
+          '-vf', filter,
           '-r', fps.toString(),
           '-c:v', 'libx264',
           '-preset', 'fast',

@@ -42,7 +42,7 @@
 2. Cut副作用重複を放置すると export 実装中に修正漏れが増える。
 
 ## 直近アクション
-1. Framing仕様（fit/cover + anchor）を確定。
-2. Export入力生成へ framing パラメータを追加。
-3. ffmpeg側 filter へ同一パラメータ適用。
+1. Framing仕様（fit/cover + anchor）を確定。 ✅（既定: `cover + center`）
+2. Export入力生成へ framing パラメータを追加。 ✅（`framingMode` / `framingAnchor`）
+3. ffmpeg側 filter へ同一パラメータ適用。 ✅（`cover`/`fit` + anchor）
 4. 回帰テスト（順序/clip/lipsync/framing）を追加。

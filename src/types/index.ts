@@ -86,6 +86,7 @@ export interface Cut {
   asset?: Asset;
   displayTime: number;
   order: number;
+  framing?: CutFraming;
   useEmbeddedAudio?: boolean;
   audioBindings?: CutAudioBinding[];
   // Video clip fields (for non-destructive trimming)
@@ -98,6 +99,24 @@ export interface Cut {
   // Lip sync fields
   isLipSync?: boolean;  // True if this is a lip sync cut
   lipSyncFrameCount?: number; // Number of registered frames (e.g., 4)
+}
+
+export type FramingMode = 'cover' | 'fit';
+
+export type FramingAnchor =
+  | 'top-left'
+  | 'top'
+  | 'top-right'
+  | 'left'
+  | 'center'
+  | 'right'
+  | 'bottom-left'
+  | 'bottom'
+  | 'bottom-right';
+
+export interface CutFraming {
+  mode?: FramingMode;
+  anchor?: FramingAnchor;
 }
 
 export type AudioTrackKind =

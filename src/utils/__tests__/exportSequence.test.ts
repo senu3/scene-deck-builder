@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Scene } from '../../types';
-import { buildSequenceItemsForExport } from '../exportSequence';
+import { buildSequenceItemsForCuts, buildSequenceItemsForExport, resolveFramingParams } from '../exportSequence';
 
 const imageAsset = {
   id: 'asset-image',
@@ -45,6 +45,7 @@ describe('buildSequenceItemsForExport', () => {
 
     const items = buildSequenceItemsForExport(scenes);
     expect(items.map((item) => item.duration)).toEqual([3.0, 1.5, 2.0]);
+    expect(items.every((item) => item.framingMode === 'cover' && item.framingAnchor === 'center')).toBe(true);
   });
 
   it('guards invalid displayTime with fallback and warning', () => {
@@ -67,5 +68,49 @@ describe('buildSequenceItemsForExport', () => {
     expect(items[0].duration).toBe(4.2);
     expect(items[1].duration).toBe(1.0);
     expect(warnSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('resolves framing with cut > global > fixed priority', () => {
+    const fixed = resolveFramingParams({ id: 'c0', assetId: 'a0', order: 0, displayTime: 1 });
+    expect(fixed).toEqual({ mode: 'cover', anchor: 'center', source: 'fixed' });
+
+    const global = resolveFramingParams(
+      { id: 'c1', assetId: 'a1', order: 0, displayTime: 1 },
+      { mode: 'fit', anchor: 'bottom-right' }
+    );
+    expect(global).toEqual({ mode: 'fit', anchor: 'bottom-right', source: 'global' });
+
+    const cut = resolveFramingParams(
+      {
+        id: 'c2',
+        assetId: 'a2',
+        order: 0,
+        displayTime: 1,
+        framing: { mode: 'cover', anchor: 'top-left' },
+      },
+      { mode: 'fit', anchor: 'bottom-right' }
+    );
+    expect(cut).toEqual({ mode: 'cover', anchor: 'top-left', source: 'cut' });
+  });
+
+  it('builds sequence items from cuts and skips audio cuts', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const cuts = [
+      { id: 'cut-image', assetId: 'asset-image', asset: imageAsset, order: 0, displayTime: 1.2 },
+      {
+        id: 'cut-audio',
+        assetId: 'asset-audio',
+        asset: { id: 'asset-audio', name: 'audio.wav', path: '/tmp/audio.wav', type: 'audio' as const },
+        order: 1,
+        displayTime: 2,
+      },
+    ];
+
+    const items = buildSequenceItemsForCuts(cuts, { framingDefaults: { mode: 'fit', anchor: 'left' } });
+
+    expect(items).toHaveLength(1);
+    expect(items[0].framingMode).toBe('fit');
+    expect(items[0].framingAnchor).toBe('left');
+    expect(warnSpy).toHaveBeenCalledTimes(1);
   });
 });

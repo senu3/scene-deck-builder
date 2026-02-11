@@ -20,6 +20,7 @@ import { importFileToVault } from './utils/assetPath';
 import { getDragKind, queueExternalFilesToScene } from './utils/dragDrop';
 import { buildSequenceItemsForExport } from './utils/exportSequence';
 import { getCutIdsInTimelineOrder } from './utils/timelineOrder';
+import { DEFAULT_EXPORT_RESOLUTION } from './constants/export';
 import './styles/App.css';
 
 function DndMonitorShim({ onDragStart }: { onDragStart: () => void }) {
@@ -404,7 +405,7 @@ function App() {
 
     try {
       // Build sequence items
-      const sequenceItems = buildSequenceItemsForExport(scenes);
+      const sequenceItems = buildSequenceItemsForExport(scenes, { debugFraming: true });
 
       if (sequenceItems.length === 0) {
         alert('No items to export. Add some cuts to the timeline first.');
@@ -429,8 +430,8 @@ function App() {
       }
 
       // Use selected resolution (Free -> 1280x720)
-      const width = exportResolution.width > 0 ? exportResolution.width : 1280;
-      const height = exportResolution.height > 0 ? exportResolution.height : 720;
+      const width = exportResolution.width > 0 ? exportResolution.width : DEFAULT_EXPORT_RESOLUTION.width;
+      const height = exportResolution.height > 0 ? exportResolution.height : DEFAULT_EXPORT_RESOLUTION.height;
 
       const result = await window.electronAPI.exportSequence({
         items: sequenceItems,

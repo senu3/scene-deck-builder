@@ -10,6 +10,7 @@ import { CutContextMenu } from './context-menus';
 import ImageCropModal, { type ImageCropConfig } from './ImageCropModal';
 import { useDialog, useToast } from '../ui';
 import { cropImageAndAddCut, finalizeClipAndAddCut } from '../features/cut/actions';
+import { DEFAULT_EXPORT_RESOLUTION } from '../constants/export';
 
 interface ResolutionPresetType {
   name: string;
@@ -360,8 +361,8 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
     setShowCropModal(false);
   };
 
-  const cropInitialWidth = cropBaseResolution.width > 0 ? cropBaseResolution.width : 1280;
-  const cropInitialHeight = cropBaseResolution.height > 0 ? cropBaseResolution.height : 720;
+  const cropInitialWidth = cropBaseResolution.width > 0 ? cropBaseResolution.width : DEFAULT_EXPORT_RESOLUTION.width;
+  const cropInitialHeight = cropBaseResolution.height > 0 ? cropBaseResolution.height : DEFAULT_EXPORT_RESOLUTION.height;
 
   // If loading, show loading card
   if (cut.isLoading) {
