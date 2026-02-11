@@ -105,6 +105,7 @@
 - `src/utils/__tests__/exportSequence.test.ts`
   - export 順序が `order` 規約に従うこと
   - `displayTime` 不正値の補正 + 警告
+  - 統合ケースで `order + clip(in/out) + lipsync payload + framing` を同時検証
 - `src/store/__tests__/timelineIntegrityCommands.test.ts`
   - `RemoveSceneCommand.undo` の元インデックス復元
   - `moveCutsToScene` が入力ID順でなく時系列順を維持

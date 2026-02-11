@@ -16,6 +16,7 @@
 - 本線は **LipSync + VideoClip + Framing を export 経路へ統合** する段階。
 - LipSync cut は export 入力へ `framePaths + rms + thresholds` を渡し、ffmpeg 側でフレーム列化して MP4 へ反映する実装を導入済み。
 - PreviewModal の export 操作は App 側 export 実行へ委譲し、実行経路を一本化。
+- `exportSequence` テストに統合回帰ケース（順序/clip/lipsync/framing）を追加済み。
 
 ## In Scope（現行フェーズ）
 1. LipSync cut の見た目を MP4 出力へ反映（silent fallback しない）。
@@ -47,4 +48,4 @@
 1. Framing仕様（fit/cover + anchor）を確定。 ✅（既定: `cover + center`）
 2. Export入力生成へ framing パラメータを追加。 ✅（`framingMode` / `framingAnchor`）
 3. ffmpeg側 filter へ同一パラメータ適用。 ✅（`cover`/`fit` + anchor）
-4. 回帰テスト（順序/clip/lipsync/framing）を追加。 ⏳（一部実装済み）
+4. 回帰テスト（順序/clip/lipsync/framing）を追加。 ✅（統合ケース追加済み）

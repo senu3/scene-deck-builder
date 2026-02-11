@@ -36,6 +36,7 @@
 - LipSync cut 用に Export入力へ `framePaths/rms/thresholds` を追加し、ffmpeg 側でフレーム列セグメント生成を実装。
 - Preview からの export 実行は App 側へ委譲し、実行経路の入口を一本化。
 - Free 既定値 `1280x720` の参照を定数化し、App/Preview/Crop の重複参照を削減。
+- 回帰テストに統合ケース（`order + clip + lipsync + framing`）を追加。
 
 ### Line C: Naming / Glossary Governance
 - 主ノート: `docs/notes/export-naming-plan.md`
