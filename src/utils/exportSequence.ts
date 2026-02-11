@@ -29,6 +29,7 @@ export interface BuildExportSequenceOptions {
   debugFraming?: boolean;
   metadataByAssetId?: Record<string, AssetMetadata>;
   resolveAssetById?: (assetId: string) => Asset | undefined;
+  strictLipSync?: boolean;
 }
 
 interface ResolvedFramingParams {
@@ -146,25 +147,31 @@ function resolveLipSyncExport(
   options: BuildExportSequenceOptions,
   context: { sceneId?: string; cutId: string }
 ): ExportSequenceItem['lipSync'] | null {
+  const strictLipSync = options.strictLipSync !== false;
+  const failLipSync = (message: string): null => {
+    if (strictLipSync) {
+      throw new Error(`[export] ${message}`);
+    }
+    console.warn(`[export] ${message}`);
+    return null;
+  };
+
   if (!cut.isLipSync) return null;
 
   const cutAssetId = cut.asset?.id ?? cut.assetId;
   const metadata = cutAssetId ? options.metadataByAssetId?.[cutAssetId] : undefined;
   const lipSyncSettings = metadata?.lipSync;
   if (!lipSyncSettings) {
-    console.warn(`[export] LipSync cut ${context.cutId} is missing lipSync settings.`);
-    return null;
+    return failLipSync(`LipSync cut ${context.cutId} is missing lipSync settings.`);
   }
 
   const analysis = options.metadataByAssetId?.[lipSyncSettings.rmsSourceAudioAssetId]?.audioAnalysis;
   if (!analysis?.rms?.length || !Number.isFinite(analysis.fps) || analysis.fps <= 0) {
-    console.warn(`[export] LipSync cut ${context.cutId} is missing RMS analysis.`);
-    return null;
+    return failLipSync(`LipSync cut ${context.cutId} is missing RMS analysis.`);
   }
 
   if (!options.resolveAssetById) {
-    console.warn(`[export] LipSync cut ${context.cutId} cannot resolve frame assets (resolver missing).`);
-    return null;
+    return failLipSync(`LipSync cut ${context.cutId} cannot resolve frame assets (resolver missing).`);
   }
 
   const frameIds = getLipSyncFrameAssetIds(lipSyncSettings);
@@ -172,8 +179,7 @@ function resolveLipSyncExport(
     .map((id) => options.resolveAssetById?.(id)?.path)
     .filter((path): path is string => typeof path === 'string' && path.length > 0);
   if (framePathsRaw.length === 0) {
-    console.warn(`[export] LipSync cut ${context.cutId} has no resolvable frame paths.`);
-    return null;
+    return failLipSync(`LipSync cut ${context.cutId} has no resolvable frame paths.`);
   }
 
   const fallbackPath = framePathsRaw[0];

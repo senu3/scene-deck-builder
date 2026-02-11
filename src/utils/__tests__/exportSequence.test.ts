@@ -179,6 +179,43 @@ describe('buildSequenceItemsForExport', () => {
     expect(items[0].lipSync?.audioOffsetSec).toBe(0.2);
   });
 
+  it('throws when lipSync cut is missing required metadata by default (no silent fallback)', () => {
+    expect(() => buildSequenceItemsForCuts([{
+      id: 'cut-lipsync-missing',
+      assetId: 'asset-lip-owner',
+      asset: {
+        id: 'asset-lip-owner',
+        name: 'lip.png',
+        path: '/tmp/lip.png',
+        type: 'image',
+      },
+      order: 0,
+      displayTime: 1,
+      isLipSync: true,
+    }])).toThrow(/LipSync cut cut-lipsync-missing is missing lipSync settings/);
+  });
+
+  it('can opt out of strict lipSync errors', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const items = buildSequenceItemsForCuts([{
+      id: 'cut-lipsync-missing',
+      assetId: 'asset-lip-owner',
+      asset: {
+        id: 'asset-lip-owner',
+        name: 'lip.png',
+        path: '/tmp/lip.png',
+        type: 'image',
+      },
+      order: 0,
+      displayTime: 1,
+      isLipSync: true,
+    }], { strictLipSync: false });
+
+    expect(items).toHaveLength(1);
+    expect(items[0].lipSync).toBeUndefined();
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps timeline order and preserves clip/lipsync/framing in one export build', () => {
     const lipOwner = {
       id: 'asset-lip-owner',
