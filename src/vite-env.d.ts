@@ -215,6 +215,19 @@ interface ExportSequenceResult {
   error?: string;
 }
 
+interface WriteExportSidecarsOptions {
+  outputDir: string;
+  manifestJson: string;
+  timelineText: string;
+}
+
+interface WriteExportSidecarsResult {
+  success: boolean;
+  manifestPath?: string;
+  timelinePath?: string;
+  error?: string;
+}
+
 interface FfmpegLimits {
   stderrMaxBytes: number;
   maxClipSeconds: number;
@@ -307,6 +320,7 @@ interface ElectronAPI {
   // Sequence export
   showSaveSequenceDialog: (defaultName: string) => Promise<string | null>;
   exportSequence: (options: ExportSequenceOptions) => Promise<ExportSequenceResult>;
+  writeExportSidecars: (options: WriteExportSidecarsOptions) => Promise<WriteExportSidecarsResult>;
 
   // App menu events
   onToggleSidebar: (callback: () => void) => () => void;

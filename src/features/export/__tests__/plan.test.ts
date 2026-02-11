@@ -11,7 +11,11 @@ describe('export plan', () => {
     const plan = resolveExportPlan({
       settings: {
         format: 'mp4',
-        outputPath: 'C:/vault/exports',
+        outputRootPath: 'C:/vault/export',
+        outputFolderName: 'video_20260211_120000',
+        resolution: { width: 1920, height: 1080 },
+        fps: 30,
+        range: 'all',
         aviutl: { roundingMode: 'round', copyMedia: true },
         mp4: { quality: 'high' },
       },
@@ -24,7 +28,9 @@ describe('export plan', () => {
       expect(plan.height).toBe(1080);
       expect(plan.fps).toBe(DEFAULT_EXPORT_FPS);
       expect(plan.quality).toBe('high');
-      expect(plan.outputPathHint).toBe('C:/vault/exports');
+      expect(plan.outputDir).toBe('C:/vault/export/video_20260211_120000');
+      expect(plan.outputFilePath).toBe('C:/vault/export/video_20260211_120000/video.mp4');
+      expect(plan.range).toBe('all');
     }
   });
 
@@ -32,7 +38,11 @@ describe('export plan', () => {
     const plan = resolveExportPlan({
       settings: {
         format: 'aviutl',
-        outputPath: 'C:/vault/exports',
+        outputRootPath: 'C:/vault/export',
+        outputFolderName: 'aviutl_20260211_120000',
+        resolution: { width: 1280, height: 720 },
+        fps: 30,
+        range: 'all',
         aviutl: { roundingMode: 'ceil', copyMedia: false },
         mp4: { quality: 'medium' },
       },
@@ -41,7 +51,7 @@ describe('export plan', () => {
 
     expect(plan).toEqual({
       format: 'aviutl',
-      outputPathHint: 'C:/vault/exports',
+      outputDir: 'C:/vault/export/aviutl_20260211_120000',
       roundingMode: 'ceil',
       copyMedia: false,
     });

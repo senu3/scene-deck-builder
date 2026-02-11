@@ -25,7 +25,11 @@ import { EXPORT_FRAMING_DEFAULTS } from './constants/framing';
 import { resolveExportPlan } from './features/export/plan';
 import type { ResolutionInput } from './features/export/plan';
 import type { ExportSettings } from './features/export/types';
+import { buildExportTimelineEntries, buildManifestJson, buildTimelineText } from './features/export/manifest';
+import { useBanner, useToast } from './ui';
 import './styles/App.css';
+
+const EXPORT_PROGRESS_BANNER_ID = 'export-progress';
 
 function DndMonitorShim({ onDragStart }: { onDragStart: () => void }) {
   useDndMonitor({
@@ -67,6 +71,8 @@ function App() {
   } = useStore();
 
   const { executeCommand, undo, redo } = useHistoryStore();
+  const { banner } = useBanner();
+  const { toast } = useToast();
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeType, setActiveType] = useState<'cut' | 'scene' | null>(null);
@@ -404,11 +410,19 @@ function App() {
 
   const exportMp4Sequence = useCallback(async (
     cuts: Cut[],
-    config: ResolutionInput & { fps: number }
+    config: ResolutionInput & { fps: number; outputFilePath?: string; outputDir?: string }
   ) => {
     if (!window.electronAPI || isExporting) return;
 
     setIsExporting(true);
+    banner.show({
+      id: EXPORT_PROGRESS_BANNER_ID,
+      variant: 'progress',
+      message: 'Preparing export...',
+      progress: 5,
+      dismissible: false,
+      icon: 'sync',
+    });
     try {
       const sequenceItems = buildSequenceItemsForCuts(cuts, {
         debugFraming: true,
@@ -418,17 +432,31 @@ function App() {
       });
 
       if (sequenceItems.length === 0) {
-        alert('No items to export. Add some cuts to the timeline first.');
+        toast.warning('No items to export', 'Add cuts to the timeline first.');
         return;
       }
 
-      const outputPath = await window.electronAPI.showSaveSequenceDialog('sequence_export.mp4');
+      banner.update(EXPORT_PROGRESS_BANNER_ID, {
+        message: 'Preparing output path...',
+        progress: 15,
+      });
+
+      let outputPath = config.outputFilePath;
       if (!outputPath) {
+        outputPath = await window.electronAPI.showSaveSequenceDialog('sequence_export.mp4') || '';
+      }
+      if (!outputPath) {
+        toast.info('Export cancelled');
         return;
       }
 
       const width = config.width > 0 ? config.width : DEFAULT_EXPORT_RESOLUTION.width;
       const height = config.height > 0 ? config.height : DEFAULT_EXPORT_RESOLUTION.height;
+
+      banner.update(EXPORT_PROGRESS_BANNER_ID, {
+        message: 'Rendering video...',
+        progress: 35,
+      });
 
       const result = await window.electronAPI.exportSequence({
         items: sequenceItems,
@@ -439,16 +467,55 @@ function App() {
       });
 
       if (result.success) {
-        alert(`Export complete!\nFile: ${result.outputPath}\nSize: ${(result.fileSize! / 1024 / 1024).toFixed(2)} MB`);
+        if (config.outputDir) {
+          banner.update(EXPORT_PROGRESS_BANNER_ID, {
+            message: 'Writing manifest and timeline...',
+            progress: 85,
+          });
+          const contextResolver = (cut: Cut) => {
+            for (const scene of scenes) {
+              const cutIndex = scene.cuts.findIndex((item) => item.id === cut.id);
+              if (cutIndex >= 0) {
+                return { sceneId: scene.id, sceneName: scene.name, cutIndex };
+              }
+            }
+            return null;
+          };
+          const timelineEntries = buildExportTimelineEntries(cuts, contextResolver);
+          const manifestJson = buildManifestJson(timelineEntries, {
+            width,
+            height,
+            fps: config.fps,
+            outputDir: config.outputDir,
+          });
+          const timelineText = buildTimelineText(timelineEntries);
+          const sidecarsResult = await window.electronAPI.writeExportSidecars({
+            outputDir: config.outputDir,
+            manifestJson,
+            timelineText,
+          });
+          if (!sidecarsResult.success) {
+            toast.warning('Export completed with sidecar warning', sidecarsResult.error || 'Failed to write manifest/timeline.');
+          }
+        }
+        banner.update(EXPORT_PROGRESS_BANNER_ID, {
+          message: 'Finalizing export...',
+          progress: 100,
+        });
+        toast.success(
+          'Export complete',
+          `${(result.fileSize! / 1024 / 1024).toFixed(2)} MB`
+        );
       } else {
-        alert(`Export failed: ${result.error}`);
+        toast.error('Export failed', result.error || 'Unknown error');
       }
     } catch (error) {
-      alert(`Export error: ${String(error)}`);
+      toast.error('Export error', String(error));
     } finally {
+      banner.dismiss(EXPORT_PROGRESS_BANNER_ID);
       setIsExporting(false);
     }
-  }, [getAsset, isExporting, metadataStore]);
+  }, [banner, getAsset, isExporting, metadataStore, scenes, toast]);
 
   // Handle export from ExportModal
   const handleExport = useCallback(async (settings: ExportSettings) => {
@@ -457,10 +524,10 @@ function App() {
     setShowExportModal(false);
 
     try {
-      const orderedCuts = getScenesAndCutsInTimelineOrder(scenes).flatMap((scene) => scene.cuts);
+      const orderedCutsAll = getScenesAndCutsInTimelineOrder(scenes).flatMap((scene) => scene.cuts);
 
-      if (orderedCuts.length === 0) {
-        alert('No items to export. Add some cuts to the timeline first.');
+      if (orderedCutsAll.length === 0) {
+        toast.warning('No items to export', 'Add cuts to the timeline first.');
         return;
       }
 
@@ -471,7 +538,18 @@ function App() {
 
       if (plan.format === 'aviutl') {
         // Placeholder: AviUtl export not yet implemented
-        alert(`AviUtl export to:\n${plan.outputPathHint}\n\nRounding: ${plan.roundingMode}\nCopy media: ${plan.copyMedia}\n\n(Export logic not yet implemented)`);
+        toast.info('AviUtl export', 'Coming Soon');
+        return;
+      }
+
+      const orderedCuts = plan.range === 'selection'
+        ? getCutIdsInTimelineOrder(scenes, getSelectedCutIds())
+          .map((cutId) => orderedCutsAll.find((cut) => cut.id === cutId))
+          .filter((cut): cut is Cut => !!cut)
+        : orderedCutsAll;
+
+      if (orderedCuts.length === 0) {
+        toast.warning('No cuts in selected range', 'Select cuts or use All Cuts.');
         return;
       }
 
@@ -479,11 +557,13 @@ function App() {
         width: plan.width,
         height: plan.height,
         fps: plan.fps,
+        outputFilePath: plan.outputFilePath,
+        outputDir: plan.outputDir,
       });
     } catch (error) {
-      alert(`Export error: ${String(error)}`);
+      toast.error('Export error', String(error));
     }
-  }, [scenes, exportResolution, isExporting, exportMp4Sequence]);
+  }, [scenes, exportResolution, isExporting, exportMp4Sequence, getSelectedCutIds, toast]);
 
   const handlePreviewExport = useCallback(async (
     cuts: Cut[],
@@ -492,8 +572,12 @@ function App() {
     const mp4Plan = resolveExportPlan({
       settings: {
         format: 'mp4',
-        outputPath: '',
-        aviutl: { roundingMode: 'round', copyMedia: true },
+        outputRootPath: '',
+        outputFolderName: '',
+        resolution,
+        fps: 30,
+        range: 'all',
+        aviutl: { roundingMode: 'round', copyMedia: false },
         mp4: { quality: 'medium' },
       },
       resolution,
@@ -502,10 +586,10 @@ function App() {
       return;
     }
     await exportMp4Sequence(cuts, {
-      width: mp4Plan.width,
-      height: mp4Plan.height,
-      fps: mp4Plan.fps,
-    });
+        width: mp4Plan.width,
+        height: mp4Plan.height,
+        fps: mp4Plan.fps,
+      });
   }, [exportMp4Sequence]);
 
   // Find cut data for Single Mode preview modal
@@ -670,6 +754,10 @@ function App() {
         <ExportModal
           open={showExportModal}
           onClose={() => setShowExportModal(false)}
+          initialResolution={{
+            width: exportResolution.width > 0 ? exportResolution.width : DEFAULT_EXPORT_RESOLUTION.width,
+            height: exportResolution.height > 0 ? exportResolution.height : DEFAULT_EXPORT_RESOLUTION.height,
+          }}
           onExport={handleExport}
         />
         <EnvironmentSettingsModal

@@ -42,6 +42,8 @@
 - 回帰テストに統合ケース（`order + clip + lipsync + framing`）を追加。
 - Preview framing 表示と export framing filter の整合を parity テストで自動検証。
 - Export 設定の正規化レイヤー（`resolveExportPlan`）を追加し、UI仕様変更に対する非UI境界を分離。
+- ExportModal を MP4 実運用へ切替（AviUtl は Coming Soon 表示）し、`outputRoot/folderName/resolution/fps/range/quality` を設定可能化。
+- MP4 export の sidecar として `manifest.json + timeline.txt` 生成を実装。
 
 ### Line C: Naming / Glossary Governance
 - 主ノート: `docs/notes/export-naming-plan.md`

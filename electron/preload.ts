@@ -196,6 +196,19 @@ export interface ExportSequenceResult {
   error?: string;
 }
 
+export interface WriteExportSidecarsOptions {
+  outputDir: string;
+  manifestJson: string;
+  timelineText: string;
+}
+
+export interface WriteExportSidecarsResult {
+  success: boolean;
+  manifestPath?: string;
+  timelinePath?: string;
+  error?: string;
+}
+
 export interface FfmpegLimits {
   stderrMaxBytes: number;
   maxClipSeconds: number;
@@ -400,6 +413,9 @@ const electronAPI = {
 
   exportSequence: (options: ExportSequenceOptions): Promise<ExportSequenceResult> =>
     ipcRenderer.invoke('export-sequence', options),
+
+  writeExportSidecars: (options: WriteExportSidecarsOptions): Promise<WriteExportSidecarsResult> =>
+    ipcRenderer.invoke('write-export-sidecars', options),
 
   // App menu events
   onToggleSidebar: (callback: () => void): (() => void) => {

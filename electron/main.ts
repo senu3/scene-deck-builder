@@ -1548,6 +1548,19 @@ interface ExportSequenceResult {
   error?: string;
 }
 
+interface WriteExportSidecarsOptions {
+  outputDir: string;
+  manifestJson: string;
+  timelineText: string;
+}
+
+interface WriteExportSidecarsResult {
+  success: boolean;
+  manifestPath?: string;
+  timelinePath?: string;
+  error?: string;
+}
+
 const DEFAULT_EXPORT_WIDTH = 1280;
 const DEFAULT_EXPORT_HEIGHT = 720;
 
@@ -1564,6 +1577,29 @@ ipcMain.handle('show-save-sequence-dialog', async (_, defaultName: string) => {
   }
 
   return result.filePath;
+});
+
+ipcMain.handle('write-export-sidecars', async (_, options: WriteExportSidecarsOptions): Promise<WriteExportSidecarsResult> => {
+  try {
+    const outputDir = (options.outputDir || '').trim();
+    if (!outputDir) {
+      return { success: false, error: 'outputDir is required' };
+    }
+
+    fs.mkdirSync(outputDir, { recursive: true });
+    const manifestPath = path.join(outputDir, 'manifest.json');
+    const timelinePath = path.join(outputDir, 'timeline.txt');
+    fs.writeFileSync(manifestPath, options.manifestJson || '{}', 'utf-8');
+    fs.writeFileSync(timelinePath, options.timelineText || '', 'utf-8');
+
+    return {
+      success: true,
+      manifestPath,
+      timelinePath,
+    };
+  } catch (error) {
+    return { success: false, error: String(error) };
+  }
 });
 
 // Helper function to run ffmpeg process
@@ -1600,6 +1636,9 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
   const tempFiles: string[] = [];
 
   try {
+    const outputDir = path.dirname(outputPath);
+    fs.mkdirSync(outputDir, { recursive: true });
+
     // Step 1: Convert each item to a standardized video segment
     const segmentFiles: string[] = [];
 
