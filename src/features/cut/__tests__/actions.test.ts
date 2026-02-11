@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createDerivedCutAndSyncGroup, finalizeClipAndAddCut } from '../actions';
+import { createDerivedCutAndSyncGroup, cropImageAndAddCut, finalizeClipAndAddCut } from '../actions';
 
 describe('cut actions', () => {
   it('syncs new derived cut into source group', async () => {
@@ -64,6 +64,43 @@ describe('cut actions', () => {
 
     expect(result.success).toBe(true);
     expect(finalizeClip).toHaveBeenCalledTimes(1);
+    expect(createCutFromImport).toHaveBeenCalledTimes(1);
+  });
+
+  it('crops image and creates derived cut', async () => {
+    const cropImageToAspect = vi.fn(async () => ({ success: true, fileSize: 2048 }));
+    const ensureAssetsFolder = vi.fn(async () => 'C:/vault/assets');
+    Object.defineProperty(window, 'electronAPI', {
+      value: {
+        cropImageToAspect,
+        ensureAssetsFolder,
+      },
+      writable: true,
+    });
+
+    const createCutFromImport = vi.fn(async () => 'new-cut');
+    const getCutGroup = vi.fn(() => undefined);
+    const updateGroupCutOrder = vi.fn();
+
+    const result = await cropImageAndAddCut({
+      sceneId: 'scene-1',
+      sourceCutId: 'cut-a',
+      insertIndex: 1,
+      sourceAssetPath: 'C:/assets/src.png',
+      sourceAssetName: 'src.png',
+      targetWidth: 1280,
+      targetHeight: 720,
+      anchorX: 0.5,
+      anchorY: 0.5,
+      preferredThumbnail: 'data:image/png;base64,aaa',
+      vaultPath: 'C:/vault',
+      createCutFromImport,
+      getCutGroup,
+      updateGroupCutOrder,
+    });
+
+    expect(result.success).toBe(true);
+    expect(cropImageToAspect).toHaveBeenCalledTimes(1);
     expect(createCutFromImport).toHaveBeenCalledTimes(1);
   });
 });

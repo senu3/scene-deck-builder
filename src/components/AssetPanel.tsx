@@ -191,7 +191,7 @@ export default function AssetPanel({
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-  const { confirm: dialogConfirm } = useDialog();
+  const { confirm: dialogConfirm, alert: dialogAlert } = useDialog();
 
   const assetRefs = useMemo(
     () => collectAssetRefs(scenes, metadataStore),
@@ -671,17 +671,36 @@ export default function AssetPanel({
   const handleDeleteUnusedAsset = async () => {
     if (!unusedContextMenu) return;
     if (!window.electronAPI?.vaultGateway) {
-      alert('electronAPI not available. Please restart the app.');
+      toast.error('Delete failed', 'electronAPI not available. Please restart the app.');
       setUnusedContextMenu(null);
       return;
     }
 
     const asset = unusedContextMenu.asset;
+
+    const confirmed = await dialogConfirm({
+      title: 'Delete Asset',
+      message: 'Move this unused asset to trash?',
+      targetName: asset.sourceName,
+      variant: 'danger',
+      confirmLabel: 'Move to Trash',
+      cancelLabel: 'Cancel',
+    });
+
+    if (!confirmed) {
+      setUnusedContextMenu(null);
+      return;
+    }
+
     const assetIds = asset.linkedAssetIds.length ? asset.linkedAssetIds : [asset.id];
     const blockingRefs = getBlockingRefsForAssetIds(assetRefs, assetIds);
     if (blockingRefs.length > 0) {
       const firstKind = blockingRefs[0]?.kind || 'unknown';
-      alert(`Cannot delete this asset because it is still referenced (${firstKind}).`);
+      await dialogAlert({
+        title: 'Cannot Delete Asset',
+        message: `This asset is still referenced (${firstKind}).`,
+        variant: 'warning',
+      });
       setUnusedContextMenu(null);
       return;
     }
@@ -695,19 +714,24 @@ export default function AssetPanel({
       if (!result.success) {
         if (result.reason === 'asset-in-use') {
           const firstKind = result.blockingRefs?.[0]?.kind || 'unknown';
-          alert(`Cannot delete this asset because it is still referenced (${firstKind}).`);
+          await dialogAlert({
+            title: 'Cannot Delete Asset',
+            message: `This asset is still referenced (${firstKind}).`,
+            variant: 'warning',
+          });
         } else {
-          alert('Failed to move asset to trash.');
+          toast.error('Delete failed', 'Failed to move asset to trash.');
         }
         setUnusedContextMenu(null);
         return;
       }
     } catch (error) {
-      alert(`Failed to move asset to trash: ${error}`);
+      toast.error('Delete failed', String(error));
     }
 
     setAssets((prev) => prev.filter((a) => a.path !== asset.path));
     removeThumbnailCache(asset.path);
+    toast.success('Asset moved to trash', asset.sourceName);
     setUnusedContextMenu(null);
   };
 

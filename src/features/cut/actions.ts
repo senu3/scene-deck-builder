@@ -137,3 +137,95 @@ export async function finalizeClipAndAddCut({
     fileSize: result.fileSize,
   };
 }
+
+export interface CropImageAddCutParams extends CreateDerivedCutDeps {
+  sceneId: string;
+  sourceCutId: string;
+  insertIndex: number;
+  sourceAssetPath: string;
+  sourceAssetName: string;
+  targetWidth: number;
+  targetHeight: number;
+  anchorX: number;
+  anchorY: number;
+  preferredThumbnail?: string;
+  vaultPath: string;
+}
+
+export interface CropImageAddCutResult {
+  success: boolean;
+  fileName?: string;
+  fileSize?: number;
+  error?: string;
+}
+
+export async function cropImageAndAddCut({
+  sceneId,
+  sourceCutId,
+  insertIndex,
+  sourceAssetPath,
+  sourceAssetName,
+  targetWidth,
+  targetHeight,
+  anchorX,
+  anchorY,
+  preferredThumbnail,
+  vaultPath,
+  createCutFromImport,
+  getCutGroup,
+  updateGroupCutOrder,
+}: CropImageAddCutParams): Promise<CropImageAddCutResult> {
+  if (!window.electronAPI) {
+    return { success: false, error: 'electronAPI not available. Please restart the app.' };
+  }
+  if (typeof window.electronAPI.cropImageToAspect !== 'function' || typeof window.electronAPI.ensureAssetsFolder !== 'function') {
+    return { success: false, error: 'Crop feature requires app restart after update.' };
+  }
+
+  const assetsFolder = await window.electronAPI.ensureAssetsFolder(vaultPath);
+  if (!assetsFolder) {
+    return { success: false, error: 'Failed to access assets folder in vault.' };
+  }
+
+  const baseName = sourceAssetName.replace(/\.[^/.]+$/, '');
+  const timestamp = Date.now();
+  const fileName = `${baseName}_crop_${targetWidth}x${targetHeight}_${timestamp}.png`;
+  const outputPath = `${assetsFolder}/${fileName}`.replace(/\\/g, '/');
+
+  const result = await window.electronAPI.cropImageToAspect({
+    sourcePath: sourceAssetPath,
+    outputPath,
+    targetWidth,
+    targetHeight,
+    anchorX,
+    anchorY,
+  });
+
+  if (!result.success) {
+    return { success: false, error: result.error || 'Failed to crop image.' };
+  }
+
+  await createDerivedCutAndSyncGroup({
+    sceneId,
+    sourceCutId,
+    insertIndex,
+    source: {
+      assetId: uuidv4(),
+      name: fileName,
+      sourcePath: outputPath,
+      type: 'image',
+      fileSize: result.fileSize,
+      preferredThumbnail,
+    },
+    vaultPath,
+    createCutFromImport,
+    getCutGroup,
+    updateGroupCutOrder,
+  });
+
+  return {
+    success: true,
+    fileName,
+    fileSize: result.fileSize,
+  };
+}

@@ -4,13 +4,12 @@ import { useState, useEffect, useRef } from 'react';
 import { Film, Image, Clock, Scissors, Loader2, Mic, Music } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import type { Asset, CutAudioBinding } from '../types';
-import { v4 as uuidv4 } from 'uuid';
 import './CutCard.css';
 import { getThumbnail } from '../utils/thumbnailCache';
 import { CutContextMenu } from './context-menus';
 import ImageCropModal, { type ImageCropConfig } from './ImageCropModal';
 import { useDialog, useToast } from '../ui';
-import { createDerivedCutAndSyncGroup, finalizeClipAndAddCut } from '../features/cut/actions';
+import { cropImageAndAddCut, finalizeClipAndAddCut } from '../features/cut/actions';
 
 interface ResolutionPresetType {
   name: string;
@@ -323,47 +322,28 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
       return;
     }
 
-    if (!window.electronAPI) {
-      toast.error('Crop failed', 'electronAPI not available. Please restart the app.');
-      setShowCropModal(false);
-      return;
-    }
-
     if (!vaultPath) {
       toast.warning('Vault path not set', 'Please set up a vault first.');
       setShowCropModal(false);
       return;
     }
 
-    if (
-      typeof window.electronAPI.cropImageToAspect !== 'function' ||
-      typeof window.electronAPI.ensureAssetsFolder !== 'function'
-    ) {
-      toast.warning('Crop feature requires restart', 'Please restart the Electron app.');
-      setShowCropModal(false);
-      return;
-    }
-
     try {
-      const assetsFolder = await window.electronAPI.ensureAssetsFolder(vaultPath);
-      if (!assetsFolder) {
-        toast.error('Crop failed', 'Failed to access assets folder in vault.');
-        setShowCropModal(false);
-        return;
-      }
-
-      const baseName = asset.name.replace(/\.[^/.]+$/, '');
-      const timestamp = Date.now();
-      const fileName = `${baseName}_crop_${config.width}x${config.height}_${timestamp}.png`;
-      const outputPath = `${assetsFolder}/${fileName}`.replace(/\\/g, '/');
-
-      const result = await window.electronAPI.cropImageToAspect({
-        sourcePath: asset.path,
-        outputPath,
+      const result = await cropImageAndAddCut({
+        sceneId,
+        sourceCutId: cut.id,
+        insertIndex: index + 1,
+        sourceAssetPath: asset.path,
+        sourceAssetName: asset.name,
         targetWidth: config.width,
         targetHeight: config.height,
         anchorX: config.anchorX,
         anchorY: config.anchorY,
+        preferredThumbnail: thumbnail || undefined,
+        vaultPath,
+        createCutFromImport,
+        getCutGroup,
+        updateGroupCutOrder,
       });
 
       if (!result.success) {
@@ -372,25 +352,7 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
         return;
       }
 
-      await createDerivedCutAndSyncGroup({
-        sceneId,
-        sourceCutId: cut.id,
-        insertIndex: index + 1,
-        source: {
-          assetId: uuidv4(),
-          name: fileName,
-          sourcePath: outputPath,
-          type: 'image',
-          fileSize: result.fileSize,
-          preferredThumbnail: thumbnail || undefined,
-        },
-        vaultPath,
-        createCutFromImport,
-        getCutGroup,
-        updateGroupCutOrder,
-      });
-
-      toast.success('Image cropped', fileName);
+      toast.success('Image cropped', result.fileName || 'Created');
     } catch (error) {
       toast.error('Crop failed', String(error));
     }

@@ -38,6 +38,8 @@
 - Phase 0-1: `finalize clip` の重複副作用を `src/features/cut/actions.ts` へ共通化。
 - Phase 0-2: `CutCard` / `AssetPanel` の finalize 系フィードバックを `useToast` + `useDialog` に統一開始。
 - Phase 0-3: save/load 資産パス整合の回帰テストを追加済み（`assetPath`）。
+- Phase 0-4: `crop image` の副作用も action 層へ移管（`cropImageAndAddCut`）。
+- Phase 0-5: `AssetPanel` の delete 系フィードバックを `useToast` + `useDialog` に移行。
 
 ### Phase 0: Guard Rails（先行・小規模）
 1. Cut副作用ヘルパー追加（既存呼び出しの薄い置換）。
