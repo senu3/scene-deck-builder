@@ -240,6 +240,13 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
         ?.cuts.find((c) => c.id === cutId);
       get().cacheAsset(newAsset);
       get().updateCutWithAsset(sceneId, cutId, newAsset);
+      get().emitStoreEvent({
+        type: 'CUT_RELINKED',
+        sceneId,
+        cutId,
+        previousAssetId: previousCut?.assetId,
+        nextAssetId: newAsset.id,
+      });
       if (!previousCut) return;
       if (previousCut.asset?.type !== 'video' || newAsset.type !== 'video') {
         get().clearCutClipPoints(sceneId, cutId);

@@ -21,7 +21,7 @@ import type {
 } from '../types';
 import type { CutImportSource } from '../utils/cutImport';
 import type { AssetRef } from '../utils/assetRefs';
-import type { StoreEvent } from './events';
+import type { StoreEvent, StoreEventInput } from './events';
 import { createProjectSlice } from './slices/projectSlice';
 import { createCutTimelineSlice } from './slices/cutTimelineSlice';
 import { createSelectionUiSlice } from './slices/selectionUiSlice';
@@ -183,7 +183,7 @@ export interface AppState {
   toggleSidebar: () => void;
   openDetailsPanel: () => void;
   closeDetailsPanel: () => void;
-  emitStoreEvent: (event: Omit<StoreEvent, 'occurredAt'>) => void;
+  emitStoreEvent: (event: StoreEventInput) => void;
   drainStoreEvents: () => StoreEvent[];
   applyStoreEvents: () => void;
 
@@ -297,6 +297,7 @@ export const useStore = create<AppState>((set, get) => ({
       let selectedCutId = state.selectedCutId;
       let selectedCutIds = new Set(state.selectedCutIds);
       let lastSelectedCutId = state.lastSelectedCutId;
+      let selectedGroupId = state.selectedGroupId;
       let selectionType = state.selectionType;
       let detailsPanelOpen = state.detailsPanelOpen;
 
@@ -322,6 +323,29 @@ export const useStore = create<AppState>((set, get) => ({
           if (lastSelectedCutId === event.cutId) {
             lastSelectedCutId = selectedCutIds.size > 0 ? Array.from(selectedCutIds)[selectedCutIds.size - 1] : null;
           }
+          continue;
+        }
+
+        if (event.type === 'CUT_MOVED') {
+          scenes = scenes.map((scene) => {
+            if (scene.id !== event.fromSceneId) return scene;
+            return {
+              ...scene,
+              groups: (scene.groups || [])
+                .map((group) => ({
+                  ...group,
+                  cutIds: group.cutIds.filter((id) => !event.cutIds.includes(id)),
+                }))
+                .filter((group) => group.cutIds.length > 0),
+            };
+          });
+        }
+      }
+
+      if (selectedGroupId) {
+        const exists = scenes.some((scene) => scene.groups?.some((group) => group.id === selectedGroupId));
+        if (!exists) {
+          selectedGroupId = null;
         }
       }
 
@@ -335,6 +359,7 @@ export const useStore = create<AppState>((set, get) => ({
         selectedCutId,
         selectedCutIds,
         lastSelectedCutId,
+        selectedGroupId,
         selectionType,
         detailsPanelOpen,
       };

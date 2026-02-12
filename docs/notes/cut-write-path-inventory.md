@@ -33,7 +33,8 @@
 
 ### 2. cutTimelineSlice 直書き込み（domain owner）
 - scene/cut の追加・削除・並び替え・クリップ更新・clipboard 反映。
-- Cut 削除時は `emitStoreEvent({ type: 'CUT_DELETED' })` を発火し、`applyStoreEvents` で group/selection を後処理。
+- Cut 削除時は `CUT_DELETED` を発火し、`applyStoreEvents` で group/selection を後処理。
+- Cut 移動時は `CUT_MOVED` を発火し、group 追随は `applyStoreEvents` 側で処理。
 
 ### 3. metadataSlice からの Cut 更新
 - `attachAudioToCut` / `detachAudioFromCut` / `updateCutAudioOffset` は `setCutAudioBindings` 経由へ移行済み。
@@ -45,8 +46,8 @@
 
 ## S0 で残る主要課題
 - `cut.asset` を write 時に必須としない設計（ID主経路の徹底）。
-- 必要な cross-slice event の追加定義（`CUT_DELETED` 以外）。
+- 追加した event（`CUT_MOVED` / `CUT_RELINKED`）の購読用途を広げるか判断する。
 
 ## TODO
-- `CUT_MOVED` / `CUT_RELINKED` の event 要否を検討する。
+- `CUT_RELINKED` を利用する購読側（例: diagnostics/telemetry）を検討する。
 - selector 標準パターンの記述と合わせて本ドキュメントを更新する。

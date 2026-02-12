@@ -44,6 +44,7 @@
 - `metadataSlice` の `attach/detach/updateCutAudioOffset` は `setCutAudioBindings` 経由へ移行し、Asset 側から Cut 直接更新する経路を削減した。
 - `CUT_DELETED` の store event を導入し、`removeCut` / `removeScene` で発火するようにした。
 - `applyStoreEvents` を `useStore` 統合レイヤーに追加し、`CUT_DELETED` に伴う group/selection の後処理をイベント経由で集約した。
+- `CUT_MOVED` / `CUT_RELINKED` を追加し、移動時の group 後処理をイベント経由に統一した。
 - `commands` の Cut 復元系は `assetId` を主キーに `getAsset(assetId)` で解決し、fallback として `cut.asset` を利用する形に寄せた。
 - `copySelectedCuts` は `assetId` から `assetCache` 解決を優先し、`cut.asset` への依存を弱めた。
 - 主要 UI（`CutCard` / `AssetPanel` / `DetailsPanel` / `PreviewModal`）で `getAsset(assetId)` 優先の read-time join へ寄せた。

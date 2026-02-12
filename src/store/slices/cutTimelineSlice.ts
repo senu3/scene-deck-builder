@@ -3,7 +3,6 @@ import type { Scene, Cut } from '../../types';
 import { upsertSceneMetadata, removeSceneMetadata } from '../../utils/metadataStore';
 import { buildAssetForCut } from '../../utils/cutImport';
 import { getScenesAndCutsInTimelineOrder } from '../../utils/timelineOrder';
-import { removeCutIdsFromGroups } from '../../utils/cutGroupOps';
 import type { ClipboardCut } from '../useStore';
 import type { CutTimelineSliceContract } from '../contracts';
 import type { SliceGet, SliceSet } from './sliceTypes';
@@ -452,7 +451,7 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
         };
       }),
 
-    moveCutToScene: (fromSceneId, toSceneId, cutId, toIndex) =>
+    moveCutToScene: (fromSceneId, toSceneId, cutId, toIndex) => {
       set((state) => {
         const fromScene = state.scenes.find((s) => s.id === fromSceneId);
         if (!fromScene) return state;
@@ -468,7 +467,6 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
                 cuts: s.cuts
                   .filter((c) => c.id !== cutId)
                   .map((c, idx) => ({ ...c, order: idx })),
-                groups: removeCutIdsFromGroups(s.groups, [cutId]),
               };
             }
             if (s.id === toSceneId) {
@@ -482,15 +480,29 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
             return s;
           }),
         };
-      }),
+      });
 
-    moveCutsToScene: (cutIds, toSceneId, toIndex) =>
+      get().emitStoreEvent({
+        type: 'CUT_MOVED',
+        fromSceneId,
+        toSceneId,
+        cutIds: [cutId],
+      });
+      get().applyStoreEvents();
+    },
+
+    moveCutsToScene: (cutIds, toSceneId, toIndex) => {
+      const movedByScene = new Map<string, string[]>();
       set((state) => {
         const cutsToMove: Cut[] = [];
         const cutIdSet = new Set(cutIds);
 
         const orderedScenes = getScenesAndCutsInTimelineOrder(state.scenes);
         for (const scene of orderedScenes) {
+          const matchedCutIds = scene.cuts.filter((cut) => cutIdSet.has(cut.id)).map((cut) => cut.id);
+          if (matchedCutIds.length > 0) {
+            movedByScene.set(scene.id, matchedCutIds);
+          }
           for (const cut of scene.cuts) {
             if (cutIdSet.has(cut.id)) {
               cutsToMove.push(cut);
@@ -503,7 +515,6 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
         return {
           scenes: state.scenes.map((s) => {
             const remainingCuts = s.cuts.filter((c) => !cutIdSet.has(c.id));
-            const nextGroups = removeCutIdsFromGroups(s.groups, cutIds);
 
             if (s.id === toSceneId) {
               const newCuts = [...remainingCuts];
@@ -511,7 +522,6 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
               return {
                 ...s,
                 cuts: newCuts.map((c, idx) => ({ ...c, order: idx })),
-                groups: nextGroups,
               };
             }
 
@@ -519,7 +529,6 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
               return {
                 ...s,
                 cuts: remainingCuts.map((c, idx) => ({ ...c, order: idx })),
-                groups: nextGroups,
               };
             }
 
@@ -529,7 +538,18 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
           selectedCutId: null,
           lastSelectedCutId: null,
         };
-      }),
+      });
+
+      for (const [fromSceneId, movedCutIds] of movedByScene.entries()) {
+        get().emitStoreEvent({
+          type: 'CUT_MOVED',
+          fromSceneId,
+          toSceneId,
+          cutIds: movedCutIds,
+        });
+      }
+      get().applyStoreEvents();
+    },
 
     setCutRuntime: (cutId, runtime) =>
       set((state) => ({
