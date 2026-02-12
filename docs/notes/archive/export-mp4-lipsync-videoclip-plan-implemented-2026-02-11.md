@@ -9,7 +9,7 @@
 - 現行運用: `docs/guides/export-guide.md`
 - 参照:
   - `docs/notes/archive/export-timeline-integrity-plan-implemented-2026-02-11.md`
-  - `docs/notes/cut-refactor-plan.md`
+  - `docs/notes/archive/cut-refactor-plan-implemented-2026-02-12.md`
   - `docs/notes/archive/audio_pre_export_design-closed-2026-02-11.md`
 
 ## 現在地
@@ -36,7 +36,7 @@
 ## Out of Scope（別ライン/後続）
 1. ExportModal の全面UX再設計
 2. 音声分離実装（master/lipsync）本体
-3. Cut全面リファクタ（`docs/notes/cut-refactor-plan.md` の Phase 2 以降）
+3. Cut全面リファクタ（`docs/notes/archive/cut-refactor-plan-implemented-2026-02-12.md` の Phase 2 以降）
 
 ## 先行決定
 1. Free 解像度は export 実行時 `1280x720` を既定とする。

@@ -24,10 +24,11 @@
 - `docs/guides/lip-sync.md`
 - `docs/guides/lip-sync-requirements.md`
 - `docs/guides/export-guide.md`（Export機能の運用ガイドライン）
+- `docs/guides/cut-history-guidelines.md`（Cut/Undo/Redo運用ガイドライン）
 - `docs/ui/components.md`
 - `docs/ui/color-system.md`
 - `docs/ui/scene-duration-bar.md`
-- `docs/notes/cut-refactor-plan.md`（Cut操作の段階的リファクタ計画）
+- `docs/notes/store-slice-plan.md`（useStore分割計画）
 
 ## アーカイブ
 - `docs/notes/archive/INDEX.md`（アーカイブ目次）
@@ -37,6 +38,7 @@
 - `docs/notes/archive/export-mp4-lipsync-videoclip-plan-implemented-2026-02-11.md`
 - `docs/notes/archive/export-naming-plan-implemented-2026-02-11.md`
 - `docs/notes/archive/export-timeline-integrity-plan-implemented-2026-02-11.md`
+- `docs/notes/archive/cut-refactor-plan-implemented-2026-02-12.md`
 - `docs/notes/archive/autosave-toast-notes.md`（完了済み）
 - `docs/notes/archive/aviutl-exo-export-research.md`（EXO中止履歴）
 
