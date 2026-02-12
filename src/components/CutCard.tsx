@@ -9,7 +9,12 @@ import { getThumbnail } from '../utils/thumbnailCache';
 import { CutContextMenu } from './context-menus';
 import ImageCropModal, { type ImageCropConfig } from './ImageCropModal';
 import { useDialog, useToast } from '../ui';
-import { cropImageAndAddCut, finalizeClipAndAddCut } from '../features/cut/actions';
+import {
+  cropImageAndAddCut,
+  finalizeClipAndAddCut,
+  moveCutsToSceneEnd,
+  removeCutsFromScenes,
+} from '../features/cut/actions';
 import { DEFAULT_EXPORT_RESOLUTION } from '../constants/export';
 
 interface ResolutionPresetType {
@@ -209,25 +214,13 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
 
   const handleDelete = () => {
     const cutIds = getSelectedCutIds();
-    // Delete all selected cuts
-    for (const cutId of cutIds) {
-      // Find which scene contains this cut
-      for (const scene of scenes) {
-        if (scene.cuts.some(c => c.id === cutId)) {
-          removeCut(scene.id, cutId);
-          break;
-        }
-      }
-    }
+    removeCutsFromScenes(scenes, cutIds, removeCut);
     setContextMenu(null);
   };
 
   const handleMoveToScene = (targetSceneId: string) => {
     const cutIds = getSelectedCutIds();
-    // Get target scene's cut count for append position
-    const targetScene = scenes.find(s => s.id === targetSceneId);
-    const toIndex = targetScene?.cuts.length || 0;
-    moveCutsToScene(cutIds, targetSceneId, toIndex);
+    moveCutsToSceneEnd(scenes, cutIds, targetSceneId, moveCutsToScene);
     setContextMenu(null);
   };
 

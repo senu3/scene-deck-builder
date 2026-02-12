@@ -27,7 +27,11 @@ import {
   CutContextMenu,
   AssetContextMenu,
 } from './context-menus';
-import { finalizeClipAndAddCut } from '../features/cut/actions';
+import {
+  finalizeClipAndAddCut,
+  moveCutsToSceneEnd,
+  removeCutsFromScenes,
+} from '../features/cut/actions';
 import './AssetPanel.css';
 
 export type SortMode = 'name' | 'type' | 'used' | 'unused';
@@ -586,22 +590,13 @@ export default function AssetPanel({
 
   const handleCutMenuDelete = () => {
     const cutIds = getSelectedCutIds();
-    for (const cutId of cutIds) {
-      for (const scene of scenes) {
-        if (scene.cuts.some((c) => c.id === cutId)) {
-          removeCut(scene.id, cutId);
-          break;
-        }
-      }
-    }
+    removeCutsFromScenes(scenes, cutIds, removeCut);
     setCutContextMenu(null);
   };
 
   const handleCutMenuMove = (targetSceneId: string) => {
     const cutIds = getSelectedCutIds();
-    const targetScene = scenes.find((s) => s.id === targetSceneId);
-    const toIndex = targetScene?.cuts.length || 0;
-    moveCutsToScene(cutIds, targetSceneId, toIndex);
+    moveCutsToSceneEnd(scenes, cutIds, targetSceneId, moveCutsToScene);
     setCutContextMenu(null);
   };
 

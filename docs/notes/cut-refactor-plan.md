@@ -41,6 +41,11 @@
 - Phase 0-4: `crop image` の副作用も action 層へ移管（`cropImageAndAddCut`）。
 - Phase 0-5: `AssetPanel` の delete 系フィードバックを `useToast` + `useDialog` に移行。
 - Phase 0-6: crop/finalize 生成物が `assets/` 内再取り込みで hash 名へ再命名される問題を修正。`importFileToVault` は `assets/` 内ファイルを再インポートせず、既存ファイル名のまま index 登録する方針に変更。
+- Phase 2-1 (2026-02-12): `CutCard` / `AssetPanel` に重複していた選択 Cut の delete / move 副作用を `features/cut/actions` の共通関数 (`removeCutsFromScenes`, `moveCutsToSceneEnd`) に移管。
+
+## 方針メモ（2026-02-12）
+- `AssetPanel` から Cut オプションは将来的に廃止し、アセットオプション拡充へ移行する。
+- ただし `features/cut/actions` の UI 非依存ロジック（delete/move など）は維持する。`CutCard` 単独運用や将来のショートカット/一括操作でも再利用するため。
 
 ### Phase 0: Guard Rails（先行・小規模）
 1. Cut副作用ヘルパー追加（既存呼び出しの薄い置換）。
@@ -66,6 +71,7 @@
 1. `CutCard` / `AssetPanel` の重複ロジック撤去。
 2. `features/cut/actions` へ移管。
 3. Group 追随処理の共通化。
+4. `AssetPanel` の Cut オプション廃止計画を段階適用（Cut 操作 UI を縮退し、アセット操作へ集約）。
 
 **受け入れ条件**
 - finalize/crop の実装が1箇所。

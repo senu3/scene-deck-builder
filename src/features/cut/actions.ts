@@ -202,6 +202,44 @@ export interface CropImageAddCutResult {
   error?: string;
 }
 
+interface SceneLike {
+  id: string;
+  cuts: Array<{ id: string }>;
+}
+
+type RemoveCutFn = (sceneId: string, cutId: string) => void;
+type MoveCutsToSceneFn = (cutIds: string[], targetSceneId: string, toIndex: number) => void;
+
+export function removeCutsFromScenes(
+  scenes: SceneLike[],
+  cutIds: string[],
+  removeCut: RemoveCutFn
+): number {
+  let removedCount = 0;
+  for (const cutId of cutIds) {
+    for (const scene of scenes) {
+      if (scene.cuts.some((cut) => cut.id === cutId)) {
+        removeCut(scene.id, cutId);
+        removedCount += 1;
+        break;
+      }
+    }
+  }
+  return removedCount;
+}
+
+export function moveCutsToSceneEnd(
+  scenes: SceneLike[],
+  cutIds: string[],
+  targetSceneId: string,
+  moveCutsToScene: MoveCutsToSceneFn
+): boolean {
+  const targetScene = scenes.find((scene) => scene.id === targetSceneId);
+  if (!targetScene) return false;
+  moveCutsToScene(cutIds, targetSceneId, targetScene.cuts.length);
+  return true;
+}
+
 export async function cropImageAndAddCut({
   sceneId,
   sourceCutId,

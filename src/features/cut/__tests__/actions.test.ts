@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createDerivedCutAndSyncGroup, cropImageAndAddCut, finalizeClipAndAddCut } from '../actions';
+import {
+  createDerivedCutAndSyncGroup,
+  cropImageAndAddCut,
+  finalizeClipAndAddCut,
+  moveCutsToSceneEnd,
+  removeCutsFromScenes,
+} from '../actions';
 
 describe('cut actions', () => {
   it('syncs new derived cut into source group', async () => {
@@ -139,5 +145,43 @@ describe('cut actions', () => {
     const finalizeArg = finalizeClip.mock.calls[0]![0];
     expect(finalizeArg.outputPath).toContain('/clean_source_clip_');
     expect(finalizeArg.outputPath).not.toContain('This is not a crop');
+  });
+
+  it('removes selected cuts across scenes', () => {
+    const scenes = [
+      { id: 'scene-1', cuts: [{ id: 'cut-a' }, { id: 'cut-b' }] },
+      { id: 'scene-2', cuts: [{ id: 'cut-c' }] },
+    ];
+    const removeCut = vi.fn();
+
+    const removed = removeCutsFromScenes(scenes, ['cut-c', 'cut-a'], removeCut);
+
+    expect(removed).toBe(2);
+    expect(removeCut).toHaveBeenCalledTimes(2);
+    expect(removeCut).toHaveBeenNthCalledWith(1, 'scene-2', 'cut-c');
+    expect(removeCut).toHaveBeenNthCalledWith(2, 'scene-1', 'cut-a');
+  });
+
+  it('moves selected cuts to target scene end', () => {
+    const scenes = [
+      { id: 'scene-1', cuts: [{ id: 'cut-a' }] },
+      { id: 'scene-2', cuts: [{ id: 'cut-b' }, { id: 'cut-c' }] },
+    ];
+    const moveCutsToScene = vi.fn();
+
+    const moved = moveCutsToSceneEnd(scenes, ['cut-a'], 'scene-2', moveCutsToScene);
+
+    expect(moved).toBe(true);
+    expect(moveCutsToScene).toHaveBeenCalledWith(['cut-a'], 'scene-2', 2);
+  });
+
+  it('does not move cuts when target scene is missing', () => {
+    const scenes = [{ id: 'scene-1', cuts: [{ id: 'cut-a' }] }];
+    const moveCutsToScene = vi.fn();
+
+    const moved = moveCutsToSceneEnd(scenes, ['cut-a'], 'missing-scene', moveCutsToScene);
+
+    expect(moved).toBe(false);
+    expect(moveCutsToScene).not.toHaveBeenCalled();
   });
 });
