@@ -3,7 +3,7 @@ import type { Scene, Cut } from '../../types';
 import { upsertSceneMetadata, removeSceneMetadata } from '../../utils/metadataStore';
 import { buildAssetForCut } from '../../utils/cutImport';
 import { getScenesAndCutsInTimelineOrder } from '../../utils/timelineOrder';
-import type { ClipboardCut } from '../useStore';
+import type { ClipboardCut } from '../stateTypes';
 import type { CutTimelineSliceContract } from '../contracts';
 import type { SliceGet, SliceSet } from './sliceTypes';
 

@@ -30,8 +30,14 @@
 ## フェーズ
 
 ### Phase T0: 型の物理分離（無変更移設）
-- `AppState` / `SourceFolder` / `ClipboardCut` を `src/store/types.ts`（仮）へ移設。
+- `AppState` / `SourceFolder` / `ClipboardCut` を `src/store/stateTypes.ts` へ移設。
 - `useStore.ts` は型を import するだけにする。
+
+進捗（2026-02-12）:
+- `src/store/stateTypes.ts` を追加し、`AppState` / `SourceFolder` / `ClipboardCut` を移設。
+- `useStore.ts` から大型 interface 定義を削除し、`AppState` import のみで利用。
+- `contracts.ts` / `selectors.ts` / `slices/sliceTypes.ts` / `projectSlice.ts` / `cutTimelineSlice.ts` の型参照先を `stateTypes.ts` に更新。
+- `npm run build` と `npm test -- src/store` を通過（挙動変更なし）。
 
 受け入れ条件:
 - `npm run build` が通る。

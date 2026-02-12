@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { Scene, Cut } from '../../types';
 import { clearThumbnailCache } from '../../utils/thumbnailCache';
-import type { SourceFolder } from '../useStore';
+import type { SourceFolder } from '../stateTypes';
 import type { ProjectSliceContract } from '../contracts';
 import type { SliceGet, SliceSet } from './sliceTypes';
 

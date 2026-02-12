@@ -1,4 +1,4 @@
-import type { AppState } from './useStore';
+import type { AppState } from './stateTypes';
 
 export type ProjectSliceContract = Pick<
   AppState,

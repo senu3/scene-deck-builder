@@ -1,4 +1,4 @@
-import type { AppState } from './useStore';
+import type { AppState } from './stateTypes';
 
 export const selectScenes = (s: AppState) => s.scenes;
 export const selectVaultPath = (s: AppState) => s.vaultPath;
