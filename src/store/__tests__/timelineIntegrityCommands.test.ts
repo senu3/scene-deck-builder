@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { RemoveCutFromGroupCommand, RemoveSceneCommand, UpdateGroupCutOrderCommand } from '../commands';
+import {
+  RemoveCutFromGroupCommand,
+  RemoveSceneCommand,
+  ReorderCutsWithGroupSyncCommand,
+  UpdateGroupCutOrderCommand,
+} from '../commands';
 import { useStore } from '../useStore';
 import type { Asset } from '../../types';
 
@@ -179,5 +184,73 @@ describe('timeline integrity commands', () => {
 
     await command.undo();
     expect(useStore.getState().scenes[0]?.groups?.[0]?.cutIds).toEqual(['cut-a1', 'cut-a2']);
+  });
+
+  it('reorders cut and syncs group order in one command', async () => {
+    useStore.getState().initializeProject({
+      name: 'Group Reorder Sync Test',
+      vaultPath: 'C:/vault',
+      scenes: [
+        {
+          id: 'scene-a',
+          name: 'Scene A',
+          order: 0,
+          notes: [],
+          cuts: [
+            { id: 'cut-a1', assetId: 'asset-1', asset: BASE_ASSET, displayTime: 1, order: 0, audioBindings: [] },
+            { id: 'cut-a2', assetId: 'asset-1', asset: BASE_ASSET, displayTime: 1, order: 1, audioBindings: [] },
+            { id: 'cut-a3', assetId: 'asset-1', asset: BASE_ASSET, displayTime: 1, order: 2, audioBindings: [] },
+          ],
+          groups: [{ id: 'group-a', name: 'GA', cutIds: ['cut-a1', 'cut-a2', 'cut-a3'], isCollapsed: false }],
+        },
+      ],
+    });
+
+    const command = new ReorderCutsWithGroupSyncCommand('scene-a', ['cut-a1'], 2, 'group-a');
+    await command.execute();
+
+    const sceneAfterExecute = useStore.getState().scenes[0];
+    expect(sceneAfterExecute?.cuts.map((cut) => cut.id)).toEqual(['cut-a2', 'cut-a3', 'cut-a1']);
+    expect(sceneAfterExecute?.groups?.[0]?.cutIds).toEqual(['cut-a2', 'cut-a3', 'cut-a1']);
+
+    await command.undo();
+
+    const sceneAfterUndo = useStore.getState().scenes[0];
+    expect(sceneAfterUndo?.cuts.map((cut) => cut.id)).toEqual(['cut-a1', 'cut-a2', 'cut-a3']);
+    expect(sceneAfterUndo?.groups?.[0]?.cutIds).toEqual(['cut-a1', 'cut-a2', 'cut-a3']);
+  });
+
+  it('reorders multiple selected cuts in one command and keeps group timeline order', async () => {
+    useStore.getState().initializeProject({
+      name: 'Group Multi Reorder Sync Test',
+      vaultPath: 'C:/vault',
+      scenes: [
+        {
+          id: 'scene-a',
+          name: 'Scene A',
+          order: 0,
+          notes: [],
+          cuts: [
+            { id: 'cut-a1', assetId: 'asset-1', asset: BASE_ASSET, displayTime: 1, order: 0, audioBindings: [] },
+            { id: 'cut-a2', assetId: 'asset-1', asset: BASE_ASSET, displayTime: 1, order: 1, audioBindings: [] },
+            { id: 'cut-a3', assetId: 'asset-1', asset: BASE_ASSET, displayTime: 1, order: 2, audioBindings: [] },
+            { id: 'cut-a4', assetId: 'asset-1', asset: BASE_ASSET, displayTime: 1, order: 3, audioBindings: [] },
+          ],
+          groups: [{ id: 'group-a', name: 'GA', cutIds: ['cut-a1', 'cut-a2', 'cut-a3', 'cut-a4'], isCollapsed: false }],
+        },
+      ],
+    });
+
+    const command = new ReorderCutsWithGroupSyncCommand('scene-a', ['cut-a2', 'cut-a3'], 4, 'group-a');
+    await command.execute();
+
+    const sceneAfterExecute = useStore.getState().scenes[0];
+    expect(sceneAfterExecute?.cuts.map((cut) => cut.id)).toEqual(['cut-a1', 'cut-a4', 'cut-a2', 'cut-a3']);
+    expect(sceneAfterExecute?.groups?.[0]?.cutIds).toEqual(['cut-a1', 'cut-a4', 'cut-a2', 'cut-a3']);
+
+    await command.undo();
+    const sceneAfterUndo = useStore.getState().scenes[0];
+    expect(sceneAfterUndo?.cuts.map((cut) => cut.id)).toEqual(['cut-a1', 'cut-a2', 'cut-a3', 'cut-a4']);
+    expect(sceneAfterUndo?.groups?.[0]?.cutIds).toEqual(['cut-a1', 'cut-a2', 'cut-a3', 'cut-a4']);
   });
 });

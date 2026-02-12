@@ -31,12 +31,12 @@ import {
 import { useHistoryStore } from './store/historyStore';
 import {
   AddCutCommand,
-  ReorderCutsCommand,
   MoveCutBetweenScenesCommand,
   MoveCutsToSceneCommand,
   PasteCutsCommand,
   RemoveCutCommand,
   RemoveCutFromGroupCommand,
+  ReorderCutsWithGroupSyncCommand,
   UpdateClipPointsCommand,
   UpdateGroupCutOrderCommand,
 } from './store/commands';
@@ -338,15 +338,28 @@ function App() {
           (scenes.find(s => s.id === toSceneId)?.cuts.length || 0) :
           (overData.index ?? 0);
         const orderedSelectedIds = getCutIdsInTimelineOrder(scenes, selectedIds);
+        const isReorderingWithinExpandedGroup =
+          fromSceneId === toSceneId &&
+          !!cutGroup &&
+          !!overCutGroup &&
+          cutGroup.id === overCutGroup.id &&
+          !cutGroup.isCollapsed &&
+          orderedSelectedIds.every((id) => cutGroup.cutIds.includes(id));
 
         try {
-          await executeCommand(new MoveCutsToSceneCommand(orderedSelectedIds, toSceneId, toIndex));
+          if (isReorderingWithinExpandedGroup && cutGroup) {
+            await executeCommand(
+              new ReorderCutsWithGroupSyncCommand(fromSceneId, orderedSelectedIds, toIndex, cutGroup.id)
+            );
+          } else {
+            await executeCommand(new MoveCutsToSceneCommand(orderedSelectedIds, toSceneId, toIndex));
+          }
         } catch (error) {
           console.error('Failed to move cuts:', error);
         }
 
         // Remove from group if moving out
-        if (isMovingOutOfGroup) {
+        if (!isReorderingWithinExpandedGroup && isMovingOutOfGroup) {
           try {
             await removeCutsFromGroups(fromSceneId, orderedSelectedIds, targetGroupId);
           } catch (error) {
@@ -354,7 +367,7 @@ function App() {
           }
         }
 
-        if (targetGroupId) {
+        if (!isReorderingWithinExpandedGroup && targetGroupId) {
           try {
             await insertCutsIntoGroup(toSceneId, targetGroupId, orderedSelectedIds, targetGroupInsertIndex);
           } catch (error) {
@@ -368,10 +381,17 @@ function App() {
 
         const fromIndex = scene.cuts.findIndex(c => c.id === cutId);
         const toIndex = overData.type === 'dropzone' ? scene.cuts.length : (overData.index ?? 0);
+        const syncGroupId =
+          !!cutGroup &&
+          !!overCutGroup &&
+          cutGroup.id === overCutGroup.id &&
+          !cutGroup.isCollapsed
+          ? cutGroup.id
+          : undefined;
 
         if (fromIndex !== toIndex) {
           try {
-            await executeCommand(new ReorderCutsCommand(fromSceneId, cutId, toIndex, fromIndex));
+            await executeCommand(new ReorderCutsWithGroupSyncCommand(fromSceneId, [cutId], toIndex, syncGroupId));
           } catch (error) {
             console.error('Failed to reorder cuts:', error);
           }

@@ -205,6 +205,94 @@ export class ReorderCutsCommand implements Command {
 }
 
 /**
+ * 同一シーン内のカット並び替え（任意でグループ順同期）コマンド
+ */
+export class ReorderCutsWithGroupSyncCommand implements Command {
+  type = 'REORDER_CUTS_WITH_GROUP_SYNC';
+  description = 'Reorder cuts with optional group sync';
+
+  private sceneId: string;
+  private cutIds: string[];
+  private toIndex: number;
+  private groupId?: string;
+  private previousSceneCuts?: Cut[];
+  private previousGroupCutIds?: string[];
+
+  constructor(sceneId: string, cutIds: string[], toIndex: number, groupId?: string) {
+    this.sceneId = sceneId;
+    this.cutIds = cutIds;
+    this.toIndex = toIndex;
+    this.groupId = groupId;
+  }
+
+  async execute(): Promise<void> {
+    const store = useStore.getState();
+    const scene = store.scenes.find((s) => s.id === this.sceneId);
+    if (!scene) return;
+
+    const cutIdSet = new Set(this.cutIds);
+    if (cutIdSet.size === 0) return;
+
+    const cutById = new Map(scene.cuts.map((cut) => [cut.id, cut] as const));
+    const movedCuts = this.cutIds
+      .map((id) => cutById.get(id))
+      .filter((cut): cut is Cut => cut !== undefined);
+    if (movedCuts.length === 0) return;
+
+    this.previousSceneCuts = scene.cuts.map((cut) => ({ ...cut }));
+
+    const remainingCuts = scene.cuts.filter((cut) => !cutIdSet.has(cut.id));
+    const insertIndex = Math.max(0, Math.min(this.toIndex, remainingCuts.length));
+    const nextCuts = [...remainingCuts];
+    nextCuts.splice(insertIndex, 0, ...movedCuts);
+
+    const group = this.groupId ? scene.groups?.find((g) => g.id === this.groupId) : undefined;
+    const nextGroupCutIds = group
+      ? nextCuts.filter((cut) => group.cutIds.includes(cut.id)).map((cut) => cut.id)
+      : undefined;
+    if (group) {
+      this.previousGroupCutIds = [...group.cutIds];
+    }
+
+    useStore.setState((state) => ({
+      scenes: state.scenes.map((s) =>
+        s.id === this.sceneId
+          ? {
+              ...s,
+              cuts: nextCuts.map((cut, idx) => ({ ...cut, order: idx })),
+              groups:
+                this.groupId && nextGroupCutIds
+                  ? (s.groups || []).map((g) => (g.id === this.groupId ? { ...g, cutIds: nextGroupCutIds } : g))
+                  : s.groups,
+            }
+          : s
+      ),
+    }));
+  }
+
+  async undo(): Promise<void> {
+    if (!this.previousSceneCuts) return;
+
+    useStore.setState((state) => ({
+      scenes: state.scenes.map((s) =>
+        s.id === this.sceneId
+          ? {
+              ...s,
+              cuts: this.previousSceneCuts!.map((cut, idx) => ({ ...cut, order: idx })),
+              groups:
+                this.groupId && this.previousGroupCutIds
+                  ? (s.groups || []).map((g) =>
+                      g.id === this.groupId ? { ...g, cutIds: [...this.previousGroupCutIds!] } : g
+                    )
+                  : s.groups,
+            }
+          : s
+      ),
+    }));
+  }
+}
+
+/**
  * シーン間カット移動コマンド
  */
 export class MoveCutBetweenScenesCommand implements Command {

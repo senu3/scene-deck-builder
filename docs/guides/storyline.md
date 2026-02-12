@@ -50,3 +50,5 @@
 - Multi-select drag (`MoveCutsToSceneCommand`) must normalize selected cut IDs by timeline order before move.
 - `moveCutsToScene` must preserve timeline order even if caller passes IDs in arbitrary order.
 - Scene/Cut chronology source for export must be the same `order` normalization used by timeline helpers (`src/utils/timelineOrder.ts`).
+- Reorder inside an expanded group must update both scene cut order and group `cutIds` order in one command (`ReorderCutsWithGroupSyncCommand`).
+- The same expanded-group reorder rule applies to both single-drag and multi-select drag.

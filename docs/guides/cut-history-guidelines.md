@@ -31,6 +31,7 @@ Command 必須操作（2026-02-12 時点）:
 - Cut 削除: `RemoveCutCommand`
 - 複数 Cut 削除: `RemoveCutsCommand`
 - Cut 移動: `MoveCutBetweenScenesCommand` / `MoveCutsToSceneCommand`
+- 同一シーン並び替え（必要時 group 同期）: `ReorderCutsWithGroupSyncCommand`
 - Group 作成: `CreateGroupCommand`
 - Group から Cut 除外: `RemoveCutFromGroupCommand`
 - Group 内 Cut 順更新: `UpdateGroupCutOrderCommand`
@@ -84,6 +85,7 @@ const store = useStore(); // 全体購読
 - `CUT_DELETED`: 実装済み。Cut 削除時の group/selection 後処理に利用。
 - `CUT_MOVED`: 実装済み。Cut 移動時の group 後処理に利用。
 - `CUT_RELINKED`: emit のみ実装済み。UI 側の購読・表示用途は保留。
+- 展開グループ内の並び替え同期は event 追加ではなく `ReorderCutsWithGroupSyncCommand` で一操作に集約する。
 
 保留メモ（2026-02-12）:
 - `CUT_RELINKED` の UI 追従（通知/表示/同期）は未実装。仕様確定後に購読側を追加する。
@@ -93,7 +95,7 @@ const store = useStore(); // 全体購読
 - 非対象: runtime loading 状態、サムネイルキャッシュ、Export 進捗 UI。
 
 ## Cut Write Path 要点（2026-02-12）
-- Command 経由の主要書き込み: `AddCutCommand` / `RemoveCutCommand` / `RemoveCutsCommand` / `MoveCutBetweenScenesCommand` / `MoveCutsToSceneCommand` / `PasteCutsCommand` / `CreateGroupCommand` / `RemoveCutFromGroupCommand` / `UpdateGroupCutOrderCommand` / `UpdateClipPointsCommand` / `ClearClipPointsCommand`。
+- Command 経由の主要書き込み: `AddCutCommand` / `RemoveCutCommand` / `RemoveCutsCommand` / `MoveCutBetweenScenesCommand` / `MoveCutsToSceneCommand` / `ReorderCutsWithGroupSyncCommand` / `PasteCutsCommand` / `CreateGroupCommand` / `RemoveCutFromGroupCommand` / `UpdateGroupCutOrderCommand` / `UpdateClipPointsCommand` / `ClearClipPointsCommand`。
 - domain owner は `cutTimelineSlice`（scene/cut 追加・削除・並び替え・clip 更新・clipboard 反映）。
 - cross-slice 後処理は event 経由（`CUT_DELETED` / `CUT_MOVED`、`CUT_RELINKED` は emit 済みで購読用途保留）。
 - read-time join は `assetId` 優先（`getAsset(assetId)`）、`cut.asset` は fallback。
