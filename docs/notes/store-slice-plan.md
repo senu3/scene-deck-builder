@@ -88,10 +88,12 @@
 - 互換維持のため残していた重複 API を削減する。
 - ガイドライン（Command 境界、runtime 境界）に違反する更新経路を削除する。
 - `commands.ts` から `confirm()` など UI 依存を排除し、UI 層で確認してから Command を実行する構造へ移行する。
+- 「Command 必須操作」を明示し、対象操作は直接 action 呼び出しを禁止する。
 
 受け入れ条件:
 - `docs/guides/cut-history-guidelines.md` と実装が一致する。
 - Undo/Redo 対象操作の境界が docs とコードで一致する。
+- Command 必須操作リスト（例: scene/cut/group の構造変更、clip point 更新）が docs 化され、主要 UI 実装が準拠している。
 
 ## リスク
 - 分割時に循環参照が入りやすい。

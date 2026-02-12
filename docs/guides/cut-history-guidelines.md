@@ -69,6 +69,14 @@ const store = useStore(); // 全体購読
 - slice -> 他 slice の private helper 直接 import。
 - Asset 系 action -> Cut 配列の直接書き換え（まず Cut action 経由を検討）。
 
+## CUT Event メモ
+- `CUT_DELETED`: 実装済み。Cut 削除時の group/selection 後処理に利用。
+- `CUT_MOVED`: 実装済み。Cut 移動時の group 後処理に利用。
+- `CUT_RELINKED`: emit のみ実装済み。UI 側の購読・表示用途は保留。
+
+保留メモ（2026-02-12）:
+- `CUT_RELINKED` の UI 追従（通知/表示/同期）は未実装。仕様確定後に購読側を追加する。
+
 ## Undo/Redo 対象（運用）
 - 対象: scene/cut/group の構造変更、clip point 更新。
 - 非対象: runtime loading 状態、サムネイルキャッシュ、Export 進捗 UI。
