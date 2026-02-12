@@ -21,6 +21,7 @@ import type {
 } from '../types';
 import type { CutImportSource } from '../utils/cutImport';
 import type { AssetRef } from '../utils/assetRefs';
+import type { StoreEvent } from './events';
 import { createProjectSlice } from './slices/projectSlice';
 import { createCutTimelineSlice } from './slices/cutTimelineSlice';
 import { createSelectionUiSlice } from './slices/selectionUiSlice';
@@ -87,6 +88,7 @@ export interface AppState {
   assetDrawerOpen: boolean;
   sidebarOpen: boolean;
   detailsPanelOpen: boolean;
+  storeEvents: StoreEvent[];
 
   setProjectLoaded: (loaded: boolean) => void;
   setProjectPath: (path: string | null) => void;
@@ -181,6 +183,8 @@ export interface AppState {
   toggleSidebar: () => void;
   openDetailsPanel: () => void;
   closeDetailsPanel: () => void;
+  emitStoreEvent: (event: Omit<StoreEvent, 'occurredAt'>) => void;
+  drainStoreEvents: () => StoreEvent[];
 
   cacheAsset: (asset: Asset) => void;
   getAsset: (assetId: string) => Asset | undefined;
@@ -262,12 +266,26 @@ export const useStore = create<AppState>((set, get) => ({
   assetDrawerOpen: false,
   sidebarOpen: false,
   detailsPanelOpen: false,
+  storeEvents: [],
 
   ...createProjectSlice(set, get),
   ...createCutTimelineSlice(set, get),
   ...createSelectionUiSlice(set, get),
   ...createMetadataSlice(set, get),
   ...createGroupSlice(set, get),
+
+  emitStoreEvent: (event) =>
+    set((state) => ({
+      storeEvents: [...state.storeEvents, { ...event, occurredAt: new Date().toISOString() }],
+    })),
+
+  drainStoreEvents: () => {
+    const events = get().storeEvents;
+    if (events.length > 0) {
+      set({ storeEvents: [] });
+    }
+    return events;
+  },
 
   getSelectedCut: () => {
     const state = get();

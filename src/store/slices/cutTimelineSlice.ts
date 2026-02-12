@@ -34,6 +34,9 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
     },
 
     removeScene: (sceneId) => {
+      const removedCuts = get()
+        .scenes.find((s) => s.id === sceneId)
+        ?.cuts.map((cut) => ({ cutId: cut.id, assetId: cut.assetId })) || [];
       set((state) => {
         const currentStore = state.metadataStore || { version: 1, metadata: {}, sceneMetadata: {} };
         const updatedStore = removeSceneMetadata(currentStore, sceneId);
@@ -54,6 +57,14 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
           metadataStore: updatedStore,
         };
       });
+      for (const removed of removedCuts) {
+        get().emitStoreEvent({
+          type: 'CUT_DELETED',
+          sceneId,
+          cutId: removed.cutId,
+          assetId: removed.assetId,
+        });
+      }
       void get().saveMetadata();
     },
 
@@ -294,6 +305,15 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
         detailsPanelOpen: currentState.selectedCutId === cutId ? false : currentState.detailsPanelOpen,
       }));
 
+      if (cutToRemove) {
+        get().emitStoreEvent({
+          type: 'CUT_DELETED',
+          sceneId,
+          cutId,
+          assetId: cutToRemove.assetId,
+        });
+      }
+
       return cutToRemove;
     },
 
@@ -533,16 +553,23 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
 
       if (selectedCuts.length === 0) return;
 
-      const clipboardData: ClipboardCut[] = selectedCuts.map(({ cut }) => ({
-        assetId: cut.assetId,
-        asset: cut.asset!,
-        displayTime: cut.displayTime,
-        useEmbeddedAudio: cut.useEmbeddedAudio,
-        audioBindings: cut.audioBindings?.map((binding) => ({ ...binding })),
-        inPoint: cut.inPoint,
-        outPoint: cut.outPoint,
-        isClip: cut.isClip,
-      }));
+      const clipboardData = selectedCuts.reduce<ClipboardCut[]>((acc, { cut }) => {
+        const resolvedAsset = state.getAsset(cut.assetId) || cut.asset;
+        if (!resolvedAsset) return acc;
+        acc.push({
+          assetId: cut.assetId,
+          asset: resolvedAsset,
+          displayTime: cut.displayTime,
+          useEmbeddedAudio: cut.useEmbeddedAudio,
+          audioBindings: cut.audioBindings?.map((binding) => ({ ...binding })),
+          inPoint: cut.inPoint,
+          outPoint: cut.outPoint,
+          isClip: cut.isClip,
+        });
+        return acc;
+      }, []);
+
+      if (clipboardData.length === 0) return;
 
       set({ clipboard: clipboardData });
     },
