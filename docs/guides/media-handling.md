@@ -66,6 +66,7 @@
 ## ffmpeg Work Queue
 - Light queue (concurrency 2): metadata, thumbnail, PCM decode.
 - Heavy queue (concurrency 1): export/clip/frame operations.
+- finalize/extract/export concat は共通 runner 経由で heavy queue に統一（stderr制御・出力検証を共通化）。
 - Thumbnail generation also has an on-disk cache (tmp) keyed by `path + size + mtime + type + timeOffset + profile`.
 
 ## Related Docs

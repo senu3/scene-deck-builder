@@ -96,6 +96,8 @@
 - ffmpeg runner 共通化、重複spawn削減。
 - エラーメッセージ規約・返却型を統一。
 - 既存機能の回帰確認（finalize/export/thumbnail/lip-sync precompose）。
+ステータス: 完了（2026-02-12）
+補足: `finalize-clip` / `extract-audio` / `extract-video-frame` / `export-sequence` concat を共通 runner 経路へ統一。
 
 ## 受け入れ条件
 - AssetPanel 右クリックで `Cut options` が出ない。

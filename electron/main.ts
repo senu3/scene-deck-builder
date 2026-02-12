@@ -149,6 +149,64 @@ function createFfmpegQueue(name: string, concurrency: number) {
 
 const enqueueFfmpegLight = createFfmpegQueue('light', 2);
 const enqueueFfmpegHeavy = createFfmpegQueue('heavy', 1);
+type FfmpegQueueKind = 'light' | 'heavy';
+interface RunFfmpegResult {
+  success: boolean;
+  outputPath?: string;
+  fileSize?: number;
+  error?: string;
+}
+
+interface RunFfmpegOptions {
+  queue?: FfmpegQueueKind;
+  outputPath?: string;
+  logStderr?: boolean;
+}
+
+function enqueueByQueue<T>(queue: FfmpegQueueKind, task: FfmpegTask<T>): Promise<T> {
+  return queue === 'light' ? enqueueFfmpegLight(task) : enqueueFfmpegHeavy(task);
+}
+
+function runFfmpegWithResult(ffmpegBinary: string, args: string[], options: RunFfmpegOptions = {}): Promise<RunFfmpegResult> {
+  const { queue = 'heavy', outputPath, logStderr = false } = options;
+  return enqueueByQueue(queue, () => new Promise<RunFfmpegResult>((resolve) => {
+    console.log('[ffmpeg] Running:', args.join(' '));
+    const proc = spawn(ffmpegBinary, args);
+    const stderrRing = createStderrRing();
+
+    proc.stderr.on('data', (data: Buffer) => {
+      appendStderr(stderrRing, data, ffmpegLimits.stderrMaxBytes);
+      if (logStderr) {
+        console.log('[ffmpeg]', data.toString());
+      }
+    });
+
+    proc.on('close', (code: number | null) => {
+      if (code !== 0) {
+        resolve({
+          success: false,
+          error: `ffmpeg exited with code ${code}: ${getStderrText(stderrRing)}`,
+        });
+        return;
+      }
+      if (outputPath) {
+        if (!fs.existsSync(outputPath)) {
+          resolve({ success: false, error: 'Output file was not created' });
+          return;
+        }
+        const stats = fs.statSync(outputPath);
+        resolve({ success: true, outputPath, fileSize: stats.size });
+        return;
+      }
+      resolve({ success: true });
+    });
+
+    proc.on('error', (err: Error) => {
+      resolve({ success: false, error: `Failed to start ffmpeg: ${err.message}` });
+    });
+  }));
+}
+
 const ffmpegBinaryPath = ffmpegPath as string | null;
 const ffmpegController = ffmpegBinaryPath ? createFfmpegController(ffmpegBinaryPath) : null;
 const thumbnailService = ffmpegController
@@ -1334,104 +1392,49 @@ ipcMain.handle('finalize-clip', async (_, options: FinalizeClipOptions) => {
     return { success: false, error: 'ffmpeg not found' };
   }
 
-  return enqueueFfmpegHeavy(() => new Promise<{ success: boolean; outputPath?: string; fileSize?: number; error?: string }>((resolve) => {
-    const start = Math.min(inPoint, outPoint);
-    const duration = Math.abs(outPoint - inPoint);
+  const start = Math.min(inPoint, outPoint);
+  const duration = Math.abs(outPoint - inPoint);
+  const baseArgs = [
+    '-y',
+    '-ss', start.toString(),
+    '-i', sourcePath,
+    '-t', duration.toString(),
+  ];
 
-    const runFfmpeg = (args: string[]) => new Promise<{ success: boolean; outputPath?: string; fileSize?: number; error?: string }>((innerResolve) => {
-      console.log('[ffmpeg] Running:', ffmpegBinary, args.join(' '));
-      const ffmpegProcess = spawn(ffmpegBinary, args);
-      const stderrRing = createStderrRing();
+  if (!reverse) {
+    return runFfmpegWithResult(ffmpegBinary, [
+      ...baseArgs,
+      '-c', 'copy',
+      '-avoid_negative_ts', 'make_zero',
+      outputPath,
+    ], { queue: 'heavy', outputPath, logStderr: true });
+  }
 
-      ffmpegProcess.stderr.on('data', (data: Buffer) => {
-        appendStderr(stderrRing, data, ffmpegLimits.stderrMaxBytes);
-        console.log('[ffmpeg]', data.toString());
-      });
-
-      ffmpegProcess.on('close', (code: number | null) => {
-        if (code === 0) {
-          if (fs.existsSync(outputPath)) {
-            const stats = fs.statSync(outputPath);
-            innerResolve({
-              success: true,
-              outputPath,
-              fileSize: stats.size,
-            });
-          } else {
-            innerResolve({
-              success: false,
-              error: 'Output file was not created',
-            });
-          }
-        } else {
-          const stderr = getStderrText(stderrRing);
-          innerResolve({
-            success: false,
-            error: `ffmpeg exited with code ${code}: ${stderr}`,
-          });
-        }
-      });
-
-      ffmpegProcess.on('error', (err: Error) => {
-        innerResolve({
-          success: false,
-          error: `Failed to start ffmpeg: ${err.message}`,
-        });
-      });
-    });
-
-    const baseArgs = [
-      '-y',
-      '-ss', start.toString(),
-      '-i', sourcePath,
-      '-t', duration.toString(),
-    ];
-
-    if (!reverse) {
-      const args = [
-        ...baseArgs,
-        '-c', 'copy',
-        '-avoid_negative_ts', 'make_zero',
-        outputPath
-      ];
-      runFfmpeg(args).then(resolve);
-      return;
-    }
-
-    const reverseArgs = [
+  const reverseResult = await runFfmpegWithResult(ffmpegBinary, [
+    ...baseArgs,
+    '-vf', 'reverse',
+    '-af', 'areverse',
+    '-c:v', 'libx264',
+    '-c:a', 'aac',
+    '-preset', 'veryfast',
+    '-movflags', '+faststart',
+    outputPath,
+  ], { queue: 'heavy', outputPath, logStderr: true });
+  if (reverseResult.success) {
+    return reverseResult;
+  }
+  if (reverseResult.error && /matches no streams|Stream specifier/i.test(reverseResult.error)) {
+    return runFfmpegWithResult(ffmpegBinary, [
       ...baseArgs,
       '-vf', 'reverse',
-      '-af', 'areverse',
+      '-an',
       '-c:v', 'libx264',
-      '-c:a', 'aac',
       '-preset', 'veryfast',
       '-movflags', '+faststart',
-      outputPath
-    ];
-
-    runFfmpeg(reverseArgs).then((result) => {
-      if (result.success) {
-        resolve(result);
-        return;
-      }
-
-      if (result.error && /matches no streams|Stream specifier/i.test(result.error)) {
-        const noAudioArgs = [
-          ...baseArgs,
-          '-vf', 'reverse',
-          '-an',
-          '-c:v', 'libx264',
-          '-preset', 'veryfast',
-          '-movflags', '+faststart',
-          outputPath
-        ];
-        runFfmpeg(noAudioArgs).then(resolve);
-        return;
-      }
-
-      resolve(result);
-    });
-  }));
+      outputPath,
+    ], { queue: 'heavy', outputPath, logStderr: true });
+  }
+  return reverseResult;
 });
 
 ipcMain.handle('extract-audio', async (_, options: ExtractAudioOptions): Promise<ExtractAudioResult> => {
@@ -1448,49 +1451,26 @@ ipcMain.handle('extract-audio', async (_, options: ExtractAudioOptions): Promise
   const start = hasRange ? Math.min(options.inPoint as number, options.outPoint as number) : undefined;
   const duration = hasRange ? Math.abs((options.outPoint as number) - (options.inPoint as number)) : undefined;
 
-  return enqueueFfmpegHeavy(() => new Promise<ExtractAudioResult>((resolve) => {
-    const args: string[] = ['-y'];
-    if (typeof start === 'number') {
-      args.push('-ss', start.toString());
-    }
-    args.push('-i', options.sourcePath);
-    if (typeof duration === 'number' && duration > 0) {
-      args.push('-t', duration.toString());
-    }
-    args.push(
-      '-vn',
-      '-acodec', 'pcm_s16le',
-      '-ar', '44100',
-      '-ac', '2',
-      options.outputPath
-    );
+  const args: string[] = ['-y'];
+  if (typeof start === 'number') {
+    args.push('-ss', start.toString());
+  }
+  args.push('-i', options.sourcePath);
+  if (typeof duration === 'number' && duration > 0) {
+    args.push('-t', duration.toString());
+  }
+  args.push(
+    '-vn',
+    '-acodec', 'pcm_s16le',
+    '-ar', '44100',
+    '-ac', '2',
+    options.outputPath
+  );
 
-    const proc = spawn(ffmpegBinary, args);
-    const stderrRing = createStderrRing();
-    proc.stderr.on('data', (data: Buffer) => {
-      appendStderr(stderrRing, data, ffmpegLimits.stderrMaxBytes);
-    });
-    proc.on('close', (code: number | null) => {
-      if (code === 0) {
-        if (fs.existsSync(options.outputPath)) {
-          const stats = fs.statSync(options.outputPath);
-          resolve({
-            success: true,
-            outputPath: options.outputPath,
-            fileSize: stats.size,
-          });
-        } else {
-          resolve({ success: false, error: 'Output file was not created' });
-        }
-      } else {
-        const stderr = getStderrText(stderrRing);
-        resolve({ success: false, error: `ffmpeg exited with code ${code}: ${stderr}` });
-      }
-    });
-    proc.on('error', (err: Error) => {
-      resolve({ success: false, error: `Failed to start ffmpeg: ${err.message}` });
-    });
-  }));
+  return runFfmpegWithResult(ffmpegBinary, args, {
+    queue: 'heavy',
+    outputPath: options.outputPath,
+  });
 });
 
 // Extract video frame as image using ffmpeg
@@ -1558,23 +1538,7 @@ ipcMain.handle('crop-image-to-aspect', async (_, options: CropImageOptions): Pro
     outputPath,
   ];
 
-  try {
-    await runFfmpeg(ffmpegBinary, args);
-    if (!fs.existsSync(outputPath)) {
-      return { success: false, error: 'Output file was not created' };
-    }
-    const stats = fs.statSync(outputPath);
-    return {
-      success: true,
-      outputPath,
-      fileSize: stats.size,
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error: String(error),
-    };
-  }
+  return runFfmpegWithResult(ffmpegBinary, args, { queue: 'heavy', outputPath });
 });
 
 // ============================================
@@ -1678,19 +1642,23 @@ ipcMain.handle('write-export-sidecars', async (_, options: WriteExportSidecarsOp
 
 // Helper function to run ffmpeg process
 function runFfmpeg(ffmpegBinary: string, args: string[]): Promise<void> {
-  return enqueueFfmpegHeavy(() => new Promise((resolve, reject) => {
-    console.log('[ffmpeg] Running:', args.join(' '));
-    const proc = spawn(ffmpegBinary, args);
-    const stderrRing = createStderrRing();
-    proc.stderr.on('data', (data: Buffer) => {
-      appendStderr(stderrRing, data, ffmpegLimits.stderrMaxBytes);
-    });
-    proc.on('close', (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`ffmpeg exited with code ${code}: ${getStderrText(stderrRing)}`));
-    });
-    proc.on('error', reject);
-  }));
+  return runFfmpegWithResult(ffmpegBinary, args, { queue: 'heavy' }).then((result) => {
+    if (!result.success) {
+      throw new Error(result.error || 'ffmpeg failed');
+    }
+  });
+}
+
+function cleanupTempFiles(tempFiles: string[]) {
+  for (const tempFile of tempFiles) {
+    try {
+      if (fs.existsSync(tempFile)) {
+        fs.unlinkSync(tempFile);
+      }
+    } catch (e) {
+      console.warn('Failed to clean up temp file:', tempFile, e);
+    }
+  }
 }
 
 // Export sequence to MP4 using ffmpeg
@@ -1822,81 +1790,15 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
     ];
 
     console.log('[ffmpeg] Concatenating segments...');
-
-    return enqueueFfmpegHeavy(() => new Promise<ExportSequenceResult>((resolve) => {
-      const ffmpegProcess = spawn(ffmpegBinary, concatArgs);
-
-      const stderrRing = createStderrRing();
-
-      ffmpegProcess.stderr.on('data', (data: Buffer) => {
-        appendStderr(stderrRing, data, ffmpegLimits.stderrMaxBytes);
-        console.log('[ffmpeg]', data.toString());
-      });
-
-      ffmpegProcess.on('close', (code: number | null) => {
-        // Clean up temp files
-        for (const tempFile of tempFiles) {
-          try {
-            if (fs.existsSync(tempFile)) {
-              fs.unlinkSync(tempFile);
-            }
-          } catch (e) {
-            console.warn('Failed to clean up temp file:', tempFile, e);
-          }
-        }
-
-        if (code === 0) {
-          if (fs.existsSync(outputPath)) {
-            const stats = fs.statSync(outputPath);
-            resolve({
-              success: true,
-              outputPath,
-              fileSize: stats.size,
-            });
-          } else {
-            resolve({
-              success: false,
-              error: 'Output file was not created',
-            });
-          }
-        } else {
-          const stderr = getStderrText(stderrRing);
-          resolve({
-            success: false,
-            error: `ffmpeg exited with code ${code}: ${stderr}`,
-          });
-        }
-      });
-
-      ffmpegProcess.on('error', (err: Error) => {
-        // Clean up temp files
-        for (const tempFile of tempFiles) {
-          try {
-            if (fs.existsSync(tempFile)) {
-              fs.unlinkSync(tempFile);
-            }
-          } catch (e) {
-            console.warn('Failed to clean up temp file:', tempFile, e);
-          }
-        }
-
-        resolve({
-          success: false,
-          error: `Failed to start ffmpeg: ${err.message}`,
-        });
-      });
-    }));
+    const concatResult = await runFfmpegWithResult(ffmpegBinary, concatArgs, {
+      queue: 'heavy',
+      outputPath,
+      logStderr: true,
+    });
+    cleanupTempFiles(tempFiles);
+    return concatResult;
   } catch (error) {
-    // Clean up temp files on error
-    for (const tempFile of tempFiles) {
-      try {
-        if (fs.existsSync(tempFile)) {
-          fs.unlinkSync(tempFile);
-        }
-      } catch (e) {
-        console.warn('Failed to clean up temp file:', tempFile, e);
-      }
-    }
+    cleanupTempFiles(tempFiles);
 
     return {
       success: false,
@@ -1914,61 +1816,20 @@ ipcMain.handle('extract-video-frame', async (_, options: ExtractFrameOptions): P
     return { success: false, error: 'ffmpeg not found' };
   }
 
-  return enqueueFfmpegHeavy(() => new Promise<ExtractFrameResult>((resolve) => {
-    // Build ffmpeg arguments for frame extraction
-    // -ss for seeking to timestamp
-    // -vframes 1 to extract single frame
-    // -q:v 2 for high quality JPEG (1-31, lower is better)
-    const args = [
-      '-y',                      // Overwrite output file
-      '-ss', timestamp.toString(), // Seek to timestamp
-      '-i', sourcePath,          // Input file
-      '-vframes', '1',           // Extract single frame
-      '-q:v', '2',               // High quality
-      outputPath
-    ];
+  // Build ffmpeg arguments for frame extraction
+  const args = [
+    '-y',
+    '-ss', timestamp.toString(),
+    '-i', sourcePath,
+    '-vframes', '1',
+    '-q:v', '2',
+    outputPath,
+  ];
 
-    console.log('[ffmpeg] Extracting frame:', ffmpegBinary, args.join(' '));
-
-    const ffmpegProcess = spawn(ffmpegBinary, args);
-
-    const stderrRing = createStderrRing();
-
-    ffmpegProcess.stderr.on('data', (data: Buffer) => {
-      appendStderr(stderrRing, data, ffmpegLimits.stderrMaxBytes);
-    });
-
-    ffmpegProcess.on('close', (code: number | null) => {
-      if (code === 0) {
-        if (fs.existsSync(outputPath)) {
-          const stats = fs.statSync(outputPath);
-          resolve({
-            success: true,
-            outputPath,
-            fileSize: stats.size,
-          });
-        } else {
-          resolve({
-            success: false,
-            error: 'Output file was not created',
-          });
-        }
-      } else {
-        const stderr = getStderrText(stderrRing);
-        resolve({
-          success: false,
-          error: `ffmpeg exited with code ${code}: ${stderr}`,
-        });
-      }
-    });
-
-    ffmpegProcess.on('error', (err: Error) => {
-      resolve({
-        success: false,
-        error: `Failed to start ffmpeg: ${err.message}`,
-      });
-    });
-  }));
+  return runFfmpegWithResult(ffmpegBinary, args, {
+    queue: 'heavy',
+    outputPath,
+  });
 });
 
 ipcMain.handle('precompose-lipsync-frames', async (_, options: PrecomposeLipSyncFramesOptions): Promise<PrecomposeLipSyncFramesResult> => {
