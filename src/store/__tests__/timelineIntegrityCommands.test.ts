@@ -84,4 +84,45 @@ describe('timeline integrity commands', () => {
     const sceneA = useStore.getState().scenes.find((scene) => scene.id === 'scene-a');
     expect(sceneA?.cuts.map((cut) => cut.id)).toEqual(['cut-a2', 'cut-a1', 'cut-b1', 'cut-b2']);
   });
+
+  it('cleans up group memberships when moving multiple cuts across scenes', () => {
+    useStore.getState().initializeProject({
+      name: 'Move Group Test',
+      vaultPath: 'C:/vault',
+      scenes: [
+        {
+          id: 'scene-a',
+          name: 'Scene A',
+          order: 0,
+          notes: [],
+          cuts: [
+            { id: 'cut-a1', assetId: 'asset-1', asset: BASE_ASSET, displayTime: 1, order: 0, audioBindings: [] },
+            { id: 'cut-a2', assetId: 'asset-1', asset: BASE_ASSET, displayTime: 1, order: 1, audioBindings: [] },
+          ],
+          groups: [{ id: 'group-a', name: 'GA', cutIds: ['cut-a1'], isCollapsed: true }],
+        },
+        {
+          id: 'scene-b',
+          name: 'Scene B',
+          order: 1,
+          notes: [],
+          cuts: [
+            { id: 'cut-b1', assetId: 'asset-1', asset: BASE_ASSET, displayTime: 1, order: 0, audioBindings: [] },
+            { id: 'cut-b2', assetId: 'asset-1', asset: BASE_ASSET, displayTime: 1, order: 1, audioBindings: [] },
+          ],
+          groups: [{ id: 'group-b', name: 'GB', cutIds: ['cut-b1', 'cut-b2'], isCollapsed: true }],
+        },
+      ],
+    });
+
+    useStore.getState().moveCutsToScene(['cut-a1', 'cut-b1'], 'scene-a', 1);
+
+    const sceneA = useStore.getState().scenes.find((scene) => scene.id === 'scene-a');
+    const sceneB = useStore.getState().scenes.find((scene) => scene.id === 'scene-b');
+
+    expect(sceneA?.cuts.map((cut) => cut.id)).toEqual(['cut-a2', 'cut-a1', 'cut-b1']);
+    expect(sceneA?.groups).toEqual([]);
+    expect(sceneB?.cuts.map((cut) => cut.id)).toEqual(['cut-b2']);
+    expect(sceneB?.groups).toEqual([{ id: 'group-b', name: 'GB', cutIds: ['cut-b2'], isCollapsed: true }]);
+  });
 });

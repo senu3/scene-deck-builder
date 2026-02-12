@@ -20,6 +20,7 @@ import { importFileToVault } from './utils/assetPath';
 import { getDragKind, queueExternalFilesToScene } from './utils/dragDrop';
 import { buildSequenceItemsForCuts } from './utils/exportSequence';
 import { getCutIdsInTimelineOrder, getScenesAndCutsInTimelineOrder } from './utils/timelineOrder';
+import { insertCutIdsIntoGroupOrder } from './utils/cutGroupOps';
 import { DEFAULT_EXPORT_RESOLUTION } from './constants/export';
 import { EXPORT_FRAMING_DEFAULTS } from './constants/framing';
 import { resolveExportPlan } from './features/export/plan';
@@ -89,14 +90,8 @@ function App() {
     const group = scene?.groups?.find(g => g.id === groupId);
     if (!group) return;
 
-    const incoming = cutIds.filter(id => !group.cutIds.includes(id));
-    if (incoming.length === 0) return;
-
-    const nextOrder = [...group.cutIds];
-    const safeIndex = insertIndex !== undefined
-      ? Math.min(Math.max(insertIndex, 0), nextOrder.length)
-      : nextOrder.length;
-    nextOrder.splice(safeIndex, 0, ...incoming);
+    const nextOrder = insertCutIdsIntoGroupOrder(group.cutIds, cutIds, insertIndex);
+    if (nextOrder === group.cutIds) return;
     updateGroupCutOrder(sceneId, groupId, nextOrder);
   }, [scenes, updateGroupCutOrder]);
 

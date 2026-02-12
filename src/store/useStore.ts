@@ -8,6 +8,7 @@ import type { CutImportSource } from '../utils/cutImport';
 import { buildAssetForCut } from '../utils/cutImport';
 import { collectAssetRefs, getBlockingRefsForAssetIds, type AssetRef } from '../utils/assetRefs';
 import { getScenesAndCutsInTimelineOrder } from '../utils/timelineOrder';
+import { removeCutIdsFromGroups } from '../utils/cutGroupOps';
 
 export interface SourceFolder {
   path: string;
@@ -741,13 +742,7 @@ export const useStore = create<AppState>((set, get) => ({
               cuts: s.cuts
                 .filter((c) => c.id !== cutId)
                 .map((c, idx) => ({ ...c, order: idx })),
-              // Remove cut from any groups and clean up empty groups
-              groups: (s.groups || [])
-                .map((g) => ({
-                  ...g,
-                  cutIds: g.cutIds.filter((id) => id !== cutId),
-                }))
-                .filter((g) => g.cutIds.length > 0),
+              groups: removeCutIdsFromGroups(s.groups, [cutId]),
             }
           : s
       ),
@@ -916,13 +911,7 @@ export const useStore = create<AppState>((set, get) => ({
             cuts: s.cuts
               .filter((c) => c.id !== cutId)
               .map((c, idx) => ({ ...c, order: idx })),
-            // Remove cut from any groups when moving to another scene
-            groups: (s.groups || [])
-              .map((g) => ({
-                ...g,
-                cutIds: g.cutIds.filter((id) => id !== cutId),
-              }))
-              .filter((g) => g.cutIds.length > 0),
+            groups: removeCutIdsFromGroups(s.groups, [cutId]),
           };
         }
         if (s.id === toSceneId) {
@@ -960,6 +949,7 @@ export const useStore = create<AppState>((set, get) => ({
       scenes: state.scenes.map((s) => {
         // Remove any selected cuts from this scene
         const remainingCuts = s.cuts.filter((c) => !cutIdSet.has(c.id));
+        const nextGroups = removeCutIdsFromGroups(s.groups, cutIds);
 
         if (s.id === toSceneId) {
           // Insert all cuts at the target position
@@ -968,6 +958,7 @@ export const useStore = create<AppState>((set, get) => ({
           return {
             ...s,
             cuts: newCuts.map((c, idx) => ({ ...c, order: idx })),
+            groups: nextGroups,
           };
         }
 
@@ -976,6 +967,7 @@ export const useStore = create<AppState>((set, get) => ({
           return {
             ...s,
             cuts: remainingCuts.map((c, idx) => ({ ...c, order: idx })),
+            groups: nextGroups,
           };
         }
 
