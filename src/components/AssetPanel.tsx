@@ -27,7 +27,6 @@ import {
   selectSelectedCutId,
   selectSelectedCutIds,
   selectSelectCut,
-  selectGetSelectedCutIds,
   selectGetSelectedCuts,
   selectCopySelectedCuts,
   selectCanPaste,
@@ -54,7 +53,7 @@ import './AssetPanel.css';
 import {
   MoveCutsToSceneCommand,
   PasteCutsCommand,
-  RemoveCutCommand,
+  RemoveCutsCommand,
   UpdateGroupCutOrderCommand,
 } from '../store/commands';
 
@@ -174,7 +173,6 @@ export default function AssetPanel({
   const selectedCutId = useStore(selectSelectedCutId);
   const selectedCutIds = useStore(selectSelectedCutIds);
   const selectCut = useStore(selectSelectCut);
-  const getSelectedCutIds = useStore(selectGetSelectedCutIds);
   const getSelectedCuts = useStore(selectGetSelectedCuts);
   const copySelectedCuts = useStore(selectCopySelectedCuts);
   const canPaste = useStore(selectCanPaste);
@@ -614,23 +612,33 @@ export default function AssetPanel({
 
   const handleCutMenuDelete = async () => {
     const selectedCuts = getSelectedCuts();
-    for (const { scene, cut } of selectedCuts) {
-      try {
-        await executeCommand(new RemoveCutCommand(scene.id, cut.id));
-      } catch (error) {
-        toast.error('Delete failed', String(error));
-        break;
-      }
+    const refs = selectedCuts.map(({ scene, cut }) => ({ sceneId: scene.id, cutId: cut.id }));
+    if (refs.length === 0) {
+      setCutContextMenu(null);
+      return;
+    }
+
+    try {
+      await executeCommand(new RemoveCutsCommand(refs));
+    } catch (error) {
+      toast.error('Delete failed', String(error));
     }
     setCutContextMenu(null);
   };
 
   const handleCutMenuMove = async (targetSceneId: string) => {
-    const cutIds = getSelectedCutIds();
+    if (!cutContextMenu) return;
+    const selectedCuts = getSelectedCuts();
+    const cutIds = selectedCuts
+      .filter(({ scene }) => scene.id === cutContextMenu.sceneId)
+      .map(({ cut }) => cut.id);
     const targetScene = scenes.find((scene) => scene.id === targetSceneId);
     if (!targetScene || cutIds.length === 0) {
       setCutContextMenu(null);
       return;
+    }
+    if (selectedCuts.length !== cutIds.length) {
+      toast.info('Move limited', 'Moved only cuts from the current scene.');
     }
     try {
       await executeCommand(new MoveCutsToSceneCommand(cutIds, targetSceneId, targetScene.cuts.length));

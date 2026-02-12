@@ -11,7 +11,6 @@ import {
   selectSelectCutRange,
   selectGetAsset,
   selectScenes,
-  selectGetSelectedCutIds,
   selectGetSelectedCuts,
   selectCopySelectedCuts,
   selectCanPaste,
@@ -36,10 +35,10 @@ import {
 import { DEFAULT_EXPORT_RESOLUTION } from '../constants/export';
 import {
   CreateGroupCommand,
+  DeleteGroupCommand,
   MoveCutsToSceneCommand,
   PasteCutsCommand,
-  RemoveCutCommand,
-  RemoveCutFromGroupCommand,
+  RemoveCutsCommand,
   UpdateGroupCutOrderCommand,
 } from '../store/commands';
 
@@ -80,7 +79,6 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
   const selectCutRange = useStore(selectSelectCutRange);
   const getAsset = useStore(selectGetAsset);
   const scenes = useStore(selectScenes);
-  const getSelectedCutIds = useStore(selectGetSelectedCutIds);
   const getSelectedCuts = useStore(selectGetSelectedCuts);
   const copySelectedCuts = useStore(selectCopySelectedCuts);
   const canPaste = useStore(selectCanPaste);
@@ -158,16 +156,25 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
   const isInGroup = !!cutGroup;
 
   useEffect(() => {
+    let cancelled = false;
+
     const loadThumbnail = async () => {
+      if (!asset) {
+        setThumbnail(null);
+        return;
+      }
+
       if (asset?.thumbnail) {
-        setThumbnail(asset.thumbnail);
+        if (!cancelled) {
+          setThumbnail(asset.thumbnail);
+        }
         return;
       }
 
       if (asset?.path && (asset.type === 'image' || asset.type === 'video')) {
         try {
           const thumbnail = await getThumbnail(asset.path, asset.type);
-          if (thumbnail) {
+          if (!cancelled && thumbnail) {
             setThumbnail(thumbnail);
           }
         } catch {
@@ -176,7 +183,10 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
       }
     };
 
-    loadThumbnail();
+    void loadThumbnail();
+    return () => {
+      cancelled = true;
+    };
   }, [asset]);
 
   const handleClick = (e: React.MouseEvent) => {
@@ -239,23 +249,32 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
 
   const handleDelete = async () => {
     const selectedCuts = getSelectedCuts();
-    for (const { scene, cut: selectedCut } of selectedCuts) {
-      try {
-        await executeCommand(new RemoveCutCommand(scene.id, selectedCut.id));
-      } catch (error) {
-        toast.error('Delete failed', String(error));
-        break;
-      }
+    const refs = selectedCuts.map(({ scene, cut: selectedCut }) => ({ sceneId: scene.id, cutId: selectedCut.id }));
+    if (refs.length === 0) {
+      setContextMenu(null);
+      return;
+    }
+
+    try {
+      await executeCommand(new RemoveCutsCommand(refs));
+    } catch (error) {
+      toast.error('Delete failed', String(error));
     }
     setContextMenu(null);
   };
 
   const handleMoveToScene = async (targetSceneId: string) => {
-    const cutIds = getSelectedCutIds();
+    const selectedCuts = getSelectedCuts();
+    const cutIds = selectedCuts
+      .filter(({ scene }) => scene.id === sceneId)
+      .map(({ cut: selectedCut }) => selectedCut.id);
     const targetScene = scenes.find((scene) => scene.id === targetSceneId);
     if (!targetScene || cutIds.length === 0) {
       setContextMenu(null);
       return;
+    }
+    if (selectedCuts.length !== cutIds.length) {
+      toast.info('Move limited', 'Moved only cuts from the current scene.');
     }
     try {
       await executeCommand(new MoveCutsToSceneCommand(cutIds, targetSceneId, targetScene.cuts.length));
@@ -289,8 +308,21 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
       return;
     }
 
+    const idsToRemove = isMultiSelected
+      ? cutGroup.cutIds.filter((id) => selectedCutIds.has(id))
+      : [cut.id];
+    if (idsToRemove.length === 0) {
+      setContextMenu(null);
+      return;
+    }
+    const nextOrder = cutGroup.cutIds.filter((id) => !idsToRemove.includes(id));
+
     try {
-      await executeCommand(new RemoveCutFromGroupCommand(sceneId, cutGroup.id, cut.id));
+      if (nextOrder.length === 0) {
+        await executeCommand(new DeleteGroupCommand(sceneId, cutGroup.id));
+      } else {
+        await executeCommand(new UpdateGroupCutOrderCommand(sceneId, cutGroup.id, nextOrder));
+      }
     } catch (error) {
       toast.error('Remove from group failed', String(error));
     }

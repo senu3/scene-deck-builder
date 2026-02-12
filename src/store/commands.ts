@@ -375,6 +375,56 @@ export class RemoveSceneCommand implements Command {
 }
 
 /**
+ * 複数カット削除コマンド
+ */
+export class RemoveCutsCommand implements Command {
+  type = 'REMOVE_CUTS';
+  description: string;
+
+  private refs: Array<{ sceneId: string; cutId: string }>;
+  private removed: Array<{ sceneId: string; cut: Cut; index: number }> = [];
+
+  constructor(refs: Array<{ sceneId: string; cutId: string }>) {
+    this.refs = refs;
+    this.description = `Remove ${refs.length} cuts`;
+  }
+
+  async execute(): Promise<void> {
+    const store = useStore.getState();
+    this.removed = [];
+
+    for (const { sceneId, cutId } of this.refs) {
+      const scene = store.scenes.find((s) => s.id === sceneId);
+      if (!scene) continue;
+      const index = scene.cuts.findIndex((c) => c.id === cutId);
+      if (index < 0) continue;
+      const cut = scene.cuts[index];
+      this.removed.push({ sceneId, cut, index });
+    }
+
+    for (const { sceneId, cut } of this.removed) {
+      store.removeCut(sceneId, cut.id);
+    }
+  }
+
+  async undo(): Promise<void> {
+    if (this.removed.length === 0) return;
+
+    const store = useStore.getState();
+    const toRestore = [...this.removed].sort((a, b) => a.index - b.index);
+
+    for (const { sceneId, cut, index } of toRestore) {
+      const newCutId = addCutFromReference(store, sceneId, cut);
+      restoreCutState(store, sceneId, newCutId, cut);
+      const scene = store.scenes.find((s) => s.id === sceneId);
+      if (scene && index > 0) {
+        store.reorderCuts(sceneId, newCutId, index, sceneId, scene.cuts.length - 1);
+      }
+    }
+  }
+}
+
+/**
  * シーン名変更コマンド
  */
 export class RenameSceneCommand implements Command {

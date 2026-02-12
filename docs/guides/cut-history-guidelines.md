@@ -28,6 +28,7 @@
 Command 必須操作（2026-02-12 時点）:
 - Cut 貼り付け: `PasteCutsCommand`
 - Cut 削除: `RemoveCutCommand`
+- 複数 Cut 削除: `RemoveCutsCommand`
 - Cut 移動: `MoveCutBetweenScenesCommand` / `MoveCutsToSceneCommand`
 - Group 作成: `CreateGroupCommand`
 - Group から Cut 除外: `RemoveCutFromGroupCommand`
@@ -91,10 +92,12 @@ const store = useStore(); // 全体購読
 - 非対象: runtime loading 状態、サムネイルキャッシュ、Export 進捗 UI。
 
 ## Cut Write Path 要点（2026-02-12）
-- Command 経由の主要書き込み: `AddCutCommand` / `RemoveCutCommand` / `MoveCutBetweenScenesCommand` / `MoveCutsToSceneCommand` / `PasteCutsCommand` / `CreateGroupCommand` / `RemoveCutFromGroupCommand` / `UpdateGroupCutOrderCommand` / `UpdateClipPointsCommand` / `ClearClipPointsCommand`。
+- Command 経由の主要書き込み: `AddCutCommand` / `RemoveCutCommand` / `RemoveCutsCommand` / `MoveCutBetweenScenesCommand` / `MoveCutsToSceneCommand` / `PasteCutsCommand` / `CreateGroupCommand` / `RemoveCutFromGroupCommand` / `UpdateGroupCutOrderCommand` / `UpdateClipPointsCommand` / `ClearClipPointsCommand`。
 - domain owner は `cutTimelineSlice`（scene/cut 追加・削除・並び替え・clip 更新・clipboard 反映）。
 - cross-slice 後処理は event 経由（`CUT_DELETED` / `CUT_MOVED`、`CUT_RELINKED` は emit 済みで購読用途保留）。
 - read-time join は `assetId` 優先（`getAsset(assetId)`）、`cut.asset` は fallback。
+- Cut コンテキストメニューの Move はコンテキスト元シーンの選択 cut のみを対象とし、複数シーン混在選択は対象外とする。
+- Cut コンテキストメニューの `Remove from Group` は、複数選択時は同一グループ内の選択 cut を一括除外する。
 
 ## AssetPanel Cut オプション廃止方針
 - 方針: AssetPanel は段階的に「Asset 操作専用」に移行する。

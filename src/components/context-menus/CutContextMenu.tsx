@@ -169,7 +169,7 @@ export function CutContextMenu({
       {/* Remove from Group */}
       {isInGroup && onRemoveFromGroup && (
         <MenuItem icon={<FolderMinus size={14} />} onClick={onRemoveFromGroup}>
-          Remove from Group
+          Remove from Group{isMultiSelect ? ` (${selectedCount})` : ''}
         </MenuItem>
       )}
 

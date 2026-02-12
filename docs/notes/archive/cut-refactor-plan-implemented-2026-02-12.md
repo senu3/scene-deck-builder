@@ -117,3 +117,17 @@
 1. Phase 0 のタスクを issue 化（1日以内で終わる粒度）。
 2. そのまま Framing/Export 実装へ着手。
 3. Export 初版が通った時点で Phase 2 に入る。
+
+## 追加監査と修正（2026-02-12）
+
+### チェック結果（見落とし候補）
+1. Move は複数シーン選択が混在したまま実行できる余地があった。
+2. Delete は選択件数分の `RemoveCutCommand` を逐次実行し、Undo が N ステップになっていた。
+3. 複数選択時にも `Remove from Group` が表示されるが、実装は単一 cut 除外のみだった。
+4. `CutCard` のサムネイル読み込み `useEffect` に非同期キャンセルガードがなかった。
+
+### 対応内容
+- `RemoveCutsCommand` を追加し、複数削除を 1 コマンドに集約（Undo も 1 ステップ化）。
+- `CutCard` / `AssetPanel` の Move は「コンテキスト元シーンの選択 cut のみ」を対象に制限し、混在時は toast で通知。
+- `CutContextMenu` の `Remove from Group` は複数選択時も表示し、同一グループ内の選択 cut を一括除外する挙動へ変更。
+- `CutCard` のサムネイル読み込み effect にキャンセルフラグを追加し、古い非同期結果の上書きを抑止。
