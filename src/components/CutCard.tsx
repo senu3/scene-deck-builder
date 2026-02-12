@@ -15,15 +15,12 @@ import {
   selectGetSelectedCuts,
   selectCopySelectedCuts,
   selectCanPaste,
-  selectPasteCuts,
   selectVaultPath,
   selectOpenVideoPreview,
   selectOpenSequencePreview,
   selectGetCutRuntime,
   selectGetCutGroup,
-  selectCreateGroup,
   selectCreateCutFromImport,
-  selectUpdateGroupCutOrder,
 } from '../store/selectors';
 import { useHistoryStore } from '../store/historyStore';
 import type { Asset, CutAudioBinding } from '../types';
@@ -37,7 +34,14 @@ import {
   finalizeClipFromContext,
 } from '../features/cut/actions';
 import { DEFAULT_EXPORT_RESOLUTION } from '../constants/export';
-import { MoveCutsToSceneCommand, RemoveCutCommand, RemoveCutFromGroupCommand } from '../store/commands';
+import {
+  CreateGroupCommand,
+  MoveCutsToSceneCommand,
+  PasteCutsCommand,
+  RemoveCutCommand,
+  RemoveCutFromGroupCommand,
+  UpdateGroupCutOrderCommand,
+} from '../store/commands';
 
 interface ResolutionPresetType {
   name: string;
@@ -80,15 +84,12 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
   const getSelectedCuts = useStore(selectGetSelectedCuts);
   const copySelectedCuts = useStore(selectCopySelectedCuts);
   const canPaste = useStore(selectCanPaste);
-  const pasteCuts = useStore(selectPasteCuts);
   const vaultPath = useStore(selectVaultPath);
   const openVideoPreview = useStore(selectOpenVideoPreview);
   const openSequencePreview = useStore(selectOpenSequencePreview);
   const getCutRuntime = useStore(selectGetCutRuntime);
   const getCutGroup = useStore(selectGetCutGroup);
-  const createGroup = useStore(selectCreateGroup);
   const createCutFromImport = useStore(selectCreateCutFromImport);
-  const updateGroupCutOrder = useStore(selectUpdateGroupCutOrder);
   const { executeCommand } = useHistoryStore();
   const { toast } = useToast();
   const { confirm: dialogConfirm } = useDialog();
@@ -226,9 +227,13 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
     setContextMenu(null);
   };
 
-  const handlePaste = () => {
+  const handlePaste = async () => {
     // Paste after the current cut's position
-    pasteCuts(sceneId, index + 1);
+    try {
+      await executeCommand(new PasteCutsCommand(sceneId, index + 1));
+    } catch (error) {
+      toast.error('Paste failed', String(error));
+    }
     setContextMenu(null);
   };
 
@@ -260,7 +265,7 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
     setContextMenu(null);
   };
 
-  const handleCreateGroup = () => {
+  const handleCreateGroup = async () => {
     const selectedCuts = getSelectedCuts();
     // Check all cuts are in the same scene
     const allSameScene = selectedCuts.every(({ scene }) => scene.id === sceneId);
@@ -270,7 +275,11 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
     }
 
     const cutIds = selectedCuts.map(({ cut: c }) => c.id);
-    createGroup(sceneId, cutIds, `Group ${Date.now()}`);
+    try {
+      await executeCommand(new CreateGroupCommand(sceneId, cutIds, `Group ${Date.now()}`));
+    } catch (error) {
+      toast.error('Create group failed', String(error));
+    }
     setContextMenu(null);
   };
 
@@ -313,7 +322,8 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
         vaultPath,
         createCutFromImport,
         getCutGroup,
-        updateGroupCutOrder,
+        updateGroupCutOrder: (targetSceneId, groupId, cutIds) =>
+          executeCommand(new UpdateGroupCutOrderCommand(targetSceneId, groupId, cutIds)),
       });
 
       if (result.success) {
@@ -366,7 +376,8 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
         vaultPath,
         createCutFromImport,
         getCutGroup,
-        updateGroupCutOrder,
+        updateGroupCutOrder: (targetSceneId, groupId, cutIds) =>
+          executeCommand(new UpdateGroupCutOrderCommand(targetSceneId, groupId, cutIds)),
       });
 
       if (!result.success) {

@@ -25,6 +25,15 @@
 - 対象: cut/scene/group の追加・削除・移動・順序変更・グループ除外/並び更新。
 - 直接 `useStore` 更新を行う場合は、Undo/Redo 非対象である理由をコードコメントで明示する。
 
+Command 必須操作（2026-02-12 時点）:
+- Cut 貼り付け: `PasteCutsCommand`
+- Cut 削除: `RemoveCutCommand`
+- Cut 移動: `MoveCutBetweenScenesCommand` / `MoveCutsToSceneCommand`
+- Group 作成: `CreateGroupCommand`
+- Group から Cut 除外: `RemoveCutFromGroupCommand`
+- Group 内 Cut 順更新: `UpdateGroupCutOrderCommand`
+- clip point 更新: `UpdateClipPointsCommand` / `ClearClipPointsCommand`
+
 ### 2. Runtime 状態は永続モデルに混ぜない
 - loading などの一時状態は `CutRuntimeState` で扱う。
 - `Cut` 型には runtime 専用フィールドを戻さない。

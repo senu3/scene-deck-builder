@@ -46,7 +46,7 @@ function buildDerivedFileName(
 
 interface GroupSyncDeps {
   getCutGroup: (sceneId: string, cutId: string) => CutGroup | undefined;
-  updateGroupCutOrder: (sceneId: string, groupId: string, cutIds: string[]) => void;
+  updateGroupCutOrder: (sceneId: string, groupId: string, cutIds: string[]) => Promise<void> | void;
 }
 
 interface CreateDerivedCutDeps extends GroupSyncDeps {
@@ -82,7 +82,7 @@ export async function createDerivedCutAndSyncGroup({
     const insertAt = Math.max(0, latestGroup.cutIds.indexOf(sourceCutId) + 1);
     const nextOrder = [...latestGroup.cutIds];
     nextOrder.splice(insertAt, 0, newCutId);
-    updateGroupCutOrder(sceneId, latestGroup.id, nextOrder);
+    await updateGroupCutOrder(sceneId, latestGroup.id, nextOrder);
   }
   return newCutId;
 }

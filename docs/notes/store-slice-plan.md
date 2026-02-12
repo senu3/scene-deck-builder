@@ -90,6 +90,12 @@
 - `commands.ts` から `confirm()` など UI 依存を排除し、UI 層で確認してから Command を実行する構造へ移行する。
 - 「Command 必須操作」を明示し、対象操作は直接 action 呼び出しを禁止する。
 
+進捗（2026-02-12）:
+- `commands.ts` の `confirm()` 依存を撤去済み（UI 層確認に統一）。
+- `docs/guides/cut-history-guidelines.md` に Command 必須操作を明示。
+- `CutCard` / `AssetPanel` の paste・group 作成を `PasteCutsCommand` / `CreateGroupCommand` 経由へ移行。
+- clip finalize / image crop 後の group 順序同期を `UpdateGroupCutOrderCommand` 経由へ移行し、直接 action 呼び出しを削除。
+
 受け入れ条件:
 - `docs/guides/cut-history-guidelines.md` と実装が一致する。
 - Undo/Redo 対象操作の境界が docs とコードで一致する。

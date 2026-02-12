@@ -31,11 +31,9 @@ import {
   selectGetSelectedCuts,
   selectCopySelectedCuts,
   selectCanPaste,
-  selectPasteCuts,
   selectGetAsset,
   selectDeleteAssetWithPolicy,
   selectGetCutGroup,
-  selectUpdateGroupCutOrder,
   selectCloseDetailsPanel,
 } from '../store/selectors';
 import { useHistoryStore } from '../store/historyStore';
@@ -53,7 +51,12 @@ import {
   finalizeClipFromContext,
 } from '../features/cut/actions';
 import './AssetPanel.css';
-import { MoveCutsToSceneCommand, RemoveCutCommand } from '../store/commands';
+import {
+  MoveCutsToSceneCommand,
+  PasteCutsCommand,
+  RemoveCutCommand,
+  UpdateGroupCutOrderCommand,
+} from '../store/commands';
 
 export type SortMode = 'name' | 'type' | 'used' | 'unused';
 export type FilterType = 'all' | 'image' | 'video' | 'audio';
@@ -175,11 +178,9 @@ export default function AssetPanel({
   const getSelectedCuts = useStore(selectGetSelectedCuts);
   const copySelectedCuts = useStore(selectCopySelectedCuts);
   const canPaste = useStore(selectCanPaste);
-  const pasteCuts = useStore(selectPasteCuts);
   const getAsset = useStore(selectGetAsset);
   const deleteAssetWithPolicy = useStore(selectDeleteAssetWithPolicy);
   const getCutGroup = useStore(selectGetCutGroup);
-  const updateGroupCutOrder = useStore(selectUpdateGroupCutOrder);
   const closeDetailsPanel = useStore(selectCloseDetailsPanel);
   const { executeCommand } = useHistoryStore();
 
@@ -601,9 +602,13 @@ export default function AssetPanel({
     setCutContextMenu(null);
   };
 
-  const handleCutMenuPaste = () => {
+  const handleCutMenuPaste = async () => {
     if (!cutContextMenu) return;
-    pasteCuts(cutContextMenu.sceneId, cutContextMenu.index + 1);
+    try {
+      await executeCommand(new PasteCutsCommand(cutContextMenu.sceneId, cutContextMenu.index + 1));
+    } catch (error) {
+      toast.error('Paste failed', String(error));
+    }
     setCutContextMenu(null);
   };
 
@@ -671,7 +676,8 @@ export default function AssetPanel({
         vaultPath,
         createCutFromImport,
         getCutGroup,
-        updateGroupCutOrder,
+        updateGroupCutOrder: (targetSceneId, groupId, cutIds) =>
+          executeCommand(new UpdateGroupCutOrderCommand(targetSceneId, groupId, cutIds)),
       });
 
       if (result.success) {

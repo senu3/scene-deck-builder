@@ -27,10 +27,14 @@
 - `UpdateDisplayTimeCommand` -> `updateCutDisplayTime`
 - `UpdateClipPointsCommand` / `ClearClipPointsCommand` -> clip 更新系
 - `MoveCutBetweenScenesCommand` / `MoveCutsToSceneCommand` -> move 系
+- `PasteCutsCommand` -> `pasteCuts`
+- `CreateGroupCommand` -> `createGroup`
+- `RemoveCutFromGroupCommand` / `UpdateGroupCutOrderCommand` -> group 追随更新
 
 備考:
 - UI 確認（`confirm`）は Command から分離済み。Undo 前確認は UI 層で実施。
 - 復元/複製時に asset が未解決でも `assetId` から loading cut を作成して処理継続する。
+- `CutCard` / `AssetPanel` の clip finalize / image crop 後 group 同期は command wrapper 経由に統一済み。
 
 ### 2. cutTimelineSlice 直書き込み（domain owner）
 - scene/cut の追加・削除・並び替え・クリップ更新・clipboard 反映。
