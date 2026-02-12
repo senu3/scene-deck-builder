@@ -572,11 +572,9 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
       if (selectedCuts.length === 0) return;
 
       const clipboardData = selectedCuts.reduce<ClipboardCut[]>((acc, { cut }) => {
-        const resolvedAsset = state.getAsset(cut.assetId) || cut.asset;
-        if (!resolvedAsset) return acc;
         acc.push({
           assetId: cut.assetId,
-          asset: resolvedAsset,
+          asset: state.getAsset(cut.assetId) || cut.asset,
           displayTime: cut.displayTime,
           useEmbeddedAudio: cut.useEmbeddedAudio,
           audioBindings: cut.audioBindings?.map((binding) => ({ ...binding })),
@@ -586,8 +584,6 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
         });
         return acc;
       }, []);
-
-      if (clipboardData.length === 0) return;
 
       set({ clipboard: clipboardData });
     },
@@ -605,10 +601,11 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
       const newCuts: Cut[] = state.clipboard.map((clipCut, idx) => {
         const newId = uuidv4();
         newCutIds.push(newId);
+        const resolvedAsset = state.getAsset(clipCut.assetId) || clipCut.asset;
         return {
           id: newId,
           assetId: clipCut.assetId,
-          asset: clipCut.asset,
+          asset: resolvedAsset,
           displayTime: clipCut.displayTime,
           order: insertIndex + idx,
           useEmbeddedAudio: clipCut.useEmbeddedAudio ?? true,

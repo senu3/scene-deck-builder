@@ -36,7 +36,7 @@ export interface SourceFolder {
 
 export interface ClipboardCut {
   assetId: string;
-  asset: Asset;
+  asset?: Asset;
   displayTime: number;
   useEmbeddedAudio?: boolean;
   audioBindings?: CutAudioBinding[];

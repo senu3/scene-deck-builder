@@ -30,6 +30,7 @@
 
 備考:
 - UI 確認（`confirm`）は Command から分離済み。Undo 前確認は UI 層で実施。
+- 復元/複製時に asset が未解決でも `assetId` から loading cut を作成して処理継続する。
 
 ### 2. cutTimelineSlice 直書き込み（domain owner）
 - scene/cut の追加・削除・並び替え・クリップ更新・clipboard 反映。
@@ -43,6 +44,7 @@
 ### 4. read-time join（ID優先）
 - `commands` 復元系は `getAsset(assetId)` 優先で asset 解決。
 - 主要 UI（`CutCard` / `AssetPanel` / `DetailsPanel` / `PreviewModal`）は `getAsset(assetId)` 優先へ移行済み。
+- Clipboard は `asset` optional で保持し、paste 時は `getAsset(assetId)` 優先で解決する。
 
 ## S0 で残る主要課題
 - `cut.asset` を write 時に必須としない設計（ID主経路の徹底）。

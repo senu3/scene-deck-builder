@@ -24,6 +24,18 @@ function resolveCutAsset(store: ReturnType<typeof useStore.getState>, cut: Cut):
   return store.getAsset(cut.assetId) || cut.asset;
 }
 
+function addCutFromReference(
+  store: ReturnType<typeof useStore.getState>,
+  sceneId: string,
+  cut: Cut
+): string {
+  const resolvedAsset = resolveCutAsset(store, cut);
+  if (resolvedAsset) {
+    return store.addCutToScene(sceneId, resolvedAsset);
+  }
+  return store.addLoadingCutToScene(sceneId, cut.assetId, `missing:${cut.assetId}`);
+}
+
 /**
  * カット追加コマンド
  */
@@ -101,12 +113,7 @@ export class RemoveCutCommand implements Command {
     const store = useStore.getState();
 
     // カットを復元
-    const resolvedAsset = resolveCutAsset(store, this.removedCut);
-    if (!resolvedAsset) {
-      console.warn('Failed to restore cut: asset not found', this.removedCut.assetId);
-      return;
-    }
-    const newCutId = store.addCutToScene(this.sceneId, resolvedAsset);
+    const newCutId = addCutFromReference(store, this.sceneId, this.removedCut);
     restoreCutState(store, this.sceneId, newCutId, this.removedCut);
 
     // 元の位置に移動（可能な場合）
@@ -264,9 +271,7 @@ export class DuplicateSceneCommand implements Command {
 
     // 全カットをコピー
     sourceScene.cuts.forEach((cut) => {
-      const resolvedAsset = resolveCutAsset(store, cut);
-      if (!resolvedAsset) return;
-      const newCutId = store.addCutToScene(this.newSceneId!, resolvedAsset);
+      const newCutId = addCutFromReference(store, this.newSceneId!, cut);
       restoreCutState(store, this.newSceneId!, newCutId, cut);
       this.newCutIds.push(newCutId);
     });
