@@ -49,6 +49,7 @@
 - `commands` 復元系は `getAsset(assetId)` 優先で asset 解決。
 - 主要 UI（`CutCard` / `AssetPanel` / `DetailsPanel` / `PreviewModal`）は `getAsset(assetId)` 優先へ移行済み。
 - Export manifest（`buildExportTimelineEntries`）も `assetId` 解決を優先し、`cut.asset` fallback を維持。
+- `PreviewModal` は `resolveCutAsset` を導入し、動画判定/キャッシュ/レンダー/範囲Exportの `cut.asset` 直参照を削減。
 - Clipboard は `asset` optional で保持し、paste 時は `getAsset(assetId)` 優先で解決する。
 
 ## S0 で残る主要課題

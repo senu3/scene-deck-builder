@@ -243,6 +243,11 @@ export default function PreviewModal({
     return getAsset(binding.audioAssetId);
   }, [getPrimaryAudioBindingForCut, getAsset]);
 
+  const resolveCutAsset = useCallback((cut: Cut | null | undefined): Asset | undefined => {
+    if (!cut) return undefined;
+    return getAsset(cut.assetId) || cut.asset;
+  }, [getAsset]);
+
   const getAudioOffsetForCut = useCallback((cut: Cut | null | undefined): number => {
     return getPrimaryAudioBindingForCut(cut)?.offsetSec ?? 0;
   }, [getPrimaryAudioBindingForCut]);
@@ -797,9 +802,10 @@ export default function PreviewModal({
   const getVideoAssetId = useCallback((index: number): string | null => {
     const item = items[index];
     if (!item) return null;
-    if (item.cut.asset?.type !== 'video') return null;
-    return item.cut.asset?.id ?? item.cut.assetId ?? null;
-  }, [items]);
+    const cutAsset = resolveCutAsset(item.cut);
+    if (cutAsset?.type !== 'video') return null;
+    return cutAsset.id ?? item.cut.assetId ?? null;
+  }, [items, resolveCutAsset]);
 
   // Helper: Get items that fall within a time window from given index
   const getItemsInTimeWindow = useCallback((startIndex: number, windowSeconds: number): number[] => {
@@ -819,7 +825,8 @@ export default function PreviewModal({
     const item = items[index];
     if (!item) return false;
 
-    if (item.cut.asset?.type === 'video') {
+    const cutAsset = resolveCutAsset(item.cut);
+    if (cutAsset?.type === 'video') {
       const assetId = getVideoAssetId(index);
       if (!assetId) return false;
       return videoUrlCacheRef.current.has(assetId);
@@ -827,7 +834,7 @@ export default function PreviewModal({
       // Images are ready if thumbnail is available
       return !!item.thumbnail;
     }
-  }, [items, getVideoAssetId]);
+  }, [items, getVideoAssetId, resolveCutAsset]);
 
   // Helper: Preload items (video URLs or image data)
   const preloadItems = useCallback(async (indices: number[]): Promise<void> => {
@@ -837,7 +844,8 @@ export default function PreviewModal({
       const item = items[index];
       if (!item) continue;
 
-      if (item.cut.asset?.type === 'video' && item.cut.asset.path) {
+      const cutAsset = resolveCutAsset(item.cut);
+      if (cutAsset?.type === 'video' && cutAsset.path) {
         const assetId = getVideoAssetId(index);
         if (!assetId) continue;
 
@@ -847,7 +855,7 @@ export default function PreviewModal({
         if (!videoUrlCacheRef.current.has(assetId)) {
           preloadingRef.current.add(assetId);
           preloadPromises.push(
-            createVideoObjectUrl(item.cut.asset.path).then(url => {
+            createVideoObjectUrl(cutAsset.path).then(url => {
               if (url) {
                 videoUrlCacheRef.current.set(assetId, url);
                 readyItemsRef.current.add(assetId);
@@ -860,7 +868,7 @@ export default function PreviewModal({
         }
       } else {
         // Images - consider ready immediately (thumbnail already loaded in buildItems)
-        const assetId = item.cut.asset?.id ?? item.cut.assetId;
+        const assetId = cutAsset?.id ?? item.cut.assetId;
         if (assetId) {
           readyItemsRef.current.add(assetId);
         }
@@ -868,7 +876,7 @@ export default function PreviewModal({
     }
 
     await Promise.all(preloadPromises);
-  }, [items, getVideoAssetId]);
+  }, [items, getVideoAssetId, resolveCutAsset]);
 
   // Helper: Check if buffer is sufficient for playback
   const checkBufferStatus = useCallback((): { ready: boolean; neededItems: number[] } => {
@@ -944,7 +952,7 @@ export default function PreviewModal({
     if (focusCutData) {
       const buildFocusedItems = async () => {
         const { scene, sceneIndex, cut, cutIndex } = focusCutData;
-        const cutAsset = getAsset(cut.assetId) || cut.asset;
+        const cutAsset = resolveCutAsset(cut);
         if (!cutAsset) {
           setItems([]);
           return;
@@ -1016,7 +1024,7 @@ export default function PreviewModal({
         const scene = scenesToPreview[sIdx];
         for (let cIdx = 0; cIdx < scene.cuts.length; cIdx++) {
           const cut = scene.cuts[cIdx];
-          const cutAsset = getAsset(cut.assetId) || cut.asset;
+          const cutAsset = resolveCutAsset(cut);
           const lipSyncSettings = cut.isLipSync && cutAsset?.id
             ? getLipSyncSettingsForAsset(cutAsset.id)
             : undefined;
@@ -1162,13 +1170,14 @@ export default function PreviewModal({
       const currentItem = items[currentIndex];
       const assetId = getVideoAssetId(currentIndex);
       const cachedUrl = assetId ? videoUrlCacheRef.current.get(assetId) : undefined;
+      const currentAsset = currentItem ? resolveCutAsset(currentItem.cut) : undefined;
 
-      if (currentItem?.cut.asset?.type === 'video') {
+      if (currentAsset?.type === 'video') {
         if (cachedUrl && assetId && (!videoObjectUrl || videoObjectUrl.assetId !== assetId || videoObjectUrl.url !== cachedUrl)) {
           setVideoObjectUrl({ assetId, url: cachedUrl });
-        } else if (!cachedUrl && currentItem.cut.asset?.path && assetId) {
+        } else if (!cachedUrl && currentAsset.path && assetId) {
           // Fallback: create URL if not in cache (shouldn't happen normally)
-          const url = await createVideoObjectUrl(currentItem.cut.asset.path);
+          const url = await createVideoObjectUrl(currentAsset.path);
           if (url) {
             videoUrlCacheRef.current.set(assetId, url);
             readyItemsRef.current.add(assetId);
@@ -1207,6 +1216,7 @@ export default function PreviewModal({
     getVideoAssetId,
     checkBufferStatus,
     isItemReady,
+    resolveCutAsset,
     sequenceState.isPlaying,
     sequenceState.isBuffering,
     setSequenceBuffering,
@@ -1358,7 +1368,7 @@ export default function PreviewModal({
     setSequenceMediaElement(null);
 
     const currentItem = items[sequenceState.currentIndex];
-    const asset = currentItem?.cut?.asset;
+    const asset = resolveCutAsset(currentItem?.cut);
     if (!currentItem || !asset) return;
 
     const lipSyncSettings = currentItem.cut.isLipSync ? getLipSyncSettingsForAsset(asset.id) : undefined;
@@ -1437,7 +1447,7 @@ export default function PreviewModal({
     }
 
     if (asset.type === 'video') {
-      const assetId = currentItem.cut.asset?.id ?? currentItem.cut.assetId ?? null;
+      const assetId = asset.id ?? currentItem.cut.assetId ?? null;
       if (!videoObjectUrl || !assetId || videoObjectUrl.assetId !== assetId) {
         return;
       }
@@ -1498,6 +1508,7 @@ export default function PreviewModal({
     getAudioOffsetForCut,
     showMiniToast,
     getAsset,
+    resolveCutAsset,
   ]);
 
   useEffect(() => {
@@ -1621,7 +1632,8 @@ export default function PreviewModal({
           } else {
             // In Sequence Mode, frame step only works during video clip playback
             const currentItem = items[currentIndex];
-            if (currentItem?.cut.asset?.type === 'video') {
+            const currentAsset = currentItem ? resolveCutAsset(currentItem.cut) : undefined;
+            if (currentAsset?.type === 'video') {
               stepFrame(-1);
             }
           }
@@ -1636,7 +1648,8 @@ export default function PreviewModal({
           } else {
             // In Sequence Mode, frame step only works during video clip playback
             const currentItem = items[currentIndex];
-            if (currentItem?.cut.asset?.type === 'video') {
+            const currentAsset = currentItem ? resolveCutAsset(currentItem.cut) : undefined;
+            if (currentAsset?.type === 'video') {
               stepFrame(1);
             }
           }
@@ -1688,6 +1701,7 @@ export default function PreviewModal({
     focusedMarker,
     items,
     currentIndex,
+    resolveCutAsset,
     cycleSpeed,
     handleSingleModeSetInPoint,
     handleSingleModeSetOutPoint,
@@ -1802,7 +1816,7 @@ export default function PreviewModal({
 
       let accumulatedTime = 0;
       for (const item of items) {
-        const asset = item.cut.asset;
+        const asset = resolveCutAsset(item.cut);
         if (!asset?.path) continue;
 
         const itemStart = accumulatedTime;
@@ -1859,7 +1873,7 @@ export default function PreviewModal({
     } finally {
       setIsExporting(false);
     }
-  }, [items, selectedResolution, inPoint, outPoint, usesSequenceController, sequencePause]);
+  }, [items, selectedResolution, inPoint, outPoint, usesSequenceController, sequencePause, resolveCutAsset]);
   // Suppress unused variable warning - code kept for future use
   void _handleExportRange;
 
@@ -1974,14 +1988,14 @@ export default function PreviewModal({
   const singleModePlaybackDuration = isSingleModeVideo ? singleModeDuration : sequenceState.totalDuration;
   const singleModePlaybackTime = isSingleModeVideo ? singleModeCurrentTime : sequenceSelectors.getAbsoluteTime();
   const previewResolutionLabel = useMemo(() => {
-    const targetAsset = isSingleMode ? asset : currentItem?.cut.asset;
+    const targetAsset = isSingleMode ? asset : resolveCutAsset(currentItem?.cut);
     const width = targetAsset?.metadata?.width;
     const height = targetAsset?.metadata?.height;
     if (typeof width === 'number' && typeof height === 'number') {
       return `${width}×${height}`;
     }
     return null;
-  }, [isSingleMode, asset, currentItem]);
+  }, [isSingleMode, asset, currentItem, resolveCutAsset]);
   const currentFraming = useMemo(() => {
     const targetCut = isSingleMode
       ? focusCutData?.cut
@@ -2382,7 +2396,8 @@ export default function PreviewModal({
           {(() => {
             const viewportStyle = getViewportStyle();
             const content = sequenceMediaElement ?? (() => {
-              if (currentItem?.cut.asset?.type === 'video') {
+              const currentAsset = currentItem ? resolveCutAsset(currentItem.cut) : undefined;
+              if (currentAsset?.type === 'video') {
                 return (
                   <div className="preview-placeholder">
                     <p>Loading video...</p>

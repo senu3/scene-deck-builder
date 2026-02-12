@@ -58,8 +58,9 @@ async function resolveScenesAssets(scenes: Scene[], vaultPath: string): Promise<
   for (const scene of scenes) {
     const resolvedCuts = await Promise.all(
       scene.cuts.map(async (cut) => {
-        if (cut.asset) {
-          const resolvedAsset = await resolveAssetPath(cut.asset, vaultPath);
+        const currentAsset = cut.asset;
+        if (currentAsset) {
+          const resolvedAsset = await resolveAssetPath(currentAsset, vaultPath);
 
           // Check if asset file exists
           if (resolvedAsset.path && window.electronAPI) {
@@ -87,6 +88,12 @@ async function resolveScenesAssets(scenes: Scene[], vaultPath: string): Promise<
   }
 
   return { scenes: resolvedScenes, missingAssets };
+}
+
+function hasLegacyRelativeAssetPaths(scenes: Scene[]): boolean {
+  return scenes.some((scene) =>
+    scene.cuts?.some((cut) => cut.asset?.path?.startsWith('assets/'))
+  );
 }
 
 interface RecentProject {
@@ -261,7 +268,7 @@ export default function StartupModal() {
       let scenes = projectData.scenes || [];
       let foundMissingAssets: MissingAssetInfo[] = [];
 
-      if (projectData.version === 2 || projectData.version === 3 || scenes.some(s => s.cuts?.some(c => c.asset?.path?.startsWith('assets/')))) {
+      if (projectData.version === 2 || projectData.version === 3 || hasLegacyRelativeAssetPaths(scenes)) {
         const resolved = await resolveScenesAssets(scenes, loadedVaultPath);
         scenes = resolved.scenes;
         foundMissingAssets = resolved.missingAssets;
@@ -315,9 +322,10 @@ export default function StartupModal() {
           finalScenes = await Promise.all(finalScenes.map(async scene => {
             if (scene.id === decision.sceneId) {
               const updatedCuts = await Promise.all(scene.cuts.map(async cut => {
-                if (cut.id === decision.cutId && cut.asset) {
+                const currentAsset = cut.asset;
+                if (cut.id === decision.cutId && currentAsset) {
                   const newPath = decision.newPath!;
-                  const newName = newPath.split(/[/\\]/).pop() || cut.asset.name;
+                  const newName = newPath.split(/[/\\]/).pop() || currentAsset.name;
                   const newType = getCuttableMediaType(newName) || 'image';
 
                   // Get new thumbnail and metadata
@@ -348,7 +356,7 @@ export default function StartupModal() {
                   const importedAsset = await importFileToVault(
                     newPath,
                     project.vaultPath,
-                    cut.asset.id,
+                    cut.assetId || currentAsset.id,
                     {
                       name: newName,
                       type: newType,
@@ -370,7 +378,7 @@ export default function StartupModal() {
                   // Fallback: just update the path with new info
                   return {
                     ...cut,
-                    asset: { ...cut.asset, path: newPath, name: newName, type: newType, thumbnail, duration, metadata },
+                    asset: { ...currentAsset, path: newPath, name: newName, type: newType, thumbnail, duration, metadata },
                     displayTime: newType === 'video' && duration ? duration : cut.displayTime,
                   };
                 }
@@ -389,12 +397,13 @@ export default function StartupModal() {
     finalScenes = await Promise.all(finalScenes.map(async scene => {
       const updatedCuts = await Promise.all(scene.cuts.map(async cut => {
         // Only process video clips with valid IN points
-        if (cut.isClip && cut.inPoint !== undefined && cut.asset?.type === 'video' && cut.asset.path) {
-          const newThumbnail = await getThumbnail(cut.asset.path, 'video', { timeOffset: cut.inPoint });
+        const currentAsset = cut.asset;
+        if (cut.isClip && cut.inPoint !== undefined && currentAsset?.type === 'video' && currentAsset.path) {
+          const newThumbnail = await getThumbnail(currentAsset.path, 'video', { timeOffset: cut.inPoint });
           if (newThumbnail) {
             return {
               ...cut,
-              asset: { ...cut.asset, thumbnail: newThumbnail },
+              asset: { ...currentAsset, thumbnail: newThumbnail },
             };
           }
         }
@@ -473,7 +482,7 @@ export default function StartupModal() {
         let scenes = projectData.scenes || [];
         let foundMissingAssets: MissingAssetInfo[] = [];
 
-        if (projectData.version === 2 || projectData.version === 3 || scenes.some(s => s.cuts?.some(c => c.asset?.path?.startsWith('assets/')))) {
+        if (projectData.version === 2 || projectData.version === 3 || hasLegacyRelativeAssetPaths(scenes)) {
           const resolved = await resolveScenesAssets(scenes, loadedVaultPath);
           scenes = resolved.scenes;
           foundMissingAssets = resolved.missingAssets;
