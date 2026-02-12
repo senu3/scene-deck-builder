@@ -114,7 +114,7 @@ export default function DetailsPanel() {
   const cut = selectedCutData?.cut;
   const cutScene = selectedCutData?.scene;
   const asset =
-    cut?.asset || (cut?.assetId ? getAsset(cut.assetId) : undefined);
+    cut?.assetId ? (getAsset(cut.assetId) || cut.asset) : cut?.asset;
   const primaryAudioBinding = cut?.audioBindings?.[0];
   const useEmbeddedAudio = cut?.useEmbeddedAudio ?? true;
   const attachedAudioSourceName =

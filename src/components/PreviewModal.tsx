@@ -935,7 +935,7 @@ export default function PreviewModal({
     if (focusCutData) {
       const buildFocusedItems = async () => {
         const { scene, sceneIndex, cut, cutIndex } = focusCutData;
-        const cutAsset = cut.asset || getAsset(cut.assetId);
+        const cutAsset = getAsset(cut.assetId) || cut.asset;
         if (!cutAsset) {
           setItems([]);
           return;
@@ -1007,7 +1007,7 @@ export default function PreviewModal({
         const scene = scenesToPreview[sIdx];
         for (let cIdx = 0; cIdx < scene.cuts.length; cIdx++) {
           const cut = scene.cuts[cIdx];
-          const cutAsset = cut.asset || getAsset(cut.assetId);
+          const cutAsset = getAsset(cut.assetId) || cut.asset;
           const lipSyncSettings = cut.isLipSync && cutAsset?.id
             ? getLipSyncSettingsForAsset(cutAsset.id)
             : undefined;

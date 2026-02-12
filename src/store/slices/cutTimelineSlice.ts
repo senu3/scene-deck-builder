@@ -65,6 +65,7 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
           assetId: removed.assetId,
         });
       }
+      get().applyStoreEvents();
       void get().saveMetadata();
     },
 
@@ -296,13 +297,9 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
                 cuts: s.cuts
                   .filter((c) => c.id !== cutId)
                   .map((c, idx) => ({ ...c, order: idx })),
-                groups: removeCutIdsFromGroups(s.groups, [cutId]),
               }
             : s
         ),
-        selectedCutId: currentState.selectedCutId === cutId ? null : currentState.selectedCutId,
-        selectionType: currentState.selectedCutId === cutId ? null : currentState.selectionType,
-        detailsPanelOpen: currentState.selectedCutId === cutId ? false : currentState.detailsPanelOpen,
       }));
 
       if (cutToRemove) {
@@ -312,6 +309,7 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
           cutId,
           assetId: cutToRemove.assetId,
         });
+        get().applyStoreEvents();
       }
 
       return cutToRemove;

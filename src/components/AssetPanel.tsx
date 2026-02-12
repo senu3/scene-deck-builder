@@ -621,7 +621,7 @@ export default function AssetPanel({
     const { sceneId, cutId } = cutContextMenu;
     const scene = scenes.find((s) => s.id === sceneId);
     const cut = scene?.cuts.find((c) => c.id === cutId);
-    const asset = cut?.asset || (cut?.assetId ? getAsset(cut.assetId) : undefined);
+    const asset = cut?.assetId ? (getAsset(cut.assetId) || cut.asset) : cut?.asset;
 
     if (!cut?.isClip || cut.inPoint === undefined || cut.outPoint === undefined || !asset?.path) {
       setCutContextMenu(null);

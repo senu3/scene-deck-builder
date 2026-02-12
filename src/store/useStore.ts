@@ -185,6 +185,7 @@ export interface AppState {
   closeDetailsPanel: () => void;
   emitStoreEvent: (event: Omit<StoreEvent, 'occurredAt'>) => void;
   drainStoreEvents: () => StoreEvent[];
+  applyStoreEvents: () => void;
 
   cacheAsset: (asset: Asset) => void;
   getAsset: (assetId: string) => Asset | undefined;
@@ -285,6 +286,59 @@ export const useStore = create<AppState>((set, get) => ({
       set({ storeEvents: [] });
     }
     return events;
+  },
+
+  applyStoreEvents: () => {
+    const events = get().drainStoreEvents();
+    if (events.length === 0) return;
+
+    set((state) => {
+      let scenes = state.scenes;
+      let selectedCutId = state.selectedCutId;
+      let selectedCutIds = new Set(state.selectedCutIds);
+      let lastSelectedCutId = state.lastSelectedCutId;
+      let selectionType = state.selectionType;
+      let detailsPanelOpen = state.detailsPanelOpen;
+
+      for (const event of events) {
+        if (event.type === 'CUT_DELETED') {
+          scenes = scenes.map((scene) => {
+            if (scene.id !== event.sceneId) return scene;
+            return {
+              ...scene,
+              groups: (scene.groups || [])
+                .map((group) => ({
+                  ...group,
+                  cutIds: group.cutIds.filter((id) => id !== event.cutId),
+                }))
+                .filter((group) => group.cutIds.length > 0),
+            };
+          });
+
+          selectedCutIds.delete(event.cutId);
+          if (selectedCutId === event.cutId) {
+            selectedCutId = null;
+          }
+          if (lastSelectedCutId === event.cutId) {
+            lastSelectedCutId = selectedCutIds.size > 0 ? Array.from(selectedCutIds)[selectedCutIds.size - 1] : null;
+          }
+        }
+      }
+
+      if (selectedCutIds.size === 0 && !selectedCutId && selectionType === 'cut') {
+        selectionType = null;
+        detailsPanelOpen = false;
+      }
+
+      return {
+        scenes,
+        selectedCutId,
+        selectedCutIds,
+        lastSelectedCutId,
+        selectionType,
+        detailsPanelOpen,
+      };
+    });
   },
 
   getSelectedCut: () => {

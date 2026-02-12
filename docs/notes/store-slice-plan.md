@@ -43,8 +43,10 @@
 - `src/store/contracts.ts` を追加し、slice 公開境界型（contract）を集約した。
 - `metadataSlice` の `attach/detach/updateCutAudioOffset` は `setCutAudioBindings` 経由へ移行し、Asset 側から Cut 直接更新する経路を削減した。
 - `CUT_DELETED` の store event を導入し、`removeCut` / `removeScene` で発火するようにした。
+- `applyStoreEvents` を `useStore` 統合レイヤーに追加し、`CUT_DELETED` に伴う group/selection の後処理をイベント経由で集約した。
 - `commands` の Cut 復元系は `assetId` を主キーに `getAsset(assetId)` で解決し、fallback として `cut.asset` を利用する形に寄せた。
 - `copySelectedCuts` は `assetId` から `assetCache` 解決を優先し、`cut.asset` への依存を弱めた。
+- 主要 UI（`CutCard` / `AssetPanel` / `DetailsPanel` / `PreviewModal`）で `getAsset(assetId)` 優先の read-time join へ寄せた。
 
 受け入れ条件:
 - Asset 側操作で Cut を更新する場合も、実行経路が `cutActions` か Command 経由に統一される。

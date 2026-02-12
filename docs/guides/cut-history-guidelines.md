@@ -33,6 +33,23 @@
 - group `cutIds` の整合更新は `commands` と `cutGroupOps` からのみ行う。
 - DnD 後処理で group を触る際は command を優先する。
 
+### 4. Command 層に UI 依存を持ち込まない
+- `commands.ts` で `confirm()` やモーダル表示を呼ばない。
+- 確認ダイアログは UI 層（例: `Header`）で行い、確定後に `undo/redo` や `executeCommand` を呼ぶ。
+
+### 5. cross-slice 連携は store event 経由
+- 直接他 slice の内部更新ロジックを呼ばない。
+- 例: Cut 削除時は `CUT_DELETED` を emit し、`applyStoreEvents` で group/selection の後処理を実施する。
+
+### 6. Asset 参照は `assetId` を主経路にする
+- 復元・コピーなどの read 時は `getAsset(assetId)` を優先し、必要時のみ `cut.asset` を fallback とする。
+- write 時に `cut.asset` を前提にした更新を増やさない。
+
+## 禁止依存（S0）
+- `commands.ts` -> ブラウザ UI API 直接呼び出し（`confirm`, `alert`, modal）。
+- slice -> 他 slice の private helper 直接 import。
+- Asset 系 action -> Cut 配列の直接書き換え（まず Cut action 経由を検討）。
+
 ## Undo/Redo 対象（運用）
 - 対象: scene/cut/group の構造変更、clip point 更新。
 - 非対象: runtime loading 状態、サムネイルキャッシュ、Export 進捗 UI。
