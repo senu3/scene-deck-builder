@@ -14,6 +14,7 @@
 ## 関連ファイル
 - `docs/notes/archive/store-slice-plan-implemented-2026-02-12.md`
 - `docs/notes/archive/cut-refactor-plan-implemented-2026-02-12.md`
+- `docs/notes/assetpanel-cut-ffmpeg-reorg-plan-2026-02-12.md`
 - `docs/guides/storyline.md`
 
 ## 更新頻度
@@ -101,8 +102,9 @@ const store = useStore(); // 全体購読
 
 ## AssetPanel Cut オプション廃止方針
 - 方針: AssetPanel は段階的に「Asset 操作専用」に移行する。
-- 当面: 既存 Cut オプションは互換維持で残すが、新機能は追加しない。
+- 現状（2026-02-12）: AssetPanel の Cut コンテキストメニューは撤去済み。右クリックは Asset options に統一。
 - 置換先: Cut 操作は `CutCard` / `DetailsPanel` / ショートカット（history command 経由）へ寄せる。
+- 次フェーズ計画: `docs/notes/assetpanel-cut-ffmpeg-reorg-plan-2026-02-12.md` を正とし、AssetPanel の右クリックメニュー統一と ffmpeg 派生操作整理を進める。
 - 完了条件:
   - AssetPanel から Cut コンテキストメニューを撤去しても運用導線が維持される。
   - 上記撤去後も Undo/Redo 対象操作の網羅性が維持される。

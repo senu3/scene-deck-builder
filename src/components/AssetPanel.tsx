@@ -25,17 +25,9 @@ import {
   selectCreateCutFromImport,
   selectAssetCache,
   selectSelectedCutId,
-  selectSelectedCutIds,
-  selectSelectCut,
-  selectGetSelectedCuts,
-  selectCopySelectedCuts,
-  selectCanPaste,
-  selectGetAsset,
   selectDeleteAssetWithPolicy,
-  selectGetCutGroup,
   selectCloseDetailsPanel,
 } from '../store/selectors';
-import { useHistoryStore } from '../store/historyStore';
 import type { Asset, AssetIndexEntry } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { getCachedThumbnail, getThumbnail, removeThumbnailCache } from '../utils/thumbnailCache';
@@ -43,19 +35,9 @@ import { getMediaType as getAnyMediaType } from '../utils/mediaType';
 import { collectAssetRefs, getBlockingRefsForAssetIds, type AssetRefMap } from '../utils/assetRefs';
 import { useDialog, useToast } from '../ui';
 import {
-  CutContextMenu,
   AssetContextMenu,
 } from './context-menus';
-import {
-  finalizeClipFromContext,
-} from '../features/cut/actions';
 import './AssetPanel.css';
-import {
-  MoveCutsToSceneCommand,
-  PasteCutsCommand,
-  RemoveCutsCommand,
-  UpdateGroupCutOrderCommand,
-} from '../store/commands';
 
 export type SortMode = 'name' | 'type' | 'used' | 'unused';
 export type FilterType = 'all' | 'image' | 'video' | 'audio';
@@ -171,16 +153,8 @@ export default function AssetPanel({
   const createCutFromImport = useStore(selectCreateCutFromImport);
   const assetCache = useStore(selectAssetCache);
   const selectedCutId = useStore(selectSelectedCutId);
-  const selectedCutIds = useStore(selectSelectedCutIds);
-  const selectCut = useStore(selectSelectCut);
-  const getSelectedCuts = useStore(selectGetSelectedCuts);
-  const copySelectedCuts = useStore(selectCopySelectedCuts);
-  const canPaste = useStore(selectCanPaste);
-  const getAsset = useStore(selectGetAsset);
   const deleteAssetWithPolicy = useStore(selectDeleteAssetWithPolicy);
-  const getCutGroup = useStore(selectGetCutGroup);
   const closeDetailsPanel = useStore(selectCloseDetailsPanel);
-  const { executeCommand } = useHistoryStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('name');
@@ -191,18 +165,11 @@ export default function AssetPanel({
   const [isLoading, setIsLoading] = useState(false);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<AssetInfo | null>(null);
-  const [cutContextMenu, setCutContextMenu] = useState<{
-    x: number;
-    y: number;
-    sceneId: string;
-    cutId: string;
-    index: number;
-    isClip: boolean;
-  } | null>(null);
-  const [unusedContextMenu, setUnusedContextMenu] = useState<{
+  const [assetContextMenu, setAssetContextMenu] = useState<{
     x: number;
     y: number;
     asset: AssetInfo;
+    hasClipRange: boolean;
   } | null>(null);
   const [bulkImportProgress, setBulkImportProgress] = useState<{
     isActive: boolean;
@@ -576,149 +543,44 @@ export default function AssetPanel({
     e.stopPropagation();
 
     const match = findCutForAsset(asset.linkedAssetIds.length ? asset.linkedAssetIds : [asset.id]);
-    if (!match) {
-      if (asset.usageCount === 0) {
-        setUnusedContextMenu({ x: e.clientX, y: e.clientY, asset });
-      }
-      return;
-    }
-
-    selectCut(match.cut.id);
-    setUnusedContextMenu(null);
-    setCutContextMenu({
+    setAssetContextMenu({
       x: e.clientX,
       y: e.clientY,
-      sceneId: match.scene.id,
-      cutId: match.cut.id,
-      index: match.index,
-      isClip: !!match.cut.isClip,
+      asset,
+      hasClipRange: !!match?.cut.isClip,
     });
   };
 
-  const handleCutMenuCopy = () => {
-    copySelectedCuts();
-    setCutContextMenu(null);
+  const notifyPendingAssetTransform = (actionName: string) => {
+    toast.info(`${actionName} is planned for Phase 2`, 'Phase 1 delivers menu unification only.');
+    setAssetContextMenu(null);
   };
 
-  const handleCutMenuPaste = async () => {
-    if (!cutContextMenu) return;
-    try {
-      await executeCommand(new PasteCutsCommand(cutContextMenu.sceneId, cutContextMenu.index + 1));
-    } catch (error) {
-      toast.error('Paste failed', String(error));
-    }
-    setCutContextMenu(null);
+  const handleAssetMenuFinalize = () => {
+    notifyPendingAssetTransform('Finalize Clip (Asset Only)');
   };
 
-  const handleCutMenuDelete = async () => {
-    const selectedCuts = getSelectedCuts();
-    const refs = selectedCuts.map(({ scene, cut }) => ({ sceneId: scene.id, cutId: cut.id }));
-    if (refs.length === 0) {
-      setCutContextMenu(null);
-      return;
-    }
-
-    try {
-      await executeCommand(new RemoveCutsCommand(refs));
-    } catch (error) {
-      toast.error('Delete failed', String(error));
-    }
-    setCutContextMenu(null);
+  const handleAssetMenuReverse = () => {
+    notifyPendingAssetTransform('Reverse (Asset Only)');
   };
 
-  const handleCutMenuMove = async (targetSceneId: string) => {
-    if (!cutContextMenu) return;
-    const selectedCuts = getSelectedCuts();
-    const cutIds = selectedCuts
-      .filter(({ scene }) => scene.id === cutContextMenu.sceneId)
-      .map(({ cut }) => cut.id);
-    const targetScene = scenes.find((scene) => scene.id === targetSceneId);
-    if (!targetScene || cutIds.length === 0) {
-      setCutContextMenu(null);
-      return;
-    }
-    if (selectedCuts.length !== cutIds.length) {
-      toast.info('Move limited', 'Moved only cuts from the current scene.');
-    }
-    try {
-      await executeCommand(new MoveCutsToSceneCommand(cutIds, targetSceneId, targetScene.cuts.length));
-    } catch (error) {
-      toast.error('Move failed', String(error));
-    }
-    setCutContextMenu(null);
+  const handleAssetMenuExtractAudio = () => {
+    notifyPendingAssetTransform('Extract Audio (Asset Only)');
   };
 
-  const handleCutMenuFinalizeClip = async (reverseOutput: boolean) => {
-    if (!cutContextMenu) return;
-    const { sceneId, cutId } = cutContextMenu;
-    const scene = scenes.find((s) => s.id === sceneId);
-    const cut = scene?.cuts.find((c) => c.id === cutId);
-    const asset = cut?.assetId ? (getAsset(cut.assetId) || cut.asset) : cut?.asset;
-
-    if (!cut?.isClip || cut.inPoint === undefined || cut.outPoint === undefined || !asset?.path) {
-      setCutContextMenu(null);
-      return;
-    }
-
-    if (reverseOutput) {
-      const proceed = await dialogConfirm({
-        title: 'Reverse Clip',
-        message: 'Reverse export is memory intensive and may temporarily pause the app.',
-        variant: 'warning',
-        confirmLabel: 'Continue',
-      });
-      if (!proceed) {
-        setCutContextMenu(null);
-        return;
-      }
-    }
-
-    try {
-      const result = await finalizeClipFromContext({
-        sceneId,
-        sourceCutId: cutId,
-        insertIndex: cutContextMenu.index + 1,
-        cut,
-        asset,
-        reverseOutput,
-        vaultPath,
-        createCutFromImport,
-        getCutGroup,
-        updateGroupCutOrder: (targetSceneId, groupId, cutIds) =>
-          executeCommand(new UpdateGroupCutOrderCommand(targetSceneId, groupId, cutIds)),
-      });
-
-      if (result.success) {
-        const sizeText = result.fileSize ? `${(result.fileSize / 1024 / 1024).toFixed(2)} MB` : 'Unknown size';
-        toast.success('Clip exported', `${result.fileName} (${sizeText})`);
-      } else if (result.reason === 'missing-vault') {
-        toast.warning('Vault path not set', 'Please set up a vault first.');
-      } else {
-        toast.error('Finalize Clip failed', result.error || 'Unknown error');
-      }
-    } catch (error) {
-      toast.error('Finalize Clip failed', String(error));
-    }
-
-    setCutContextMenu(null);
-  };
-
-  const handleCutMenuFinalizeClipNormal = () => handleCutMenuFinalizeClip(false);
-  const handleCutMenuReverseClip = () => handleCutMenuFinalizeClip(true);
-
-  const handleDeleteUnusedAsset = async () => {
-    if (!unusedContextMenu) return;
+  const handleDeleteAsset = async () => {
+    if (!assetContextMenu) return;
     if (!window.electronAPI?.vaultGateway) {
       toast.error('Delete failed', 'electronAPI not available. Please restart the app.');
-      setUnusedContextMenu(null);
+      setAssetContextMenu(null);
       return;
     }
 
-    const asset = unusedContextMenu.asset;
+    const asset = assetContextMenu.asset;
 
     const confirmed = await dialogConfirm({
       title: 'Delete Asset',
-      message: 'Move this unused asset to trash?',
+      message: 'Move this asset to trash?',
       targetName: asset.sourceName,
       variant: 'danger',
       confirmLabel: 'Move to Trash',
@@ -726,7 +588,7 @@ export default function AssetPanel({
     });
 
     if (!confirmed) {
-      setUnusedContextMenu(null);
+      setAssetContextMenu(null);
       return;
     }
 
@@ -739,7 +601,7 @@ export default function AssetPanel({
         message: `This asset is still referenced (${firstKind}).`,
         variant: 'warning',
       });
-      setUnusedContextMenu(null);
+      setAssetContextMenu(null);
       return;
     }
 
@@ -760,7 +622,7 @@ export default function AssetPanel({
         } else {
           toast.error('Delete failed', 'Failed to move asset to trash.');
         }
-        setUnusedContextMenu(null);
+        setAssetContextMenu(null);
         return;
       }
     } catch (error) {
@@ -770,7 +632,7 @@ export default function AssetPanel({
     setAssets((prev) => prev.filter((a) => a.path !== asset.path));
     removeThumbnailCache(asset.path);
     toast.success('Asset moved to trash', asset.sourceName);
-    setUnusedContextMenu(null);
+    setAssetContextMenu(null);
   };
 
   // Handle drag start - close drawer when leaving
@@ -1027,31 +889,17 @@ export default function AssetPanel({
       </div>
 
       {/* Context Menus (drawer mode only) */}
-      {effectiveEnableContextMenu && cutContextMenu && (
-        <CutContextMenu
-          position={{ x: cutContextMenu.x, y: cutContextMenu.y }}
-          isMultiSelect={selectedCutIds.size > 1}
-          selectedCount={selectedCutIds.size}
-          scenes={scenes}
-          currentSceneId={cutContextMenu.sceneId}
-          canPaste={canPaste()}
-          isClip={cutContextMenu.isClip}
-          isInGroup={false}
-          onClose={() => setCutContextMenu(null)}
-          onCopy={handleCutMenuCopy}
-          onPaste={handleCutMenuPaste}
-          onDelete={handleCutMenuDelete}
-          onMoveToScene={handleCutMenuMove}
-          onFinalizeClip={handleCutMenuFinalizeClipNormal}
-          onReverseClip={handleCutMenuReverseClip}
-        />
-      )}
-
-      {effectiveEnableContextMenu && unusedContextMenu && (
+      {effectiveEnableContextMenu && assetContextMenu && (
         <AssetContextMenu
-          position={{ x: unusedContextMenu.x, y: unusedContextMenu.y }}
-          onClose={() => setUnusedContextMenu(null)}
-          onDelete={handleDeleteUnusedAsset}
+          position={{ x: assetContextMenu.x, y: assetContextMenu.y }}
+          canFinalizeClip={assetContextMenu.asset.type === 'video' && assetContextMenu.hasClipRange}
+          canReverse={assetContextMenu.asset.type === 'video'}
+          canExtractAudio={assetContextMenu.asset.type === 'video'}
+          onClose={() => setAssetContextMenu(null)}
+          onFinalizeClip={handleAssetMenuFinalize}
+          onReverse={handleAssetMenuReverse}
+          onExtractAudio={handleAssetMenuExtractAudio}
+          onDelete={handleDeleteAsset}
         />
       )}
     </>

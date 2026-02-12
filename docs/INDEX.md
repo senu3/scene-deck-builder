@@ -25,6 +25,7 @@
 - `docs/guides/lip-sync-requirements.md`
 - `docs/guides/export-guide.md`（Export機能の運用ガイドライン）
 - `docs/guides/cut-history-guidelines.md`（Cut/Undo/Redo運用ガイドライン）
+- `docs/notes/assetpanel-cut-ffmpeg-reorg-plan-2026-02-12.md`（AssetPanel Cut廃止 + ffmpeg整理計画）
 - `docs/ui/components.md`
 - `docs/ui/color-system.md`
 - `docs/ui/scene-duration-bar.md`
