@@ -38,6 +38,7 @@ import {
   AssetContextMenu,
 } from './context-menus';
 import {
+  extractAudioAndRegisterAsset,
   finalizeClipAndRegisterAsset,
 } from '../features/cut/actions';
 import './AssetPanel.css';
@@ -608,6 +609,15 @@ export default function AssetPanel({
     toast.error('Asset conversion failed', result.error || 'Unknown error');
   };
 
+  const reportExtractAudioResult = (result: Awaited<ReturnType<typeof extractAudioAndRegisterAsset>>) => {
+    if (result.success) {
+      const sizeText = result.fileSize ? `${(result.fileSize / 1024 / 1024).toFixed(2)} MB` : 'Unknown size';
+      toast.success('Audio extracted', `${result.fileName} (${sizeText})`);
+      return;
+    }
+    toast.error('Extract Audio failed', result.error || 'Unknown error');
+  };
+
   const handleAssetMenuFinalize = async () => {
     if (!assetContextMenu) return;
     if (!vaultPath) {
@@ -670,8 +680,23 @@ export default function AssetPanel({
     setAssetContextMenu(null);
   };
 
-  const handleAssetMenuExtractAudio = () => {
-    toast.info('Extract Audio is planned for Phase 3', 'Phase 2 delivers finalize/reverse asset-only operations.');
+  const handleAssetMenuExtractAudio = async () => {
+    if (!assetContextMenu) return;
+    if (!vaultPath) {
+      toast.warning('Vault path not set', 'Please set up a vault first.');
+      setAssetContextMenu(null);
+      return;
+    }
+    const range = await resolveContextRange(assetContextMenu, false);
+    const result = await extractAudioAndRegisterAsset({
+      sourceAssetPath: assetContextMenu.asset.path,
+      sourceAssetName: assetContextMenu.asset.sourceName,
+      vaultPath,
+      inPoint: range?.inPoint,
+      outPoint: range?.outPoint,
+    });
+    reportExtractAudioResult(result);
+    await loadAssets();
     setAssetContextMenu(null);
   };
 

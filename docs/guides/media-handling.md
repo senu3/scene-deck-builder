@@ -43,6 +43,9 @@
 - Audio is decoded in the main process via ffmpeg to PCM s16le (`read-audio-pcm` IPC).
 - Renderer builds `AudioBuffer` directly from PCM (no `decodeAudioData`).
 - Single and Sequence preview use separate AudioManager instances.
+- Derive/Extract
+- Audio extraction from video is handled in main process via ffmpeg (`extract-audio` IPC, wav).
+- AssetPanel/Cut options extraction registers audio as a new asset only (no Cut card creation).
 - Offsets
 - Per-asset offset is stored in metadata and applied during playback.
 - Attached Audio

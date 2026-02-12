@@ -1294,6 +1294,21 @@ interface FinalizeClipOptions {
   reverse?: boolean;
 }
 
+interface ExtractAudioOptions {
+  sourcePath: string;
+  outputPath: string;
+  inPoint?: number;
+  outPoint?: number;
+  format?: 'wav';
+}
+
+interface ExtractAudioResult {
+  success: boolean;
+  outputPath?: string;
+  fileSize?: number;
+  error?: string;
+}
+
 // Show save dialog for clip export
 ipcMain.handle('show-save-clip-dialog', async (_, defaultName: string) => {
   const result = await dialog.showSaveDialog(mainWindow!, {
@@ -1415,6 +1430,65 @@ ipcMain.handle('finalize-clip', async (_, options: FinalizeClipOptions) => {
       }
 
       resolve(result);
+    });
+  }));
+});
+
+ipcMain.handle('extract-audio', async (_, options: ExtractAudioOptions): Promise<ExtractAudioResult> => {
+  const ffmpegBinary = ffmpegPath as string | null;
+  if (!ffmpegBinary) {
+    return { success: false, error: 'ffmpeg not found' };
+  }
+  const format = options.format || 'wav';
+  if (format !== 'wav') {
+    return { success: false, error: `Unsupported audio format: ${format}` };
+  }
+
+  const hasRange = Number.isFinite(options.inPoint) && Number.isFinite(options.outPoint);
+  const start = hasRange ? Math.min(options.inPoint as number, options.outPoint as number) : undefined;
+  const duration = hasRange ? Math.abs((options.outPoint as number) - (options.inPoint as number)) : undefined;
+
+  return enqueueFfmpegHeavy(() => new Promise<ExtractAudioResult>((resolve) => {
+    const args: string[] = ['-y'];
+    if (typeof start === 'number') {
+      args.push('-ss', start.toString());
+    }
+    args.push('-i', options.sourcePath);
+    if (typeof duration === 'number' && duration > 0) {
+      args.push('-t', duration.toString());
+    }
+    args.push(
+      '-vn',
+      '-acodec', 'pcm_s16le',
+      '-ar', '44100',
+      '-ac', '2',
+      options.outputPath
+    );
+
+    const proc = spawn(ffmpegBinary, args);
+    const stderrRing = createStderrRing();
+    proc.stderr.on('data', (data: Buffer) => {
+      appendStderr(stderrRing, data, ffmpegLimits.stderrMaxBytes);
+    });
+    proc.on('close', (code: number | null) => {
+      if (code === 0) {
+        if (fs.existsSync(options.outputPath)) {
+          const stats = fs.statSync(options.outputPath);
+          resolve({
+            success: true,
+            outputPath: options.outputPath,
+            fileSize: stats.size,
+          });
+        } else {
+          resolve({ success: false, error: 'Output file was not created' });
+        }
+      } else {
+        const stderr = getStderrText(stderrRing);
+        resolve({ success: false, error: `ffmpeg exited with code ${code}: ${stderr}` });
+      }
+    });
+    proc.on('error', (err: Error) => {
+      resolve({ success: false, error: `Failed to start ffmpeg: ${err.message}` });
     });
   }));
 });

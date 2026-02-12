@@ -133,6 +133,21 @@ interface FinalizeClipResult {
   error?: string;
 }
 
+interface ExtractAudioOptions {
+  sourcePath: string;
+  outputPath: string;
+  inPoint?: number;
+  outPoint?: number;
+  format?: 'wav';
+}
+
+interface ExtractAudioResult {
+  success: boolean;
+  outputPath?: string;
+  fileSize?: number;
+  error?: string;
+}
+
 interface ExtractFrameOptions {
   sourcePath: string;
   outputPath: string;
@@ -311,6 +326,7 @@ interface ElectronAPI {
   // Video clip finalization
   showSaveClipDialog: (defaultName: string) => Promise<string | null>;
   finalizeClip: (options: FinalizeClipOptions) => Promise<FinalizeClipResult>;
+  extractAudio: (options: ExtractAudioOptions) => Promise<ExtractAudioResult>;
 
   // Video frame extraction
   extractVideoFrame: (options: ExtractFrameOptions) => Promise<ExtractFrameResult>;

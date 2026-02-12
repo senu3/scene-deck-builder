@@ -30,6 +30,7 @@ import ImageCropModal, { type ImageCropConfig } from './ImageCropModal';
 import { useDialog, useToast } from '../ui';
 import {
   cropImageAndAddCut,
+  extractAudioAndRegisterAsset,
   finalizeClipFromContext,
 } from '../features/cut/actions';
 import { DEFAULT_EXPORT_RESOLUTION } from '../constants/export';
@@ -376,6 +377,33 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
   const handleReverseClip = () => handleFinalizeClip(true);
   const handleFinalizeClipNormal = () => handleFinalizeClip(false);
 
+  const handleExtractAudio = async () => {
+    if (!asset?.path || asset.type !== 'video') {
+      setContextMenu(null);
+      return;
+    }
+    if (!vaultPath) {
+      toast.warning('Vault path not set', 'Please set up a vault first.');
+      setContextMenu(null);
+      return;
+    }
+
+    const result = await extractAudioAndRegisterAsset({
+      sourceAssetPath: asset.path,
+      sourceAssetName: asset.name,
+      vaultPath,
+      inPoint: cut.isClip ? cut.inPoint : undefined,
+      outPoint: cut.isClip ? cut.outPoint : undefined,
+    });
+    if (result.success) {
+      const sizeText = result.fileSize ? `${(result.fileSize / 1024 / 1024).toFixed(2)} MB` : 'Unknown size';
+      toast.success('Audio extracted', `${result.fileName} (${sizeText})`);
+    } else {
+      toast.error('Extract Audio failed', result.error || 'Unknown error');
+    }
+    setContextMenu(null);
+  };
+
   const handleOpenCropModal = () => {
     setContextMenu(null);
     setShowCropModal(true);
@@ -542,6 +570,7 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
         onMoveToScene={handleMoveToScene}
         onFinalizeClip={handleFinalizeClipNormal}
         onReverseClip={handleReverseClip}
+        onExtractAudio={isVideo ? handleExtractAudio : undefined}
         onCropImage={handleOpenCropModal}
         onCreateGroup={isMultiSelected ? handleCreateGroup : undefined}
         onRemoveFromGroup={isInGroup ? handleRemoveFromGroup : undefined}

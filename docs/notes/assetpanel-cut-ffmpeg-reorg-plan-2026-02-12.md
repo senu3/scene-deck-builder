@@ -89,6 +89,8 @@
 - main/preload/type に `extract-audio` IPC を追加。
 - renderer 側に `extractAudioAndRegisterAsset`（仮）を実装。
 - `CutContextMenu` / `AssetContextMenu` 双方に接続（いずれも card作成なし）。
+ステータス: 完了（2026-02-12）
+補足: Cut options は `CutCard` 側に実装。clip 時は IN/OUT 範囲、非clipは全体抽出。
 
 4. **Phase 4: ffmpeg再編**
 - ffmpeg runner 共通化、重複spawn削減。

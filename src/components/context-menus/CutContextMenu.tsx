@@ -11,6 +11,7 @@ import {
   Trash2,
   Download,
   RotateCcw,
+  AudioLines,
   Layers,
   FolderMinus,
   Crop,
@@ -56,6 +57,8 @@ export interface CutContextMenuProps {
   onFinalizeClip?: () => void;
   /** Reverse clip handler (export reversed clip) */
   onReverseClip?: () => void;
+  /** Extract audio handler (register extracted audio asset only) */
+  onExtractAudio?: () => void;
   /** Crop image handler (create cropped image cut) */
   onCropImage?: () => void;
   /** Create group from selection */
@@ -81,6 +84,7 @@ export function CutContextMenu({
   onMoveToScene,
   onFinalizeClip,
   onReverseClip,
+  onExtractAudio,
   onCropImage,
   onCreateGroup,
   onRemoveFromGroup,
@@ -140,6 +144,16 @@ export function CutContextMenu({
           onClick={onReverseClip}
         >
           Reverse Clip (Add Cut)
+        </MenuItem>
+      )}
+
+      {!isMultiSelect && onExtractAudio && (
+        <MenuItem
+          icon={<AudioLines size={14} />}
+          variant="action"
+          onClick={onExtractAudio}
+        >
+          Extract Audio (Asset Only)
         </MenuItem>
       )}
 

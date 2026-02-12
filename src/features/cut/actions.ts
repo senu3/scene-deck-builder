@@ -34,8 +34,8 @@ function getStableBaseName(sourceAssetPath: string, sourceAssetName: string): st
 function buildDerivedFileName(
   sourceAssetPath: string,
   sourceAssetName: string,
-  operation: 'clip' | 'clip_reverse' | 'crop',
-  extension: 'mp4' | 'png',
+  operation: 'clip' | 'clip_reverse' | 'crop' | 'audio_extract',
+  extension: 'mp4' | 'png' | 'wav',
   extra?: string
 ): string {
   const baseName = getStableBaseName(sourceAssetPath, sourceAssetName);
@@ -400,6 +400,99 @@ export interface CropImageAddCutResult {
   fileName?: string;
   fileSize?: number;
   error?: string;
+}
+
+export interface ExtractAudioAssetOnlyParams {
+  sourceAssetPath: string;
+  sourceAssetName: string;
+  vaultPath: string;
+  inPoint?: number;
+  outPoint?: number;
+}
+
+export interface ExtractAudioAssetOnlyResult {
+  success: boolean;
+  fileName?: string;
+  fileSize?: number;
+  assetId?: string;
+  outputPath?: string;
+  error?: string;
+  reason?: 'runtime';
+}
+
+export async function extractAudioAndRegisterAsset({
+  sourceAssetPath,
+  sourceAssetName,
+  vaultPath,
+  inPoint,
+  outPoint,
+}: ExtractAudioAssetOnlyParams): Promise<ExtractAudioAssetOnlyResult> {
+  if (!window.electronAPI) {
+    return { success: false, reason: 'runtime', error: 'electronAPI not available. Please restart the app.' };
+  }
+  if (typeof window.electronAPI.extractAudio !== 'function' || typeof window.electronAPI.ensureAssetsFolder !== 'function') {
+    return { success: false, reason: 'runtime', error: 'Extract Audio feature requires app restart after update.' };
+  }
+
+  const assetsFolder = await window.electronAPI.ensureAssetsFolder(vaultPath);
+  if (!assetsFolder) {
+    return { success: false, reason: 'runtime', error: 'Failed to access assets folder in vault.' };
+  }
+
+  const hasRange = typeof inPoint === 'number' && typeof outPoint === 'number';
+  const start = hasRange ? Math.min(inPoint, outPoint) : undefined;
+  const end = hasRange ? Math.max(inPoint, outPoint) : undefined;
+  const fileName = buildDerivedFileName(
+    sourceAssetPath,
+    sourceAssetName,
+    'audio_extract',
+    'wav'
+  );
+  const outputPath = `${assetsFolder}/${fileName}`.replace(/\\/g, '/');
+  const extractResult = await window.electronAPI.extractAudio({
+    sourcePath: sourceAssetPath,
+    outputPath,
+    inPoint: start,
+    outPoint: end,
+    format: 'wav',
+  });
+  if (!extractResult.success) {
+    return {
+      success: false,
+      reason: 'runtime',
+      error: extractResult.error || 'Failed to extract audio.',
+    };
+  }
+
+  const assetId = uuidv4();
+  const registered = await importFileToVault(
+    outputPath,
+    vaultPath,
+    assetId,
+    {
+      id: assetId,
+      name: fileName,
+      path: outputPath,
+      type: 'audio',
+      fileSize: extractResult.fileSize,
+      originalPath: outputPath,
+    }
+  );
+  if (!registered) {
+    return {
+      success: false,
+      reason: 'runtime',
+      error: 'Failed to register extracted audio asset.',
+    };
+  }
+
+  return {
+    success: true,
+    fileName,
+    fileSize: extractResult.fileSize,
+    assetId,
+    outputPath,
+  };
 }
 
 interface SceneLike {

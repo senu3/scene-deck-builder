@@ -114,6 +114,21 @@ export interface FinalizeClipResult {
   error?: string;
 }
 
+export interface ExtractAudioOptions {
+  sourcePath: string;
+  outputPath: string;
+  inPoint?: number;
+  outPoint?: number;
+  format?: 'wav';
+}
+
+export interface ExtractAudioResult {
+  success: boolean;
+  outputPath?: string;
+  fileSize?: number;
+  error?: string;
+}
+
 export interface ExtractFrameOptions {
   sourcePath: string;
   outputPath: string;
@@ -394,6 +409,9 @@ const electronAPI = {
 
   finalizeClip: (options: FinalizeClipOptions): Promise<FinalizeClipResult> =>
     ipcRenderer.invoke('finalize-clip', options),
+
+  extractAudio: (options: ExtractAudioOptions): Promise<ExtractAudioResult> =>
+    ipcRenderer.invoke('extract-audio', options),
 
   // Video frame extraction
   extractVideoFrame: (options: ExtractFrameOptions): Promise<ExtractFrameResult> =>
