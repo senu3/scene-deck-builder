@@ -69,6 +69,11 @@
 - finalize/extract/export concat は共通 runner 経由で heavy queue に統一（stderr制御・出力検証を共通化）。
 - Thumbnail generation also has an on-disk cache (tmp) keyed by `path + size + mtime + type + timeOffset + profile`.
 
+## ffmpeg Handler Boundary
+- `electron/main.ts` の ffmpeg系 IPC は、共通 runner（`runFfmpegWithResult`）を使って spawn/exit/error/output検証を揃える。
+- `finalize-clip` / `extract-audio` / `extract-video-frame` / `export-sequence` concat は共通 runner 経由。
+- 新しい ffmpeg IPC を追加する場合は、個別spawnを増やさず、まず共通 runner + queue種別（light/heavy）選択で実装する。
+
 ## Related Docs
 - `docs/guides/preview.md`
 - `docs/guides/buffer-guide.md`

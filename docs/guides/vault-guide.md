@@ -67,6 +67,20 @@ When assets are deleted or rehashed:
 ## Asset Creation / Registration Paths
 All paths must end with `.index.json` being updated via VaultGateway.
 
+### Import Rule: Re-import vs Index-only Registration
+- Primary API is `importFileToVault(sourcePath, vaultPath, assetId, existingAsset?)` (`src/utils/assetPath.ts`).
+- 判定基準:
+- `sourcePath` が `vault/assets` **外**:
+- `vaultGateway.importAndRegisterAsset` を使って vault へコピー（hash名化/重複判定）し、`.index.json` を更新。
+- `sourcePath` が `vault/assets` **内**:
+- ファイルは再コピーせず、`saveAssetIndex` による **index登録のみ** を行う。
+- 目的: ffmpeg で `vault/assets` に直接生成した派生ファイルを二重インポートしない。
+
+補足（派生処理）:
+- `CutCard` の Add Cut 系（Finalize/Crop）は `createCutFromImport` 経由で asset + cut を作る。
+- `AssetPanel` の asset-only 系（Finalize/Reverse/Extract Audio）は asset 登録のみを行い、Cut は作らない。
+- いずれも asset登録時の最終判定は上記 `importFileToVault` のルールに従う。
+
 ### 1) Cut Creation (Timeline / Drag & Drop)
 - External file drop or sidebar asset add:
 - Import file into `vault/assets/` (hash name)
@@ -82,16 +96,18 @@ All paths must end with `.index.json` being updated via VaultGateway.
 - Audio assets are attachment-only and do not become cuts on the timeline.
 
 ### 3) Video Capture (Frame Capture)
-- Captured frames are saved into `vault/assets/`, then re-imported for hash naming.
-- The resulting asset is indexed via VaultGateway and a Cut is created below the source cut.
+- Captured frames are saved into `vault/assets/` and indexed through `importFileToVault`.
+- Since output is already in vault, registration is index-only (no re-copy), then a Cut is created below the source cut.
 
 ### 4) Clip Export (Finalize Clip)
-- Exported clip is saved to `vault/assets/`, then re-imported for hash naming.
-- The resulting asset is indexed via VaultGateway and a Cut is created.
+- Exported clip is saved to `vault/assets/`, then registered via `importFileToVault`.
+- Since output is already in vault, registration is index-only (no re-copy).
+- Add Cut flows create a Cut; asset-only flows register only the asset.
 
 ### 5) Image Crop (Finalize-equivalent)
-- Cropped image output is saved to `vault/assets/`, then re-imported for hash naming.
-- The resulting asset is indexed via VaultGateway and a new Cut is inserted (source cut remains unchanged).
+- Cropped image output is saved to `vault/assets/`, then registered via `importFileToVault`.
+- Since output is already in vault, registration is index-only (no re-copy).
+- The resulting asset is indexed and a new Cut is inserted (source cut remains unchanged).
 - Crop is launched from Cut context menu (`Crop Image (Add Cut)`), not DetailsPanel.
 
 ## VaultGateway (Single Write Entry)
