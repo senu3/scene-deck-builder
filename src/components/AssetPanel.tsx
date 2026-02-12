@@ -17,6 +17,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
+import { useHistoryStore } from '../store/historyStore';
 import type { Asset, AssetIndexEntry } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { getCachedThumbnail, getThumbnail, removeThumbnailCache } from '../utils/thumbnailCache';
@@ -29,10 +30,9 @@ import {
 } from './context-menus';
 import {
   finalizeClipFromContext,
-  moveCutsToSceneEnd,
-  removeCutsFromScenes,
 } from '../features/cut/actions';
 import './AssetPanel.css';
+import { MoveCutsToSceneCommand, RemoveCutCommand } from '../store/commands';
 
 export type SortMode = 'name' | 'type' | 'used' | 'unused';
 export type FilterType = 'all' | 'image' | 'video' | 'audio';
@@ -152,8 +152,7 @@ export default function AssetPanel({
     selectedCutIds,
     selectCut,
     getSelectedCutIds,
-    moveCutsToScene,
-    removeCut,
+    getSelectedCuts,
     copySelectedCuts,
     canPaste,
     pasteCuts,
@@ -163,6 +162,7 @@ export default function AssetPanel({
     updateGroupCutOrder,
     closeDetailsPanel,
   } = useStore();
+  const { executeCommand } = useHistoryStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('name');
@@ -588,15 +588,31 @@ export default function AssetPanel({
     setCutContextMenu(null);
   };
 
-  const handleCutMenuDelete = () => {
-    const cutIds = getSelectedCutIds();
-    removeCutsFromScenes(scenes, cutIds, removeCut);
+  const handleCutMenuDelete = async () => {
+    const selectedCuts = getSelectedCuts();
+    for (const { scene, cut } of selectedCuts) {
+      try {
+        await executeCommand(new RemoveCutCommand(scene.id, cut.id));
+      } catch (error) {
+        toast.error('Delete failed', String(error));
+        break;
+      }
+    }
     setCutContextMenu(null);
   };
 
-  const handleCutMenuMove = (targetSceneId: string) => {
+  const handleCutMenuMove = async (targetSceneId: string) => {
     const cutIds = getSelectedCutIds();
-    moveCutsToSceneEnd(scenes, cutIds, targetSceneId, moveCutsToScene);
+    const targetScene = scenes.find((scene) => scene.id === targetSceneId);
+    if (!targetScene || cutIds.length === 0) {
+      setCutContextMenu(null);
+      return;
+    }
+    try {
+      await executeCommand(new MoveCutsToSceneCommand(cutIds, targetSceneId, targetScene.cuts.length));
+    } catch (error) {
+      toast.error('Move failed', String(error));
+    }
     setCutContextMenu(null);
   };
 

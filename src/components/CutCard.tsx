@@ -3,6 +3,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useState, useEffect, useRef } from 'react';
 import { Film, Image, Clock, Scissors, Loader2, Mic, Music } from 'lucide-react';
 import { useStore } from '../store/useStore';
+import { useHistoryStore } from '../store/historyStore';
 import type { Asset, CutAudioBinding } from '../types';
 import './CutCard.css';
 import { getThumbnail } from '../utils/thumbnailCache';
@@ -12,10 +13,9 @@ import { useDialog, useToast } from '../ui';
 import {
   cropImageAndAddCut,
   finalizeClipFromContext,
-  moveCutsToSceneEnd,
-  removeCutsFromScenes,
 } from '../features/cut/actions';
 import { DEFAULT_EXPORT_RESOLUTION } from '../constants/export';
+import { MoveCutsToSceneCommand, RemoveCutCommand } from '../store/commands';
 
 interface ResolutionPresetType {
   name: string;
@@ -34,9 +34,6 @@ interface CutCardProps {
     inPoint?: number;
     outPoint?: number;
     isClip?: boolean;
-    // Loading state
-    isLoading?: boolean;
-    loadingName?: string;
     // Lip sync fields
     isLipSync?: boolean;
     lipSyncFrameCount?: number;
@@ -60,8 +57,6 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
     scenes,
     getSelectedCutIds,
     getSelectedCuts,
-    moveCutsToScene,
-    removeCut,
     copySelectedCuts,
     canPaste,
     pasteCuts,
@@ -75,6 +70,7 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
     createCutFromImport,
     updateGroupCutOrder,
   } = useStore();
+  const { executeCommand } = useHistoryStore();
   const { toast } = useToast();
   const { confirm: dialogConfirm } = useDialog();
   const [thumbnail, setThumbnail] = useState<string | null>(null);
@@ -84,8 +80,8 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
   const loadingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const cutRuntime = getCutRuntime(cut.id);
-  const isCutLoading = cutRuntime?.isLoading ?? cut.isLoading;
-  const cutLoadingName = cutRuntime?.loadingName ?? cut.loadingName;
+  const isCutLoading = cutRuntime?.isLoading ?? false;
+  const cutLoadingName = cutRuntime?.loadingName;
 
   // Show spinner after 1 second of loading
   useEffect(() => {
@@ -217,15 +213,31 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
     setContextMenu(null);
   };
 
-  const handleDelete = () => {
-    const cutIds = getSelectedCutIds();
-    removeCutsFromScenes(scenes, cutIds, removeCut);
+  const handleDelete = async () => {
+    const selectedCuts = getSelectedCuts();
+    for (const { scene, cut: selectedCut } of selectedCuts) {
+      try {
+        await executeCommand(new RemoveCutCommand(scene.id, selectedCut.id));
+      } catch (error) {
+        toast.error('Delete failed', String(error));
+        break;
+      }
+    }
     setContextMenu(null);
   };
 
-  const handleMoveToScene = (targetSceneId: string) => {
+  const handleMoveToScene = async (targetSceneId: string) => {
     const cutIds = getSelectedCutIds();
-    moveCutsToSceneEnd(scenes, cutIds, targetSceneId, moveCutsToScene);
+    const targetScene = scenes.find((scene) => scene.id === targetSceneId);
+    if (!targetScene || cutIds.length === 0) {
+      setContextMenu(null);
+      return;
+    }
+    try {
+      await executeCommand(new MoveCutsToSceneCommand(cutIds, targetSceneId, targetScene.cuts.length));
+    } catch (error) {
+      toast.error('Move failed', String(error));
+    }
     setContextMenu(null);
   };
 

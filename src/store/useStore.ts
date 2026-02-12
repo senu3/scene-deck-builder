@@ -242,7 +242,11 @@ function normalizeScenesUseEmbeddedAudio(scenes: Scene[]): Scene[] {
   return scenes.map((scene) => ({
     ...scene,
     cuts: scene.cuts.map((cut) => {
-      const { isLoading: _isLoading, loadingName: _loadingName, ...rest } = cut;
+      const {
+        isLoading: _isLoading,
+        loadingName: _loadingName,
+        ...rest
+      } = cut as Cut & { isLoading?: boolean; loadingName?: string };
       return {
         ...rest,
         useEmbeddedAudio: cut.useEmbeddedAudio ?? true,

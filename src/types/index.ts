@@ -93,9 +93,6 @@ export interface Cut {
   inPoint?: number;   // Start time in seconds
   outPoint?: number;  // End time in seconds
   isClip?: boolean;   // True if this cut has custom IN/OUT points
-  // Loading state (for background import)
-  isLoading?: boolean;  // True while asset is being imported
-  loadingName?: string; // Name to display while loading
   // Lip sync fields
   isLipSync?: boolean;  // True if this is a lip sync cut
   lipSyncFrameCount?: number; // Number of registered frames (e.g., 4)

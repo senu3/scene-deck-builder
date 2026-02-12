@@ -46,6 +46,9 @@
 - Phase 2-3 (2026-02-12): `finalize clip` 実行前提チェックと実行導線を `finalizeClipFromContext` として action 層へ追加し、`CutCard` / `AssetPanel` の重複を削減。
 - Phase 2-4: 検討中のため実装保留（次フェーズ候補/TODOへ移行）。
 - Phase 3-1 (2026-02-12): `CutRuntimeState` 導入に着手。loading 状態を `useStore.cutRuntimeById` へ分離し、`CutCard` は runtime 状態を優先参照。
+- Phase 3-2 (2026-02-12): `CutCard` / `AssetPanel` の delete / move を `RemoveCutCommand` / `MoveCutsToSceneCommand` 経由へ移行し、直接 store 更新を削減。
+- Phase 3-3 (2026-02-12): `App` の「タイムライン外ドロップ削除」を `RemoveCutCommand` 経由へ移行し、直接 `removeCut` 呼び出しを削減。
+- Phase 3-4 (2026-02-12): `Cut` 永続モデルから loading フィールドを型レベルで除外。旧データの loading 情報は normalize で破棄し、runtime 状態へ一本化。
 
 ## 方針メモ（2026-02-12）
 - `AssetPanel` から Cut オプションは将来的に廃止し、アセットオプション拡充へ移行する。

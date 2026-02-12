@@ -43,7 +43,6 @@ function App() {
   const {
     projectLoaded,
     scenes,
-    removeCut,
     vaultPath,
     selectedSceneId,
     getSelectedCutIds,
@@ -240,7 +239,11 @@ function App() {
       // Dropped outside timeline - just remove cut from timeline (keep file in assets)
       if (activeData.type === 'cut' && activeData.sceneId) {
         const cutId = active.id as string;
-        removeCut(activeData.sceneId, cutId);
+        try {
+          await executeCommand(new RemoveCutCommand(activeData.sceneId, cutId));
+        } catch (error) {
+          console.error('Remove cut failed:', error);
+        }
         // Don't move file to trash - just remove from timeline
       }
       return;

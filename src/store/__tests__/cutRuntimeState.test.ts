@@ -27,10 +27,11 @@ describe('cut runtime state', () => {
     const cutId = useStore.getState().addLoadingCutToScene('scene-1', 'asset-loading', 'loading.mp4');
     const scene = useStore.getState().scenes.find((s) => s.id === 'scene-1');
     const cut = scene?.cuts.find((c) => c.id === cutId);
+    const cutRecord = (cut || {}) as Record<string, unknown>;
 
     expect(cut).toBeTruthy();
-    expect(cut?.isLoading).toBeUndefined();
-    expect(cut?.loadingName).toBeUndefined();
+    expect('isLoading' in cutRecord).toBe(false);
+    expect('loadingName' in cutRecord).toBe(false);
     expect(useStore.getState().getCutRuntime(cutId)).toEqual({ isLoading: true, loadingName: 'loading.mp4' });
   });
 
