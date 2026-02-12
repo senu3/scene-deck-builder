@@ -68,6 +68,7 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
     vaultPath,
     openVideoPreview,
     openSequencePreview,
+    getCutRuntime,
     getCutGroup,
     createGroup,
     removeCutFromGroup,
@@ -82,9 +83,13 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
   const [showLoadingSpinner, setShowLoadingSpinner] = useState(false);
   const loadingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const cutRuntime = getCutRuntime(cut.id);
+  const isCutLoading = cutRuntime?.isLoading ?? cut.isLoading;
+  const cutLoadingName = cutRuntime?.loadingName ?? cut.loadingName;
+
   // Show spinner after 1 second of loading
   useEffect(() => {
-    if (cut.isLoading) {
+    if (isCutLoading) {
       loadingTimerRef.current = setTimeout(() => {
         setShowLoadingSpinner(true);
       }, 1000);
@@ -101,7 +106,7 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
         clearTimeout(loadingTimerRef.current);
       }
     };
-  }, [cut.isLoading]);
+  }, [isCutLoading]);
 
   const {
     attributes,
@@ -347,7 +352,7 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
   const cropInitialHeight = cropBaseResolution.height > 0 ? cropBaseResolution.height : DEFAULT_EXPORT_RESOLUTION.height;
 
   // If loading, show loading card
-  if (cut.isLoading) {
+  if (isCutLoading) {
     return (
       <div
         ref={setNodeRef}
@@ -362,8 +367,8 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
               <Loader2 size={24} className="loading-spinner" />
             )}
           </div>
-          <div className="cut-loading-name" title={cut.loadingName}>
-            {cut.loadingName}
+          <div className="cut-loading-name" title={cutLoadingName}>
+            {cutLoadingName}
           </div>
         </div>
       </div>

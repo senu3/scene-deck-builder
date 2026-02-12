@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import type { Scene, Cut, Asset, FileItem, FavoriteFolder, PlaybackMode, PreviewMode, SceneNote, SelectionType, Project, SourceViewMode, SourcePanelState, MetadataStore, CutGroup, LipSyncSettings, CutAudioBinding } from '../types';
+import type { Scene, Cut, Asset, FileItem, FavoriteFolder, PlaybackMode, PreviewMode, SceneNote, SelectionType, Project, SourceViewMode, SourcePanelState, MetadataStore, CutGroup, LipSyncSettings, CutAudioBinding, CutRuntimeState } from '../types';
 import { loadMetadataStore, saveMetadataStore, updateAudioAnalysis, updateLipSyncSettings, removeLipSyncSettings, upsertSceneMetadata, removeSceneMetadata, syncSceneMetadata, removeAssetReferences as removeAssetReferencesInStore } from '../utils/metadataStore';
 import { analyzeAudioRms } from '../utils/audioUtils';
 import { clearThumbnailCache } from '../utils/thumbnailCache';
@@ -52,6 +52,7 @@ interface AppState {
 
   // Timeline state
   scenes: Scene[];
+  cutRuntimeById: Record<string, CutRuntimeState>;
   selectedSceneId: string | null;
   selectedCutId: string | null;
   selectedCutIds: Set<string>;  // Multi-select support
@@ -136,6 +137,9 @@ interface AppState {
   reorderCuts: (sceneId: string, cutId: string, newIndex: number, fromSceneId: string, oldIndex: number) => void;
   moveCutToScene: (fromSceneId: string, toSceneId: string, cutId: string, toIndex: number) => void;
   moveCutsToScene: (cutIds: string[], toSceneId: string, toIndex: number) => void;  // Multi-move
+  setCutRuntime: (cutId: string, runtime: CutRuntimeState) => void;
+  clearCutRuntime: (cutId: string) => void;
+  getCutRuntime: (cutId: string) => CutRuntimeState | undefined;
 
   // Actions - Video Clips
   updateCutClipPoints: (sceneId: string, cutId: string, inPoint: number, outPoint: number) => void;
@@ -237,10 +241,13 @@ interface AppState {
 function normalizeScenesUseEmbeddedAudio(scenes: Scene[]): Scene[] {
   return scenes.map((scene) => ({
     ...scene,
-    cuts: scene.cuts.map((cut) => ({
-      ...cut,
-      useEmbeddedAudio: cut.useEmbeddedAudio ?? true,
-    })),
+    cuts: scene.cuts.map((cut) => {
+      const { isLoading: _isLoading, loadingName: _loadingName, ...rest } = cut;
+      return {
+        ...rest,
+        useEmbeddedAudio: cut.useEmbeddedAudio ?? true,
+      };
+    }),
   }));
 }
 
@@ -261,6 +268,7 @@ export const useStore = create<AppState>((set, get) => ({
   favorites: [],
   sourceViewMode: 'list' as SourceViewMode,
   scenes: [],
+  cutRuntimeById: {},
   selectedSceneId: null,
   selectedCutId: null,
   selectedCutIds: new Set(),
@@ -302,6 +310,7 @@ export const useStore = create<AppState>((set, get) => ({
       trashPath: project.vaultPath ? `${project.vaultPath}/.trash` : null,
       projectName: project.name || 'Untitled Project',
       scenes: normalizeScenesUseEmbeddedAudio(project.scenes || defaultScenes),
+      cutRuntimeById: {},
       selectedSceneId: null,
       selectedCutId: null,
       selectedCutIds: new Set(),
@@ -324,6 +333,7 @@ export const useStore = create<AppState>((set, get) => ({
     selectedSceneId: null,
     selectedCutId: null,
     selectedCutIds: new Set(),
+    cutRuntimeById: {},
     lastSelectedCutId: null,
     selectionType: null,
     rootFolder: null,
@@ -334,7 +344,7 @@ export const useStore = create<AppState>((set, get) => ({
     });
   },
 
-  loadProject: (scenes) => set({ scenes: normalizeScenesUseEmbeddedAudio(scenes) }),
+  loadProject: (scenes) => set({ scenes: normalizeScenesUseEmbeddedAudio(scenes), cutRuntimeById: {} }),
 
   // Folder browser actions
   setRootFolder: (folder) => set((state) => {
@@ -499,10 +509,16 @@ export const useStore = create<AppState>((set, get) => ({
       const currentStore = state.metadataStore || { version: 1, metadata: {}, sceneMetadata: {} };
       const updatedStore = removeSceneMetadata(currentStore, sceneId);
       const clearedSelection = state.selectedSceneId === sceneId;
+      const targetScene = state.scenes.find((s) => s.id === sceneId);
+      const nextCutRuntimeById = { ...state.cutRuntimeById };
+      for (const cut of targetScene?.cuts || []) {
+        delete nextCutRuntimeById[cut.id];
+      }
       return {
         scenes: state.scenes
           .filter((s) => s.id !== sceneId)
           .map((s, idx) => ({ ...s, order: idx })),
+        cutRuntimeById: nextCutRuntimeById,
         selectedSceneId: state.selectedSceneId === sceneId ? null : state.selectedSceneId,
         selectionType: state.selectedSceneId === sceneId ? null : state.selectionType,
         detailsPanelOpen: clearedSelection ? false : state.detailsPanelOpen,
@@ -662,23 +678,25 @@ export const useStore = create<AppState>((set, get) => ({
       order: actualIndex,
       useEmbeddedAudio: true,
       audioBindings: [],
-      isLoading: true,
-      loadingName,
     };
 
-    set((state) => ({
-      scenes: state.scenes.map((s) => {
-        if (s.id !== sceneId) return s;
+    set((state) => {
+      const nextCutRuntimeById = { ...state.cutRuntimeById, [cutId]: { isLoading: true, loadingName } };
+      return {
+        scenes: state.scenes.map((s) => {
+          if (s.id !== sceneId) return s;
 
-        const newCuts = [...s.cuts];
-        newCuts.splice(actualIndex, 0, newCut);
-        // Update order for all cuts
-        return {
-          ...s,
-          cuts: newCuts.map((c, i) => ({ ...c, order: i })),
-        };
-      }),
-    }));
+          const newCuts = [...s.cuts];
+          newCuts.splice(actualIndex, 0, newCut);
+          // Update order for all cuts
+          return {
+            ...s,
+            cuts: newCuts.map((c, i) => ({ ...c, order: i })),
+          };
+        }),
+        cutRuntimeById: nextCutRuntimeById,
+      };
+    });
 
     return cutId;
   },
@@ -689,6 +707,8 @@ export const useStore = create<AppState>((set, get) => ({
       // Cache the asset
       const newCache = new Map(state.assetCache);
       newCache.set(asset.id, asset);
+      const nextCutRuntimeById = { ...state.cutRuntimeById };
+      delete nextCutRuntimeById[cutId];
 
       return {
         scenes: state.scenes.map((s) =>
@@ -702,8 +722,6 @@ export const useStore = create<AppState>((set, get) => ({
                         asset,
                         assetId: asset.id,
                         displayTime: displayTime ?? c.displayTime,
-                        isLoading: false,
-                        loadingName: undefined,
                       }
                     : c
                 ),
@@ -711,6 +729,7 @@ export const useStore = create<AppState>((set, get) => ({
             : s
         ),
         assetCache: newCache,
+        cutRuntimeById: nextCutRuntimeById,
       };
     });
   },
@@ -735,6 +754,11 @@ export const useStore = create<AppState>((set, get) => ({
     const cutToRemove = scene?.cuts.find((c) => c.id === cutId) || null;
 
     set((state) => ({
+      cutRuntimeById: (() => {
+        const next = { ...state.cutRuntimeById };
+        delete next[cutId];
+        return next;
+      })(),
       scenes: state.scenes.map((s) =>
         s.id === sceneId
           ? {
@@ -979,6 +1003,18 @@ export const useStore = create<AppState>((set, get) => ({
       lastSelectedCutId: null,
     };
   }),
+
+  setCutRuntime: (cutId, runtime) => set((state) => ({
+    cutRuntimeById: { ...state.cutRuntimeById, [cutId]: runtime },
+  })),
+
+  clearCutRuntime: (cutId) => set((state) => {
+    const next = { ...state.cutRuntimeById };
+    delete next[cutId];
+    return { cutRuntimeById: next };
+  }),
+
+  getCutRuntime: (cutId) => get().cutRuntimeById[cutId],
 
   // Selection actions
   selectScene: (sceneId) => set({

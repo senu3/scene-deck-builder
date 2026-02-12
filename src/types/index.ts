@@ -101,6 +101,11 @@ export interface Cut {
   lipSyncFrameCount?: number; // Number of registered frames (e.g., 4)
 }
 
+export interface CutRuntimeState {
+  isLoading?: boolean;
+  loadingName?: string;
+}
+
 export type FramingMode = 'cover' | 'fit';
 
 export type FramingAnchor =

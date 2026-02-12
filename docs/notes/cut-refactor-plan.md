@@ -44,6 +44,8 @@
 - Phase 2-1 (2026-02-12): `CutCard` / `AssetPanel` に重複していた選択 Cut の delete / move 副作用を `features/cut/actions` の共通関数 (`removeCutsFromScenes`, `moveCutsToSceneEnd`) に移管。
 - Phase 2-2 (2026-02-12): Group 追随ロジックの共通化を開始。`src/utils/cutGroupOps.ts` を追加し、`removeCut` / `moveCutToScene` / `moveCutsToScene` の group 整合更新に適用。複数 cut 移動時の group 参照残りを修正。
 - Phase 2-3 (2026-02-12): `finalize clip` 実行前提チェックと実行導線を `finalizeClipFromContext` として action 層へ追加し、`CutCard` / `AssetPanel` の重複を削減。
+- Phase 2-4: 検討中のため実装保留（次フェーズ候補/TODOへ移行）。
+- Phase 3-1 (2026-02-12): `CutRuntimeState` 導入に着手。loading 状態を `useStore.cutRuntimeById` へ分離し、`CutCard` は runtime 状態を優先参照。
 
 ## 方針メモ（2026-02-12）
 - `AssetPanel` から Cut オプションは将来的に廃止し、アセットオプション拡充へ移行する。
@@ -73,7 +75,7 @@
 1. `CutCard` / `AssetPanel` の重複ロジック撤去。
 2. `features/cut/actions` へ移管。
 3. Group 追随処理の共通化。
-4. `AssetPanel` の Cut オプション廃止計画を段階適用（Cut 操作 UI を縮退し、アセット操作へ集約）。
+4. `AssetPanel` の Cut オプション廃止計画を段階適用（Cut 操作 UI を縮退し、アセット操作へ集約）※検討中のため次フェーズ候補。
 
 **受け入れ条件**
 - finalize/crop の実装が1箇所。
