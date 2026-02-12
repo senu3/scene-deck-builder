@@ -43,3 +43,6 @@ coverage/
 # Misc
 *.tgz
 src/components/preview-mockups/
+
+# TypeScript build info
+*.tsbuildinfo
