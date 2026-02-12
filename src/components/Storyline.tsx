@@ -3,6 +3,17 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { Plus, MoreHorizontal, Edit2, Trash2 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useStore } from '../store/useStore';
+import {
+  selectScenes,
+  selectSelectedSceneId,
+  selectSelectScene,
+  selectVaultPath,
+  selectCreateCutFromImport,
+  selectCloseDetailsPanel,
+  selectSelectedGroupId,
+  selectSelectGroup,
+  selectToggleGroupCollapsed,
+} from '../store/selectors';
 import { useHistoryStore } from '../store/historyStore';
 import { AddSceneCommand, RemoveSceneCommand, RenameSceneCommand } from '../store/commands';
 import CutCard from './CutCard';
@@ -29,7 +40,12 @@ interface StorylineProps {
 }
 
 export default function Storyline({ activeId, cropBaseResolution }: StorylineProps) {
-  const { scenes, selectedSceneId, selectScene, vaultPath, createCutFromImport, closeDetailsPanel } = useStore();
+  const scenes = useStore(selectScenes);
+  const selectedSceneId = useStore(selectSelectedSceneId);
+  const selectScene = useStore(selectSelectScene);
+  const vaultPath = useStore(selectVaultPath);
+  const createCutFromImport = useStore(selectCreateCutFromImport);
+  const closeDetailsPanel = useStore(selectCloseDetailsPanel);
   const { executeCommand } = useHistoryStore();
   const storylineRef = useRef<HTMLDivElement>(null);
   // --- DND: dnd-kit (reorder) ---
@@ -155,7 +171,10 @@ function SceneColumn({
   isOverDifferentScene,
 }: SceneColumnProps) {
   const sceneColor = getSceneColor(sceneIndex);
-  const { scenes, selectedGroupId, selectGroup, toggleGroupCollapsed } = useStore();
+  const scenes = useStore(selectScenes);
+  const selectedGroupId = useStore(selectSelectedGroupId);
+  const selectGroup = useStore(selectSelectGroup);
+  const toggleGroupCollapsed = useStore(selectToggleGroupCollapsed);
   const { executeCommand } = useHistoryStore();
   const [showMenu, setShowMenu] = useState(false);
   const [isEditing, setIsEditing] = useState(false);

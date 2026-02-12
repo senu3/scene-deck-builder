@@ -1,6 +1,17 @@
 import { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { X, Play, Pause, SkipBack, SkipForward, Download, Loader2, Repeat, Maximize, Scissors, Camera } from 'lucide-react';
 import { useStore } from '../store/useStore';
+import {
+  selectScenes,
+  selectPreviewMode,
+  selectSelectedSceneId,
+  selectGetAsset,
+  selectGlobalVolume,
+  selectGlobalMuted,
+  selectSetGlobalVolume,
+  selectToggleGlobalMute,
+  selectMetadataStore,
+} from '../store/selectors';
 import type { Asset, Cut } from '../types';
 import { createVideoObjectUrl } from '../utils/videoUtils';
 import { formatTime, cyclePlaybackSpeed } from '../utils/timeUtils';
@@ -101,17 +112,15 @@ export default function PreviewModal({
   onClipSave,
   onFrameCapture,
 }: PreviewModalProps) {
-  const {
-    scenes,
-    previewMode,
-    selectedSceneId,
-    getAsset,
-    globalVolume,
-    globalMuted,
-    setGlobalVolume,
-    toggleGlobalMute,
-    metadataStore,
-  } = useStore();
+  const scenes = useStore(selectScenes);
+  const previewMode = useStore(selectPreviewMode);
+  const selectedSceneId = useStore(selectSelectedSceneId);
+  const getAsset = useStore(selectGetAsset);
+  const globalVolume = useStore(selectGlobalVolume);
+  const globalMuted = useStore(selectGlobalMuted);
+  const setGlobalVolume = useStore(selectSetGlobalVolume);
+  const toggleGlobalMute = useStore(selectToggleGlobalMute);
+  const metadataStore = useStore(selectMetadataStore);
 
   // Mode detection: Single Mode if asset prop is provided
   const isSingleMode = !!asset;

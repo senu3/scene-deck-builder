@@ -77,6 +77,9 @@
 - コンポーネントごとに必要 state/actions だけを取得する selector に寄せる。
 - 「直接 state 全体参照」を段階削減する。
 
+進捗（2026-02-12）:
+- `src/store/selectors.ts` を追加し、`App` / `Storyline` / `CutCard` / `AssetPanel` / `DetailsPanel` / `PreviewModal` を selector 取得へ移行した。
+
 受け入れ条件:
 - 主要 UI (`App`, `Storyline`, `CutCard`, `AssetPanel`, `DetailsPanel`) の selector が明示される。
 - 不要再レンダリングが増えない。

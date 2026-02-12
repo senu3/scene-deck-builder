@@ -45,6 +45,25 @@
 - 復元・コピーなどの read 時は `getAsset(assetId)` を優先し、必要時のみ `cut.asset` を fallback とする。
 - write 時に `cut.asset` を前提にした更新を増やさない。
 
+### 7. selector 標準パターン
+- コンポーネントでは `useStore()` の全体購読を避け、必要な state/action のみを selector で取得する。
+- selector は「描画に必要な最小単位」で分割する。`scene` と `uiState` を同一 selector に混在させない。
+- action は state selector と分離して取得する（再レンダー連鎖を抑えるため）。
+- 配列/オブジェクトを selector で組み立てる場合は、不要な新規参照生成を避ける。
+- `asset` 参照は selector 内で `getAsset(cut.assetId)` 優先にし、`cut.asset` は fallback とする。
+
+標準例:
+```ts
+const selectedCutId = useStore((s) => s.selectedCutId);
+const selectedSceneId = useStore((s) => s.selectedSceneId);
+const updateCutDisplayTime = useStore((s) => s.updateCutDisplayTime);
+```
+
+避ける例:
+```ts
+const store = useStore(); // 全体購読
+```
+
 ## 禁止依存（S0）
 - `commands.ts` -> ブラウザ UI API 直接呼び出し（`confirm`, `alert`, modal）。
 - slice -> 他 slice の private helper 直接 import。

@@ -22,6 +22,30 @@ import {
   Edit2,
 } from "lucide-react";
 import { useStore } from "../store/useStore";
+import {
+  selectScenes,
+  selectSelectedSceneId,
+  selectSelectedCutId,
+  selectSelectedCutIds,
+  selectSelectionType,
+  selectSelectedGroupId,
+  selectGetAsset,
+  selectAddSceneNote,
+  selectRemoveSceneNote,
+  selectGetSelectedCuts,
+  selectGetSelectedGroup,
+  selectToggleGroupCollapsed,
+  selectCacheAsset,
+  selectUpdateCutAsset,
+  selectVaultPath,
+  selectMetadataStore,
+  selectAttachAudioToCut,
+  selectDetachAudioFromCut,
+  selectGetAttachedAudioForCut,
+  selectUpdateCutAudioOffset,
+  selectSetCutUseEmbeddedAudio,
+  selectRelinkCutAsset,
+} from "../store/selectors";
 import { useHistoryStore } from "../store/historyStore";
 import {
   UpdateDisplayTimeCommand,
@@ -48,30 +72,28 @@ import { Toggle, useDialog } from "../ui";
 import "./DetailsPanel.css";
 
 export default function DetailsPanel() {
-  const {
-    scenes,
-    selectedSceneId,
-    selectedCutId,
-    selectedCutIds,
-    selectionType,
-    selectedGroupId,
-    getAsset,
-    addSceneNote,
-    removeSceneNote,
-    getSelectedCuts,
-    getSelectedGroup,
-    toggleGroupCollapsed,
-    cacheAsset,
-    updateCutAsset,
-    vaultPath,
-    metadataStore,
-    attachAudioToCut,
-    detachAudioFromCut,
-    getAttachedAudioForCut,
-    updateCutAudioOffset,
-    setCutUseEmbeddedAudio,
-    relinkCutAsset,
-  } = useStore();
+  const scenes = useStore(selectScenes);
+  const selectedSceneId = useStore(selectSelectedSceneId);
+  const selectedCutId = useStore(selectSelectedCutId);
+  const selectedCutIds = useStore(selectSelectedCutIds);
+  const selectionType = useStore(selectSelectionType);
+  const selectedGroupId = useStore(selectSelectedGroupId);
+  const getAsset = useStore(selectGetAsset);
+  const addSceneNote = useStore(selectAddSceneNote);
+  const removeSceneNote = useStore(selectRemoveSceneNote);
+  const getSelectedCuts = useStore(selectGetSelectedCuts);
+  const getSelectedGroup = useStore(selectGetSelectedGroup);
+  const toggleGroupCollapsed = useStore(selectToggleGroupCollapsed);
+  const cacheAsset = useStore(selectCacheAsset);
+  const updateCutAsset = useStore(selectUpdateCutAsset);
+  const vaultPath = useStore(selectVaultPath);
+  const metadataStore = useStore(selectMetadataStore);
+  const attachAudioToCut = useStore(selectAttachAudioToCut);
+  const detachAudioFromCut = useStore(selectDetachAudioFromCut);
+  const getAttachedAudioForCut = useStore(selectGetAttachedAudioForCut);
+  const updateCutAudioOffset = useStore(selectUpdateCutAudioOffset);
+  const setCutUseEmbeddedAudio = useStore(selectSetCutUseEmbeddedAudio);
+  const relinkCutAsset = useStore(selectRelinkCutAsset);
 
   const { executeCommand } = useHistoryStore();
   const { confirm } = useDialog();

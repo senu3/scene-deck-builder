@@ -17,6 +17,27 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
+import {
+  selectVaultPath,
+  selectScenes,
+  selectMetadataStore,
+  selectSelectedSceneId,
+  selectCreateCutFromImport,
+  selectAssetCache,
+  selectSelectedCutId,
+  selectSelectedCutIds,
+  selectSelectCut,
+  selectGetSelectedCutIds,
+  selectGetSelectedCuts,
+  selectCopySelectedCuts,
+  selectCanPaste,
+  selectPasteCuts,
+  selectGetAsset,
+  selectDeleteAssetWithPolicy,
+  selectGetCutGroup,
+  selectUpdateGroupCutOrder,
+  selectCloseDetailsPanel,
+} from '../store/selectors';
 import { useHistoryStore } from '../store/historyStore';
 import type { Asset, AssetIndexEntry } from '../types';
 import { v4 as uuidv4 } from 'uuid';
@@ -141,27 +162,25 @@ export default function AssetPanel({
   const effectiveShowImportButton = showImportButton ?? (mode === 'modal');
   const effectiveHeaderTitle = headerTitle ?? (mode === 'modal' ? 'Select Asset' : 'Assets');
 
-  const {
-    vaultPath,
-    scenes,
-    metadataStore,
-    selectedSceneId,
-    createCutFromImport,
-    assetCache,
-    selectedCutId,
-    selectedCutIds,
-    selectCut,
-    getSelectedCutIds,
-    getSelectedCuts,
-    copySelectedCuts,
-    canPaste,
-    pasteCuts,
-    getAsset,
-    deleteAssetWithPolicy,
-    getCutGroup,
-    updateGroupCutOrder,
-    closeDetailsPanel,
-  } = useStore();
+  const vaultPath = useStore(selectVaultPath);
+  const scenes = useStore(selectScenes);
+  const metadataStore = useStore(selectMetadataStore);
+  const selectedSceneId = useStore(selectSelectedSceneId);
+  const createCutFromImport = useStore(selectCreateCutFromImport);
+  const assetCache = useStore(selectAssetCache);
+  const selectedCutId = useStore(selectSelectedCutId);
+  const selectedCutIds = useStore(selectSelectedCutIds);
+  const selectCut = useStore(selectSelectCut);
+  const getSelectedCutIds = useStore(selectGetSelectedCutIds);
+  const getSelectedCuts = useStore(selectGetSelectedCuts);
+  const copySelectedCuts = useStore(selectCopySelectedCuts);
+  const canPaste = useStore(selectCanPaste);
+  const pasteCuts = useStore(selectPasteCuts);
+  const getAsset = useStore(selectGetAsset);
+  const deleteAssetWithPolicy = useStore(selectDeleteAssetWithPolicy);
+  const getCutGroup = useStore(selectGetCutGroup);
+  const updateGroupCutOrder = useStore(selectUpdateGroupCutOrder);
+  const closeDetailsPanel = useStore(selectCloseDetailsPanel);
   const { executeCommand } = useHistoryStore();
 
   const [searchQuery, setSearchQuery] = useState('');

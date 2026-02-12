@@ -3,6 +3,28 @@ import { CSS } from '@dnd-kit/utilities';
 import { useState, useEffect, useRef } from 'react';
 import { Film, Image, Clock, Scissors, Loader2, Mic, Music } from 'lucide-react';
 import { useStore } from '../store/useStore';
+import {
+  selectSelectedCutId,
+  selectSelectedCutIds,
+  selectSelectCut,
+  selectToggleCutSelection,
+  selectSelectCutRange,
+  selectGetAsset,
+  selectScenes,
+  selectGetSelectedCutIds,
+  selectGetSelectedCuts,
+  selectCopySelectedCuts,
+  selectCanPaste,
+  selectPasteCuts,
+  selectVaultPath,
+  selectOpenVideoPreview,
+  selectOpenSequencePreview,
+  selectGetCutRuntime,
+  selectGetCutGroup,
+  selectCreateGroup,
+  selectCreateCutFromImport,
+  selectUpdateGroupCutOrder,
+} from '../store/selectors';
 import { useHistoryStore } from '../store/historyStore';
 import type { Asset, CutAudioBinding } from '../types';
 import './CutCard.css';
@@ -47,28 +69,26 @@ interface CutCardProps {
 }
 
 export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cropBaseResolution }: CutCardProps) {
-  const {
-    selectedCutId,
-    selectedCutIds,
-    selectCut,
-    toggleCutSelection,
-    selectCutRange,
-    getAsset,
-    scenes,
-    getSelectedCutIds,
-    getSelectedCuts,
-    copySelectedCuts,
-    canPaste,
-    pasteCuts,
-    vaultPath,
-    openVideoPreview,
-    openSequencePreview,
-    getCutRuntime,
-    getCutGroup,
-    createGroup,
-    createCutFromImport,
-    updateGroupCutOrder,
-  } = useStore();
+  const selectedCutId = useStore(selectSelectedCutId);
+  const selectedCutIds = useStore(selectSelectedCutIds);
+  const selectCut = useStore(selectSelectCut);
+  const toggleCutSelection = useStore(selectToggleCutSelection);
+  const selectCutRange = useStore(selectSelectCutRange);
+  const getAsset = useStore(selectGetAsset);
+  const scenes = useStore(selectScenes);
+  const getSelectedCutIds = useStore(selectGetSelectedCutIds);
+  const getSelectedCuts = useStore(selectGetSelectedCuts);
+  const copySelectedCuts = useStore(selectCopySelectedCuts);
+  const canPaste = useStore(selectCanPaste);
+  const pasteCuts = useStore(selectPasteCuts);
+  const vaultPath = useStore(selectVaultPath);
+  const openVideoPreview = useStore(selectOpenVideoPreview);
+  const openSequencePreview = useStore(selectOpenSequencePreview);
+  const getCutRuntime = useStore(selectGetCutRuntime);
+  const getCutGroup = useStore(selectGetCutGroup);
+  const createGroup = useStore(selectCreateGroup);
+  const createCutFromImport = useStore(selectCreateCutFromImport);
+  const updateGroupCutOrder = useStore(selectUpdateGroupCutOrder);
   const { executeCommand } = useHistoryStore();
   const { toast } = useToast();
   const { confirm: dialogConfirm } = useDialog();

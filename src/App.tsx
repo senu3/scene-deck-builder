@@ -1,6 +1,33 @@
 import { DndContext, DragEndEvent, DragOverEvent, DragStartEvent, pointerWithin, useSensors, useSensor, PointerSensor, useDndMonitor } from '@dnd-kit/core';
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useStore } from './store/useStore';
+import {
+  selectProjectLoaded,
+  selectScenes,
+  selectVaultPath,
+  selectSelectedSceneId,
+  selectGetSelectedCutIds,
+  selectGetSelectedCuts,
+  selectCopySelectedCuts,
+  selectCanPaste,
+  selectClearCutSelection,
+  selectVideoPreviewCutId,
+  selectCloseVideoPreview,
+  selectSequencePreviewCutId,
+  selectCloseSequencePreview,
+  selectCacheAssetAction,
+  selectUpdateCutAssetAction,
+  selectCreateCutFromImport,
+  selectToggleAssetDrawer,
+  selectSidebarOpen,
+  selectToggleSidebar,
+  selectGetCutGroup,
+  selectGetAsset,
+  selectMetadataStore,
+  selectSelectionType,
+  selectDetailsPanelOpen,
+  selectCloseDetailsPanel,
+} from './store/selectors';
 import { useHistoryStore } from './store/historyStore';
 import {
   AddCutCommand,
@@ -50,33 +77,31 @@ function DndMonitorShim({ onDragStart }: { onDragStart: () => void }) {
 }
 
 function App() {
-  const {
-    projectLoaded,
-    scenes,
-    vaultPath,
-    selectedSceneId,
-    getSelectedCutIds,
-    getSelectedCuts,
-    copySelectedCuts,
-    canPaste,
-    clearCutSelection,
-    videoPreviewCutId,
-    closeVideoPreview,
-    sequencePreviewCutId,
-    closeSequencePreview,
-    cacheAsset,
-    updateCutAsset,
-    createCutFromImport,
-    toggleAssetDrawer,
-    sidebarOpen,
-    toggleSidebar,
-    getCutGroup,
-    getAsset,
-    metadataStore,
-    selectionType,
-    detailsPanelOpen,
-    closeDetailsPanel,
-  } = useStore();
+  const projectLoaded = useStore(selectProjectLoaded);
+  const scenes = useStore(selectScenes);
+  const vaultPath = useStore(selectVaultPath);
+  const selectedSceneId = useStore(selectSelectedSceneId);
+  const getSelectedCutIds = useStore(selectGetSelectedCutIds);
+  const getSelectedCuts = useStore(selectGetSelectedCuts);
+  const copySelectedCuts = useStore(selectCopySelectedCuts);
+  const canPaste = useStore(selectCanPaste);
+  const clearCutSelection = useStore(selectClearCutSelection);
+  const videoPreviewCutId = useStore(selectVideoPreviewCutId);
+  const closeVideoPreview = useStore(selectCloseVideoPreview);
+  const sequencePreviewCutId = useStore(selectSequencePreviewCutId);
+  const closeSequencePreview = useStore(selectCloseSequencePreview);
+  const cacheAsset = useStore(selectCacheAssetAction);
+  const updateCutAsset = useStore(selectUpdateCutAssetAction);
+  const createCutFromImport = useStore(selectCreateCutFromImport);
+  const toggleAssetDrawer = useStore(selectToggleAssetDrawer);
+  const sidebarOpen = useStore(selectSidebarOpen);
+  const toggleSidebar = useStore(selectToggleSidebar);
+  const getCutGroup = useStore(selectGetCutGroup);
+  const getAsset = useStore(selectGetAsset);
+  const metadataStore = useStore(selectMetadataStore);
+  const selectionType = useStore(selectSelectionType);
+  const detailsPanelOpen = useStore(selectDetailsPanelOpen);
+  const closeDetailsPanel = useStore(selectCloseDetailsPanel);
 
   const { executeCommand, undo, redo } = useHistoryStore();
   const { banner } = useBanner();
