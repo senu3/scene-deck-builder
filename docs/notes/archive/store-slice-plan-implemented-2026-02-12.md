@@ -13,11 +13,16 @@
 ## 関連ファイル
 - `docs/guides/cut-history-guidelines.md`
 - `docs/notes/archive/cut-refactor-plan-implemented-2026-02-12.md`
+- `docs/notes/archive/cut-write-path-inventory-implemented-2026-02-12.md`
 - `src/store/useStore.ts`
 - `src/store/commands.ts`
 
 ## 更新頻度
 - 中
+
+## ステータス
+- 完了（2026-02-12）
+- 後続: 型集約責務の削減は `docs/notes/store-type-boundary-plan.md` で管理
 
 ## 背景（現状）
 - `useStore.ts` が 1500 行超で、Project/Folder/Timeline/Cut/Group/Metadata/UI を単一ファイルで保持している。
@@ -104,6 +109,10 @@
 - Undo/Redo 対象操作の境界が docs とコードで一致する。
 - Command 必須操作リスト（例: scene/cut/group の構造変更、clip point 更新）が docs 化され、主要 UI 実装が準拠している。
 
+完了判定（2026-02-12）:
+- S0-S3 の受け入れ条件を満たす実装反映と docs 同期を完了。
+- 本プラン由来の TODO は完了済み項目のみとなり、未着手タスクはなし。
+
 ## リスク
 - 分割時に循環参照が入りやすい。
 - slice 間の依存が強く、分割しても複雑度が下がらない可能性がある。
@@ -123,7 +132,7 @@
 
 ## TODO
 - selector 標準パターンを `docs/guides/cut-history-guidelines.md` に追記する。 (完了: 2026-02-12)
-- S0 着手前に「Cut 書き込み経路の現状一覧」を作成する。 (完了: `docs/notes/cut-write-path-inventory.md`)
+- S0 着手前に「Cut 書き込み経路の現状一覧」を作成する。 (完了: `docs/notes/archive/cut-write-path-inventory-implemented-2026-02-12.md`)
 - `commands.ts` の `confirm()` 呼び出しを撤去し、UI 層へ移設する設計メモを追加する。 (完了: 2026-02-12)
 - `src/store/contracts.ts`（仮）を作成し、`AppState` と slice 公開型の配置を定義する。 (完了: 2026-02-12)
 

@@ -11,7 +11,7 @@
 - `src/components/*` の Command 実行箇所
 
 ## 関連ファイル
-- `docs/notes/store-slice-plan.md`
+- `docs/notes/archive/store-slice-plan-implemented-2026-02-12.md`
 - `docs/guides/cut-history-guidelines.md`
 - `src/store/useStore.ts`
 - `src/store/historyStore.ts`

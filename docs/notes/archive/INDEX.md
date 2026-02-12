@@ -10,6 +10,8 @@
 - `docs/notes/archive/export-naming-plan-implemented-2026-02-11.md`
 - `docs/notes/archive/export-timeline-integrity-plan-implemented-2026-02-11.md`
 - `docs/notes/archive/cut-refactor-plan-implemented-2026-02-12.md`
+- `docs/notes/archive/store-slice-plan-implemented-2026-02-12.md`
+- `docs/notes/archive/cut-write-path-inventory-implemented-2026-02-12.md`
 - `docs/notes/archive/autosave-toast-notes.md`
 - `docs/notes/archive/aviutl-exo-export-research.md`
 

@@ -1,7 +1,7 @@
 # Cut Refactor Plan (Archived)
 
 このノートは実装履歴としてアーカイブ済みです。現行運用は以下を参照してください。
-- `docs/notes/store-slice-plan.md`
+- `docs/notes/archive/store-slice-plan-implemented-2026-02-12.md`
 - `docs/guides/cut-history-guidelines.md`
 
 **目的**: Cut 周りの責務過多・重複実装・整合性リスクを段階的に解消し、Export 実装を安全に進められる状態を作る。  

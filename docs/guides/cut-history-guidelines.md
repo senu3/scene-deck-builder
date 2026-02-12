@@ -12,7 +12,7 @@
 - `src/store/useStore.ts`
 
 ## 関連ファイル
-- `docs/notes/store-slice-plan.md`
+- `docs/notes/archive/store-slice-plan-implemented-2026-02-12.md`
 - `docs/notes/archive/cut-refactor-plan-implemented-2026-02-12.md`
 - `docs/guides/storyline.md`
 
@@ -89,6 +89,12 @@ const store = useStore(); // 全体購読
 ## Undo/Redo 対象（運用）
 - 対象: scene/cut/group の構造変更、clip point 更新。
 - 非対象: runtime loading 状態、サムネイルキャッシュ、Export 進捗 UI。
+
+## Cut Write Path 要点（2026-02-12）
+- Command 経由の主要書き込み: `AddCutCommand` / `RemoveCutCommand` / `MoveCutBetweenScenesCommand` / `MoveCutsToSceneCommand` / `PasteCutsCommand` / `CreateGroupCommand` / `RemoveCutFromGroupCommand` / `UpdateGroupCutOrderCommand` / `UpdateClipPointsCommand` / `ClearClipPointsCommand`。
+- domain owner は `cutTimelineSlice`（scene/cut 追加・削除・並び替え・clip 更新・clipboard 反映）。
+- cross-slice 後処理は event 経由（`CUT_DELETED` / `CUT_MOVED`、`CUT_RELINKED` は emit 済みで購読用途保留）。
+- read-time join は `assetId` 優先（`getAsset(assetId)`）、`cut.asset` は fallback。
 
 ## AssetPanel Cut オプション廃止方針
 - 方針: AssetPanel は段階的に「Asset 操作専用」に移行する。
