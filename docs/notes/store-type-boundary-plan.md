@@ -61,6 +61,11 @@
 - selector が直接 `AppState` 全体へ依存する箇所を見直す。
 - 必要に応じて selector 用型 alias を追加し、変更影響を局所化する。
 
+進捗（2026-02-12）:
+- `selectors.ts` の `import type { AppState }` を撤去し、selector が必要とする最小 `SelectorState` 型に置換。
+- selector 用型は `contracts` と domain 型を参照し、`AppState` 直接依存を回避。
+- `npm run build` / `npm test -- src/store` を通過。
+
 受け入れ条件:
 - 主要 selector が `useStore.ts` の型定義変更に引きずられにくい構造になる。
 
