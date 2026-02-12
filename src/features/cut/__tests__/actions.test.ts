@@ -3,6 +3,7 @@ import {
   createDerivedCutAndSyncGroup,
   cropImageAndAddCut,
   finalizeClipAndAddCut,
+  finalizeClipFromContext,
   moveCutsToSceneEnd,
   removeCutsFromScenes,
 } from '../actions';
@@ -183,5 +184,41 @@ describe('cut actions', () => {
 
     expect(moved).toBe(false);
     expect(moveCutsToScene).not.toHaveBeenCalled();
+  });
+
+  it('returns missing-vault for finalize context without vaultPath', async () => {
+    const result = await finalizeClipFromContext({
+      sceneId: 'scene-1',
+      sourceCutId: 'cut-a',
+      insertIndex: 1,
+      cut: { isClip: true, inPoint: 0, outPoint: 1 },
+      asset: { path: 'C:/assets/src.mp4', name: 'src.mp4' },
+      reverseOutput: false,
+      vaultPath: null,
+      createCutFromImport: vi.fn(async () => 'new-cut'),
+      getCutGroup: vi.fn(() => undefined),
+      updateGroupCutOrder: vi.fn(),
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.reason).toBe('missing-vault');
+  });
+
+  it('returns invalid-clip for finalize context when cut is not clip', async () => {
+    const result = await finalizeClipFromContext({
+      sceneId: 'scene-1',
+      sourceCutId: 'cut-a',
+      insertIndex: 1,
+      cut: { isClip: false, inPoint: 0, outPoint: 1 },
+      asset: { path: 'C:/assets/src.mp4', name: 'src.mp4' },
+      reverseOutput: false,
+      vaultPath: 'C:/vault',
+      createCutFromImport: vi.fn(async () => 'new-cut'),
+      getCutGroup: vi.fn(() => undefined),
+      updateGroupCutOrder: vi.fn(),
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.reason).toBe('invalid-clip');
   });
 });

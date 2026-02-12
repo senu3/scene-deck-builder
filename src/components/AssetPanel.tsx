@@ -28,7 +28,7 @@ import {
   AssetContextMenu,
 } from './context-menus';
 import {
-  finalizeClipAndAddCut,
+  finalizeClipFromContext,
   moveCutsToSceneEnd,
   removeCutsFromScenes,
 } from '../features/cut/actions';
@@ -612,12 +612,6 @@ export default function AssetPanel({
       return;
     }
 
-    if (!vaultPath) {
-      toast.warning('Vault path not set', 'Please set up a vault first.');
-      setCutContextMenu(null);
-      return;
-    }
-
     if (reverseOutput) {
       const proceed = await dialogConfirm({
         title: 'Reverse Clip',
@@ -632,14 +626,12 @@ export default function AssetPanel({
     }
 
     try {
-      const result = await finalizeClipAndAddCut({
+      const result = await finalizeClipFromContext({
         sceneId,
         sourceCutId: cutId,
         insertIndex: cutContextMenu.index + 1,
-        sourceAssetPath: asset.path,
-        sourceAssetName: asset.name,
-        inPoint: cut.inPoint,
-        outPoint: cut.outPoint,
+        cut,
+        asset,
         reverseOutput,
         vaultPath,
         createCutFromImport,
@@ -650,6 +642,8 @@ export default function AssetPanel({
       if (result.success) {
         const sizeText = result.fileSize ? `${(result.fileSize / 1024 / 1024).toFixed(2)} MB` : 'Unknown size';
         toast.success('Clip exported', `${result.fileName} (${sizeText})`);
+      } else if (result.reason === 'missing-vault') {
+        toast.warning('Vault path not set', 'Please set up a vault first.');
       } else {
         toast.error('Finalize Clip failed', result.error || 'Unknown error');
       }

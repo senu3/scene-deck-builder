@@ -43,6 +43,7 @@
 - Phase 0-6: crop/finalize 生成物が `assets/` 内再取り込みで hash 名へ再命名される問題を修正。`importFileToVault` は `assets/` 内ファイルを再インポートせず、既存ファイル名のまま index 登録する方針に変更。
 - Phase 2-1 (2026-02-12): `CutCard` / `AssetPanel` に重複していた選択 Cut の delete / move 副作用を `features/cut/actions` の共通関数 (`removeCutsFromScenes`, `moveCutsToSceneEnd`) に移管。
 - Phase 2-2 (2026-02-12): Group 追随ロジックの共通化を開始。`src/utils/cutGroupOps.ts` を追加し、`removeCut` / `moveCutToScene` / `moveCutsToScene` の group 整合更新に適用。複数 cut 移動時の group 参照残りを修正。
+- Phase 2-3 (2026-02-12): `finalize clip` 実行前提チェックと実行導線を `finalizeClipFromContext` として action 層へ追加し、`CutCard` / `AssetPanel` の重複を削減。
 
 ## 方針メモ（2026-02-12）
 - `AssetPanel` から Cut オプションは将来的に廃止し、アセットオプション拡充へ移行する。

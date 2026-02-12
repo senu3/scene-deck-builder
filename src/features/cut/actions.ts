@@ -105,6 +105,78 @@ export interface FinalizeClipAddCutResult {
   fileName?: string;
   fileSize?: number;
   error?: string;
+  reason?: 'missing-vault' | 'invalid-clip' | 'missing-asset' | 'runtime';
+}
+
+interface FinalizeCutLike {
+  isClip?: boolean;
+  inPoint?: number;
+  outPoint?: number;
+}
+
+interface FinalizeAssetLike {
+  path?: string;
+  name?: string;
+}
+
+export interface FinalizeClipFromContextParams extends CreateDerivedCutDeps {
+  sceneId: string;
+  sourceCutId: string;
+  insertIndex: number;
+  cut: FinalizeCutLike;
+  asset?: FinalizeAssetLike;
+  reverseOutput: boolean;
+  vaultPath: string | null;
+}
+
+export async function finalizeClipFromContext({
+  sceneId,
+  sourceCutId,
+  insertIndex,
+  cut,
+  asset,
+  reverseOutput,
+  vaultPath,
+  createCutFromImport,
+  getCutGroup,
+  updateGroupCutOrder,
+}: FinalizeClipFromContextParams): Promise<FinalizeClipAddCutResult> {
+  if (!vaultPath) {
+    return {
+      success: false,
+      reason: 'missing-vault',
+      error: 'Vault path not set. Please set up a vault first.',
+    };
+  }
+  if (!cut.isClip || cut.inPoint === undefined || cut.outPoint === undefined) {
+    return {
+      success: false,
+      reason: 'invalid-clip',
+      error: 'Cut is not a finalized clip target.',
+    };
+  }
+  if (!asset?.path || !asset.name) {
+    return {
+      success: false,
+      reason: 'missing-asset',
+      error: 'Source asset path is missing.',
+    };
+  }
+
+  return finalizeClipAndAddCut({
+    sceneId,
+    sourceCutId,
+    insertIndex,
+    sourceAssetPath: asset.path,
+    sourceAssetName: asset.name,
+    inPoint: cut.inPoint,
+    outPoint: cut.outPoint,
+    reverseOutput,
+    vaultPath,
+    createCutFromImport,
+    getCutGroup,
+    updateGroupCutOrder,
+  });
 }
 
 export async function finalizeClipAndAddCut({
@@ -122,15 +194,15 @@ export async function finalizeClipAndAddCut({
   updateGroupCutOrder,
 }: FinalizeClipAddCutParams): Promise<FinalizeClipAddCutResult> {
   if (!window.electronAPI) {
-    return { success: false, error: 'electronAPI not available. Please restart the app.' };
+    return { success: false, reason: 'runtime', error: 'electronAPI not available. Please restart the app.' };
   }
   if (typeof window.electronAPI.finalizeClip !== 'function' || typeof window.electronAPI.ensureAssetsFolder !== 'function') {
-    return { success: false, error: 'Finalize Clip feature requires app restart after update.' };
+    return { success: false, reason: 'runtime', error: 'Finalize Clip feature requires app restart after update.' };
   }
 
   const assetsFolder = await window.electronAPI.ensureAssetsFolder(vaultPath);
   if (!assetsFolder) {
-    return { success: false, error: 'Failed to access assets folder in vault.' };
+    return { success: false, reason: 'runtime', error: 'Failed to access assets folder in vault.' };
   }
 
   const clipStart = Math.min(inPoint, outPoint);
@@ -153,7 +225,7 @@ export async function finalizeClipAndAddCut({
   });
 
   if (!result.success) {
-    return { success: false, error: result.error || 'Failed to finalize clip.' };
+    return { success: false, reason: 'runtime', error: result.error || 'Failed to finalize clip.' };
   }
 
   await createDerivedCutAndSyncGroup({
