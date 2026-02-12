@@ -94,12 +94,6 @@ export class RemoveCutCommand implements Command {
       return;
     }
 
-    const confirmed = confirm(
-      'カットをタイムラインに復元します。続行しますか？'
-    );
-
-    if (!confirmed) return;
-
     const store = useStore.getState();
 
     // カットを復元
@@ -280,12 +274,6 @@ export class DuplicateSceneCommand implements Command {
   async undo(): Promise<void> {
     if (!this.newSceneId) return;
 
-    const confirmed = confirm(
-      '複製したシーンを削除します。続行しますか？'
-    );
-
-    if (!confirmed) return;
-
     const store = useStore.getState();
     store.removeScene(this.newSceneId);
   }
@@ -313,12 +301,6 @@ export class AddSceneCommand implements Command {
 
   async undo(): Promise<void> {
     if (!this.sceneId) return;
-
-    const confirmed = confirm(
-      `シーン "${this.sceneName}" を削除します。続行しますか？`
-    );
-
-    if (!confirmed) return;
 
     const store = useStore.getState();
     store.removeScene(this.sceneId);
@@ -354,12 +336,6 @@ export class RemoveSceneCommand implements Command {
       console.warn('No scene data to restore');
       return;
     }
-
-    const confirmed = confirm(
-      'シーンを復元します。続行しますか？'
-    );
-
-    if (!confirmed) return;
 
     const store = useStore.getState();
     const restoreIndex = Math.min(

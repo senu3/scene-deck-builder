@@ -1,32 +1,9 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { Scene, Cut } from '../../types';
 import { clearThumbnailCache } from '../../utils/thumbnailCache';
-import type { AppState, SourceFolder } from '../useStore';
+import type { SourceFolder } from '../useStore';
+import type { ProjectSliceContract } from '../contracts';
 import type { SliceGet, SliceSet } from './sliceTypes';
-
-type ProjectSlice = Pick<
-  AppState,
-  | 'setProjectLoaded'
-  | 'setProjectPath'
-  | 'setVaultPath'
-  | 'setTrashPath'
-  | 'setProjectName'
-  | 'initializeProject'
-  | 'clearProject'
-  | 'loadProject'
-  | 'setRootFolder'
-  | 'addSourceFolder'
-  | 'removeSourceFolder'
-  | 'updateSourceFolder'
-  | 'refreshAllSourceFolders'
-  | 'toggleFolderExpanded'
-  | 'setExpandedFolders'
-  | 'addFavorite'
-  | 'removeFavorite'
-  | 'setSourceViewMode'
-  | 'initializeSourcePanel'
-  | 'getSourcePanelState'
->;
 
 function normalizeScenesUseEmbeddedAudio(scenes: Scene[]): Scene[] {
   return scenes.map((scene) => ({
@@ -45,7 +22,7 @@ function normalizeScenesUseEmbeddedAudio(scenes: Scene[]): Scene[] {
   }));
 }
 
-export function createProjectSlice(set: SliceSet, get: SliceGet): ProjectSlice {
+export function createProjectSlice(set: SliceSet, get: SliceGet): ProjectSliceContract {
   return {
     setProjectLoaded: (loaded) => set({ projectLoaded: loaded }),
     setProjectPath: (path) => set({ projectPath: path }),

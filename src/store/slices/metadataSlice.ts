@@ -11,28 +11,10 @@ import {
 } from '../../utils/metadataStore';
 import { analyzeAudioRms } from '../../utils/audioUtils';
 import { collectAssetRefs, getBlockingRefsForAssetIds } from '../../utils/assetRefs';
-import type { AppState } from '../useStore';
+import type { MetadataSliceContract } from '../contracts';
 import type { SliceGet, SliceSet } from './sliceTypes';
 
-type MetadataSlice = Pick<
-  AppState,
-  | 'cacheAsset'
-  | 'getAsset'
-  | 'loadMetadata'
-  | 'saveMetadata'
-  | 'attachAudioToCut'
-  | 'analyzeAudioAsset'
-  | 'detachAudioFromCut'
-  | 'getAttachedAudioForCut'
-  | 'updateCutAudioOffset'
-  | 'setLipSyncForAsset'
-  | 'clearLipSyncForAsset'
-  | 'removeAssetReferences'
-  | 'deleteAssetWithPolicy'
-  | 'relinkCutAsset'
->;
-
-export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice {
+export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSliceContract {
   return {
     cacheAsset: (asset) =>
       set((state) => {
@@ -58,39 +40,18 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
     },
 
     attachAudioToCut: (sceneId, cutId, audioAsset, offset = 0) => {
-      set((state) => {
-        const newCache = new Map(state.assetCache);
-        newCache.set(audioAsset.id, audioAsset);
-
-        return {
-          scenes: state.scenes.map((scene) =>
-            scene.id === sceneId
-              ? {
-                  ...scene,
-                  cuts: scene.cuts.map((cut) =>
-                    cut.id === cutId
-                      ? {
-                          ...cut,
-                          audioBindings: [
-                            {
-                              id: uuidv4(),
-                              audioAssetId: audioAsset.id,
-                              sourceName: audioAsset.name,
-                              offsetSec: offset,
-                              gain: 1,
-                              enabled: true,
-                              kind: 'se',
-                            },
-                          ],
-                        }
-                      : cut
-                  ),
-                }
-              : scene
-          ),
-          assetCache: newCache,
-        };
-      });
+      get().cacheAsset(audioAsset);
+      get().setCutAudioBindings(sceneId, cutId, [
+        {
+          id: uuidv4(),
+          audioAssetId: audioAsset.id,
+          sourceName: audioAsset.name,
+          offsetSec: offset,
+          gain: 1,
+          enabled: true,
+          kind: 'se',
+        },
+      ]);
 
       void get().analyzeAudioAsset(audioAsset, 60);
     },
@@ -119,16 +80,7 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
     },
 
     detachAudioFromCut: (sceneId, cutId) => {
-      set((state) => ({
-        scenes: state.scenes.map((scene) =>
-          scene.id === sceneId
-            ? {
-                ...scene,
-                cuts: scene.cuts.map((cut) => (cut.id === cutId ? { ...cut, audioBindings: [] } : cut)),
-              }
-            : scene
-        ),
-      }));
+      get().setCutAudioBindings(sceneId, cutId, []);
     },
 
     getAttachedAudioForCut: (sceneId, cutId) => {
@@ -141,24 +93,11 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
     },
 
     updateCutAudioOffset: (sceneId, cutId, offset) => {
-      set((state) => ({
-        scenes: state.scenes.map((scene) =>
-          scene.id === sceneId
-            ? {
-                ...scene,
-                cuts: scene.cuts.map((cut) => {
-                  if (cut.id !== cutId) return cut;
-                  const current = cut.audioBindings || [];
-                  if (current.length === 0) return cut;
-                  return {
-                    ...cut,
-                    audioBindings: [{ ...current[0], offsetSec: offset }, ...current.slice(1)],
-                  };
-                }),
-              }
-            : scene
-        ),
-      }));
+      const scene = get().scenes.find((s) => s.id === sceneId);
+      const cut = scene?.cuts.find((c) => c.id === cutId);
+      const current = cut?.audioBindings || [];
+      if (current.length === 0) return;
+      get().setCutAudioBindings(sceneId, cutId, [{ ...current[0], offsetSec: offset }, ...current.slice(1)]);
     },
 
     setLipSyncForAsset: (assetId, settings) => {

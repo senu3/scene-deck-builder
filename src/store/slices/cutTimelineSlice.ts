@@ -4,43 +4,11 @@ import { upsertSceneMetadata, removeSceneMetadata } from '../../utils/metadataSt
 import { buildAssetForCut } from '../../utils/cutImport';
 import { getScenesAndCutsInTimelineOrder } from '../../utils/timelineOrder';
 import { removeCutIdsFromGroups } from '../../utils/cutGroupOps';
-import type { AppState, ClipboardCut } from '../useStore';
+import type { ClipboardCut } from '../useStore';
+import type { CutTimelineSliceContract } from '../contracts';
 import type { SliceGet, SliceSet } from './sliceTypes';
 
-type CutTimelineSlice = Pick<
-  AppState,
-  | 'addScene'
-  | 'removeScene'
-  | 'renameScene'
-  | 'reorderScenes'
-  | 'updateSceneFolderPath'
-  | 'addSceneNote'
-  | 'updateSceneNote'
-  | 'removeSceneNote'
-  | 'addCutToScene'
-  | 'addLoadingCutToScene'
-  | 'updateCutWithAsset'
-  | 'createCutFromImport'
-  | 'removeCut'
-  | 'updateCutDisplayTime'
-  | 'updateCutClipPoints'
-  | 'clearCutClipPoints'
-  | 'updateCutAsset'
-  | 'updateCutLipSync'
-  | 'setCutAudioBindings'
-  | 'setCutUseEmbeddedAudio'
-  | 'reorderCuts'
-  | 'moveCutToScene'
-  | 'moveCutsToScene'
-  | 'setCutRuntime'
-  | 'clearCutRuntime'
-  | 'getCutRuntime'
-  | 'copySelectedCuts'
-  | 'pasteCuts'
-  | 'canPaste'
->;
-
-export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelineSlice {
+export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelineSliceContract {
   return {
     addScene: (name?: string) => {
       const id = uuidv4();

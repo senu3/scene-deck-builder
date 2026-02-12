@@ -1,37 +1,7 @@
-import type { AppState } from '../useStore';
+import type { SelectionUiSliceContract } from '../contracts';
 import type { SliceGet, SliceSet } from './sliceTypes';
 
-type SelectionUiSlice = Pick<
-  AppState,
-  | 'selectScene'
-  | 'selectCut'
-  | 'toggleCutSelection'
-  | 'selectCutRange'
-  | 'selectMultipleCuts'
-  | 'clearCutSelection'
-  | 'isMultiSelected'
-  | 'setPlaybackMode'
-  | 'setPreviewMode'
-  | 'setCurrentPreviewIndex'
-  | 'setGlobalVolume'
-  | 'setGlobalMuted'
-  | 'toggleGlobalMute'
-  | 'openVideoPreview'
-  | 'closeVideoPreview'
-  | 'openSequencePreview'
-  | 'closeSequencePreview'
-  | 'setImportingAsset'
-  | 'openAssetDrawer'
-  | 'closeAssetDrawer'
-  | 'toggleAssetDrawer'
-  | 'openSidebar'
-  | 'closeSidebar'
-  | 'toggleSidebar'
-  | 'openDetailsPanel'
-  | 'closeDetailsPanel'
->;
-
-export function createSelectionUiSlice(set: SliceSet, get: SliceGet): SelectionUiSlice {
+export function createSelectionUiSlice(set: SliceSet, get: SliceGet): SelectionUiSliceContract {
   return {
     selectScene: (sceneId) =>
       set({

@@ -1,22 +1,8 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { AppState } from '../useStore';
+import type { GroupSliceContract } from '../contracts';
 import type { SliceGet, SliceSet } from './sliceTypes';
 
-type GroupSlice = Pick<
-  AppState,
-  | 'createGroup'
-  | 'deleteGroup'
-  | 'toggleGroupCollapsed'
-  | 'getCutGroup'
-  | 'selectGroup'
-  | 'renameGroup'
-  | 'addCutsToGroup'
-  | 'removeCutFromGroup'
-  | 'updateGroupCutOrder'
-  | 'getSelectedGroup'
->;
-
-export function createGroupSlice(set: SliceSet, get: SliceGet): GroupSlice {
+export function createGroupSlice(set: SliceSet, get: SliceGet): GroupSliceContract {
   return {
     createGroup: (sceneId, cutIds, name) => {
       const groupId = uuidv4();

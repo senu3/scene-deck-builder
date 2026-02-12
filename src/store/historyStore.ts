@@ -25,6 +25,7 @@ interface HistoryState {
   redo: () => Promise<void>;
   canUndo: () => boolean;
   canRedo: () => boolean;
+  getUndoPreview: () => { type: string; description: string } | null;
   clear: () => void;
 }
 
@@ -133,6 +134,16 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
    */
   canRedo: () => {
     return get().future.length > 0;
+  },
+
+  /**
+   * 次に Undo されるコマンドの要約を取得
+   */
+  getUndoPreview: () => {
+    const { past } = get();
+    if (past.length === 0) return null;
+    const command = past[past.length - 1];
+    return { type: command.type, description: command.description };
   },
 
   /**

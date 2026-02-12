@@ -17,7 +17,7 @@ interface HeaderProps {
 
 export default function Header({ onOpenSettings, onPreview, onExport, isExporting }: HeaderProps) {
   const { projectName, scenes, selectedSceneId, selectedCutId, selectScene } = useStore();
-  const { undo, redo, canUndo, canRedo } = useHistoryStore();
+  const { undo, redo, canUndo, canRedo, getUndoPreview } = useHistoryStore();
   const {
     handleSaveProject,
     handleCloseProject,
@@ -73,6 +73,19 @@ export default function Header({ onOpenSettings, onPreview, onExport, isExportin
 
   const handleUndo = async () => {
     try {
+      const preview = getUndoPreview();
+      if (preview) {
+        const confirmMessages: Record<string, string> = {
+          ADD_SCENE: 'Undo すると追加したシーンが削除されます。続行しますか？',
+          DUPLICATE_SCENE: 'Undo すると複製したシーンが削除されます。続行しますか？',
+          REMOVE_SCENE: 'Undo すると削除したシーンを復元します。続行しますか？',
+          REMOVE_CUT: 'Undo すると削除したカットを復元します。続行しますか？',
+        };
+        const message = confirmMessages[preview.type];
+        if (message && !confirm(message)) {
+          return;
+        }
+      }
       await undo();
     } catch (error) {
       console.error('Undo failed:', error);

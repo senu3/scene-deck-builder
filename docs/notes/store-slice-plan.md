@@ -38,6 +38,11 @@
 - cross-slice の連携はイベント経由（例: `CUT_DELETED`）に限定し、直接 import 呼び出しを抑制する。
 - UI 一時状態（モーダル開閉、hover、一時選択など）を domain 更新ロジックから分離する。
 
+進捗（2026-02-12）:
+- `commands.ts` の `confirm()` を撤去し、Undo 実行前の確認は UI 層（`Header`）で行う方式へ移行した。
+- `src/store/contracts.ts` を追加し、slice 公開境界型（contract）を集約した。
+- `metadataSlice` の `attach/detach/updateCutAudioOffset` は `setCutAudioBindings` 経由へ移行し、Asset 側から Cut 直接更新する経路を削減した。
+
 受け入れ条件:
 - Asset 側操作で Cut を更新する場合も、実行経路が `cutActions` か Command 経由に統一される。
 - `cut.assetId` など ID ベースの参照が主経路になり、双方向更新が減る。
