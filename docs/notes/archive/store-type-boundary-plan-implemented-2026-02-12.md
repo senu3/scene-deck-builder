@@ -18,6 +18,9 @@
 ## 更新頻度
 - 中
 
+## ステータス
+- 完了（2026-02-12）
+
 ## 背景
 - `store-slice-plan` により実装は slice 分割済みだが、`AppState` と公開API型は `useStore.ts` に集約されたまま。
 - 実装変更と型変更の差分が同じファイルに集中し、レビュー粒度が荒くなりやすい。
@@ -62,8 +65,9 @@
 - 必要に応じて selector 用型 alias を追加し、変更影響を局所化する。
 
 進捗（2026-02-12）:
-- `selectors.ts` の `import type { AppState }` を撤去し、selector が必要とする最小 `SelectorState` 型に置換。
-- selector 用型は `contracts` と domain 型を参照し、`AppState` 直接依存を回避。
+- `selectors.ts` は `stateTypes.ts` の `AppState` を参照する方式へ統一（`useStore.ts` 依存なし）。
+- 手書き `SelectorState` は撤去し、変更漏れポイントを削減。
+- 重複 selector（`selectCacheAssetAction` / `selectUpdateCutAssetAction`）は alias 化で整理。
 - `npm run build` / `npm test -- src/store` を通過。
 
 受け入れ条件:
@@ -78,5 +82,5 @@
 - T1 は slice ごとに小分けで実施し、都度 build/test を通す。
 
 ## TODO
-- T0 用の新規型ファイル名を確定する（`store/types.ts` か `store/stateTypes.ts`）。
-- contract を slice ごとに棚卸しし、過不足を一覧化する。
+- T0 用の新規型ファイル名を確定する（`store/types.ts` か `store/stateTypes.ts`）。 (完了: `src/store/stateTypes.ts`)
+- contract を slice ごとに棚卸しし、過不足を一覧化する。 (完了: T1 で明示 interface 化)

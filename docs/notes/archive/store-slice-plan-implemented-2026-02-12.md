@@ -22,7 +22,7 @@
 
 ## ステータス
 - 完了（2026-02-12）
-- 後続: 型集約責務の削減は `docs/notes/store-type-boundary-plan.md` で管理
+- 後続: 型集約責務の削減は `docs/notes/archive/store-type-boundary-plan-implemented-2026-02-12.md` で管理
 
 ## 背景（現状）
 - `useStore.ts` が 1500 行超で、Project/Folder/Timeline/Cut/Group/Metadata/UI を単一ファイルで保持している。

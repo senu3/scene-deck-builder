@@ -28,7 +28,6 @@
 - `docs/ui/components.md`
 - `docs/ui/color-system.md`
 - `docs/ui/scene-duration-bar.md`
-- `docs/notes/store-type-boundary-plan.md`（型集約責務の削減計画）
 
 ## アーカイブ
 - `docs/notes/archive/INDEX.md`（アーカイブ目次）
@@ -40,6 +39,7 @@
 - `docs/notes/archive/export-timeline-integrity-plan-implemented-2026-02-11.md`
 - `docs/notes/archive/cut-refactor-plan-implemented-2026-02-12.md`
 - `docs/notes/archive/store-slice-plan-implemented-2026-02-12.md`
+- `docs/notes/archive/store-type-boundary-plan-implemented-2026-02-12.md`
 - `docs/notes/archive/cut-write-path-inventory-implemented-2026-02-12.md`
 - `docs/notes/archive/autosave-toast-notes.md`（完了済み）
 - `docs/notes/archive/aviutl-exo-export-research.md`（EXO中止履歴）
