@@ -120,11 +120,33 @@
 - `docs/guides/cut-history-guidelines.md` に「禁止依存（例: slice から他 slice の内部関数直参照）」を明文化する。
 
 ## TODO
-- `historyStore` と `commands` の責務境界を図示する。
-- selector 標準パターンを `docs/guides/cut-history-guidelines.md` に追記する。
+- selector 標準パターンを `docs/guides/cut-history-guidelines.md` に追記する。 (完了: 2026-02-12)
 - S0 着手前に「Cut 書き込み経路の現状一覧」を作成する。 (完了: `docs/notes/cut-write-path-inventory.md`)
-- `commands.ts` の `confirm()` 呼び出しを撤去し、UI 層へ移設する設計メモを追加する。
-- `src/store/contracts.ts`（仮）を作成し、`AppState` と slice 公開型の配置を定義する。
+- `commands.ts` の `confirm()` 呼び出しを撤去し、UI 層へ移設する設計メモを追加する。 (完了: 2026-02-12)
+- `src/store/contracts.ts`（仮）を作成し、`AppState` と slice 公開型の配置を定義する。 (完了: 2026-02-12)
+
+## historyStore / commands 責務境界（2026-02-12）
+
+```
+UI Layer
+  -> (事前確認・入力確定)
+  -> historyStore.executeCommand(command)
+
+historyStore
+  - Command 実行順序管理
+  - undoStack / redoStack 管理
+  - undo/redo の入口提供
+  - domain ロジックは持たない
+
+commands.ts
+  - 1操作単位の execute/undo を実装
+  - 実データ更新は useStore action を呼ぶ
+  - UI API (confirm/alert/modal) は呼ばない
+
+useStore / slices
+  - 実際の state 更新（source of truth）
+  - history には依存しない
+```
 
 ## 保留事項
 - ビルド時の chunk size warning（renderer > 500kB）対応は将来タスクとして保留（本プラン対象外）。
