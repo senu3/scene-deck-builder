@@ -29,7 +29,7 @@ describe('export manifest', () => {
       sceneId: 'scene-1',
       sceneName: 'Scene01',
       cutIndex: cut.id === 'cut-1' ? 0 : 1,
-    }));
+    }), (assetId) => cuts.find((cut) => cut.assetId === assetId)?.asset);
     expect(entries).toHaveLength(2);
     expect(entries[0].startSec).toBe(0);
     expect(entries[0].endSec).toBe(1.5);
@@ -42,7 +42,7 @@ describe('export manifest', () => {
       sceneId: 'scene-1',
       sceneName: 'Scene01',
       cutIndex: 0,
-    }));
+    }), (assetId) => cuts.find((cut) => cut.assetId === assetId)?.asset);
     const text = buildTimelineText(entries);
     expect(text).toContain('Scene01');
     expect(text).toContain('img.png');
@@ -55,7 +55,7 @@ describe('export manifest', () => {
       sceneId: 'scene-1',
       sceneName: 'Scene01',
       cutIndex: 0,
-    }));
+    }), (assetId) => cuts.find((cut) => cut.assetId === assetId)?.asset);
     const json = buildManifestJson(entries, {
       width: 1280,
       height: 720,

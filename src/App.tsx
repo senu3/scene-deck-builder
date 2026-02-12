@@ -532,7 +532,7 @@ function App() {
             }
             return null;
           };
-          const timelineEntries = buildExportTimelineEntries(cuts, contextResolver);
+          const timelineEntries = buildExportTimelineEntries(cuts, contextResolver, getAsset);
           const manifestJson = buildManifestJson(timelineEntries, {
             width,
             height,

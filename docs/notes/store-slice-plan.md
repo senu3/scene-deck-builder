@@ -48,6 +48,7 @@
 - `commands` の Cut 復元系は `assetId` を主キーに `getAsset(assetId)` で解決し、fallback として `cut.asset` を利用する形に寄せた。
 - `copySelectedCuts` は `assetId` から `assetCache` 解決を優先し、`cut.asset` への依存を弱めた。
 - 主要 UI（`CutCard` / `AssetPanel` / `DetailsPanel` / `PreviewModal`）で `getAsset(assetId)` 優先の read-time join へ寄せた。
+- Export manifest 生成でも `assetId -> getAsset` 優先で解決し、`cut.asset` は fallback に限定した。
 - `relinkCutAsset` は metadata 側の直接書き換えをやめ、`updateCutWithAsset`（cut action）経由へ寄せた。
 - Cut 復元・複製時は `assetId` のみで再生成可能にし、asset 未解決時は loading cut で復元する fallback を追加した。
 - Clipboard は `asset` を optional 化し、paste 時は `assetId` 解決を優先する経路に変更した。

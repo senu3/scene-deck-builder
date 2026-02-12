@@ -1,4 +1,4 @@
-import type { Cut } from '../../types';
+import type { Asset, Cut } from '../../types';
 
 export interface CutContextInfo {
   sceneId: string;
@@ -27,7 +27,8 @@ export interface ExportTimelineEntry {
 
 export function buildExportTimelineEntries(
   cuts: Cut[],
-  resolveContext: (cut: Cut) => CutContextInfo | null
+  resolveContext: (cut: Cut) => CutContextInfo | null,
+  resolveAsset: (assetId: string) => Asset | undefined
 ): ExportTimelineEntry[] {
   let current = 0;
   const entries: ExportTimelineEntry[] = [];
@@ -40,7 +41,7 @@ export function buildExportTimelineEntries(
     current = endSec;
 
     const context = resolveContext(cut);
-    const asset = cut.asset;
+    const asset = resolveAsset(cut.assetId) || cut.asset;
     entries.push({
       index: i,
       startSec,
