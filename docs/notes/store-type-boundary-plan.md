@@ -47,6 +47,12 @@
 - `contracts.ts` を slice 単位で見直し、公開 action/state を明示する。
 - slice 実装は contract 型で戻り値を固定する。
 
+進捗（2026-02-12）:
+- `contracts.ts` を `Pick<AppState, ...>` 依存から切り離し、slice 単位の明示 interface へ置換。
+- `contracts.ts` は `AppState` を import せず、必要な domain 型のみ参照する構成に変更。
+- `AppState` は `Project/CutTimeline/SelectionUi/Metadata/Group` の contract を `extends` する形へ変更し、slice API 定義の重複を削減。
+- 既存 slice 実装の戻り値 contract は維持され、`npm run build` / `npm test -- src/store` を通過。
+
 受け入れ条件:
 - slice 追加時に contract 未更新を型エラーで検出できる。
 - `useStore.ts` の interface 追記作業が最小化される。
