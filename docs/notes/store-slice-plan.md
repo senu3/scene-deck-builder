@@ -106,7 +106,7 @@
 ## TODO
 - `historyStore` と `commands` の責務境界を図示する。
 - selector 標準パターンを `docs/guides/cut-history-guidelines.md` に追記する。
-- S0 着手前に「Cut 書き込み経路の現状一覧」を作成する。
+- S0 着手前に「Cut 書き込み経路の現状一覧」を作成する。 (完了: `docs/notes/cut-write-path-inventory.md`)
 - `commands.ts` の `confirm()` 呼び出しを撤去し、UI 層へ移設する設計メモを追加する。
 - `src/store/contracts.ts`（仮）を作成し、`AppState` と slice 公開型の配置を定義する。
 

@@ -29,6 +29,7 @@
 - `docs/ui/color-system.md`
 - `docs/ui/scene-duration-bar.md`
 - `docs/notes/store-slice-plan.md`（useStore分割計画 / Phase S1 実装済み: 2026-02-12）
+- `docs/notes/cut-write-path-inventory.md`（Cut書き込み経路の現状一覧）
 
 ## アーカイブ
 - `docs/notes/archive/INDEX.md`（アーカイブ目次）
