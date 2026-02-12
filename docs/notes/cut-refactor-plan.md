@@ -49,6 +49,7 @@
 - Phase 3-2 (2026-02-12): `CutCard` / `AssetPanel` の delete / move を `RemoveCutCommand` / `MoveCutsToSceneCommand` 経由へ移行し、直接 store 更新を削減。
 - Phase 3-3 (2026-02-12): `App` の「タイムライン外ドロップ削除」を `RemoveCutCommand` 経由へ移行し、直接 `removeCut` 呼び出しを削減。
 - Phase 3-4 (2026-02-12): `Cut` 永続モデルから loading フィールドを型レベルで除外。旧データの loading 情報は normalize で破棄し、runtime 状態へ一本化。
+- Phase 3-5 (2026-02-12): DnD 後の group 追随更新を `RemoveCutFromGroupCommand` / `UpdateGroupCutOrderCommand` 経由へ移行し、`CutCard` の group 除外も Command 化。
 
 ## 方針メモ（2026-02-12）
 - `AssetPanel` から Cut オプションは将来的に廃止し、アセットオプション拡充へ移行する。
@@ -92,6 +93,11 @@
 **受け入れ条件**
 - Cut 型の分岐数が減る。  
 - Undo/Redo の対象範囲が明文化される。
+
+## Undo/Redo 対象（現状）
+- 対象: scene/cut の追加・削除・移動・並び替え、clip point 更新、group 作成/解除/名称変更、group 内 cut 順序更新、group からの cut 除外。
+- 非対象: 進行中 import の runtime 状態（`CutRuntimeState`）、サムネイルキャッシュ、Export 進捗 UI。
+- 方針: Timeline 構造を変える操作は Command 経由を原則とし、直接 store 更新は段階的に削減する。
 
 ## リスクと対策
 1. **Export先行で負債が増える**  

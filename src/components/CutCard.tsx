@@ -15,7 +15,7 @@ import {
   finalizeClipFromContext,
 } from '../features/cut/actions';
 import { DEFAULT_EXPORT_RESOLUTION } from '../constants/export';
-import { MoveCutsToSceneCommand, RemoveCutCommand } from '../store/commands';
+import { MoveCutsToSceneCommand, RemoveCutCommand, RemoveCutFromGroupCommand } from '../store/commands';
 
 interface ResolutionPresetType {
   name: string;
@@ -66,7 +66,6 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
     getCutRuntime,
     getCutGroup,
     createGroup,
-    removeCutFromGroup,
     createCutFromImport,
     updateGroupCutOrder,
   } = useStore();
@@ -255,13 +254,17 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
     setContextMenu(null);
   };
 
-  const handleRemoveFromGroup = () => {
+  const handleRemoveFromGroup = async () => {
     if (!cutGroup) {
       setContextMenu(null);
       return;
     }
 
-    removeCutFromGroup(sceneId, cutGroup.id, cut.id);
+    try {
+      await executeCommand(new RemoveCutFromGroupCommand(sceneId, cutGroup.id, cut.id));
+    } catch (error) {
+      toast.error('Remove from group failed', String(error));
+    }
     setContextMenu(null);
   };
 

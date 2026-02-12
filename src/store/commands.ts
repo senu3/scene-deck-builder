@@ -762,6 +762,40 @@ export class RenameGroupCommand implements Command {
 }
 
 /**
+ * グループ内カット順更新コマンド
+ */
+export class UpdateGroupCutOrderCommand implements Command {
+  type = 'UPDATE_GROUP_CUT_ORDER';
+  description = 'Update group cut order';
+
+  private sceneId: string;
+  private groupId: string;
+  private nextCutIds: string[];
+  private prevCutIds?: string[];
+
+  constructor(sceneId: string, groupId: string, nextCutIds: string[]) {
+    this.sceneId = sceneId;
+    this.groupId = groupId;
+    this.nextCutIds = nextCutIds;
+  }
+
+  async execute(): Promise<void> {
+    const store = useStore.getState();
+    const scene = store.scenes.find((s) => s.id === this.sceneId);
+    const group = scene?.groups?.find((g) => g.id === this.groupId);
+    if (!group) return;
+    this.prevCutIds = [...group.cutIds];
+    store.updateGroupCutOrder(this.sceneId, this.groupId, this.nextCutIds);
+  }
+
+  async undo(): Promise<void> {
+    if (!this.prevCutIds) return;
+    const store = useStore.getState();
+    store.updateGroupCutOrder(this.sceneId, this.groupId, this.prevCutIds);
+  }
+}
+
+/**
  * カットをグループから削除コマンド
  */
 export class RemoveCutFromGroupCommand implements Command {
@@ -772,6 +806,9 @@ export class RemoveCutFromGroupCommand implements Command {
   private groupId: string;
   private cutId: string;
   private originalIndex?: number;
+  private originalGroupName?: string;
+  private originalGroupCollapsed?: boolean;
+  private originalGroupCutIds?: string[];
 
   constructor(sceneId: string, groupId: string, cutId: string) {
     this.sceneId = sceneId;
@@ -787,6 +824,9 @@ export class RemoveCutFromGroupCommand implements Command {
 
     if (group) {
       this.originalIndex = group.cutIds.indexOf(this.cutId);
+      this.originalGroupName = group.name;
+      this.originalGroupCollapsed = group.isCollapsed;
+      this.originalGroupCutIds = [...group.cutIds];
     }
 
     store.removeCutFromGroup(this.sceneId, this.groupId, this.cutId);
@@ -796,6 +836,38 @@ export class RemoveCutFromGroupCommand implements Command {
     if (this.originalIndex === undefined || this.originalIndex === -1) return;
 
     const store = useStore.getState();
-    store.addCutsToGroup(this.sceneId, this.groupId, [this.cutId]);
+    const scene = store.scenes.find((s) => s.id === this.sceneId);
+    const group = scene?.groups?.find((g) => g.id === this.groupId);
+
+    if (!group) {
+      const restoredOrder = this.originalGroupCutIds && this.originalGroupCutIds.length > 0
+        ? [...this.originalGroupCutIds]
+        : [this.cutId];
+      useStore.setState((state) => ({
+        scenes: state.scenes.map((s) =>
+          s.id === this.sceneId
+            ? {
+                ...s,
+                groups: [
+                  ...(s.groups || []),
+                  {
+                    id: this.groupId,
+                    name: this.originalGroupName || `Group ${Date.now()}`,
+                    cutIds: restoredOrder,
+                    isCollapsed: this.originalGroupCollapsed ?? true,
+                  },
+                ],
+              }
+            : s
+        ),
+      }));
+      return;
+    }
+
+    const currentWithout = group.cutIds.filter((id) => id !== this.cutId);
+    const insertAt = Math.min(Math.max(this.originalIndex, 0), currentWithout.length);
+    const restoredOrder = [...currentWithout];
+    restoredOrder.splice(insertAt, 0, this.cutId);
+    store.updateGroupCutOrder(this.sceneId, this.groupId, restoredOrder);
   }
 }

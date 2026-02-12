@@ -2,7 +2,17 @@ import { DndContext, DragEndEvent, DragOverEvent, DragStartEvent, pointerWithin,
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useStore } from './store/useStore';
 import { useHistoryStore } from './store/historyStore';
-import { AddCutCommand, ReorderCutsCommand, MoveCutBetweenScenesCommand, MoveCutsToSceneCommand, PasteCutsCommand, RemoveCutCommand, UpdateClipPointsCommand } from './store/commands';
+import {
+  AddCutCommand,
+  ReorderCutsCommand,
+  MoveCutBetweenScenesCommand,
+  MoveCutsToSceneCommand,
+  PasteCutsCommand,
+  RemoveCutCommand,
+  RemoveCutFromGroupCommand,
+  UpdateClipPointsCommand,
+  UpdateGroupCutOrderCommand,
+} from './store/commands';
 import AssetDrawer from './components/AssetDrawer';
 import Sidebar from './components/Sidebar';
 import Storyline from './components/Storyline';
@@ -61,8 +71,6 @@ function App() {
     sidebarOpen,
     toggleSidebar,
     getCutGroup,
-    removeCutFromGroup,
-    updateGroupCutOrder,
     getAsset,
     metadataStore,
     selectionType,
@@ -84,24 +92,24 @@ function App() {
   const [isExporting, setIsExporting] = useState(false);
   const dragDataRef = useRef<{ sceneId?: string; index?: number; type?: string }>({});
 
-  const insertCutsIntoGroup = useCallback((sceneId: string, groupId: string, cutIds: string[], insertIndex?: number) => {
+  const insertCutsIntoGroup = useCallback(async (sceneId: string, groupId: string, cutIds: string[], insertIndex?: number) => {
     const scene = scenes.find(s => s.id === sceneId);
     const group = scene?.groups?.find(g => g.id === groupId);
     if (!group) return;
 
     const nextOrder = insertCutIdsIntoGroupOrder(group.cutIds, cutIds, insertIndex);
     if (nextOrder === group.cutIds) return;
-    updateGroupCutOrder(sceneId, groupId, nextOrder);
-  }, [scenes, updateGroupCutOrder]);
+    await executeCommand(new UpdateGroupCutOrderCommand(sceneId, groupId, nextOrder));
+  }, [executeCommand, scenes]);
 
-  const removeCutsFromGroups = useCallback((sceneId: string, cutIds: string[], keepGroupId?: string) => {
+  const removeCutsFromGroups = useCallback(async (sceneId: string, cutIds: string[], keepGroupId?: string) => {
     for (const cutId of cutIds) {
       const group = getCutGroup(sceneId, cutId);
       if (group && group.id !== keepGroupId) {
-        removeCutFromGroup(sceneId, group.id, cutId);
+        await executeCommand(new RemoveCutFromGroupCommand(sceneId, group.id, cutId));
       }
     }
-  }, [getCutGroup, removeCutFromGroup]);
+  }, [executeCommand, getCutGroup]);
 
   // Configure drag sensors with distance activation constraint
   const sensors = useSensors(
@@ -314,11 +322,19 @@ function App() {
 
         // Remove from group if moving out
         if (isMovingOutOfGroup) {
-          removeCutsFromGroups(fromSceneId, orderedSelectedIds, targetGroupId);
+          try {
+            await removeCutsFromGroups(fromSceneId, orderedSelectedIds, targetGroupId);
+          } catch (error) {
+            console.error('Failed to remove cuts from groups:', error);
+          }
         }
 
         if (targetGroupId) {
-          insertCutsIntoGroup(toSceneId, targetGroupId, orderedSelectedIds, targetGroupInsertIndex);
+          try {
+            await insertCutsIntoGroup(toSceneId, targetGroupId, orderedSelectedIds, targetGroupInsertIndex);
+          } catch (error) {
+            console.error('Failed to insert cuts into group:', error);
+          }
         }
       } else if (fromSceneId === toSceneId) {
         // Single drag: Reorder within same scene
@@ -338,11 +354,19 @@ function App() {
 
         // Remove from group if moving out of the group
         if (isMovingOutOfGroup && cutGroup) {
-          removeCutFromGroup(fromSceneId, cutGroup.id, cutId);
+          try {
+            await executeCommand(new RemoveCutFromGroupCommand(fromSceneId, cutGroup.id, cutId));
+          } catch (error) {
+            console.error('Failed to remove cut from group:', error);
+          }
         }
 
         if (targetGroupId && targetGroupId !== cutGroup?.id) {
-          insertCutsIntoGroup(toSceneId, targetGroupId, [cutId], targetGroupInsertIndex);
+          try {
+            await insertCutsIntoGroup(toSceneId, targetGroupId, [cutId], targetGroupInsertIndex);
+          } catch (error) {
+            console.error('Failed to insert cut into group:', error);
+          }
         }
       } else {
         // Single drag: Move between scenes (automatically removes from group in store)
@@ -356,7 +380,11 @@ function App() {
         }
 
         if (targetGroupId) {
-          insertCutsIntoGroup(toSceneId, targetGroupId, [cutId], targetGroupInsertIndex);
+          try {
+            await insertCutsIntoGroup(toSceneId, targetGroupId, [cutId], targetGroupInsertIndex);
+          } catch (error) {
+            console.error('Failed to insert cut into group:', error);
+          }
         }
       }
     }

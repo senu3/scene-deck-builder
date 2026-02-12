@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { RemoveSceneCommand } from '../commands';
+import { RemoveCutFromGroupCommand, RemoveSceneCommand, UpdateGroupCutOrderCommand } from '../commands';
 import { useStore } from '../useStore';
 import type { Asset } from '../../types';
 
@@ -124,5 +124,60 @@ describe('timeline integrity commands', () => {
     expect(sceneA?.groups).toEqual([]);
     expect(sceneB?.cuts.map((cut) => cut.id)).toEqual(['cut-b2']);
     expect(sceneB?.groups).toEqual([{ id: 'group-b', name: 'GB', cutIds: ['cut-b2'], isCollapsed: true }]);
+  });
+
+  it('restores cut index when undoing remove from group', async () => {
+    useStore.getState().initializeProject({
+      name: 'Group Undo Test',
+      vaultPath: 'C:/vault',
+      scenes: [
+        {
+          id: 'scene-a',
+          name: 'Scene A',
+          order: 0,
+          notes: [],
+          cuts: [
+            { id: 'cut-a1', assetId: 'asset-1', asset: BASE_ASSET, displayTime: 1, order: 0, audioBindings: [] },
+            { id: 'cut-a2', assetId: 'asset-1', asset: BASE_ASSET, displayTime: 1, order: 1, audioBindings: [] },
+            { id: 'cut-a3', assetId: 'asset-1', asset: BASE_ASSET, displayTime: 1, order: 2, audioBindings: [] },
+          ],
+          groups: [{ id: 'group-a', name: 'GA', cutIds: ['cut-a1', 'cut-a2', 'cut-a3'], isCollapsed: true }],
+        },
+      ],
+    });
+
+    const command = new RemoveCutFromGroupCommand('scene-a', 'group-a', 'cut-a2');
+    await command.execute();
+    expect(useStore.getState().scenes[0]?.groups?.[0]?.cutIds).toEqual(['cut-a1', 'cut-a3']);
+
+    await command.undo();
+    expect(useStore.getState().scenes[0]?.groups?.[0]?.cutIds).toEqual(['cut-a1', 'cut-a2', 'cut-a3']);
+  });
+
+  it('restores previous group order on undo', async () => {
+    useStore.getState().initializeProject({
+      name: 'Group Order Undo Test',
+      vaultPath: 'C:/vault',
+      scenes: [
+        {
+          id: 'scene-a',
+          name: 'Scene A',
+          order: 0,
+          notes: [],
+          cuts: [
+            { id: 'cut-a1', assetId: 'asset-1', asset: BASE_ASSET, displayTime: 1, order: 0, audioBindings: [] },
+            { id: 'cut-a2', assetId: 'asset-1', asset: BASE_ASSET, displayTime: 1, order: 1, audioBindings: [] },
+          ],
+          groups: [{ id: 'group-a', name: 'GA', cutIds: ['cut-a1', 'cut-a2'], isCollapsed: true }],
+        },
+      ],
+    });
+
+    const command = new UpdateGroupCutOrderCommand('scene-a', 'group-a', ['cut-a2', 'cut-a1']);
+    await command.execute();
+    expect(useStore.getState().scenes[0]?.groups?.[0]?.cutIds).toEqual(['cut-a2', 'cut-a1']);
+
+    await command.undo();
+    expect(useStore.getState().scenes[0]?.groups?.[0]?.cutIds).toEqual(['cut-a1', 'cut-a2']);
   });
 });
