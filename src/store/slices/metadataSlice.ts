@@ -235,33 +235,15 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
     },
 
     relinkCutAsset: (sceneId, cutId, newAsset) => {
-      set((state) => {
-        const newCache = new Map(state.assetCache);
-        newCache.set(newAsset.id, newAsset);
-
-        return {
-          scenes: state.scenes.map((s) =>
-            s.id === sceneId
-              ? {
-                  ...s,
-                  cuts: s.cuts.map((c) =>
-                    c.id === cutId
-                      ? {
-                          ...c,
-                          asset: newAsset,
-                          assetId: newAsset.id,
-                          inPoint: c.asset?.type === 'video' && newAsset.type === 'video' ? c.inPoint : undefined,
-                          outPoint: c.asset?.type === 'video' && newAsset.type === 'video' ? c.outPoint : undefined,
-                          isClip: c.asset?.type === 'video' && newAsset.type === 'video' ? c.isClip : false,
-                        }
-                      : c
-                  ),
-                }
-              : s
-          ),
-          assetCache: newCache,
-        };
-      });
+      const previousCut = get().scenes
+        .find((s) => s.id === sceneId)
+        ?.cuts.find((c) => c.id === cutId);
+      get().cacheAsset(newAsset);
+      get().updateCutWithAsset(sceneId, cutId, newAsset);
+      if (!previousCut) return;
+      if (previousCut.asset?.type !== 'video' || newAsset.type !== 'video') {
+        get().clearCutClipPoints(sceneId, cutId);
+      }
     },
   };
 }

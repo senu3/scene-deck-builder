@@ -37,18 +37,16 @@
 
 ### 3. metadataSlice からの Cut 更新
 - `attachAudioToCut` / `detachAudioFromCut` / `updateCutAudioOffset` は `setCutAudioBindings` 経由へ移行済み。
-- ただし `relinkCutAsset` は metadata 側で Cut を更新しており、将来 `cutActions` 経由へ寄せる余地がある。
+- `relinkCutAsset` は `cacheAsset` + `updateCutWithAsset`（cut action）経由へ移行済み。
 
 ### 4. read-time join（ID優先）
 - `commands` 復元系は `getAsset(assetId)` 優先で asset 解決。
 - 主要 UI（`CutCard` / `AssetPanel` / `DetailsPanel` / `PreviewModal`）は `getAsset(assetId)` 優先へ移行済み。
 
 ## S0 で残る主要課題
-- `relinkCutAsset` の書き込みオーナー再配置（metadata -> cut）。
 - `cut.asset` を write 時に必須としない設計（ID主経路の徹底）。
 - 必要な cross-slice event の追加定義（`CUT_DELETED` 以外）。
 
 ## TODO
-- `relinkCutAsset` の移設先を `cutTimelineSlice` とする案を設計する。
 - `CUT_MOVED` / `CUT_RELINKED` の event 要否を検討する。
 - selector 標準パターンの記述と合わせて本ドキュメントを更新する。

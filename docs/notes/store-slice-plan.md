@@ -47,6 +47,7 @@
 - `commands` の Cut 復元系は `assetId` を主キーに `getAsset(assetId)` で解決し、fallback として `cut.asset` を利用する形に寄せた。
 - `copySelectedCuts` は `assetId` から `assetCache` 解決を優先し、`cut.asset` への依存を弱めた。
 - 主要 UI（`CutCard` / `AssetPanel` / `DetailsPanel` / `PreviewModal`）で `getAsset(assetId)` 優先の read-time join へ寄せた。
+- `relinkCutAsset` は metadata 側の直接書き換えをやめ、`updateCutWithAsset`（cut action）経由へ寄せた。
 
 受け入れ条件:
 - Asset 側操作で Cut を更新する場合も、実行経路が `cutActions` か Command 経由に統一される。
