@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { CutImportSource } from '../../utils/cutImport';
 import type { CutGroup } from '../../types';
+import { importFileToVault } from '../../utils/assetPath';
 
 function getFileNameFromPath(filePath: string): string {
   const normalized = filePath.replace(/\\/g, '/');
@@ -108,6 +109,152 @@ export interface FinalizeClipAddCutResult {
   reason?: 'missing-vault' | 'invalid-clip' | 'missing-asset' | 'runtime';
 }
 
+interface FinalizeClipDeriveFileParams {
+  sourceAssetPath: string;
+  sourceAssetName: string;
+  inPoint: number;
+  outPoint: number;
+  reverseOutput: boolean;
+  vaultPath: string;
+}
+
+interface FinalizeClipDeriveFileResult {
+  success: boolean;
+  fileName?: string;
+  fileSize?: number;
+  outputPath?: string;
+  clipDuration?: number;
+  error?: string;
+  reason?: 'runtime';
+}
+
+async function finalizeClipToDerivedFile({
+  sourceAssetPath,
+  sourceAssetName,
+  inPoint,
+  outPoint,
+  reverseOutput,
+  vaultPath,
+}: FinalizeClipDeriveFileParams): Promise<FinalizeClipDeriveFileResult> {
+  if (!window.electronAPI) {
+    return { success: false, reason: 'runtime', error: 'electronAPI not available. Please restart the app.' };
+  }
+  if (typeof window.electronAPI.finalizeClip !== 'function' || typeof window.electronAPI.ensureAssetsFolder !== 'function') {
+    return { success: false, reason: 'runtime', error: 'Finalize Clip feature requires app restart after update.' };
+  }
+
+  const assetsFolder = await window.electronAPI.ensureAssetsFolder(vaultPath);
+  if (!assetsFolder) {
+    return { success: false, reason: 'runtime', error: 'Failed to access assets folder in vault.' };
+  }
+
+  const clipStart = Math.min(inPoint, outPoint);
+  const clipEnd = Math.max(inPoint, outPoint);
+  const clipDuration = Math.abs(outPoint - inPoint);
+  const fileName = buildDerivedFileName(
+    sourceAssetPath,
+    sourceAssetName,
+    reverseOutput ? 'clip_reverse' : 'clip',
+    'mp4'
+  );
+  const outputPath = `${assetsFolder}/${fileName}`.replace(/\\/g, '/');
+
+  const result = await window.electronAPI.finalizeClip({
+    sourcePath: sourceAssetPath,
+    outputPath,
+    inPoint: clipStart,
+    outPoint: clipEnd,
+    reverse: reverseOutput,
+  });
+
+  if (!result.success) {
+    return { success: false, reason: 'runtime', error: result.error || 'Failed to finalize clip.' };
+  }
+
+  return {
+    success: true,
+    fileName,
+    fileSize: result.fileSize,
+    outputPath,
+    clipDuration,
+  };
+}
+
+export interface FinalizeClipAssetOnlyParams {
+  sourceAssetPath: string;
+  sourceAssetName: string;
+  inPoint: number;
+  outPoint: number;
+  reverseOutput: boolean;
+  vaultPath: string;
+}
+
+export interface FinalizeClipAssetOnlyResult {
+  success: boolean;
+  fileName?: string;
+  fileSize?: number;
+  assetId?: string;
+  outputPath?: string;
+  error?: string;
+  reason?: 'runtime';
+}
+
+export async function finalizeClipAndRegisterAsset({
+  sourceAssetPath,
+  sourceAssetName,
+  inPoint,
+  outPoint,
+  reverseOutput,
+  vaultPath,
+}: FinalizeClipAssetOnlyParams): Promise<FinalizeClipAssetOnlyResult> {
+  const finalized = await finalizeClipToDerivedFile({
+    sourceAssetPath,
+    sourceAssetName,
+    inPoint,
+    outPoint,
+    reverseOutput,
+    vaultPath,
+  });
+
+  if (!finalized.success || !finalized.outputPath || !finalized.fileName) {
+    return {
+      success: false,
+      reason: finalized.reason,
+      error: finalized.error || 'Failed to finalize clip.',
+    };
+  }
+
+  const assetId = uuidv4();
+  const registered = await importFileToVault(
+    finalized.outputPath,
+    vaultPath,
+    assetId,
+    {
+      id: assetId,
+      name: finalized.fileName,
+      path: finalized.outputPath,
+      type: 'video',
+      fileSize: finalized.fileSize,
+      originalPath: finalized.outputPath,
+    }
+  );
+  if (!registered) {
+    return {
+      success: false,
+      reason: 'runtime',
+      error: 'Failed to register derived asset.',
+    };
+  }
+
+  return {
+    success: true,
+    fileName: finalized.fileName,
+    fileSize: finalized.fileSize,
+    assetId,
+    outputPath: finalized.outputPath,
+  };
+}
+
 interface FinalizeCutLike {
   isClip?: boolean;
   inPoint?: number;
@@ -193,39 +340,20 @@ export async function finalizeClipAndAddCut({
   getCutGroup,
   updateGroupCutOrder,
 }: FinalizeClipAddCutParams): Promise<FinalizeClipAddCutResult> {
-  if (!window.electronAPI) {
-    return { success: false, reason: 'runtime', error: 'electronAPI not available. Please restart the app.' };
-  }
-  if (typeof window.electronAPI.finalizeClip !== 'function' || typeof window.electronAPI.ensureAssetsFolder !== 'function') {
-    return { success: false, reason: 'runtime', error: 'Finalize Clip feature requires app restart after update.' };
-  }
-
-  const assetsFolder = await window.electronAPI.ensureAssetsFolder(vaultPath);
-  if (!assetsFolder) {
-    return { success: false, reason: 'runtime', error: 'Failed to access assets folder in vault.' };
-  }
-
-  const clipStart = Math.min(inPoint, outPoint);
-  const clipEnd = Math.max(inPoint, outPoint);
-  const clipDuration = Math.abs(outPoint - inPoint);
-  const fileName = buildDerivedFileName(
+  const finalized = await finalizeClipToDerivedFile({
     sourceAssetPath,
     sourceAssetName,
-    reverseOutput ? 'clip_reverse' : 'clip',
-    'mp4'
-  );
-  const outputPath = `${assetsFolder}/${fileName}`.replace(/\\/g, '/');
-
-  const result = await window.electronAPI.finalizeClip({
-    sourcePath: sourceAssetPath,
-    outputPath,
-    inPoint: clipStart,
-    outPoint: clipEnd,
-    reverse: reverseOutput,
+    inPoint,
+    outPoint,
+    reverseOutput,
+    vaultPath,
   });
-
-  if (!result.success) {
-    return { success: false, reason: 'runtime', error: result.error || 'Failed to finalize clip.' };
+  if (!finalized.success || !finalized.outputPath || !finalized.fileName) {
+    return {
+      success: false,
+      reason: finalized.reason || 'runtime',
+      error: finalized.error || 'Failed to finalize clip.',
+    };
   }
 
   await createDerivedCutAndSyncGroup({
@@ -234,11 +362,11 @@ export async function finalizeClipAndAddCut({
     insertIndex,
     source: {
       assetId: uuidv4(),
-      name: fileName,
-      sourcePath: outputPath,
+      name: finalized.fileName,
+      sourcePath: finalized.outputPath,
       type: 'video',
-      fileSize: result.fileSize,
-      preferredDuration: clipDuration,
+      fileSize: finalized.fileSize,
+      preferredDuration: finalized.clipDuration,
     },
     vaultPath,
     createCutFromImport,
@@ -248,8 +376,8 @@ export async function finalizeClipAndAddCut({
 
   return {
     success: true,
-    fileName,
-    fileSize: result.fileSize,
+    fileName: finalized.fileName,
+    fileSize: finalized.fileSize,
   };
 }
 

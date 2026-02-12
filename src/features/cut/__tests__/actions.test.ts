@@ -3,6 +3,7 @@ import {
   createDerivedCutAndSyncGroup,
   cropImageAndAddCut,
   finalizeClipAndAddCut,
+  finalizeClipAndRegisterAsset,
   finalizeClipFromContext,
   moveCutsToSceneEnd,
   removeCutsFromScenes,
@@ -72,6 +73,40 @@ describe('cut actions', () => {
     expect(result.success).toBe(true);
     expect(finalizeClip).toHaveBeenCalledTimes(1);
     expect(createCutFromImport).toHaveBeenCalledTimes(1);
+  });
+
+  it('finalizes clip and registers derived asset without creating cut', async () => {
+    const finalizeClip = vi.fn(async (_options: { outputPath: string }) => ({ success: true, fileSize: 2048 }));
+    const ensureAssetsFolder = vi.fn(async () => 'C:/vault/assets');
+    const saveAssetIndex = vi.fn(async () => true);
+    Object.defineProperty(window, 'electronAPI', {
+      value: {
+        finalizeClip,
+        ensureAssetsFolder,
+        isPathInVault: vi.fn(async () => true),
+        getRelativePath: vi.fn(async () => 'assets/derived.mp4'),
+        calculateFileHash: vi.fn(async () => 'abc'),
+        getFileInfo: vi.fn(async () => ({ size: 2048 })),
+        loadAssetIndex: vi.fn(async () => ({ version: 1, assets: [] })),
+        vaultGateway: {
+          saveAssetIndex,
+        },
+      },
+      writable: true,
+    });
+
+    const result = await finalizeClipAndRegisterAsset({
+      sourceAssetPath: 'C:/assets/src.mp4',
+      sourceAssetName: 'src.mp4',
+      inPoint: 0,
+      outPoint: 2,
+      reverseOutput: true,
+      vaultPath: 'C:/vault',
+    });
+
+    expect(result.success).toBe(true);
+    expect(finalizeClip).toHaveBeenCalledTimes(1);
+    expect(saveAssetIndex).toHaveBeenCalledTimes(1);
   });
 
   it('crops image and creates derived cut', async () => {

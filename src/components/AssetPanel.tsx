@@ -37,6 +37,9 @@ import { useDialog, useToast } from '../ui';
 import {
   AssetContextMenu,
 } from './context-menus';
+import {
+  finalizeClipAndRegisterAsset,
+} from '../features/cut/actions';
 import './AssetPanel.css';
 
 export type SortMode = 'name' | 'type' | 'used' | 'unused';
@@ -170,6 +173,8 @@ export default function AssetPanel({
     y: number;
     asset: AssetInfo;
     hasClipRange: boolean;
+    clipInPoint?: number;
+    clipOutPoint?: number;
   } | null>(null);
   const [bulkImportProgress, setBulkImportProgress] = useState<{
     isActive: boolean;
@@ -548,24 +553,126 @@ export default function AssetPanel({
       y: e.clientY,
       asset,
       hasClipRange: !!match?.cut.isClip,
+      clipInPoint: match?.cut.inPoint,
+      clipOutPoint: match?.cut.outPoint,
     });
   };
 
-  const notifyPendingAssetTransform = (actionName: string) => {
-    toast.info(`${actionName} is planned for Phase 2`, 'Phase 1 delivers menu unification only.');
+  const resolveAssetDuration = useCallback(async (asset: AssetInfo): Promise<number | null> => {
+    const linkedDuration = asset.linkedAssetIds
+      .map((id) => assetCache.get(id)?.duration)
+      .find((duration) => typeof duration === 'number' && Number.isFinite(duration) && duration > 0);
+    if (typeof linkedDuration === 'number') return linkedDuration;
+    if (typeof window.electronAPI?.getVideoMetadata !== 'function') return null;
+    try {
+      const meta = await window.electronAPI.getVideoMetadata(asset.path);
+      return typeof meta?.duration === 'number' && Number.isFinite(meta.duration) && meta.duration > 0
+        ? meta.duration
+        : null;
+    } catch {
+      return null;
+    }
+  }, [assetCache]);
+
+  const resolveContextRange = useCallback(async (
+    ctx: NonNullable<typeof assetContextMenu>,
+    requireClipRange: boolean
+  ): Promise<{ inPoint: number; outPoint: number } | null> => {
+    if (
+      ctx.hasClipRange &&
+      typeof ctx.clipInPoint === 'number' &&
+      typeof ctx.clipOutPoint === 'number'
+    ) {
+      return { inPoint: ctx.clipInPoint, outPoint: ctx.clipOutPoint };
+    }
+    if (requireClipRange) {
+      return null;
+    }
+    const duration = await resolveAssetDuration(ctx.asset);
+    if (!duration || duration <= 0) {
+      return null;
+    }
+    return { inPoint: 0, outPoint: duration };
+  }, [assetContextMenu, resolveAssetDuration]);
+
+  const reportFinalizeResult = (result: Awaited<ReturnType<typeof finalizeClipAndRegisterAsset>>) => {
+    if (result.success) {
+      const sizeText = result.fileSize ? `${(result.fileSize / 1024 / 1024).toFixed(2)} MB` : 'Unknown size';
+      toast.success('Asset created', `${result.fileName} (${sizeText})`);
+      return;
+    }
+    if (result.reason === 'runtime') {
+      toast.error('Asset conversion failed', result.error || 'Unknown error');
+      return;
+    }
+    toast.error('Asset conversion failed', result.error || 'Unknown error');
+  };
+
+  const handleAssetMenuFinalize = async () => {
+    if (!assetContextMenu) return;
+    if (!vaultPath) {
+      toast.warning('Vault path not set', 'Please set up a vault first.');
+      setAssetContextMenu(null);
+      return;
+    }
+    const range = await resolveContextRange(assetContextMenu, true);
+    if (!range) {
+      toast.warning('Clip range not found', 'Finalize Clip requires a clip with IN/OUT points.');
+      setAssetContextMenu(null);
+      return;
+    }
+    const result = await finalizeClipAndRegisterAsset({
+      sourceAssetPath: assetContextMenu.asset.path,
+      sourceAssetName: assetContextMenu.asset.sourceName,
+      inPoint: range.inPoint,
+      outPoint: range.outPoint,
+      reverseOutput: false,
+      vaultPath,
+    });
+    reportFinalizeResult(result);
+    await loadAssets();
     setAssetContextMenu(null);
   };
 
-  const handleAssetMenuFinalize = () => {
-    notifyPendingAssetTransform('Finalize Clip (Asset Only)');
-  };
-
-  const handleAssetMenuReverse = () => {
-    notifyPendingAssetTransform('Reverse (Asset Only)');
+  const handleAssetMenuReverse = async () => {
+    if (!assetContextMenu) return;
+    if (!vaultPath) {
+      toast.warning('Vault path not set', 'Please set up a vault first.');
+      setAssetContextMenu(null);
+      return;
+    }
+    const proceed = await dialogConfirm({
+      title: 'Reverse Clip',
+      message: 'Reverse export is memory intensive and may temporarily pause the app.',
+      variant: 'warning',
+      confirmLabel: 'Continue',
+    });
+    if (!proceed) {
+      setAssetContextMenu(null);
+      return;
+    }
+    const range = await resolveContextRange(assetContextMenu, false);
+    if (!range) {
+      toast.warning('Duration unavailable', 'Unable to resolve video duration for reverse.');
+      setAssetContextMenu(null);
+      return;
+    }
+    const result = await finalizeClipAndRegisterAsset({
+      sourceAssetPath: assetContextMenu.asset.path,
+      sourceAssetName: assetContextMenu.asset.sourceName,
+      inPoint: range.inPoint,
+      outPoint: range.outPoint,
+      reverseOutput: true,
+      vaultPath,
+    });
+    reportFinalizeResult(result);
+    await loadAssets();
+    setAssetContextMenu(null);
   };
 
   const handleAssetMenuExtractAudio = () => {
-    notifyPendingAssetTransform('Extract Audio (Asset Only)');
+    toast.info('Extract Audio is planned for Phase 3', 'Phase 2 delivers finalize/reverse asset-only operations.');
+    setAssetContextMenu(null);
   };
 
   const handleDeleteAsset = async () => {

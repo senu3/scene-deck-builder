@@ -82,6 +82,8 @@
 - `finalizeClipAndAddCut` をベースに「派生アセット登録のみ」関数を追加。
 - 既存 `finalizeClipFromContext` は互換維持しつつ内部を共通化。
 - Reverse の AssetPanel 導線を asset-only に切替。
+ステータス: 完了（2026-02-12）
+補足: AssetPanel の `Finalize Clip (Asset Only)` も同じ `asset-only` 経路へ接続済み。`Extract Audio` は Phase 3。
 
 3. **Phase 3: 音声抽出**
 - main/preload/type に `extract-audio` IPC を追加。

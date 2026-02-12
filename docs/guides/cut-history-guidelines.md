@@ -103,6 +103,7 @@ const store = useStore(); // 全体購読
 ## AssetPanel Cut オプション廃止方針
 - 方針: AssetPanel は段階的に「Asset 操作専用」に移行する。
 - 現状（2026-02-12）: AssetPanel の Cut コンテキストメニューは撤去済み。右クリックは Asset options に統一。
+- 現状（2026-02-12）: AssetPanel の Finalize/Reverse は `asset-only`（Cut非追加）導線へ接続済み。
 - 置換先: Cut 操作は `CutCard` / `DetailsPanel` / ショートカット（history command 経由）へ寄せる。
 - 次フェーズ計画: `docs/notes/assetpanel-cut-ffmpeg-reorg-plan-2026-02-12.md` を正とし、AssetPanel の右クリックメニュー統一と ffmpeg 派生操作整理を進める。
 - 完了条件:
