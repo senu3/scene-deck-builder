@@ -28,7 +28,7 @@
 - `docs/ui/components.md`
 - `docs/ui/color-system.md`
 - `docs/ui/scene-duration-bar.md`
-- `docs/notes/store-slice-plan.md`（useStore分割計画）
+- `docs/notes/store-slice-plan.md`（useStore分割計画 / Phase S1 実装済み: 2026-02-12）
 
 ## アーカイブ
 - `docs/notes/archive/INDEX.md`（アーカイブ目次）

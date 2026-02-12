@@ -49,10 +49,15 @@
 - `src/store/slices/selectionUiSlice.ts`
 - `src/store/slices/projectSlice.ts`
 - `src/store/slices/metadataSlice.ts`
+- `src/store/useStore.ts` は slice 合成のみを担う統合レイヤーにする。
 
 受け入れ条件:
 - 既存の `useStore` 呼び出しシグネチャを維持する。
 - `npm run build` が通る。
+
+進捗（2026-02-12）:
+- 実装完了。上記 5 slice を追加し、`useStore` を統合レイヤー化した。
+- `npm run build` 通過、`npm test -- src/store`（5 files / 14 tests）通過。
 
 ### Phase S2: selector 整理
 - コンポーネントごとに必要 state/actions だけを取得する selector に寄せる。
@@ -65,6 +70,7 @@
 ### Phase S3: API 整理
 - 互換維持のため残していた重複 API を削減する。
 - ガイドライン（Command 境界、runtime 境界）に違反する更新経路を削除する。
+- `commands.ts` から `confirm()` など UI 依存を排除し、UI 層で確認してから Command を実行する構造へ移行する。
 
 受け入れ条件:
 - `docs/guides/cut-history-guidelines.md` と実装が一致する。
@@ -91,3 +97,8 @@
 - `historyStore` と `commands` の責務境界を図示する。
 - selector 標準パターンを `docs/guides/cut-history-guidelines.md` に追記する。
 - S0 着手前に「Cut 書き込み経路の現状一覧」を作成する。
+- `commands.ts` の `confirm()` 呼び出しを撤去し、UI 層へ移設する設計メモを追加する。
+- `src/store/contracts.ts`（仮）を作成し、`AppState` と slice 公開型の配置を定義する。
+
+## 保留事項
+- ビルド時の chunk size warning（renderer > 500kB）対応は将来タスクとして保留（本プラン対象外）。
