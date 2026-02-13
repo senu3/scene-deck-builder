@@ -1714,7 +1714,7 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
           '-f', 'concat',
           '-safe', '0',
           '-i', listFile,
-          '-vsync', 'vfr',
+          '-fps_mode', 'cfr',
           '-vf', filter,
           '-r', fps.toString(),
           '-c:v', 'libx264',
