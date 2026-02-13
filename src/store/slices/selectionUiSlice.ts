@@ -165,10 +165,19 @@ export function createSelectionUiSlice(set: SliceSet, get: SliceGet): SelectionU
     setGlobalMuted: (muted) => set({ globalMuted: muted }),
     toggleGlobalMute: () => set((state) => ({ globalMuted: !state.globalMuted })),
 
-    openVideoPreview: (cutId) => set({ videoPreviewCutId: cutId }),
-    closeVideoPreview: () => set({ videoPreviewCutId: null }),
-    openSequencePreview: (cutId) => set({ sequencePreviewCutId: cutId }),
-    closeSequencePreview: () => set({ sequencePreviewCutId: null }),
+    openVideoPreview: (cutId, options) =>
+      set({
+        videoPreviewCutId: cutId,
+        pendingSubtitleModalCutId: options?.openSubtitleModal ? cutId : null,
+      }),
+    closeVideoPreview: () => set({ videoPreviewCutId: null, pendingSubtitleModalCutId: null }),
+    openSequencePreview: (cutId, options) =>
+      set({
+        sequencePreviewCutId: cutId,
+        pendingSubtitleModalCutId: options?.openSubtitleModal ? cutId : null,
+      }),
+    closeSequencePreview: () => set({ sequencePreviewCutId: null, pendingSubtitleModalCutId: null }),
+    clearPendingSubtitleModalCutId: () => set({ pendingSubtitleModalCutId: null }),
 
     setImportingAsset: (name) => set({ isImportingAsset: name }),
 

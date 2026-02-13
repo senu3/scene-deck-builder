@@ -12,6 +12,7 @@ import type {
   SourceViewMode,
   MetadataStore,
   CutRuntimeState,
+  CutSubtitle,
 } from '../types';
 import type { StoreEvent, StoreEventInput } from './events';
 import type {
@@ -34,6 +35,7 @@ export interface ClipboardCut {
   inPoint?: number;
   outPoint?: number;
   isClip?: boolean;
+  subtitle?: CutSubtitle;
 }
 
 export interface AppState extends ProjectSliceContract, CutTimelineSliceContract, SelectionUiSliceContract, MetadataSliceContract, GroupSliceContract {
@@ -73,6 +75,7 @@ export interface AppState extends ProjectSliceContract, CutTimelineSliceContract
 
   videoPreviewCutId: string | null;
   sequencePreviewCutId: string | null;
+  pendingSubtitleModalCutId: string | null;
 
   isImportingAsset: string | null;
 

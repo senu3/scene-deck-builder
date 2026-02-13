@@ -15,6 +15,8 @@ import {
   selectCloseVideoPreview,
   selectSequencePreviewCutId,
   selectCloseSequencePreview,
+  selectPendingSubtitleModalCutId,
+  selectClearPendingSubtitleModalCutId,
   selectCacheAssetAction,
   selectUpdateCutAssetAction,
   selectCreateCutFromImport,
@@ -90,6 +92,8 @@ function App() {
   const closeVideoPreview = useStore(selectCloseVideoPreview);
   const sequencePreviewCutId = useStore(selectSequencePreviewCutId);
   const closeSequencePreview = useStore(selectCloseSequencePreview);
+  const pendingSubtitleModalCutId = useStore(selectPendingSubtitleModalCutId);
+  const clearPendingSubtitleModalCutId = useStore(selectClearPendingSubtitleModalCutId);
   const cacheAsset = useStore(selectCacheAssetAction);
   const updateCutAsset = useStore(selectUpdateCutAssetAction);
   const createCutFromImport = useStore(selectCreateCutFromImport);
@@ -668,12 +672,13 @@ function App() {
     if (!videoPreviewCutId) return null;
     for (const scene of scenes) {
       const cut = scene.cuts.find(c => c.id === videoPreviewCutId);
-      if (cut && cut.asset) {
-        return { scene, cut, asset: cut.asset };
+      const resolvedAsset = cut ? (getAsset(cut.assetId) || cut.asset) : undefined;
+      if (cut && resolvedAsset) {
+        return { scene, cut, asset: resolvedAsset };
       }
     }
     return null;
-  }, [videoPreviewCutId, scenes]);
+  }, [videoPreviewCutId, scenes, getAsset]);
 
   const previewData = previewCutData();
 
@@ -804,6 +809,8 @@ function App() {
             asset={previewData.asset}
             focusCutId={previewData.cut.id}
             onClose={closeVideoPreview}
+            openSubtitleModalOnMount={pendingSubtitleModalCutId === previewData.cut.id}
+            onSubtitleModalOpenHandled={clearPendingSubtitleModalCutId}
             initialInPoint={previewData.cut.inPoint}
             initialOutPoint={previewData.cut.outPoint}
             onClipSave={handleVideoPreviewClipSave}
@@ -817,6 +824,8 @@ function App() {
           <PreviewModal
             onClose={closeSequencePreview}
             focusCutId={sequencePreviewCutId}
+            openSubtitleModalOnMount={pendingSubtitleModalCutId === sequencePreviewCutId}
+            onSubtitleModalOpenHandled={clearPendingSubtitleModalCutId}
             exportResolution={exportResolution}
             onResolutionChange={setExportResolution}
             onExportSequence={handlePreviewExport}

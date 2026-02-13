@@ -20,6 +20,7 @@ import {
   ChevronDown,
   ChevronRight,
   Edit2,
+  MessageSquare,
 } from "lucide-react";
 import { useStore } from "../store/useStore";
 import {
@@ -46,6 +47,8 @@ import {
   selectUpdateCutAudioOffset,
   selectSetCutUseEmbeddedAudio,
   selectRelinkCutAsset,
+  selectOpenVideoPreview,
+  selectOpenSequencePreview,
 } from "../store/selectors";
 import { useHistoryStore } from "../store/historyStore";
 import {
@@ -59,6 +62,7 @@ import {
   DeleteGroupCommand,
   RenameGroupCommand,
   SetSceneAttachAudioCommand,
+  UpdateCutSubtitleCommand,
 } from "../store/commands";
 import { getThumbnail } from "../utils/thumbnailCache";
 import { extractVideoMetadata } from "../utils/videoUtils";
@@ -97,6 +101,8 @@ export default function DetailsPanel() {
   const updateCutAudioOffset = useStore(selectUpdateCutAudioOffset);
   const setCutUseEmbeddedAudio = useStore(selectSetCutUseEmbeddedAudio);
   const relinkCutAsset = useStore(selectRelinkCutAsset);
+  const openVideoPreview = useStore(selectOpenVideoPreview);
+  const openSequencePreview = useStore(selectOpenSequencePreview);
 
   const { executeCommand } = useHistoryStore();
   const { confirm } = useDialog();
@@ -445,6 +451,20 @@ export default function DetailsPanel() {
       return;
     }
     setShowLipSyncModal(true);
+  };
+
+  const handleEditSubtitle = () => {
+    if (!cut || !asset) return;
+    if (asset.type === "video") {
+      openVideoPreview(cut.id, { openSubtitleModal: true });
+      return;
+    }
+    openSequencePreview(cut.id, { openSubtitleModal: true });
+  };
+
+  const handleClearSubtitle = async () => {
+    if (!cutScene || !cut?.subtitle) return;
+    await executeCommand(new UpdateCutSubtitleCommand(cutScene.id, cut.id, undefined));
   };
 
   // Handle audio selection from AssetModal
@@ -1192,6 +1212,35 @@ export default function DetailsPanel() {
                 />
               </div>
             )}
+          </div>
+
+          <div className="subtitle-section">
+              <div className="subtitle-header">
+              <MessageSquare size={14} />
+              <span>Subtitle</span>
+            </div>
+            {cut.subtitle?.text ? (
+              <div className="subtitle-preview-text">
+                {cut.subtitle.text}
+              </div>
+            ) : (
+              <div className="subtitle-preview-empty">No subtitle</div>
+            )}
+            <div className="subtitle-actions">
+              <button
+                className="audio-btn edit"
+                onClick={handleEditSubtitle}
+              >
+                Edit
+              </button>
+              <button
+                className="audio-btn remove"
+                onClick={handleClearSubtitle}
+                disabled={!cut.subtitle}
+              >
+                Clear
+              </button>
+            </div>
           </div>
 
           {/* Clip Info Section (for video clips) */}
