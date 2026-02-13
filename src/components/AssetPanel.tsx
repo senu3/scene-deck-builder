@@ -56,6 +56,7 @@ export interface AssetInfo {
   usageCount: number;
   usageType: 'cut' | 'audio' | 'both' | null;
   linkedAssetIds: string[]; // All assetIds that map to this file (duplicates)
+  hasLipSync: boolean;
 }
 
 export interface AssetPanelProps {
@@ -202,6 +203,29 @@ export default function AssetPanel({
     () => buildLinkedAssetIds(assetRefs),
     [assetRefs]
   );
+  const { lipSyncGeneratedAssetIds, lipSyncOwnerAssetIds } = useMemo(() => {
+    const generated = new Set<string>();
+    const owners = new Set<string>();
+    const metadata = metadataStore?.metadata || {};
+    for (const [ownerAssetId, assetMeta] of Object.entries(metadata)) {
+      const lipSync = assetMeta?.lipSync;
+      if (!lipSync) continue;
+      owners.add(ownerAssetId);
+      for (const id of lipSync.ownedGeneratedAssetIds || []) {
+        if (id) generated.add(id);
+      }
+      for (const id of lipSync.orphanedGeneratedAssetIds || []) {
+        if (id) generated.add(id);
+      }
+      if (lipSync.maskAssetId) {
+        generated.add(lipSync.maskAssetId);
+      }
+      for (const id of lipSync.compositedFrameAssetIds || []) {
+        if (id) generated.add(id);
+      }
+    }
+    return { lipSyncGeneratedAssetIds: generated, lipSyncOwnerAssetIds: owners };
+  }, [metadataStore]);
 
   // Load asset index from .index.json
   const loadAssetIndex = useCallback(async (): Promise<Map<string, AssetIndexEntry[]>> => {
@@ -301,14 +325,17 @@ export default function AssetPanel({
 
               // Use asset IDs from index if available
               const fallbackAssetId = `asset-${item.path.replace(/[^a-zA-Z0-9]/g, '-')}`;
-              const linkedAssetIds = indexEntries?.length ? indexEntries.map((entry) => entry.id) : [fallbackAssetId];
-              const primaryAssetId = linkedAssetIds[0] || fallbackAssetId;
+              const linkedIds = indexEntries?.length ? indexEntries.map((entry) => entry.id) : [fallbackAssetId];
+              const primaryAssetId = linkedIds[0] || fallbackAssetId;
+              if (linkedIds.some((id) => lipSyncGeneratedAssetIds.has(id))) {
+                continue;
+              }
 
               // Check if asset is cached
-              const cachedAsset = linkedAssetIds
+              const cachedAsset = linkedIds
                 .map((id) => assetCache.get(id))
                 .find((asset) => !!asset);
-              const usage = aggregateUsage(linkedAssetIds);
+              const usage = aggregateUsage(linkedIds);
 
               assetList.push({
                 id: cachedAsset?.id || primaryAssetId,
@@ -319,7 +346,8 @@ export default function AssetPanel({
                 thumbnail: cachedAsset?.thumbnail,
                 usageCount: usage.count,
                 usageType: usage.type,
-                linkedAssetIds,
+                linkedAssetIds: linkedIds,
+                hasLipSync: linkedIds.some((id) => lipSyncOwnerAssetIds.has(id)),
               });
             }
           }
@@ -333,7 +361,7 @@ export default function AssetPanel({
     } finally {
       setIsLoading(false);
     }
-  }, [vaultPath, assetCache, usedAssetsMap, loadAssetIndex]);
+  }, [vaultPath, assetCache, usedAssetsMap, loadAssetIndex, lipSyncGeneratedAssetIds, lipSyncOwnerAssetIds]);
 
   // Load assets on mount
   useEffect(() => {
@@ -1122,6 +1150,12 @@ function AssetCard({
             {asset.usageType === 'audio' && <Link2 size={10} />}
             {asset.usageType === 'both' && <><Layers size={10} /><Link2 size={10} /></>}
             <span>{asset.usageCount}</span>
+          </div>
+        )}
+
+        {asset.hasLipSync && (
+          <div className="asset-lipsync-badge" title="LipSync source asset">
+            LipSync
           </div>
         )}
 

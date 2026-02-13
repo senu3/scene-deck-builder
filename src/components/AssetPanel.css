@@ -441,6 +441,22 @@
   background: linear-gradient(135deg, rgba(var(--accent-video-rgb), 0.9), rgba(var(--accent-audio-rgb), 0.9));
 }
 
+.asset-lipsync-badge {
+  position: absolute;
+  bottom: 26px;
+  left: 4px;
+  max-width: calc(100% - 28px);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  color: white;
+  background-color: rgba(var(--accent-primary-rgb), 0.9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* Selection badge */
 .asset-selected-badge {
   position: absolute;

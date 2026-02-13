@@ -200,6 +200,64 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
       void get().saveMetadata();
     },
 
+    cleanupLipSyncAssetsForDeletedCut: async (assetId) => {
+      const state = get();
+      if (!assetId || !state.metadataStore) return;
+
+      const hasRemainingLipSyncCut = state.scenes.some((scene) =>
+        scene.cuts.some((cut) => cut.assetId === assetId && !!cut.isLipSync)
+      );
+      if (hasRemainingLipSyncCut) return;
+
+      const lipSync = state.metadataStore.metadata[assetId]?.lipSync;
+      if (!lipSync) return;
+
+      const generatedAssetIds = Array.from(new Set([
+        ...(lipSync.ownedGeneratedAssetIds || []),
+        ...(lipSync.orphanedGeneratedAssetIds || []),
+      ])).filter(Boolean);
+
+      // Remove lipsync metadata first so generated assets are no longer treated as in-use references.
+      get().clearLipSyncForAsset(assetId);
+
+      if (generatedAssetIds.length === 0 || !window.electronAPI?.loadAssetIndex) {
+        return;
+      }
+
+      const latestState = get();
+      const assetPathById = new Map<string, string>();
+
+      for (const generatedId of generatedAssetIds) {
+        const cached = latestState.getAsset(generatedId);
+        if (cached?.path) {
+          assetPathById.set(generatedId, cached.path);
+        }
+      }
+
+      if (latestState.vaultPath) {
+        try {
+          const index = await window.electronAPI.loadAssetIndex(latestState.vaultPath);
+          for (const entry of index.assets) {
+            if (!generatedAssetIds.includes(entry.id)) continue;
+            if (assetPathById.has(entry.id)) continue;
+            assetPathById.set(entry.id, `${latestState.vaultPath}/assets/${entry.filename}`);
+          }
+        } catch (error) {
+          console.warn('[LipSync] Failed to resolve generated asset paths from index:', error);
+        }
+      }
+
+      for (const generatedId of generatedAssetIds) {
+        const generatedPath = assetPathById.get(generatedId);
+        if (!generatedPath) continue;
+        await get().deleteAssetWithPolicy({
+          assetPath: generatedPath,
+          assetIds: [generatedId],
+          reason: 'lipsync-generated-cleanup',
+        });
+      }
+    },
+
     removeAssetReferences: (assetIds) => {
       const targets = Array.from(new Set(assetIds.filter(Boolean)));
       if (targets.length === 0) return;
@@ -288,18 +346,32 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
     },
 
     relinkCutAsset: (sceneId, cutId, newAsset) => {
-      const previousCut = get().scenes
+      const state = get();
+      const previousCut = state.scenes
         .find((s) => s.id === sceneId)
         ?.cuts.find((c) => c.id === cutId);
+      const previousAssetId = previousCut?.assetId;
+      const hadLipSyncSettings = !!(previousAssetId && state.metadataStore?.metadata[previousAssetId]?.lipSync);
+
       get().cacheAsset(newAsset);
       get().updateCutWithAsset(sceneId, cutId, newAsset);
+
+      if (previousCut?.isLipSync) {
+        get().updateCutLipSync(sceneId, cutId, false);
+      }
+
       get().emitStoreEvent({
         type: 'CUT_RELINKED',
         sceneId,
         cutId,
-        previousAssetId: previousCut?.assetId,
+        previousAssetId,
         nextAssetId: newAsset.id,
       });
+
+      if (hadLipSyncSettings && previousAssetId && previousAssetId !== newAsset.id) {
+        void get().cleanupLipSyncAssetsForDeletedCut(previousAssetId);
+      }
+
       if (!previousCut) return;
       if (previousCut.asset?.type !== 'video' || newAsset.type !== 'video') {
         get().clearCutClipPoints(sceneId, cutId);

@@ -515,6 +515,19 @@ export default function DetailsPanel() {
   // Relink file handler
   const handleRelinkFile = async () => {
     if (!cutScene || !cut || !vaultPath || !window.electronAPI?.vaultGateway) return;
+    const hasLipSyncConfig = !!(cut.assetId && metadataStore?.metadata[cut.assetId]?.lipSync);
+    if (cut.isLipSync || hasLipSyncConfig) {
+      const confirmed = await confirm({
+        title: 'Relink and reset LipSync?',
+        message:
+          'Relinking this cut will reset LipSync and convert it back to a normal image cut.\n' +
+          'Generated LipSync frames for the current source will be cleaned up if no other LipSync cut uses them.',
+        variant: 'info',
+        confirmLabel: 'Relink and Reset',
+        cancelLabel: 'Cancel',
+      });
+      if (!confirmed) return;
+    }
 
     const filePath = await window.electronAPI.showOpenFileDialog({
       title: 'Select New File',

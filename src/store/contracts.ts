@@ -134,6 +134,7 @@ export interface MetadataSliceContract {
   getAttachedAudioForScene: (sceneId: string) => Asset | undefined;
   setLipSyncForAsset: (assetId: string, settings: LipSyncSettings) => void;
   clearLipSyncForAsset: (assetId: string) => void;
+  cleanupLipSyncAssetsForDeletedCut: (assetId: string) => Promise<void>;
   removeAssetReferences: (assetIds: string[]) => void;
   deleteAssetWithPolicy: (params: {
     assetPath: string;
