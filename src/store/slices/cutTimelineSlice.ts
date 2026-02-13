@@ -581,6 +581,8 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
           inPoint: cut.inPoint,
           outPoint: cut.outPoint,
           isClip: cut.isClip,
+          isLipSync: cut.isLipSync,
+          lipSyncFrameCount: cut.lipSyncFrameCount,
         });
         return acc;
       }, []);
@@ -613,6 +615,8 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
           inPoint: clipCut.inPoint,
           outPoint: clipCut.outPoint,
           isClip: clipCut.isClip,
+          isLipSync: clipCut.isLipSync,
+          lipSyncFrameCount: clipCut.isLipSync ? clipCut.lipSyncFrameCount : undefined,
         };
       });
 

@@ -72,4 +72,22 @@ describe('useEmbeddedAudio store behavior', () => {
     const cut = useStore.getState().scenes[0]?.cuts.find((c) => c.id === cutId);
     expect(cut?.useEmbeddedAudio).toBe(true);
   });
+
+  it('preserves lip sync flags when pasting cuts', () => {
+    useStore.setState({
+      clipboard: [{
+        assetId: 'asset-1',
+        asset: BASE_ASSET,
+        displayTime: 1,
+        audioBindings: [],
+        isLipSync: true,
+        lipSyncFrameCount: 4,
+      }],
+    }, false);
+
+    const [cutId] = useStore.getState().pasteCuts('scene-1');
+    const cut = useStore.getState().scenes[0]?.cuts.find((c) => c.id === cutId);
+    expect(cut?.isLipSync).toBe(true);
+    expect(cut?.lipSyncFrameCount).toBe(4);
+  });
 });

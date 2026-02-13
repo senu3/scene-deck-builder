@@ -211,9 +211,9 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
 
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // Video cuts use Single Mode preview. Image/lipsync cuts use Sequence Mode.
+    // LipSync cuts always use Sequence Mode, even when the source asset is video.
     if (asset) {
-      if (asset.type === 'video') {
+      if (asset.type === 'video' && !cut.isLipSync) {
         openVideoPreview(cut.id);
       } else {
         openSequencePreview(cut.id);

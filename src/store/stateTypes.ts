@@ -34,6 +34,8 @@ export interface ClipboardCut {
   inPoint?: number;
   outPoint?: number;
   isClip?: boolean;
+  isLipSync?: boolean;
+  lipSyncFrameCount?: number;
 }
 
 export interface AppState extends ProjectSliceContract, CutTimelineSliceContract, SelectionUiSliceContract, MetadataSliceContract, GroupSliceContract {
