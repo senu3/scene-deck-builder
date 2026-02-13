@@ -41,6 +41,7 @@ import {
   selectMetadataStore,
   selectAttachAudioToCut,
   selectDetachAudioFromCut,
+  selectGetAttachedAudioForScene,
   selectGetAttachedAudioForCut,
   selectUpdateCutAudioOffset,
   selectSetCutUseEmbeddedAudio,
@@ -57,6 +58,7 @@ import {
   CreateGroupCommand,
   DeleteGroupCommand,
   RenameGroupCommand,
+  SetSceneAttachAudioCommand,
 } from "../store/commands";
 import { getThumbnail } from "../utils/thumbnailCache";
 import { extractVideoMetadata } from "../utils/videoUtils";
@@ -90,6 +92,7 @@ export default function DetailsPanel() {
   const metadataStore = useStore(selectMetadataStore);
   const attachAudioToCut = useStore(selectAttachAudioToCut);
   const detachAudioFromCut = useStore(selectDetachAudioFromCut);
+  const getAttachedAudioForScene = useStore(selectGetAttachedAudioForScene);
   const getAttachedAudioForCut = useStore(selectGetAttachedAudioForCut);
   const updateCutAudioOffset = useStore(selectUpdateCutAudioOffset);
   const setCutUseEmbeddedAudio = useStore(selectSetCutUseEmbeddedAudio);
@@ -106,6 +109,7 @@ export default function DetailsPanel() {
   const [showVideoPreview, setShowVideoPreview] = useState(false);
   const [showLipSyncModal, setShowLipSyncModal] = useState(false);
   const [showAssetModal, setShowAssetModal] = useState(false);
+  const [showSceneAudioModal, setShowSceneAudioModal] = useState(false);
   const [pendingLipSyncOpen, setPendingLipSyncOpen] = useState(false);
   const [lipSyncFrames, setLipSyncFrames] = useState<string[]>([]);
   const [groupThumbnail, setGroupThumbnail] = useState<string | null>(null);
@@ -145,6 +149,8 @@ export default function DetailsPanel() {
   const lipSyncSettings = asset?.id ? metadataStore?.metadata[asset.id]?.lipSync : undefined;
   const isLipSyncCut = !!cut?.isLipSync;
   const showLipSyncDetails = isLipSyncCut && !!lipSyncSettings;
+  const sceneAudioBinding = selectedScene ? metadataStore?.sceneMetadata?.[selectedScene.id]?.attachAudio : undefined;
+  const attachedSceneAudio = selectedScene ? getAttachedAudioForScene(selectedScene.id) : undefined;
 
   // Check for multi-selection
   const isMultiSelection = selectedCutIds.size > 1;
@@ -451,6 +457,22 @@ export default function DetailsPanel() {
   const handleAssetModalClose = () => {
     setShowAssetModal(false);
     setPendingLipSyncOpen(false);
+  };
+
+  const handleSceneAttachAudio = () => {
+    if (!selectedScene) return;
+    setShowSceneAudioModal(true);
+  };
+
+  const handleSceneAudioModalConfirm = async (selectedAsset: Asset) => {
+    if (!selectedScene) return;
+    await executeCommand(new SetSceneAttachAudioCommand(selectedScene.id, selectedAsset));
+    setShowSceneAudioModal(false);
+  };
+
+  const handleSceneDetachAudio = async () => {
+    if (!selectedScene) return;
+    await executeCommand(new SetSceneAttachAudioCommand(selectedScene.id, null));
   };
 
   // Detach audio handler
@@ -931,6 +953,45 @@ export default function DetailsPanel() {
             </div>
           </div>
 
+          <div className="attached-audio-section">
+            <div className="attached-audio-header">
+              <Music size={14} />
+              <span>Scene Audio</span>
+            </div>
+            {sceneAudioBinding?.audioAssetId ? (
+              <>
+                <div className="attached-audio-info">
+                  <span className="audio-name">
+                    {sceneAudioBinding.sourceName || attachedSceneAudio?.name || "Unknown"}
+                  </span>
+                </div>
+                <div className="attached-audio-actions">
+                  <button
+                    className="audio-btn edit"
+                    onClick={handleSceneAttachAudio}
+                    title="Replace scene audio"
+                  >
+                    Replace
+                  </button>
+                  <button
+                    className="audio-btn remove"
+                    onClick={handleSceneDetachAudio}
+                    title="Clear scene audio"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="details-actions">
+                <button className="action-btn secondary" onClick={handleSceneAttachAudio}>
+                  <Music size={16} />
+                  <span>ATTACH SCENE AUDIO</span>
+                </button>
+              </div>
+            )}
+          </div>
+
           <div className="scene-notes-section">
             <div className="notes-header">
               <StickyNote size={16} />
@@ -970,6 +1031,15 @@ export default function DetailsPanel() {
               )}
             </div>
           </div>
+
+          <AssetModal
+            open={showSceneAudioModal}
+            onClose={() => setShowSceneAudioModal(false)}
+            onConfirm={handleSceneAudioModalConfirm}
+            title="Select Scene Audio"
+            initialFilterType="audio"
+            allowImport={true}
+          />
         </div>
       </aside>
     );

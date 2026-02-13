@@ -1,6 +1,6 @@
 import { Command } from './historyStore';
 import { useStore } from './useStore';
-import type { Asset, Cut, Scene, CutGroup } from '../types';
+import type { Asset, Cut, Scene, CutGroup, SceneAudioBinding } from '../types';
 import { syncSceneMetadata } from '../utils/metadataStore';
 
 function restoreCutState(
@@ -886,6 +886,76 @@ export class RenameGroupCommand implements Command {
 
     const store = useStore.getState();
     store.renameGroup(this.sceneId, this.groupId, this.oldName);
+  }
+}
+
+/**
+ * シーン単位のアタッチ音声設定コマンド
+ * - scene metadata に音声を設定
+ * - 同一シーン内の動画cutの attachAudio/useEmbeddedAudio を一括更新
+ */
+export class SetSceneAttachAudioCommand implements Command {
+  type = 'SET_SCENE_ATTACH_AUDIO';
+  description: string;
+
+  private sceneId: string;
+  private audioAsset: Asset | null;
+  private previousSceneBinding?: SceneAudioBinding;
+  private previousCuts: Array<{ cutId: string; audioBindings: Cut['audioBindings']; useEmbeddedAudio: boolean }> = [];
+
+  constructor(sceneId: string, audioAsset: Asset | null) {
+    this.sceneId = sceneId;
+    this.audioAsset = audioAsset;
+    this.description = audioAsset
+      ? `Set scene audio: ${audioAsset.name}`
+      : 'Clear scene audio';
+  }
+
+  async execute(): Promise<void> {
+    const store = useStore.getState();
+    const scene = store.scenes.find((s) => s.id === this.sceneId);
+    if (!scene) return;
+
+    this.previousSceneBinding = store.getSceneAudioBinding(this.sceneId);
+    this.previousCuts = scene.cuts
+      .filter((cut) => {
+        const cutAsset = resolveCutAsset(store, cut);
+        return cutAsset?.type === 'video';
+      })
+      .map((cut) => ({
+        cutId: cut.id,
+        audioBindings: cut.audioBindings?.map((binding) => ({ ...binding })) || [],
+        useEmbeddedAudio: cut.useEmbeddedAudio ?? true,
+      }));
+
+    if (this.audioAsset) {
+      store.cacheAsset(this.audioAsset);
+      store.setSceneAudioBinding(this.sceneId, {
+        id: this.previousSceneBinding?.id || crypto.randomUUID(),
+        audioAssetId: this.audioAsset.id,
+        sourceName: this.audioAsset.name,
+        gain: this.previousSceneBinding?.gain ?? 1,
+        enabled: true,
+        kind: 'scene',
+      });
+    } else {
+      store.setSceneAudioBinding(this.sceneId, null);
+    }
+
+    for (const previousCut of this.previousCuts) {
+      store.setCutAudioBindings(this.sceneId, previousCut.cutId, []);
+      store.setCutUseEmbeddedAudio(this.sceneId, previousCut.cutId, false);
+    }
+  }
+
+  async undo(): Promise<void> {
+    const store = useStore.getState();
+    store.setSceneAudioBinding(this.sceneId, this.previousSceneBinding || null);
+
+    for (const previousCut of this.previousCuts) {
+      store.setCutAudioBindings(this.sceneId, previousCut.cutId, previousCut.audioBindings || []);
+      store.setCutUseEmbeddedAudio(this.sceneId, previousCut.cutId, previousCut.useEmbeddedAudio);
+    }
   }
 }
 

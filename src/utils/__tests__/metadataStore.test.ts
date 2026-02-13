@@ -26,6 +26,34 @@ describe('metadataStore', () => {
     expect(sceneMetadata['scene-2']?.name).toBe('Scene 2');
   });
 
+  it('preserves scene attach audio when syncing scene metadata', () => {
+    const store = {
+      version: 1,
+      metadata: {},
+      sceneMetadata: {
+        'scene-1': {
+          id: 'scene-1',
+          name: 'Old',
+          notes: [],
+          updatedAt: 'old',
+          attachAudio: {
+            id: 'sa-1',
+            audioAssetId: 'aud-1',
+            sourceName: 'bgm.wav',
+            enabled: true,
+            kind: 'scene',
+          },
+        },
+      },
+    };
+    const scenes = [
+      { id: 'scene-1', name: 'Scene 1', notes: [] },
+    ];
+
+    const synced = syncSceneMetadata(store as any, scenes as any);
+    expect(synced.sceneMetadata?.['scene-1']?.attachAudio?.audioAssetId).toBe('aud-1');
+  });
+
   it('sets and removes lip sync settings', () => {
     const settings = {
       baseImageAssetId: 'img-closed',
@@ -78,5 +106,29 @@ describe('metadataStore', () => {
     expect(cleaned.metadata['asset-1']?.lipSync?.maskAssetId).toBeUndefined();
     expect(cleaned.metadata['asset-1']?.lipSync?.sourceVideoAssetId).toBeUndefined();
     expect(cleaned.metadata['asset-1']?.lipSync?.compositedFrameAssetIds).toBeUndefined();
+  });
+
+  it('clears scene attach audio when referenced asset is removed', () => {
+    const store = {
+      version: 1,
+      metadata: {},
+      sceneMetadata: {
+        'scene-1': {
+          id: 'scene-1',
+          name: 'Scene 1',
+          notes: [],
+          updatedAt: 't',
+          attachAudio: {
+            id: 'scene-audio-1',
+            audioAssetId: 'audio-1',
+            enabled: true,
+            kind: 'scene',
+          },
+        },
+      },
+    };
+
+    const cleaned = removeAssetReferences(store as any, ['audio-1']);
+    expect(cleaned.sceneMetadata?.['scene-1']?.attachAudio).toBeUndefined();
   });
 });

@@ -6,6 +6,7 @@ import type {
   CutRuntimeState,
   FileItem,
   FavoriteFolder,
+  SceneAudioBinding,
   LipSyncSettings,
   PlaybackMode,
   PreviewMode,
@@ -126,6 +127,11 @@ export interface MetadataSliceContract {
   detachAudioFromCut: (sceneId: string, cutId: string) => void;
   getAttachedAudioForCut: (sceneId: string, cutId: string) => Asset | undefined;
   updateCutAudioOffset: (sceneId: string, cutId: string, offset: number) => void;
+  setSceneAudioBinding: (sceneId: string, binding: SceneAudioBinding | null) => void;
+  attachAudioToScene: (sceneId: string, audioAsset: Asset) => void;
+  detachAudioFromScene: (sceneId: string) => void;
+  getSceneAudioBinding: (sceneId: string) => SceneAudioBinding | undefined;
+  getAttachedAudioForScene: (sceneId: string) => Asset | undefined;
   setLipSyncForAsset: (assetId: string, settings: LipSyncSettings) => void;
   clearLipSyncForAsset: (assetId: string) => void;
   removeAssetReferences: (assetIds: string[]) => void;

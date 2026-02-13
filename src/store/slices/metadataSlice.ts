@@ -7,6 +7,7 @@ import {
   updateLipSyncSettings,
   removeLipSyncSettings,
   syncSceneMetadata,
+  updateSceneAudioBinding,
   removeAssetReferences as removeAssetReferencesInStore,
 } from '../../utils/metadataStore';
 import { analyzeAudioRms } from '../../utils/audioUtils';
@@ -98,6 +99,50 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
       const current = cut?.audioBindings || [];
       if (current.length === 0) return;
       get().setCutAudioBindings(sceneId, cutId, [{ ...current[0], offsetSec: offset }, ...current.slice(1)]);
+    },
+
+    setSceneAudioBinding: (sceneId, binding) => {
+      set((state) => {
+        const baseStore = state.metadataStore || { version: 1, metadata: {}, sceneMetadata: {} };
+        const store = baseStore.sceneMetadata?.[sceneId]
+          ? baseStore
+          : syncSceneMetadata(baseStore, state.scenes);
+        return {
+          metadataStore: updateSceneAudioBinding(
+            store,
+            sceneId,
+            binding ? { ...binding } : null
+          ),
+        };
+      });
+    },
+
+    attachAudioToScene: (sceneId, audioAsset) => {
+      get().cacheAsset(audioAsset);
+      get().setSceneAudioBinding(sceneId, {
+        id: uuidv4(),
+        audioAssetId: audioAsset.id,
+        sourceName: audioAsset.name,
+        gain: 1,
+        enabled: true,
+        kind: 'scene',
+      });
+    },
+
+    detachAudioFromScene: (sceneId) => {
+      get().setSceneAudioBinding(sceneId, null);
+    },
+
+    getSceneAudioBinding: (sceneId) => {
+      const state = get();
+      return state.metadataStore?.sceneMetadata?.[sceneId]?.attachAudio;
+    },
+
+    getAttachedAudioForScene: (sceneId) => {
+      const state = get();
+      const binding = state.metadataStore?.sceneMetadata?.[sceneId]?.attachAudio;
+      if (!binding?.audioAssetId) return undefined;
+      return state.assetCache.get(binding.audioAssetId);
     },
 
     setLipSyncForAsset: (assetId, settings) => {

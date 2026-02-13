@@ -3,6 +3,7 @@ import {
   RemoveCutFromGroupCommand,
   RemoveSceneCommand,
   ReorderCutsWithGroupSyncCommand,
+  SetSceneAttachAudioCommand,
   UpdateGroupCutOrderCommand,
 } from '../commands';
 import { useStore } from '../useStore';
@@ -13,6 +14,22 @@ const BASE_ASSET: Asset = {
   name: 'asset.png',
   path: 'C:/vault/assets/asset.png',
   type: 'image',
+};
+
+const VIDEO_ASSET: Asset = {
+  id: 'video-1',
+  name: 'clip.mp4',
+  path: 'C:/vault/assets/clip.mp4',
+  type: 'video',
+  duration: 5,
+};
+
+const AUDIO_ASSET: Asset = {
+  id: 'audio-1',
+  name: 'bgm.wav',
+  path: 'C:/vault/assets/bgm.wav',
+  type: 'audio',
+  duration: 12,
 };
 
 describe('timeline integrity commands', () => {
@@ -252,5 +269,73 @@ describe('timeline integrity commands', () => {
     const sceneAfterUndo = useStore.getState().scenes[0];
     expect(sceneAfterUndo?.cuts.map((cut) => cut.id)).toEqual(['cut-a1', 'cut-a2', 'cut-a3', 'cut-a4']);
     expect(sceneAfterUndo?.groups?.[0]?.cutIds).toEqual(['cut-a1', 'cut-a2', 'cut-a3', 'cut-a4']);
+  });
+
+  it('applies scene audio and clears only video cut audio states in one command', async () => {
+    useStore.getState().initializeProject({
+      name: 'Scene Audio Test',
+      vaultPath: 'C:/vault',
+      scenes: [{
+        id: 'scene-a',
+        name: 'Scene A',
+        order: 0,
+        notes: [],
+        cuts: [
+          {
+            id: 'cut-video',
+            assetId: VIDEO_ASSET.id,
+            asset: VIDEO_ASSET,
+            displayTime: 2,
+            order: 0,
+            useEmbeddedAudio: true,
+            audioBindings: [{ id: 'b1', audioAssetId: 'audio-x', offsetSec: 0, enabled: true, kind: 'se' }],
+          },
+          {
+            id: 'cut-image',
+            assetId: BASE_ASSET.id,
+            asset: BASE_ASSET,
+            displayTime: 1,
+            order: 1,
+            useEmbeddedAudio: true,
+            audioBindings: [{ id: 'b2', audioAssetId: 'audio-y', offsetSec: 0, enabled: true, kind: 'se' }],
+          },
+        ],
+      }],
+    });
+
+    useStore.setState({
+      metadataStore: {
+        version: 1,
+        metadata: {},
+        sceneMetadata: {
+          'scene-a': {
+            id: 'scene-a',
+            name: 'Scene A',
+            notes: [],
+            updatedAt: 't',
+          },
+        },
+      },
+    }, false);
+
+    const command = new SetSceneAttachAudioCommand('scene-a', AUDIO_ASSET);
+    await command.execute();
+
+    const state = useStore.getState();
+    expect(state.metadataStore?.sceneMetadata?.['scene-a']?.attachAudio?.audioAssetId).toBe('audio-1');
+
+    const videoCut = state.scenes[0]?.cuts.find((cut) => cut.id === 'cut-video');
+    const imageCut = state.scenes[0]?.cuts.find((cut) => cut.id === 'cut-image');
+    expect(videoCut?.audioBindings).toEqual([]);
+    expect(videoCut?.useEmbeddedAudio).toBe(false);
+    expect(imageCut?.audioBindings?.length).toBe(1);
+    expect(imageCut?.useEmbeddedAudio).toBe(true);
+
+    await command.undo();
+    const restored = useStore.getState();
+    expect(restored.metadataStore?.sceneMetadata?.['scene-a']?.attachAudio).toBeUndefined();
+    const restoredVideo = restored.scenes[0]?.cuts.find((cut) => cut.id === 'cut-video');
+    expect(restoredVideo?.audioBindings?.length).toBe(1);
+    expect(restoredVideo?.useEmbeddedAudio).toBe(true);
   });
 });

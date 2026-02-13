@@ -37,12 +37,26 @@ describe('assetRefs', () => {
           },
         },
       },
-      sceneMetadata: {},
+      sceneMetadata: {
+        'scene-1': {
+          id: 'scene-1',
+          name: 'S1',
+          notes: [],
+          updatedAt: 't',
+          attachAudio: {
+            id: 'scene-a1',
+            audioAssetId: 'aud-scene-1',
+            enabled: true,
+            kind: 'scene',
+          },
+        },
+      },
     } as any;
 
     const refs = collectAssetRefs(scenes, metadataStore);
     expect(refs.get('img-1')?.some((ref) => ref.kind === 'cut')).toBe(true);
     expect(refs.get('aud-1')?.some((ref) => ref.kind === 'cut-audio-binding')).toBe(true);
+    expect(refs.get('aud-scene-1')?.some((ref) => ref.kind === 'scene-audio')).toBe(true);
     expect(refs.get('mask-1')?.some((ref) => ref.kind === 'lipsync-mask')).toBe(true);
     expect(refs.get('cmp-3')?.some((ref) => ref.kind === 'lipsync-composited')).toBe(true);
   });

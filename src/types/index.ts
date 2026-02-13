@@ -137,6 +137,15 @@ export interface CutAudioBinding {
   kind: Exclude<AudioTrackKind, 'embedded'>;
 }
 
+export interface SceneAudioBinding {
+  id: string;
+  audioAssetId: string;
+  sourceName?: string;
+  gain?: number;
+  enabled: boolean;
+  kind: 'scene';
+}
+
 export interface ClipData {
   sourceAssetId: string;
   inPoint: number;
@@ -252,4 +261,5 @@ export interface SceneMetadata {
   name: string;
   notes: SceneNote[];
   updatedAt: string;
+  attachAudio?: SceneAudioBinding;
 }

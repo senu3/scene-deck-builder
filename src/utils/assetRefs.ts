@@ -3,6 +3,7 @@ import type { MetadataStore, Scene } from '../types';
 export type AssetRefKind =
   | 'cut'
   | 'cut-audio-binding'
+  | 'scene-audio'
   | 'lipsync-base'
   | 'lipsync-variant'
   | 'lipsync-mask'
@@ -55,6 +56,7 @@ export function collectAssetRefs(scenes: Scene[], metadataStore: MetadataStore |
     }
   }
 
+  collectAudioAssetRefs(refs, metadataStore);
   if (!metadataStore) return refs;
 
   for (const [ownerAssetId, meta] of Object.entries(metadataStore.metadata)) {
@@ -107,6 +109,20 @@ export function collectAssetRefs(scenes: Scene[], metadataStore: MetadataStore |
   }
 
   return refs;
+}
+
+export function collectAudioAssetRefs(refs: AssetRefMap, metadataStore: MetadataStore | null): void {
+  if (!metadataStore?.sceneMetadata) return;
+
+  for (const [sceneId, sceneMeta] of Object.entries(metadataStore.sceneMetadata)) {
+    const binding = sceneMeta?.attachAudio;
+    if (!binding?.audioAssetId || binding.enabled === false) continue;
+    pushRef(refs, {
+      assetId: binding.audioAssetId,
+      kind: 'scene-audio',
+      sceneId,
+    });
+  }
 }
 
 export function getBlockingRefsForAssetIds(

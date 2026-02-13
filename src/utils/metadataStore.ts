@@ -2,7 +2,7 @@
  * Metadata store utilities for persisting asset attachments in .metadata.json
  */
 
-import type { MetadataStore, AssetMetadata, Scene, SceneMetadata } from '../types';
+import type { MetadataStore, AssetMetadata, Scene, SceneMetadata, SceneAudioBinding } from '../types';
 
 const METADATA_FILE = '.metadata.json';
 const CURRENT_VERSION = 1;
@@ -110,7 +110,9 @@ export function upsertSceneMetadata(
   store: MetadataStore,
   scene: Scene
 ): MetadataStore {
+  const existing = store.sceneMetadata?.[scene.id];
   const sceneMetadata: SceneMetadata = {
+    ...(existing || {}),
     id: scene.id,
     name: scene.name,
     notes: scene.notes,
@@ -147,7 +149,9 @@ export function syncSceneMetadata(
   };
 
   for (const scene of scenes) {
+    const existing = nextSceneMetadata[scene.id];
     nextSceneMetadata[scene.id] = {
+      ...(existing || {}),
       id: scene.id,
       name: scene.name,
       notes: scene.notes,
@@ -158,6 +162,27 @@ export function syncSceneMetadata(
   return {
     ...store,
     sceneMetadata: nextSceneMetadata,
+  };
+}
+
+export function updateSceneAudioBinding(
+  store: MetadataStore,
+  sceneId: string,
+  binding: SceneAudioBinding | null
+): MetadataStore {
+  const current = store.sceneMetadata?.[sceneId];
+  if (!current) return store;
+
+  const nextSceneMetadata: SceneMetadata = binding
+    ? { ...current, attachAudio: { ...binding }, updatedAt: new Date().toISOString() }
+    : { ...current, attachAudio: undefined, updatedAt: new Date().toISOString() };
+
+  return {
+    ...store,
+    sceneMetadata: {
+      ...(store.sceneMetadata || {}),
+      [sceneId]: nextSceneMetadata,
+    },
   };
 }
 
@@ -340,10 +365,26 @@ export function removeAssetReferences(
     }
   }
 
+  const nextSceneMetadata: Record<string, SceneMetadata> = {
+    ...(store.sceneMetadata || {}),
+  };
+
+  for (const [sceneId, sceneMeta] of Object.entries(nextSceneMetadata)) {
+    if (!sceneMeta.attachAudio?.audioAssetId) continue;
+    if (!removed.has(sceneMeta.attachAudio.audioAssetId)) continue;
+    nextSceneMetadata[sceneId] = {
+      ...sceneMeta,
+      attachAudio: undefined,
+      updatedAt: new Date().toISOString(),
+    };
+    changed = true;
+  }
+
   if (!changed) return store;
 
   return {
     ...store,
     metadata: nextMetadata,
+    sceneMetadata: nextSceneMetadata,
   };
 }
