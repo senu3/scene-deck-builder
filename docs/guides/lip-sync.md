@@ -78,6 +78,19 @@ type LipSyncSettings = {
 - これにより「マスク二重適用」や「口形状の潰れ」を回避する。
 - 再登録時は未変更フレームを既存 asset のまま再利用し、再キャプチャ分のみ更新する。
 - 再登録時は `ownerAssetId = target assetId` を維持し、生成物バンドルを更新する。
+- Relink 時に対象 cut が LipSync（または owner metadata に LipSync 設定あり）の場合は Confirm を表示する。
+- Relink 実行時は cut の LipSync フラグを解除し、通常の画像 cut として扱う。
+
+## Cleanup Policy
+- **Cut 削除**: LipSync 設定と生成アセットは保持する（asset に戻した時の再利用を優先）。
+- **Relink**: 旧 owner に対する LipSync 設定を解除し、残存 LipSync cut が無ければ生成アセットを cleanup する。
+- **Asset 削除**: `deleteAssetWithPolicy` を入口に参照整合を保ちながら削除する。
+- cleanup 対象は主に `ownedGeneratedAssetIds` / `orphanedGeneratedAssetIds`（必要に応じて index 解決）を使う。
+
+## AssetPanel Behavior
+- 生成フレーム（mask/composited/orphaned）は AssetPanel 一覧に表示しない。
+- owner（ベース）アセットのみを表示し、LipSync 設定がある場合は LipSync バッジを表示する。
+- これによりユーザーの資産一覧では「編集対象アセット」を優先し、生成中間物を隠蔽する。
 
 ## Playback
 - `PreviewModal` / `DetailsPanel` は `getLipSyncFrameAssetIds` でフレーム列を取得する。

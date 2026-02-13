@@ -399,6 +399,10 @@
   background-color: rgba(var(--accent-video-rgb), 0.9);
 }
 
+.asset-type-badge.lipsync {
+  background: linear-gradient(135deg, #ec4899, #8b5cf6);
+}
+
 .asset-type-badge.audio {
   background-color: rgba(var(--accent-audio-rgb), 0.9);
 }
@@ -439,22 +443,6 @@
 /* Both cut and audio - gradient */
 .asset-usage-badge.usage-both {
   background: linear-gradient(135deg, rgba(var(--accent-video-rgb), 0.9), rgba(var(--accent-audio-rgb), 0.9));
-}
-
-.asset-lipsync-badge {
-  position: absolute;
-  bottom: 26px;
-  left: 4px;
-  max-width: calc(100% - 28px);
-  padding: 1px 5px;
-  border-radius: 4px;
-  font-size: 9px;
-  font-weight: 700;
-  color: white;
-  background-color: rgba(var(--accent-primary-rgb), 0.9);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* Selection badge */

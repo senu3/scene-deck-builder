@@ -20,8 +20,8 @@
 | Scene Audio | `SceneMetadata.attachAudio`（`SceneAudioBinding`）。 | `setSceneAudioBinding` / `SetSceneAttachAudioCommand`。 | `DetailsPanel`（Scene選択時） |
 | アセット参照グラフ | `AssetRef` / `AssetRefKind`。 | `collectAssetRefs` / `findDanglingAssetRefs` / `getBlockingRefsForAssetIds`。 | `AssetPanel`、`Header`(save validation) |
 | アセット削除ポリシー | （store action） | `deleteAssetWithPolicy`（参照チェック + trash + index/metadata整合）。 | `AssetPanel` |
-| LipSync バンドル所有 | `LipSyncSettings.ownerAssetId` / `ownedGeneratedAssetIds` / `orphanedGeneratedAssetIds`。 | `setLipSyncForAsset`（再登録時の orphan 移行）。 | `LipSyncModal`、`PreviewModal` |
-| アセットパネル | `Asset` / `AssetIndexEntry`。 | `loadAssetIndex` / `getFolderContents` / `metadataStore` 集計。 | `AssetPanel` |
+| LipSync バンドル所有 | `LipSyncSettings.ownerAssetId` / `ownedGeneratedAssetIds` / `orphanedGeneratedAssetIds`。 | `setLipSyncForAsset`（再登録時の orphan 移行）/ `cleanupLipSyncAssetsForDeletedCut`（Relink/明示cleanup）。 | `LipSyncModal`、`PreviewModal`、`DetailsPanel` |
+| アセットパネル | `Asset` / `AssetIndexEntry`。 | `loadAssetIndex` / `getFolderContents` / `metadataStore` 集計（LipSync生成アセット除外、ownerバッジ付与）。 | `AssetPanel` |
 | アセットモーダル | `Asset`（選択結果）。 | `AssetPanel` をモーダルでラップ。 | `AssetModal` |
 | ストーリーライン | （専用TS型なし）Scene/Cut構造（編集軸: `StoryTimeline`）。 | D&D・外部投入・vault 取込（主処理は `Storyline`、ワークスペース全体に `App` フォールバックあり）。 | `Storyline`、`SceneDurationBar`、`App` |
 | プレビュー | `PreviewMode`（scene/all）。 | `setPreviewMode`。 | `PreviewModal` |

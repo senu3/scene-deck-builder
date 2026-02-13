@@ -11,6 +11,7 @@ import {
   Link2,
   Download,
   Check,
+  Mic,
   FolderOpen,
   Loader2,
   MoreVertical,
@@ -1126,7 +1127,11 @@ function AssetCard({
         )}
 
         {/* Type badge */}
-        {asset.type === 'video' && (
+        {asset.hasLipSync ? (
+          <div className="asset-type-badge lipsync" title="LipSync source asset">
+            <Mic size={10} />
+          </div>
+        ) : asset.type === 'video' && (
           <div className="asset-type-badge video">
             <Film size={10} />
           </div>
@@ -1150,12 +1155,6 @@ function AssetCard({
             {asset.usageType === 'audio' && <Link2 size={10} />}
             {asset.usageType === 'both' && <><Layers size={10} /><Link2 size={10} /></>}
             <span>{asset.usageCount}</span>
-          </div>
-        )}
-
-        {asset.hasLipSync && (
-          <div className="asset-lipsync-badge" title="LipSync source asset">
-            LipSync
           </div>
         )}
 
