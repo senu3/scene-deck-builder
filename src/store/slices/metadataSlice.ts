@@ -15,6 +15,14 @@ import { collectAssetRefs, getBlockingRefsForAssetIds } from '../../utils/assetR
 import type { MetadataSliceContract } from '../contracts';
 import type { SliceGet, SliceSet } from './sliceTypes';
 
+function getAssetDisplayName(audioAsset: { name: string; originalPath?: string }): string {
+  if (audioAsset.originalPath) {
+    const originalName = audioAsset.originalPath.split(/[/\\]/).pop();
+    if (originalName) return originalName;
+  }
+  return audioAsset.name;
+}
+
 export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSliceContract {
   return {
     cacheAsset: (asset) =>
@@ -46,7 +54,7 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
         {
           id: uuidv4(),
           audioAssetId: audioAsset.id,
-          sourceName: audioAsset.name,
+          sourceName: getAssetDisplayName(audioAsset),
           offsetSec: offset,
           gain: 1,
           enabled: true,
@@ -122,7 +130,7 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
       get().setSceneAudioBinding(sceneId, {
         id: uuidv4(),
         audioAssetId: audioAsset.id,
-        sourceName: audioAsset.name,
+        sourceName: getAssetDisplayName(audioAsset),
         gain: 1,
         enabled: true,
         kind: 'scene',

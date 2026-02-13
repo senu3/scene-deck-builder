@@ -28,6 +28,7 @@ const AUDIO_ASSET: Asset = {
   id: 'audio-1',
   name: 'bgm.wav',
   path: 'C:/vault/assets/bgm.wav',
+  originalPath: 'D:/source/original-bgm.wav',
   type: 'audio',
   duration: 12,
 };
@@ -323,6 +324,7 @@ describe('timeline integrity commands', () => {
 
     const state = useStore.getState();
     expect(state.metadataStore?.sceneMetadata?.['scene-a']?.attachAudio?.audioAssetId).toBe('audio-1');
+    expect(state.metadataStore?.sceneMetadata?.['scene-a']?.attachAudio?.sourceName).toBe('original-bgm.wav');
 
     const videoCut = state.scenes[0]?.cuts.find((cut) => cut.id === 'cut-video');
     const imageCut = state.scenes[0]?.cuts.find((cut) => cut.id === 'cut-image');

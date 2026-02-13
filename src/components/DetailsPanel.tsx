@@ -433,6 +433,11 @@ export default function DetailsPanel() {
     setShowAssetModal(true);
   };
 
+  const handleReplaceAudio = () => {
+    setPendingLipSyncOpen(false);
+    setShowAssetModal(true);
+  };
+
   const handleQuickLipSync = () => {
     if (!hasAttachedAudio) {
       setPendingLipSyncOpen(true);
@@ -1301,10 +1306,10 @@ export default function DetailsPanel() {
               <div className="attached-audio-actions">
                 <button
                   className="audio-btn edit"
-                  onClick={() => setShowVideoPreview(true)}
-                  title="Preview with audio"
+                  onClick={handleReplaceAudio}
+                  title="Replace audio"
                 >
-                  Edit
+                  Replace
                 </button>
                 <button
                   className="audio-btn remove"

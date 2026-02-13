@@ -75,6 +75,7 @@ export default function AssetModal({
       if (!filePath) return;
 
       const assetId = uuidv4();
+      const originalName = filePath.split(/[/\\]/).pop() || 'asset';
 
       // Import to vault
       const importResult = await window.electronAPI.vaultGateway.importAndRegisterAsset(
@@ -103,10 +104,11 @@ export default function AssetModal({
       // Create and return the asset
       const asset: Asset = {
         id: assetId,
-        name: fileInfo?.name || filePath.split(/[/\\]/).pop() || 'asset',
+        name: originalName,
         path: importResult.vaultPath!,
         type,
         vaultRelativePath: importResult.relativePath,
+        originalPath: filePath,
         hash: importResult.hash,
         fileSize: fileInfo?.size,
       };

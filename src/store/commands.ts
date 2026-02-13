@@ -24,6 +24,14 @@ function resolveCutAsset(store: ReturnType<typeof useStore.getState>, cut: Cut):
   return store.getAsset(cut.assetId) || cut.asset;
 }
 
+function getAssetDisplayName(asset: Asset): string {
+  if (asset.originalPath) {
+    const originalName = asset.originalPath.split(/[/\\]/).pop();
+    if (originalName) return originalName;
+  }
+  return asset.name;
+}
+
 function addCutFromReference(
   store: ReturnType<typeof useStore.getState>,
   sceneId: string,
@@ -933,7 +941,7 @@ export class SetSceneAttachAudioCommand implements Command {
       store.setSceneAudioBinding(this.sceneId, {
         id: this.previousSceneBinding?.id || crypto.randomUUID(),
         audioAssetId: this.audioAsset.id,
-        sourceName: this.audioAsset.name,
+        sourceName: getAssetDisplayName(this.audioAsset),
         gain: this.previousSceneBinding?.gain ?? 1,
         enabled: true,
         kind: 'scene',
