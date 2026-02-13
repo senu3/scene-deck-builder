@@ -8,6 +8,12 @@
   gap: 14px;
 }
 
+.fieldLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
 .textarea {
   width: 100%;
   min-height: 120px;
@@ -28,6 +34,19 @@
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   background: var(--bg-secondary);
+}
+
+.modeRow {
+  display: flex;
+  gap: 16px;
+}
+
+.radioLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-primary);
 }
 
 .currentTime {
@@ -64,54 +83,4 @@
   border: 1px solid var(--border-color);
   color: var(--text-secondary);
   background: var(--bg-tertiary);
-}
-
-.footer {
-  background-color: var(--bg-secondary);
-}
-
-.footerActions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.secondaryBtn {
-  padding: 10px 18px;
-  background-color: transparent;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.secondaryBtn:hover {
-  border-color: var(--border-light);
-  color: var(--text-primary);
-}
-
-.primaryBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 22px;
-  background: linear-gradient(135deg, var(--accent-primary), #0096c7);
-  border: none;
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  font-weight: 600;
-  color: white;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.primaryBtn:hover:not(:disabled) {
-  filter: brightness(1.1);
-}
-
-.primaryBtn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }

@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, LocateFixed, MessageSquare } from 'lucide-react';
+import { MessageSquare } from 'lucide-react';
 import {
   Overlay,
   Container,
   Header,
   Body,
   Footer,
+  Actions,
   ActionButton,
-  InputGroup,
-  RadioGroup,
-  Field,
+  Input,
 } from '../ui';
 import type { CutSubtitle } from '../types';
 import { normalizeSubtitleRange } from '../utils/subtitleUtils';
@@ -123,34 +122,40 @@ export default function SubtitleModal({
         />
         <Body>
           <div className={styles.body}>
-            <Field label="Text">
-              <textarea
-                className={styles.textarea}
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder="Type subtitle text. Use Enter for line breaks."
-                rows={5}
-              />
-            </Field>
+            <label className={styles.fieldLabel}>Text</label>
+            <textarea
+              className={styles.textarea}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Type subtitle text. Use Enter for line breaks."
+              rows={5}
+            />
 
             <div className={styles.section}>
-              <Field label="Display Range">
-                <RadioGroup
-                  name="subtitle-range-mode"
-                  value={rangeMode}
-                  direction="horizontal"
-                  onChange={(value) => setRangeMode(value as RangeMode)}
-                  options={[
-                    { value: 'full', label: 'Full' },
-                    { value: 'custom', label: 'Custom' },
-                  ]}
-                />
-              </Field>
+              <div className={styles.fieldLabel}>Display Range</div>
+              <div className={styles.modeRow}>
+                <label className={styles.radioLabel}>
+                  <input
+                    type="radio"
+                    checked={rangeMode === 'full'}
+                    onChange={() => setRangeMode('full')}
+                  />
+                  Full
+                </label>
+                <label className={styles.radioLabel}>
+                  <input
+                    type="radio"
+                    checked={rangeMode === 'custom'}
+                    onChange={() => setRangeMode('custom')}
+                  />
+                  Custom
+                </label>
+              </div>
               <div className={styles.currentTime}>Current: {currentTime.toFixed(2)}s</div>
               <div className={styles.rangeGrid} data-disabled={rangeMode !== 'custom'}>
                 <div className={styles.rangeRow}>
                   <span className={styles.rangeLabel}>Start</span>
-                  <InputGroup
+                  <Input
                     type="number"
                     value={startInput}
                     onChange={(e) => setStartInput(e.target.value)}
@@ -158,16 +163,14 @@ export default function SubtitleModal({
                     min={0}
                     max={Math.max(0, cutDurationSec)}
                     disabled={rangeMode !== 'custom'}
-                    unit="s"
                   />
                   <ActionButton variant="outlined" onClick={handleSetStartCurrent}>
-                    <LocateFixed size={14} />
-                    Set = Playhead
+                    Set = current
                   </ActionButton>
                 </div>
                 <div className={styles.rangeRow}>
                   <span className={styles.rangeLabel}>End</span>
-                  <InputGroup
+                  <Input
                     type="number"
                     value={endInput}
                     onChange={(e) => setEndInput(e.target.value)}
@@ -175,11 +178,9 @@ export default function SubtitleModal({
                     min={0}
                     max={Math.max(0, cutDurationSec)}
                     disabled={rangeMode !== 'custom'}
-                    unit="s"
                   />
                   <ActionButton variant="outlined" onClick={handleSetEndCurrent}>
-                    <LocateFixed size={14} />
-                    Set = Playhead
+                    Set = current
                   </ActionButton>
                 </div>
               </div>
@@ -189,23 +190,24 @@ export default function SubtitleModal({
             </div>
           </div>
         </Body>
-        <Footer className={styles.footer}>
-          <div className={styles.footerActions}>
-            <button
-              type="button"
-              className={styles.secondaryBtn}
+        <Footer>
+          <Actions>
+            <ActionButton variant="secondary" onClick={onClose}>
+              Cancel
+            </ActionButton>
+            <ActionButton
+              variant="danger"
               onClick={() => {
                 onSave(undefined);
                 onClose();
               }}
             >
               Clear
-            </button>
-            <button type="button" className={styles.primaryBtn} onClick={handleSave}>
-              <Check size={16} />
+            </ActionButton>
+            <ActionButton variant="primary" onClick={handleSave}>
               Save
-            </button>
-          </div>
+            </ActionButton>
+          </Actions>
         </Footer>
       </Container>
     </Overlay>
