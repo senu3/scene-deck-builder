@@ -78,7 +78,7 @@ async function resolveAssetPreviewSource(asset: Asset): Promise<string | null> {
   if (asset.thumbnail) return asset.thumbnail;
   if (!asset.path) return null;
   try {
-    return await getThumbnail(asset.path, "image");
+    return await getThumbnail(asset.path, "image", { profile: 'sequence-preview' });
   } catch {
     return null;
   }
@@ -262,7 +262,7 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
           src = frameAsset.thumbnail;
         } else if (frameAsset?.path) {
           try {
-            const thumb = await getThumbnail(frameAsset.path, 'image');
+            const thumb = await getThumbnail(frameAsset.path, 'image', { profile: 'sequence-preview' });
             if (thumb) src = thumb;
           } catch {
             // ignore
@@ -678,7 +678,7 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
     setFrameAssetIds((prev) => ({ ...prev, [pendingFrameSlot]: assetToUse.id }));
     if (!assetToUse.thumbnail && assetToUse.path) {
       try {
-        const thumb = await getThumbnail(assetToUse.path, 'image');
+        const thumb = await getThumbnail(assetToUse.path, 'image', { profile: 'sequence-preview' });
         if (thumb) {
           setFramePreviews((prev) => ({ ...prev, [pendingFrameSlot]: thumb }));
         }

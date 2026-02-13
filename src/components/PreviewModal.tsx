@@ -1463,7 +1463,7 @@ export default function PreviewModal({
             src = frameAsset.thumbnail;
           } else if (frameAsset?.path) {
             try {
-              const thumb = await getThumbnail(frameAsset.path, 'image');
+              const thumb = await getThumbnail(frameAsset.path, 'image', { profile: 'sequence-preview' });
               if (thumb) src = thumb;
             } catch {
               // ignore
