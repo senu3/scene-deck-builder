@@ -36,6 +36,7 @@ Command 必須操作（2026-02-12 時点）:
 - Group から Cut 除外: `RemoveCutFromGroupCommand`
 - Group 内 Cut 順更新: `UpdateGroupCutOrderCommand`
 - clip point 更新: `UpdateClipPointsCommand` / `ClearClipPointsCommand`
+- Scene attachAudio 更新（一括 cut 音声整理を含む）: `SetSceneAttachAudioCommand`
 
 ### 2. Runtime 状態は永続モデルに混ぜない
 - loading などの一時状態は `CutRuntimeState` で扱う。
@@ -93,6 +94,7 @@ const store = useStore(); // 全体購読
 ## Undo/Redo 対象（運用）
 - 対象: scene/cut/group の構造変更、clip point 更新。
 - 非対象: runtime loading 状態、サムネイルキャッシュ、Export 進捗 UI。
+- Scene attachAudio 設定時の「同一シーン動画cutの attachAudio 解除 + `useEmbeddedAudio=false`」は `SetSceneAttachAudioCommand` 1手で扱う。
 
 ## Cut Write Path 要点（2026-02-12）
 - Command 経由の主要書き込み: `AddCutCommand` / `RemoveCutCommand` / `RemoveCutsCommand` / `MoveCutBetweenScenesCommand` / `MoveCutsToSceneCommand` / `ReorderCutsWithGroupSyncCommand` / `PasteCutsCommand` / `CreateGroupCommand` / `RemoveCutFromGroupCommand` / `UpdateGroupCutOrderCommand` / `UpdateClipPointsCommand` / `ClearClipPointsCommand`。

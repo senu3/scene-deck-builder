@@ -55,6 +55,9 @@ Video sources queue play/seek until the element is mounted, avoiding the cut bou
 - Embedded audio (video element) mute is controlled by `globalMuted || !cut.useEmbeddedAudio`.
 - Attached audio keeps the current shared control (`globalMuted/globalVolume`) for now.
 - Attached audio binding selection priority is deterministic: `voice.lipsync` > `voice.other` > `se` (enabled entries only).
+- Scene attached audio is resolved via `resolvePreviewAudioTracks(...)` and takes priority over cut attached audio.
+- Single video preview keeps the video render path unchanged and syncs scene audio by `video.currentTime + scenePreviewOffset`.
+- Sequence preview syncs scene audio by scene-relative absolute time (`absoluteTime - sceneStartAbs + previewOffsetSec`).
 
 ## Focused Cut Fallback
 - When `focusCutId` is specified but not found, Preview does not fall back to full-sequence playback.

@@ -50,6 +50,7 @@
 - Per-asset offset is stored in metadata and applied during playback.
 - Attached Audio
 - Asset attachments are resolved via `.metadata.json` and loaded on asset/cut change.
+- Scene attached audio is stored in `sceneMetadata.attachAudio` and resolved in Preview via `resolvePreviewAudioTracks(...)`.
 - RMS Analysis
 - RMS is computed from PCM at 60 fps and stored in metadata (JSON array).
 - Stored under the audio asset's metadata entry for reuse.

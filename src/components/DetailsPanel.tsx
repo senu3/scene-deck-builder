@@ -459,8 +459,25 @@ export default function DetailsPanel() {
     setPendingLipSyncOpen(false);
   };
 
-  const handleSceneAttachAudio = () => {
+  const handleSceneAttachAudio = async () => {
     if (!selectedScene) return;
+    const affectedVideoCuts = selectedScene.cuts.filter((sceneCut) => {
+      const sceneCutAsset = sceneCut.asset || (sceneCut.assetId ? getAsset(sceneCut.assetId) : undefined);
+      return sceneCutAsset?.type === "video";
+    }).length;
+    const confirmed = await confirm({
+      title: "Apply Scene Audio?",
+      message:
+        `This applies scene audio to "${selectedScene.name}".\n\n` +
+        `Affected video cuts: ${affectedVideoCuts}\n` +
+        `- Clear cut attached audio\n` +
+        `- Turn off "Audio from the video"\n\n` +
+        `You can undo this in one step.`,
+      variant: "info",
+      confirmLabel: "Continue",
+      cancelLabel: "Cancel",
+    });
+    if (!confirmed) return;
     setShowSceneAudioModal(true);
   };
 
@@ -953,44 +970,48 @@ export default function DetailsPanel() {
             </div>
           </div>
 
-          <div className="attached-audio-section">
-            <div className="attached-audio-header">
-              <Music size={14} />
-              <span>Scene Audio</span>
+          {sceneAudioBinding?.audioAssetId ? (
+            <div className="attached-audio-section">
+              <div className="attached-audio-header">
+                <Music size={14} />
+                <span>Scene Audio</span>
+              </div>
+              <div className="attached-audio-info">
+                <span className="audio-name">
+                  {sceneAudioBinding.sourceName || attachedSceneAudio?.name || "Unknown"}
+                </span>
+              </div>
+              <div className="attached-audio-actions">
+                <button
+                  className="audio-btn edit"
+                  onClick={handleSceneAttachAudio}
+                  title="Replace scene audio"
+                >
+                  Replace
+                </button>
+                <button
+                  className="audio-btn remove"
+                  onClick={handleSceneDetachAudio}
+                  title="Clear scene audio"
+                >
+                  Clear
+                </button>
+              </div>
             </div>
-            {sceneAudioBinding?.audioAssetId ? (
-              <>
-                <div className="attached-audio-info">
-                  <span className="audio-name">
-                    {sceneAudioBinding.sourceName || attachedSceneAudio?.name || "Unknown"}
-                  </span>
-                </div>
-                <div className="attached-audio-actions">
-                  <button
-                    className="audio-btn edit"
-                    onClick={handleSceneAttachAudio}
-                    title="Replace scene audio"
-                  >
-                    Replace
-                  </button>
-                  <button
-                    className="audio-btn remove"
-                    onClick={handleSceneDetachAudio}
-                    title="Clear scene audio"
-                  >
-                    Clear
-                  </button>
-                </div>
-              </>
-            ) : (
+          ) : (
+            <div className="scene-notes-section">
+              <div className="notes-header">
+                <Music size={16} />
+                <span>Scene Audio</span>
+              </div>
               <div className="details-actions">
                 <button className="action-btn secondary" onClick={handleSceneAttachAudio}>
                   <Music size={16} />
                   <span>ATTACH SCENE AUDIO</span>
                 </button>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           <div className="scene-notes-section">
             <div className="notes-header">
