@@ -213,6 +213,20 @@ interface SequenceItem {
     thresholds: { t1: number; t2: number; t3: number };
     audioOffsetSec: number;
   };
+  subtitle?: {
+    text: string;
+    range?: { start: number; end: number };
+  };
+}
+
+interface ExportSubtitleStyle {
+  fontSizePx: number;
+  fontColor: string;
+  backgroundEnabled: boolean;
+  backgroundOpacity: number;
+  position: 'bottom' | 'center';
+  outlineEnabled: boolean;
+  shadowEnabled: boolean;
 }
 
 interface ExportSequenceOptions {
@@ -221,6 +235,7 @@ interface ExportSequenceOptions {
   width: number;
   height: number;
   fps: number;
+  subtitleStyle?: ExportSubtitleStyle;
 }
 
 interface ExportSequenceResult {

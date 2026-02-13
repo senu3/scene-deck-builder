@@ -70,6 +70,56 @@ describe('buildSequenceItemsForExport', () => {
     expect(warnSpy).toHaveBeenCalledTimes(2);
   });
 
+  it('maps cut subtitle to export item and clamps subtitle range by item duration', () => {
+    const scenes: Scene[] = [{
+      id: 'scene-1',
+      name: 'Scene 1',
+      order: 0,
+      notes: [],
+      cuts: [
+        {
+          id: 'cut-sub',
+          assetId: 'asset-video',
+          asset: videoAsset,
+          order: 0,
+          displayTime: 2,
+          subtitle: {
+            text: 'line1\nline2',
+            range: { start: -3, end: 3.5 },
+          },
+        },
+      ],
+    }];
+
+    const items = buildSequenceItemsForExport(scenes);
+    expect(items).toHaveLength(1);
+    expect(items[0].subtitle?.text).toBe('line1\nline2');
+    expect(items[0].subtitle?.range).toEqual({ start: 0, end: 2 });
+  });
+
+  it('omits subtitle payload when subtitle text is blank', () => {
+    const scenes: Scene[] = [{
+      id: 'scene-1',
+      name: 'Scene 1',
+      order: 0,
+      notes: [],
+      cuts: [
+        {
+          id: 'cut-sub-empty',
+          assetId: 'asset-image',
+          asset: imageAsset,
+          order: 0,
+          displayTime: 1,
+          subtitle: { text: '   ' },
+        },
+      ],
+    }];
+
+    const items = buildSequenceItemsForExport(scenes);
+    expect(items).toHaveLength(1);
+    expect(items[0].subtitle).toBeUndefined();
+  });
+
   it('resolves framing with cut > global > fixed priority', () => {
     const fixed = resolveFramingParams({ id: 'c0', assetId: 'a0', order: 0, displayTime: 1 });
     expect(fixed).toEqual({ mode: 'cover', anchor: 'center', source: 'fixed' });

@@ -29,6 +29,7 @@ import { EXPORT_FRAMING_DEFAULTS } from '../constants/framing';
 import { buildPreviewViewportFramingStyle } from '../utils/previewFraming';
 import { resolveSubtitleVisibility, normalizeSubtitleRange } from '../utils/subtitleUtils';
 import { getSubtitleStyleSettings } from '../utils/subtitleStyleSettings';
+import { getSubtitleStyleForExport } from '../features/export/subtitleStyle';
 import {
   PlaybackRangeMarkers,
   VolumeControl,
@@ -1854,6 +1855,7 @@ export default function PreviewModal({
         width: exportWidth,
         height: exportHeight,
         fps: 30,
+        subtitleStyle: getSubtitleStyleForExport(),
       });
 
       if (result.success) {
@@ -1948,6 +1950,7 @@ export default function PreviewModal({
         width: exportWidth,
         height: exportHeight,
         fps: 30,
+        subtitleStyle: getSubtitleStyleForExport(),
       });
 
       if (result.success) {

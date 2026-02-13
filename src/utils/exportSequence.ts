@@ -1,6 +1,7 @@
-import type { Asset, AssetMetadata, Cut, FramingAnchor, FramingMode, Scene } from '../types';
+import type { Asset, AssetMetadata, Cut, CutSubtitle, FramingAnchor, FramingMode, Scene } from '../types';
 import { getScenesAndCutsInTimelineOrder } from './timelineOrder';
 import { getLipSyncFrameAssetIds, normalizeThresholds } from './lipSyncUtils';
+import { normalizeSubtitleRange } from './subtitleUtils';
 
 export interface ExportSequenceItem {
   type: 'image' | 'video';
@@ -16,6 +17,10 @@ export interface ExportSequenceItem {
     rmsFps: number;
     thresholds: { t1: number; t2: number; t3: number };
     audioOffsetSec: number;
+  };
+  subtitle?: {
+    text: string;
+    range?: { start: number; end: number };
   };
 }
 
@@ -111,6 +116,7 @@ function buildExportSequenceItemFromCut(
   }
 
   const lipSync = resolveLipSyncExport(cut, options, context);
+  const subtitle = resolveExportSubtitle(cut.subtitle, duration);
 
   return {
     type: cut.asset?.type || 'image',
@@ -121,6 +127,20 @@ function buildExportSequenceItemFromCut(
     framingMode: framing.mode,
     framingAnchor: framing.anchor,
     lipSync: lipSync ?? undefined,
+    subtitle: subtitle ?? undefined,
+  };
+}
+
+function resolveExportSubtitle(
+  subtitle: CutSubtitle | undefined,
+  itemDurationSec: number
+): ExportSequenceItem['subtitle'] | null {
+  if (!subtitle) return null;
+  if (!subtitle.text.trim()) return null;
+  const normalizedRange = normalizeSubtitleRange(subtitle.range, itemDurationSec);
+  return {
+    text: subtitle.text,
+    range: normalizedRange ? { start: normalizedRange.start, end: normalizedRange.end } : undefined,
   };
 }
 

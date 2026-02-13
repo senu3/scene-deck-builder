@@ -66,6 +66,8 @@ import { resolveExportPlan } from './features/export/plan';
 import type { ResolutionInput } from './features/export/plan';
 import type { ExportSettings } from './features/export/types';
 import { buildExportTimelineEntries, buildManifestJson, buildTimelineText } from './features/export/manifest';
+import type { SubtitleStyleSettings } from './utils/subtitleStyleSettings';
+import { getSubtitleStyleForExport } from './features/export/subtitleStyle';
 import { useBanner, useToast } from './ui';
 import './styles/App.css';
 
@@ -485,7 +487,7 @@ function App() {
 
   const exportMp4Sequence = useCallback(async (
     cuts: Cut[],
-    config: ResolutionInput & { fps: number; outputFilePath?: string; outputDir?: string }
+    config: ResolutionInput & { fps: number; outputFilePath?: string; outputDir?: string; subtitleStyle: SubtitleStyleSettings }
   ) => {
     if (!window.electronAPI || isExporting) return;
 
@@ -539,6 +541,7 @@ function App() {
         width,
         height,
         fps: config.fps,
+        subtitleStyle: config.subtitleStyle,
       });
 
       if (result.success) {
@@ -609,6 +612,7 @@ function App() {
       const plan = resolveExportPlan({
         settings,
         resolution: exportResolution,
+        subtitleStyle: getSubtitleStyleForExport(),
       });
 
       if (plan.format === 'aviutl') {
@@ -634,6 +638,7 @@ function App() {
         fps: plan.fps,
         outputFilePath: plan.outputFilePath,
         outputDir: plan.outputDir,
+        subtitleStyle: plan.subtitleStyle,
       });
     } catch (error) {
       toast.error('Export error', String(error));
@@ -656,6 +661,7 @@ function App() {
         mp4: { quality: 'medium' },
       },
       resolution,
+      subtitleStyle: getSubtitleStyleForExport(),
     });
     if (mp4Plan.format !== 'mp4') {
       return;
@@ -664,6 +670,7 @@ function App() {
         width: mp4Plan.width,
         height: mp4Plan.height,
         fps: mp4Plan.fps,
+        subtitleStyle: mp4Plan.subtitleStyle,
       });
   }, [exportMp4Sequence]);
 
