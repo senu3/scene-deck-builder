@@ -811,14 +811,18 @@
   word-break: break-word;
 }
 
-.subtitle-preview-empty {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
 .subtitle-actions {
   display: flex;
   gap: 8px;
+}
+
+.audio-btn.subtitle-edit {
+  background: rgba(var(--accent-secondary-rgb), 0.2);
+  color: var(--accent-secondary);
+}
+
+.audio-btn.subtitle-edit:hover {
+  background: rgba(var(--accent-secondary-rgb), 0.3);
 }
 
 /* Audio Offset Control */

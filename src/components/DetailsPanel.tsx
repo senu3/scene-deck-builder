@@ -77,6 +77,14 @@ import { v4 as uuidv4 } from "uuid";
 import { Toggle, useDialog } from "../ui";
 import "./DetailsPanel.css";
 
+const SUBTITLE_SUMMARY_MAX = 15;
+
+function summarizeSubtitleText(text: string): string {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (normalized.length <= SUBTITLE_SUMMARY_MAX) return normalized;
+  return `${normalized.slice(0, SUBTITLE_SUMMARY_MAX)}...`;
+}
+
 export default function DetailsPanel() {
   const scenes = useStore(selectScenes);
   const selectedSceneId = useStore(selectSelectedSceneId);
@@ -157,6 +165,7 @@ export default function DetailsPanel() {
   const showLipSyncDetails = isLipSyncCut && !!lipSyncSettings;
   const sceneAudioBinding = selectedScene ? metadataStore?.sceneMetadata?.[selectedScene.id]?.attachAudio : undefined;
   const attachedSceneAudio = selectedScene ? getAttachedAudioForScene(selectedScene.id) : undefined;
+  const subtitleSummary = cut?.subtitle?.text ? summarizeSubtitleText(cut.subtitle.text) : "";
 
   // Check for multi-selection
   const isMultiSelection = selectedCutIds.size > 1;
@@ -1227,21 +1236,18 @@ export default function DetailsPanel() {
             )}
           </div>
 
+          {cut.subtitle?.text && (
           <div className="subtitle-section">
               <div className="subtitle-header">
               <MessageSquare size={14} />
               <span>Subtitle</span>
             </div>
-            {cut.subtitle?.text ? (
-              <div className="subtitle-preview-text">
-                {cut.subtitle.text}
-              </div>
-            ) : (
-              <div className="subtitle-preview-empty">No subtitle</div>
-            )}
+            <div className="subtitle-preview-text">
+              {subtitleSummary}
+            </div>
             <div className="subtitle-actions">
               <button
-                className="audio-btn edit"
+                className="audio-btn subtitle-edit"
                 onClick={handleEditSubtitle}
               >
                 Edit
@@ -1255,6 +1261,7 @@ export default function DetailsPanel() {
               </button>
             </div>
           </div>
+          )}
 
           {/* Clip Info Section (for video clips) */}
           {isVideo &&
