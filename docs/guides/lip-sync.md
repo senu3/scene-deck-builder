@@ -53,6 +53,7 @@ type LipSyncSettings = {
 - 現在有効な生成物は `ownedGeneratedAssetIds` に保持する。
 - 再登録時に前回バンドルとの差分は `orphanedGeneratedAssetIds` に自動移行する。
 - 物理保存先は当面 `vault/assets` のまま（論理管理のみ実施）。
+- `ownedGeneratedAssetIds` / `orphanedGeneratedAssetIds` は **生成物のみ** を保持し、owner/base/variant/rms/sourceVideo は含めない（正準ルール）。
 
 ## Mask Preprocess (Register Time)
 1. `LipSyncModal` で closed/half1/half2/open + mask を用意する。  
@@ -91,6 +92,7 @@ type LipSyncSettings = {
 - 生成フレーム（mask/composited/orphaned）は AssetPanel 一覧に表示しない。
 - owner（ベース）アセットのみを表示し、LipSync 設定がある場合は LipSync バッジを表示する。
 - これによりユーザーの資産一覧では「編集対象アセット」を優先し、生成中間物を隠蔽する。
+- 防御実装として、一覧非表示判定では owner/base/variant/rms/sourceVideo を生成物集合から除外する（metadata の過去揺れ対策）。
 
 ## Playback
 - `PreviewModal` / `DetailsPanel` は `getLipSyncFrameAssetIds` でフレーム列を取得する。
@@ -101,6 +103,11 @@ type LipSyncSettings = {
 - `compositedFrameAssetIds` を編集入力として再利用しない。
 - base64 を metadata に保存しない。
 - 再生ループで Canvas 合成を行わない。
+
+## Next Phase TODO (metadataStore)
+- TODO: `setLipSyncForAsset` 保存時に generated IDs を正規化し、正準ルール（生成物のみ）を強制する。
+- TODO: `loadMetadataStore` 読み込み時に migration/normalize ステップを追加し、過去データの混在IDを補正する。
+- TODO: `.metadata.json` の LipSync スキーマに「generated IDs excludes owner/base/variant/rms/sourceVideo」を明文化する（`docs/references/DOMAIN.md` と型コメントを同期）。
 
 ## Related Docs
 - `docs/guides/lip-sync-requirements.md`
