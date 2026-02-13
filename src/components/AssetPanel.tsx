@@ -60,6 +60,43 @@ export interface AssetInfo {
   hasLipSync: boolean;
 }
 
+export function buildLipSyncAssetSets(
+  metadataStore: ReturnType<typeof selectMetadataStore>
+): { lipSyncGeneratedAssetIds: Set<string>; lipSyncOwnerAssetIds: Set<string> } {
+  const generated = new Set<string>();
+  const owners = new Set<string>();
+  const metadata = metadataStore?.metadata || {};
+
+  for (const [ownerAssetId, assetMeta] of Object.entries(metadata)) {
+    const lipSync = assetMeta?.lipSync;
+    if (!lipSync) continue;
+
+    owners.add(ownerAssetId);
+
+    const protectedIds = new Set<string>([
+      ownerAssetId,
+      lipSync.baseImageAssetId,
+      ...(lipSync.variantAssetIds || []),
+      lipSync.rmsSourceAudioAssetId,
+      lipSync.sourceVideoAssetId || '',
+    ].filter(Boolean));
+
+    const generatedCandidates = [
+      ...(lipSync.ownedGeneratedAssetIds || []),
+      ...(lipSync.orphanedGeneratedAssetIds || []),
+      ...(lipSync.maskAssetId ? [lipSync.maskAssetId] : []),
+      ...(lipSync.compositedFrameAssetIds || []),
+    ];
+
+    for (const id of generatedCandidates) {
+      if (!id || protectedIds.has(id)) continue;
+      generated.add(id);
+    }
+  }
+
+  return { lipSyncGeneratedAssetIds: generated, lipSyncOwnerAssetIds: owners };
+}
+
 export interface AssetPanelProps {
   mode: 'drawer' | 'modal';
   selectionMode?: 'single' | 'multi';  // default: modal=single, drawer=multi
@@ -204,29 +241,10 @@ export default function AssetPanel({
     () => buildLinkedAssetIds(assetRefs),
     [assetRefs]
   );
-  const { lipSyncGeneratedAssetIds, lipSyncOwnerAssetIds } = useMemo(() => {
-    const generated = new Set<string>();
-    const owners = new Set<string>();
-    const metadata = metadataStore?.metadata || {};
-    for (const [ownerAssetId, assetMeta] of Object.entries(metadata)) {
-      const lipSync = assetMeta?.lipSync;
-      if (!lipSync) continue;
-      owners.add(ownerAssetId);
-      for (const id of lipSync.ownedGeneratedAssetIds || []) {
-        if (id) generated.add(id);
-      }
-      for (const id of lipSync.orphanedGeneratedAssetIds || []) {
-        if (id) generated.add(id);
-      }
-      if (lipSync.maskAssetId) {
-        generated.add(lipSync.maskAssetId);
-      }
-      for (const id of lipSync.compositedFrameAssetIds || []) {
-        if (id) generated.add(id);
-      }
-    }
-    return { lipSyncGeneratedAssetIds: generated, lipSyncOwnerAssetIds: owners };
-  }, [metadataStore]);
+  const { lipSyncGeneratedAssetIds, lipSyncOwnerAssetIds } = useMemo(
+    () => buildLipSyncAssetSets(metadataStore),
+    [metadataStore]
+  );
 
   // Load asset index from .index.json
   const loadAssetIndex = useCallback(async (): Promise<Map<string, AssetIndexEntry[]>> => {
