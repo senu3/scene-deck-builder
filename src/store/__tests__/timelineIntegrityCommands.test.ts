@@ -4,6 +4,7 @@ import {
   RemoveSceneCommand,
   ReorderCutsWithGroupSyncCommand,
   SetSceneAttachAudioCommand,
+  UpdateCutSubtitleCommand,
   UpdateGroupCutOrderCommand,
 } from '../commands';
 import { useStore } from '../useStore';
@@ -339,5 +340,40 @@ describe('timeline integrity commands', () => {
     const restoredVideo = restored.scenes[0]?.cuts.find((cut) => cut.id === 'cut-video');
     expect(restoredVideo?.audioBindings?.length).toBe(1);
     expect(restoredVideo?.useEmbeddedAudio).toBe(true);
+  });
+
+  it('updates cut subtitle and restores on undo', async () => {
+    useStore.getState().initializeProject({
+      name: 'Subtitle command test',
+      vaultPath: 'C:/vault',
+      scenes: [{
+        id: 'scene-sub',
+        name: 'Scene Subtitle',
+        order: 0,
+        notes: [],
+        cuts: [{
+          id: 'cut-sub',
+          assetId: BASE_ASSET.id,
+          asset: BASE_ASSET,
+          displayTime: 2,
+          order: 0,
+          audioBindings: [],
+        }],
+      }],
+    });
+
+    const command = new UpdateCutSubtitleCommand('scene-sub', 'cut-sub', {
+      text: 'line1\nline2',
+      range: { start: 0.2, end: 1.4 },
+    });
+    await command.execute();
+
+    const updatedCut = useStore.getState().scenes[0]?.cuts[0];
+    expect(updatedCut?.subtitle?.text).toBe('line1\nline2');
+    expect(updatedCut?.subtitle?.range).toEqual({ start: 0.2, end: 1.4 });
+
+    await command.undo();
+    const restoredCut = useStore.getState().scenes[0]?.cuts[0];
+    expect(restoredCut?.subtitle).toBeUndefined();
   });
 });

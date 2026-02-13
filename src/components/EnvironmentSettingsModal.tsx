@@ -26,6 +26,7 @@ import {
   AlertTriangle,
   Cog,
   Bell,
+  MessageSquare,
 } from 'lucide-react';
 import {
   Overlay,
@@ -42,6 +43,12 @@ import {
   type TabItem,
 } from '../ui';
 import { getThumbnailCacheStats, setThumbnailCacheLimits, clearThumbnailCache } from '../utils/thumbnailCache';
+import {
+  getSubtitleStyleSettings,
+  getDefaultSubtitleStyleSettings,
+  saveEnvironmentSubtitleStyleSettings,
+  type SubtitlePosition,
+} from '../utils/subtitleStyleSettings';
 import styles from './EnvironmentSettingsModal.module.css';
 
 export interface EnvironmentSettingsModalProps {
@@ -117,6 +124,8 @@ const SNAPSHOT_COUNT_OPTIONS = [
   { value: '50', label: '50 snapshots' },
 ];
 
+const DEFAULT_SUBTITLE_STYLE = getDefaultSubtitleStyleSettings();
+
 // Default values for all settings
 const DEFAULTS = {
   theme: 'dark' as ThemeMode,
@@ -128,6 +137,13 @@ const DEFAULTS = {
   previewQuality: 'auto' as PreviewQuality,
   defaultPlaybackRate: '1',
   showThumbnails: true,
+  subtitleFontSizePx: DEFAULT_SUBTITLE_STYLE.fontSizePx,
+  subtitleFontColor: DEFAULT_SUBTITLE_STYLE.fontColor,
+  subtitleBackgroundEnabled: DEFAULT_SUBTITLE_STYLE.backgroundEnabled,
+  subtitleBackgroundOpacity: DEFAULT_SUBTITLE_STYLE.backgroundOpacity,
+  subtitlePosition: DEFAULT_SUBTITLE_STYLE.position as SubtitlePosition,
+  subtitleOutlineEnabled: DEFAULT_SUBTITLE_STYLE.outlineEnabled,
+  subtitleShadowEnabled: DEFAULT_SUBTITLE_STYLE.shadowEnabled,
   trashRetention: '7',
   autoEmptyTrash: true,
   snapshotEnabled: true,
@@ -171,6 +187,13 @@ export default function EnvironmentSettingsModal({
   const [previewQuality, setPreviewQuality] = useState<PreviewQuality>(DEFAULTS.previewQuality);
   const [defaultPlaybackRate, setDefaultPlaybackRate] = useState(DEFAULTS.defaultPlaybackRate);
   const [showThumbnails, setShowThumbnails] = useState(DEFAULTS.showThumbnails);
+  const [subtitleFontSizePx, setSubtitleFontSizePx] = useState(DEFAULTS.subtitleFontSizePx);
+  const [subtitleFontColor, setSubtitleFontColor] = useState(DEFAULTS.subtitleFontColor);
+  const [subtitleBackgroundEnabled, setSubtitleBackgroundEnabled] = useState(DEFAULTS.subtitleBackgroundEnabled);
+  const [subtitleBackgroundOpacity, setSubtitleBackgroundOpacity] = useState(DEFAULTS.subtitleBackgroundOpacity);
+  const [subtitlePosition, setSubtitlePosition] = useState<SubtitlePosition>(DEFAULTS.subtitlePosition);
+  const [subtitleOutlineEnabled, setSubtitleOutlineEnabled] = useState(DEFAULTS.subtitleOutlineEnabled);
+  const [subtitleShadowEnabled, setSubtitleShadowEnabled] = useState(DEFAULTS.subtitleShadowEnabled);
 
   // Editor settings - Trash
   const [trashRetention, setTrashRetention] = useState(DEFAULTS.trashRetention);
@@ -213,6 +236,14 @@ export default function EnvironmentSettingsModal({
     setPreviewQuality(DEFAULTS.previewQuality);
     setDefaultPlaybackRate(DEFAULTS.defaultPlaybackRate);
     setShowThumbnails(DEFAULTS.showThumbnails);
+    const subtitleStyle = getSubtitleStyleSettings();
+    setSubtitleFontSizePx(subtitleStyle.fontSizePx);
+    setSubtitleFontColor(subtitleStyle.fontColor);
+    setSubtitleBackgroundEnabled(subtitleStyle.backgroundEnabled);
+    setSubtitleBackgroundOpacity(subtitleStyle.backgroundOpacity);
+    setSubtitlePosition(subtitleStyle.position);
+    setSubtitleOutlineEnabled(subtitleStyle.outlineEnabled);
+    setSubtitleShadowEnabled(subtitleStyle.shadowEnabled);
     setTrashRetention(DEFAULTS.trashRetention);
     setAutoEmptyTrash(DEFAULTS.autoEmptyTrash);
     setSnapshotEnabled(DEFAULTS.snapshotEnabled);
@@ -296,9 +327,35 @@ export default function EnvironmentSettingsModal({
       maxTotalBytes: safeTotalMb * MB,
     });
 
+    saveEnvironmentSubtitleStyleSettings({
+      fontSizePx: subtitleFontSizePx,
+      fontColor: subtitleFontColor,
+      backgroundEnabled: subtitleBackgroundEnabled,
+      backgroundOpacity: subtitleBackgroundOpacity,
+      position: subtitlePosition,
+      outlineEnabled: subtitleOutlineEnabled,
+      shadowEnabled: subtitleShadowEnabled,
+    });
+
     setHasChanges(false);
     onClose();
-  }, [maxMb, maxItems, stderrMaxKb, maxClipSeconds, maxTotalSeconds, maxClipMb, maxTotalMb, onClose]);
+  }, [
+    maxMb,
+    maxItems,
+    stderrMaxKb,
+    maxClipSeconds,
+    maxTotalSeconds,
+    maxClipMb,
+    maxTotalMb,
+    subtitleFontSizePx,
+    subtitleFontColor,
+    subtitleBackgroundEnabled,
+    subtitleBackgroundOpacity,
+    subtitlePosition,
+    subtitleOutlineEnabled,
+    subtitleShadowEnabled,
+    onClose,
+  ]);
 
   const handleResetDefaults = useCallback(() => {
     // Reset to default values using DEFAULTS constant
@@ -311,6 +368,13 @@ export default function EnvironmentSettingsModal({
     setPreviewQuality(DEFAULTS.previewQuality);
     setDefaultPlaybackRate(DEFAULTS.defaultPlaybackRate);
     setShowThumbnails(DEFAULTS.showThumbnails);
+    setSubtitleFontSizePx(DEFAULTS.subtitleFontSizePx);
+    setSubtitleFontColor(DEFAULTS.subtitleFontColor);
+    setSubtitleBackgroundEnabled(DEFAULTS.subtitleBackgroundEnabled);
+    setSubtitleBackgroundOpacity(DEFAULTS.subtitleBackgroundOpacity);
+    setSubtitlePosition(DEFAULTS.subtitlePosition);
+    setSubtitleOutlineEnabled(DEFAULTS.subtitleOutlineEnabled);
+    setSubtitleShadowEnabled(DEFAULTS.subtitleShadowEnabled);
     setTrashRetention(DEFAULTS.trashRetention);
     setAutoEmptyTrash(DEFAULTS.autoEmptyTrash);
     setSnapshotEnabled(DEFAULTS.snapshotEnabled);
@@ -594,6 +658,141 @@ export default function EnvironmentSettingsModal({
                     <Toggle
                       checked={showThumbnails}
                       onChange={handleChange(setShowThumbnails)}
+                      size="sm"
+                    />
+                  </SettingsRow>
+
+                  <div className={styles.divider} />
+
+                  <div className={styles.subsectionHeader}>
+                    <MessageSquare size={14} />
+                    <span>Subtitle Style</span>
+                  </div>
+
+                  <SettingsRow
+                    label="Font Size"
+                    description="Overlay subtitle text size"
+                    className={styles.settingsRow}
+                    labelWrapperClassName={styles.rowInfo}
+                    labelClassName={styles.rowLabel}
+                    descriptionClassName={styles.rowDesc}
+                    controlsClassName=""
+                  >
+                    <div className={styles.inputWithUnit}>
+                      <Input
+                        type="number"
+                        value={subtitleFontSizePx}
+                        onChange={(e) => handleChange(setSubtitleFontSizePx)(Number(e.target.value))}
+                        min={12}
+                        max={96}
+                        step={1}
+                        className={styles.numberInput}
+                      />
+                      <span className={styles.inputUnit}>px</span>
+                    </div>
+                  </SettingsRow>
+
+                  <SettingsRow
+                    label="Font Color"
+                    description="Subtitle text color"
+                    className={styles.settingsRow}
+                    labelWrapperClassName={styles.rowInfo}
+                    labelClassName={styles.rowLabel}
+                    descriptionClassName={styles.rowDesc}
+                    controlsClassName={styles.rowControls}
+                  >
+                    <Input
+                      type="color"
+                      value={subtitleFontColor}
+                      onChange={(e) => handleChange(setSubtitleFontColor)(e.target.value)}
+                    />
+                  </SettingsRow>
+
+                  <SettingsRow
+                    label="Position"
+                    description="Vertical position in preview"
+                    className={styles.settingsRow}
+                    labelWrapperClassName={styles.rowInfo}
+                    labelClassName={styles.rowLabel}
+                    descriptionClassName={styles.rowDesc}
+                    controlsClassName={styles.rowControls}
+                  >
+                    <Select
+                      value={subtitlePosition}
+                      options={[
+                        { value: 'bottom', label: 'Bottom' },
+                        { value: 'center', label: 'Center' },
+                      ]}
+                      onChange={(v) => handleChange(setSubtitlePosition)(v as SubtitlePosition)}
+                    />
+                  </SettingsRow>
+
+                  <SettingsRow
+                    label="Background"
+                    description="Dark background plate"
+                    className={styles.settingsRow}
+                    labelWrapperClassName={styles.rowInfo}
+                    labelClassName={styles.rowLabel}
+                    descriptionClassName={styles.rowDesc}
+                    controlsClassName={styles.rowControls}
+                  >
+                    <Toggle
+                      checked={subtitleBackgroundEnabled}
+                      onChange={handleChange(setSubtitleBackgroundEnabled)}
+                      size="sm"
+                    />
+                  </SettingsRow>
+
+                  <SettingsRow
+                    label="Background Opacity"
+                    description="0.0 - 1.0"
+                    className={styles.settingsRow}
+                    labelWrapperClassName={styles.rowInfo}
+                    labelClassName={styles.rowLabel}
+                    descriptionClassName={styles.rowDesc}
+                    controlsClassName=""
+                  >
+                    <div className={styles.inputWithUnit}>
+                      <Input
+                        type="number"
+                        value={subtitleBackgroundOpacity}
+                        onChange={(e) => handleChange(setSubtitleBackgroundOpacity)(Number(e.target.value))}
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        className={styles.numberInput}
+                      />
+                    </div>
+                  </SettingsRow>
+
+                  <SettingsRow
+                    label="Outline"
+                    description="Improve readability on bright frames"
+                    className={styles.settingsRow}
+                    labelWrapperClassName={styles.rowInfo}
+                    labelClassName={styles.rowLabel}
+                    descriptionClassName={styles.rowDesc}
+                    controlsClassName={styles.rowControls}
+                  >
+                    <Toggle
+                      checked={subtitleOutlineEnabled}
+                      onChange={handleChange(setSubtitleOutlineEnabled)}
+                      size="sm"
+                    />
+                  </SettingsRow>
+
+                  <SettingsRow
+                    label="Shadow"
+                    description="Add drop shadow to subtitle text"
+                    className={styles.settingsRow}
+                    labelWrapperClassName={styles.rowInfo}
+                    labelClassName={styles.rowLabel}
+                    descriptionClassName={styles.rowDesc}
+                    controlsClassName={styles.rowControls}
+                  >
+                    <Toggle
+                      checked={subtitleShadowEnabled}
+                      onChange={handleChange(setSubtitleShadowEnabled)}
                       size="sm"
                     />
                   </SettingsRow>

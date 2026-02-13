@@ -1,6 +1,6 @@
 import { Command } from './historyStore';
 import { useStore } from './useStore';
-import type { Asset, Cut, Scene, CutGroup, SceneAudioBinding } from '../types';
+import type { Asset, Cut, Scene, CutGroup, SceneAudioBinding, CutSubtitle } from '../types';
 import { syncSceneMetadata } from '../utils/metadataStore';
 
 function restoreCutState(
@@ -16,6 +16,7 @@ function restoreCutState(
   }
 
   store.updateCutLipSync(sceneId, cutId, !!sourceCut.isLipSync, sourceCut.lipSyncFrameCount);
+  store.updateCutSubtitle(sceneId, cutId, sourceCut.subtitle);
   store.setCutAudioBindings(sceneId, cutId, sourceCut.audioBindings || []);
   store.setCutUseEmbeddedAudio(sceneId, cutId, sourceCut.useEmbeddedAudio ?? true);
 }
@@ -209,6 +210,49 @@ export class ReorderCutsCommand implements Command {
 
     const store = useStore.getState();
     store.reorderCuts(this.sceneId, this.cutId, this.oldIndex, this.sceneId, this.newIndex);
+  }
+}
+
+/**
+ * 字幕更新コマンド
+ */
+export class UpdateCutSubtitleCommand implements Command {
+  type = 'UPDATE_CUT_SUBTITLE';
+  description: string;
+
+  private sceneId: string;
+  private cutId: string;
+  private nextSubtitle?: CutSubtitle;
+  private previousSubtitle?: CutSubtitle;
+
+  constructor(sceneId: string, cutId: string, subtitle?: CutSubtitle) {
+    this.sceneId = sceneId;
+    this.cutId = cutId;
+    this.nextSubtitle = subtitle
+      ? {
+          text: subtitle.text,
+          range: subtitle.range ? { start: subtitle.range.start, end: subtitle.range.end } : undefined,
+        }
+      : undefined;
+    this.description = subtitle?.text?.trim() ? 'Update cut subtitle' : 'Clear cut subtitle';
+  }
+
+  async execute(): Promise<void> {
+    const store = useStore.getState();
+    const scene = store.scenes.find((s) => s.id === this.sceneId);
+    const cut = scene?.cuts.find((c) => c.id === this.cutId);
+    this.previousSubtitle = cut?.subtitle
+      ? {
+          text: cut.subtitle.text,
+          range: cut.subtitle.range ? { start: cut.subtitle.range.start, end: cut.subtitle.range.end } : undefined,
+        }
+      : undefined;
+    store.updateCutSubtitle(this.sceneId, this.cutId, this.nextSubtitle);
+  }
+
+  async undo(): Promise<void> {
+    const store = useStore.getState();
+    store.updateCutSubtitle(this.sceneId, this.cutId, this.previousSubtitle);
   }
 }
 

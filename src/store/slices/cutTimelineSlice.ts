@@ -409,6 +409,32 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
         ),
       })),
 
+    updateCutSubtitle: (sceneId, cutId, subtitle) =>
+      set((state) => ({
+        scenes: state.scenes.map((s) =>
+          s.id === sceneId
+            ? {
+                ...s,
+                cuts: s.cuts.map((c) =>
+                  c.id === cutId
+                    ? {
+                        ...c,
+                        subtitle: subtitle
+                          ? {
+                              text: subtitle.text,
+                              range: subtitle.range
+                                ? { start: subtitle.range.start, end: subtitle.range.end }
+                                : undefined,
+                            }
+                          : undefined,
+                      }
+                    : c
+                ),
+              }
+            : s
+        ),
+      })),
+
     setCutAudioBindings: (sceneId, cutId, bindings) =>
       set((state) => ({
         scenes: state.scenes.map((s) =>
@@ -583,6 +609,14 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
           isClip: cut.isClip,
           isLipSync: cut.isLipSync,
           lipSyncFrameCount: cut.lipSyncFrameCount,
+          subtitle: cut.subtitle
+            ? {
+                text: cut.subtitle.text,
+                range: cut.subtitle.range
+                  ? { start: cut.subtitle.range.start, end: cut.subtitle.range.end }
+                  : undefined,
+              }
+            : undefined,
         });
         return acc;
       }, []);
@@ -617,6 +651,14 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
           isClip: clipCut.isClip,
           isLipSync: clipCut.isLipSync,
           lipSyncFrameCount: clipCut.isLipSync ? clipCut.lipSyncFrameCount : undefined,
+          subtitle: clipCut.subtitle
+            ? {
+                text: clipCut.subtitle.text,
+                range: clipCut.subtitle.range
+                  ? { start: clipCut.subtitle.range.start, end: clipCut.subtitle.range.end }
+                  : undefined,
+              }
+            : undefined,
         };
       });
 
