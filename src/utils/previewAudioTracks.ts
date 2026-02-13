@@ -1,7 +1,7 @@
 import type { Asset, MetadataStore, SceneAudioBinding } from '../types';
 
 export interface PreviewAudioTrack {
-  source: 'scene';
+  source: 'scene' | 'group';
   assetId: string;
   asset: Asset;
   binding: SceneAudioBinding;
@@ -18,7 +18,9 @@ export interface ResolvePreviewAudioTracksInput {
   getAssetById: (assetId: string) => Asset | undefined;
 }
 
-export function resolvePreviewAudioTracks(input: ResolvePreviewAudioTracksInput): PreviewAudioTrack[] {
+type PreviewTrackResolver = (input: ResolvePreviewAudioTracksInput) => PreviewAudioTrack[];
+
+function resolveScenePreviewAudioTracks(input: ResolvePreviewAudioTracksInput): PreviewAudioTrack[] {
   const { sceneId, sceneStartAbs, previewOffsetSec = 0, metadataStore, getAssetById } = input;
   if (!sceneId || !metadataStore?.sceneMetadata) return [];
 
@@ -37,4 +39,17 @@ export function resolvePreviewAudioTracks(input: ResolvePreviewAudioTracksInput)
     startAbs: sceneStartAbs,
     previewOffsetSec,
   }];
+}
+
+const RESOLVERS: PreviewTrackResolver[] = [
+  resolveScenePreviewAudioTracks,
+  // TODO(groupAudio): add group-level resolver here.
+];
+
+export function resolvePreviewAudioTracks(input: ResolvePreviewAudioTracksInput): PreviewAudioTrack[] {
+  const tracks: PreviewAudioTrack[] = [];
+  for (const resolveTracks of RESOLVERS) {
+    tracks.push(...resolveTracks(input));
+  }
+  return tracks;
 }
