@@ -43,7 +43,6 @@ export function AssetContextMenu({
       <MenuHeader>Asset options</MenuHeader>
       {hasTransformActions && (
         <>
-          <MenuSeparator />
           {canFinalizeClip && onFinalizeClip && (
             <MenuItem icon={<Download size={14} />} variant="action" onClick={onFinalizeClip}>
               Finalize Clip (Asset Only)

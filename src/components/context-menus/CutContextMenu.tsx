@@ -91,6 +91,7 @@ export function CutContextMenu({
 }: CutContextMenuProps) {
   // Filter out current scene from move options
   const otherScenes = scenes.filter((s) => s.id !== currentSceneId);
+  const hasGroupActions = (isMultiSelect && !!onCreateGroup) || (isInGroup && !!onRemoveFromGroup);
 
   const headerText = isMultiSelect
     ? `${selectedCount} cuts selected`
@@ -171,20 +172,23 @@ export function CutContextMenu({
       )}
 
       {/* Group operations */}
-      <MenuSeparator />
+      {hasGroupActions && (
+        <>
+          <MenuSeparator />
+          {/* Create Group - only for multi-select */}
+          {isMultiSelect && onCreateGroup && (
+            <MenuItem icon={<Layers size={14} />} onClick={onCreateGroup}>
+              Create Group ({selectedCount})
+            </MenuItem>
+          )}
 
-      {/* Create Group - only for multi-select */}
-      {isMultiSelect && onCreateGroup && (
-        <MenuItem icon={<Layers size={14} />} onClick={onCreateGroup}>
-          Create Group ({selectedCount})
-        </MenuItem>
-      )}
-
-      {/* Remove from Group */}
-      {isInGroup && onRemoveFromGroup && (
-        <MenuItem icon={<FolderMinus size={14} />} onClick={onRemoveFromGroup}>
-          Remove from Group{isMultiSelect ? ` (${selectedCount})` : ''}
-        </MenuItem>
+          {/* Remove from Group */}
+          {isInGroup && onRemoveFromGroup && (
+            <MenuItem icon={<FolderMinus size={14} />} onClick={onRemoveFromGroup}>
+              Remove from Group{isMultiSelect ? ` (${selectedCount})` : ''}
+            </MenuItem>
+          )}
+        </>
       )}
 
       <MenuSeparator />
