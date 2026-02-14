@@ -404,6 +404,146 @@
   font-variant-numeric: tabular-nums;
 }
 
+.auto-clip-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: start;
+  z-index: 3;
+}
+
+.auto-clip-bar {
+  position: relative;
+  height: 22px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  overflow: hidden;
+  cursor: crosshair;
+}
+
+.auto-clip-scores {
+  position: absolute;
+  inset: 0;
+}
+
+.auto-clip-score-bar {
+  position: absolute;
+  bottom: 0;
+  width: 2px;
+  background: rgba(56, 189, 248, 0.7);
+}
+
+.auto-clip-score-bar--rms {
+  background: rgba(251, 191, 36, 0.65);
+}
+
+.auto-clip-candidate {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  transform: translateX(-50%);
+}
+
+.auto-clip-candidate--hist {
+  background: rgba(96, 165, 250, 0.95);
+}
+
+.auto-clip-candidate--rms {
+  background: rgba(250, 204, 21, 0.95);
+}
+
+.auto-clip-exclude {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(2, 6, 23, 0.7);
+}
+
+.auto-clip-head {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  transform: translateX(-50%);
+  background: #fff;
+}
+
+.auto-clip-settings-toggle {
+  width: 24px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.85);
+  color: #e2e8f0;
+  cursor: pointer;
+}
+
+.auto-clip-settings-toggle.is-open {
+  background: rgba(30, 64, 175, 0.7);
+}
+
+.auto-clip-settings {
+  grid-column: 1 / -1;
+  margin-top: 2px;
+  padding: 8px;
+  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  background: rgba(15, 23, 42, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.auto-clip-settings label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #dbeafe;
+}
+
+.auto-clip-settings input,
+.auto-clip-settings select {
+  height: 22px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(2, 6, 23, 0.9);
+  color: #f8fafc;
+  padding: 0 6px;
+  font-size: 11px;
+}
+
+.auto-clip-checkbox {
+  margin-left: 4px;
+}
+
+.auto-clip-btn {
+  height: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  background: rgba(148, 163, 184, 0.15);
+  color: #f8fafc;
+  font-size: 11px;
+  padding: 0 10px;
+  cursor: pointer;
+}
+
+.auto-clip-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.auto-clip-btn--primary {
+  background: rgba(37, 99, 235, 0.65);
+}
+
 .preview-controls-row {
   position: relative;
   width: 100%;

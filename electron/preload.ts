@@ -129,6 +129,24 @@ export interface ExtractAudioResult {
   error?: string;
 }
 
+export interface AnalyzeVideoHistogramOptions {
+  sourcePath: string;
+  startSec?: number;
+  endSec?: number;
+  sampleFps?: number;
+  width?: number;
+  height?: number;
+}
+
+export interface AnalyzeVideoHistogramResult {
+  success: boolean;
+  sampleFps?: number;
+  width?: number;
+  height?: number;
+  scores?: number[];
+  error?: string;
+}
+
 export interface ExtractFrameOptions {
   sourcePath: string;
   outputPath: string;
@@ -429,6 +447,9 @@ const electronAPI = {
   // Video frame extraction
   extractVideoFrame: (options: ExtractFrameOptions): Promise<ExtractFrameResult> =>
     ipcRenderer.invoke('extract-video-frame', options),
+
+  analyzeVideoHistogram: (options: AnalyzeVideoHistogramOptions): Promise<AnalyzeVideoHistogramResult> =>
+    ipcRenderer.invoke('analyze-video-histogram', options),
 
   // Image crop finalization
   cropImageToAspect: (options: CropImageOptions): Promise<CropImageResult> =>

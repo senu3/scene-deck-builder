@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo, type CSSProperties } from 'react';
-import { X, Play, Pause, SkipBack, SkipForward, Download, Loader2, Repeat, Maximize, Scissors, Camera, MessageSquare } from 'lucide-react';
+import { X, Play, Pause, SkipBack, SkipForward, Download, Loader2, Repeat, Maximize, Scissors, Camera, MessageSquare, SlidersHorizontal } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import {
   selectScenes,
@@ -12,14 +12,15 @@ import {
   selectSetGlobalVolume,
   selectToggleGlobalMute,
   selectMetadataStore,
+  selectSetAutoClipMetadata,
 } from '../store/selectors';
-import type { Asset, Cut } from '../types';
+import type { Asset, Cut, AutoClipMetadata } from '../types';
 import { useHistoryStore } from '../store/historyStore';
-import { UpdateCutSubtitleCommand } from '../store/commands';
+import { AutoClipVideoCutCommand, UpdateCutSubtitleCommand } from '../store/commands';
 import { createVideoObjectUrl } from '../utils/videoUtils';
 import { formatTime, cyclePlaybackSpeed } from '../utils/timeUtils';
 import { resolveCutAsset, resolveCutThumbnail } from '../utils/assetResolve';
-import { AudioManager } from '../utils/audioUtils';
+import { AudioManager, analyzeAudioRms } from '../utils/audioUtils';
 import { createImageMediaSource, createLipSyncImageMediaSource, createVideoMediaSource } from '../utils/previewMedia';
 import { getLipSyncFrameAssetIds } from '../utils/lipSyncUtils';
 import { useSequencePlaybackController } from '../utils/previewPlaybackController';
@@ -33,6 +34,18 @@ import { resolveSubtitleVisibility, normalizeSubtitleRange } from '../utils/subt
 import { getSubtitleStyleSettings } from '../utils/subtitleStyleSettings';
 import { getSubtitleStyleForExport } from '../features/export/subtitleStyle';
 import { getScenesInOrder } from '../utils/sceneOrder';
+import {
+  addExcludeRange,
+  buildClipSegments,
+  extractHistogramCandidates,
+  extractRmsCandidates,
+  filterCandidatesByExcludeRanges,
+  makeAutoClipParamsHash,
+  normalizeExcludeRanges,
+  removeExcludeRange,
+  toggleNearestExcludeRange,
+  type TimeRange as AutoClipTimeRange,
+} from '../utils/autoClip';
 import {
   PlaybackRangeMarkers,
   VolumeControl,
@@ -49,9 +62,20 @@ const PLAY_SAFE_AHEAD = 2.0; // seconds - minimum buffer required for playback
 const PRELOAD_AHEAD = 30.0; // seconds - preload this much ahead for smoother playback
 const INITIAL_PRELOAD_ITEMS = 5; // number of items to preload initially
 const FRAME_DURATION = 1 / 30;
+const AUTO_CLIP_SAMPLE_FPS = 4;
+const AUTO_CLIP_SCALE_WIDTH = 64;
+const AUTO_CLIP_SCALE_HEIGHT = 36;
+const AUTO_CLIP_BRUSH_MIN_SEC = 0.3;
 
 function clampToDuration(time: number, duration: number): number {
   return Math.max(0, Math.min(duration, time));
+}
+
+function normalizeTimeRange(start: number, end: number): AutoClipTimeRange {
+  return {
+    start: Math.min(start, end),
+    end: Math.max(start, end),
+  };
 }
 
 function constrainMarkerTime(
@@ -168,6 +192,7 @@ export default function PreviewModal({
   const setGlobalVolume = useStore(selectSetGlobalVolume);
   const toggleGlobalMute = useStore(selectToggleGlobalMute);
   const metadataStore = useStore(selectMetadataStore);
+  const setAutoClipMetadata = useStore(selectSetAutoClipMetadata);
   const { executeCommand } = useHistoryStore();
 
   // Mode detection: Single Mode if asset prop is provided
@@ -224,6 +249,19 @@ export default function PreviewModal({
   // IN/OUT point state - initialize from props for Single Mode
   const [singleModeInPoint, setSingleModeInPoint] = useState<number | null>(initialInPoint ?? null);
   const [singleModeOutPoint, setSingleModeOutPoint] = useState<number | null>(initialOutPoint ?? null);
+  const [autoClipOpen, setAutoClipOpen] = useState(true);
+  const [autoClipSource, setAutoClipSource] = useState<'hist' | 'rms' | 'both'>('both');
+  const [histThreshold, setHistThreshold] = useState(0.18);
+  const [rmsThreshold, setRmsThreshold] = useState(0.12);
+  const [minGapSec, setMinGapSec] = useState(0.8);
+  const [minCandidatePercent, setMinCandidatePercent] = useState(10);
+  const [groupResults, setGroupResults] = useState(true);
+  const [excludeRanges, setExcludeRanges] = useState<AutoClipTimeRange[]>([]);
+  const [histScores, setHistScores] = useState<number[]>([]);
+  const [rmsScores, setRmsScores] = useState<number[]>([]);
+  const [candidatesHist, setCandidatesHist] = useState<number[]>([]);
+  const [candidatesRms, setCandidatesRms] = useState<number[]>([]);
+  const [autoClipBusy, setAutoClipBusy] = useState(false);
 
   const sequenceDurations = useMemo(() => items.map(item => item.cut.displayTime), [items]);
   const sequencePlayback = useSequencePlaybackController(sequenceDurations);
@@ -258,12 +296,20 @@ export default function PreviewModal({
 
   const modalRef = useRef<HTMLDivElement>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
+  const autoClipBarRef = useRef<HTMLDivElement>(null);
   const progressFillRef = useRef<HTMLDivElement>(null);
   const progressHandleRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const displayContainerRef = useRef<HTMLDivElement>(null);
   const [displaySize, setDisplaySize] = useState({ width: 0, height: 0 });
   const [sequenceMediaElement, setSequenceMediaElement] = useState<JSX.Element | null>(null);
+  const autoClipDragRef = useRef<{
+    mode: 'add' | 'erase';
+    startTime: number;
+    moved: boolean;
+    currentRange: AutoClipTimeRange | null;
+  } | null>(null);
+  const autoClipDebounceTimerRef = useRef<number | null>(null);
 
   // ===== ATTACHED AUDIO HELPER =====
 
@@ -678,6 +724,184 @@ export default function PreviewModal({
       showMiniToast(message, 'error');
     }
   }, [isSingleModeVideo, onFrameCapture, singleModeCurrentTime]);
+
+  const autoClipTarget = useMemo(() => {
+    if (!isSingleModeVideo || !focusCutData?.cut || !asset) return null;
+    if (!asset.path || !asset.path.trim()) return null;
+    const cut = focusCutData.cut;
+    const clipStart = cut.isClip && cut.inPoint !== undefined ? Math.min(cut.inPoint, cut.outPoint ?? cut.inPoint) : 0;
+    const fallbackDuration = Number.isFinite(asset.duration) && (asset.duration as number) > 0
+      ? (asset.duration as number)
+      : singleModeDuration;
+    const clipEnd = cut.isClip && cut.outPoint !== undefined
+      ? Math.max(cut.inPoint ?? 0, cut.outPoint)
+      : Math.max(clipStart, fallbackDuration);
+    const duration = Math.max(0, clipEnd - clipStart);
+    return {
+      sceneId: focusCutData.scene.id,
+      cutId: cut.id,
+      assetId: asset.id,
+      sourcePath: asset.path,
+      clipStart,
+      clipEnd,
+      duration,
+    };
+  }, [isSingleModeVideo, focusCutData, asset, singleModeDuration]);
+
+  const autoClipCandidates = useMemo(() => {
+    if (!autoClipTarget) return [];
+    const combined = autoClipSource === 'hist'
+      ? candidatesHist
+      : autoClipSource === 'rms'
+        ? candidatesRms
+        : Array.from(new Set([...candidatesHist, ...candidatesRms])).sort((a, b) => a - b);
+    const normalizedExcludes = normalizeExcludeRanges(excludeRanges, autoClipTarget.duration, AUTO_CLIP_BRUSH_MIN_SEC);
+    return filterCandidatesByExcludeRanges(combined, normalizedExcludes)
+      .filter((time) => time > 0.5 && time < autoClipTarget.duration - 0.5)
+      .sort((a, b) => a - b);
+  }, [autoClipTarget, autoClipSource, candidatesHist, candidatesRms, excludeRanges]);
+
+  const analyzeAutoClip = useCallback(async () => {
+    if (!autoClipTarget || !window.electronAPI) return;
+    if (!autoClipTarget.sourcePath || !autoClipTarget.sourcePath.trim()) {
+      setHistScores([]);
+      setRmsScores([]);
+      setCandidatesHist([]);
+      setCandidatesRms([]);
+      return;
+    }
+
+    const metadata = metadataStore?.metadata[autoClipTarget.assetId];
+    const histParamsHash = makeAutoClipParamsHash({
+      sourcePath: autoClipTarget.sourcePath,
+      start: autoClipTarget.clipStart.toFixed(3),
+      end: autoClipTarget.clipEnd.toFixed(3),
+      fps: AUTO_CLIP_SAMPLE_FPS,
+      width: AUTO_CLIP_SCALE_WIDTH,
+      height: AUTO_CLIP_SCALE_HEIGHT,
+    });
+
+    const rmsParamsHash = makeAutoClipParamsHash({
+      sourcePath: autoClipTarget.sourcePath,
+      start: autoClipTarget.clipStart.toFixed(3),
+      end: autoClipTarget.clipEnd.toFixed(3),
+      smoothingMs: 240,
+      fps: 60,
+    });
+    const minPeakRatio = Math.max(0, Math.min(1, minCandidatePercent / 100));
+
+    setAutoClipBusy(true);
+    try {
+      let nextAutoClipCache: AutoClipMetadata = { ...(metadata?.autoClip || {}) };
+
+      if (autoClipSource !== 'rms') {
+        let histMeta = nextAutoClipCache.hist;
+        if (!histMeta || histMeta.paramsHash !== histParamsHash || histMeta.sampleFps !== AUTO_CLIP_SAMPLE_FPS) {
+          const result = await window.electronAPI.analyzeVideoHistogram({
+            sourcePath: autoClipTarget.sourcePath,
+            startSec: autoClipTarget.clipStart,
+            endSec: autoClipTarget.clipEnd,
+            sampleFps: AUTO_CLIP_SAMPLE_FPS,
+            width: AUTO_CLIP_SCALE_WIDTH,
+            height: AUTO_CLIP_SCALE_HEIGHT,
+          });
+          if (!result.success || !result.scores || !result.sampleFps) {
+            console.warn('[AutoClip] histogram analysis skipped:', result.error || 'unknown error');
+            setHistScores([]);
+            setCandidatesHist([]);
+            return;
+          }
+          const candidates = extractHistogramCandidates(result.scores, histThreshold, minGapSec, result.sampleFps, 0.5, minPeakRatio);
+          histMeta = {
+            sampleFps: result.sampleFps,
+            scores: result.scores,
+            candidates,
+            paramsHash: histParamsHash,
+          };
+          nextAutoClipCache = { ...nextAutoClipCache, hist: histMeta };
+          setAutoClipMetadata(autoClipTarget.assetId, nextAutoClipCache);
+        }
+        setHistScores(histMeta.scores);
+        setCandidatesHist(extractHistogramCandidates(histMeta.scores, histThreshold, minGapSec, histMeta.sampleFps, 0.5, minPeakRatio));
+      }
+
+      if (autoClipSource !== 'hist') {
+        let rmsMeta = nextAutoClipCache.rms;
+        if (!rmsMeta || rmsMeta.paramsHash !== rmsParamsHash || !Array.isArray(rmsMeta.series)) {
+          const analysis = await analyzeAudioRms(autoClipTarget.sourcePath, 60);
+          if (!analysis) {
+            setRmsScores([]);
+            setCandidatesRms([]);
+            return;
+          }
+          const startIndex = Math.max(0, Math.floor(autoClipTarget.clipStart * analysis.fps));
+          const endIndex = Math.min(analysis.rms.length, Math.ceil(autoClipTarget.clipEnd * analysis.fps));
+          const localRms = analysis.rms.slice(startIndex, endIndex);
+          const peak = extractRmsCandidates(localRms, {
+            fps: analysis.fps,
+            threshold: rmsThreshold,
+            minGapSec,
+            smoothingMs: 240,
+            minPeakRatio,
+          });
+          rmsMeta = {
+            fps: analysis.fps,
+            smoothingMs: 240,
+            series: localRms,
+            peaks: peak.peaks,
+            candidates: peak.candidates,
+            paramsHash: rmsParamsHash,
+          };
+          nextAutoClipCache = { ...nextAutoClipCache, rms: rmsMeta };
+          setAutoClipMetadata(autoClipTarget.assetId, nextAutoClipCache);
+          setRmsScores(peak.smoothed);
+          setCandidatesRms(peak.candidates);
+        } else {
+          const peak = extractRmsCandidates(rmsMeta.series, {
+            fps: rmsMeta.fps,
+            threshold: rmsThreshold,
+            minGapSec,
+            smoothingMs: rmsMeta.smoothingMs,
+            minPeakRatio,
+          });
+          setCandidatesRms(peak.candidates);
+          setRmsScores(peak.smoothed);
+        }
+      }
+    } catch (error) {
+      console.error('[AutoClip] analyze failed:', error);
+      setHistScores([]);
+      setRmsScores([]);
+      setCandidatesHist([]);
+      setCandidatesRms([]);
+    } finally {
+      setAutoClipBusy(false);
+    }
+  }, [
+    autoClipTarget,
+    metadataStore,
+    autoClipSource,
+    histThreshold,
+    minGapSec,
+    minCandidatePercent,
+    rmsThreshold,
+    setAutoClipMetadata,
+  ]);
+
+  const applyAutoClip = useCallback(() => {
+    if (!autoClipTarget || autoClipCandidates.length === 0) return;
+    const segments = buildClipSegments(autoClipTarget.duration, autoClipCandidates, 0.2);
+    if (segments.length === 0) return;
+
+    const ranges = segments.map((segment) => ({
+      inPoint: autoClipTarget.clipStart + segment.start,
+      outPoint: autoClipTarget.clipStart + segment.end,
+    }));
+
+    executeCommand(new AutoClipVideoCutCommand(autoClipTarget.sceneId, autoClipTarget.cutId, ranges, groupResults)).catch((error) => {
+      console.error('Failed to apply auto clip:', error);
+    });
+  }, [autoClipTarget, autoClipCandidates, executeCommand, groupResults]);
 
   // Single Mode play/pause
   const toggleSingleModePlay = useCallback(() => {
@@ -1996,6 +2220,107 @@ export default function PreviewModal({
     setHoverTime(null);
   }, []);
 
+  const getAutoClipTimeFromClientX = useCallback((clientX: number): number | null => {
+    if (!autoClipBarRef.current || !autoClipTarget) return null;
+    const rect = autoClipBarRef.current.getBoundingClientRect();
+    if (rect.width <= 0) return null;
+    const ratio = clampToDuration((clientX - rect.left) / rect.width, 1);
+    return ratio * autoClipTarget.duration;
+  }, [autoClipTarget]);
+
+  const handleAutoClipBarMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!autoClipTarget) return;
+    const time = getAutoClipTimeFromClientX(e.clientX);
+    if (time === null) return;
+
+    const mode: 'add' | 'erase' = e.altKey ? 'erase' : 'add';
+    autoClipDragRef.current = {
+      mode,
+      startTime: time,
+      moved: false,
+      currentRange: { start: time, end: time },
+    };
+    e.preventDefault();
+  }, [autoClipTarget, getAutoClipTimeFromClientX]);
+
+  useEffect(() => {
+    const handleMove = (e: MouseEvent) => {
+      if (!autoClipDragRef.current || !autoClipTarget) return;
+      const time = getAutoClipTimeFromClientX(e.clientX);
+      if (time === null) return;
+      autoClipDragRef.current.moved = autoClipDragRef.current.moved || Math.abs(time - autoClipDragRef.current.startTime) > 0.02;
+      autoClipDragRef.current.currentRange = normalizeTimeRange(autoClipDragRef.current.startTime, time);
+    };
+
+    const handleUp = (e: MouseEvent) => {
+      if (!autoClipDragRef.current || !autoClipTarget) return;
+      const drag = autoClipDragRef.current;
+      autoClipDragRef.current = null;
+      const time = getAutoClipTimeFromClientX(e.clientX);
+      if (time === null) return;
+
+      if (!drag.moved) {
+        setExcludeRanges((prev) => toggleNearestExcludeRange(
+          prev,
+          time,
+          autoClipTarget.duration,
+          AUTO_CLIP_BRUSH_MIN_SEC,
+          0.35
+        ));
+        return;
+      }
+
+      const normalized = normalizeTimeRange(drag.startTime, time);
+      const width = Math.max(AUTO_CLIP_BRUSH_MIN_SEC, normalized.end - normalized.start);
+      const center = (normalized.start + normalized.end) / 2;
+      const nextRange = normalizeTimeRange(center - width / 2, center + width / 2);
+      setExcludeRanges((prev) =>
+        drag.mode === 'erase'
+          ? removeExcludeRange(prev, nextRange, autoClipTarget.duration, AUTO_CLIP_BRUSH_MIN_SEC)
+          : addExcludeRange(prev, nextRange, autoClipTarget.duration, AUTO_CLIP_BRUSH_MIN_SEC)
+      );
+    };
+
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+    };
+  }, [autoClipTarget, getAutoClipTimeFromClientX]);
+
+  useEffect(() => {
+    if (!autoClipTarget) {
+      if (autoClipDebounceTimerRef.current !== null) {
+        window.clearTimeout(autoClipDebounceTimerRef.current);
+        autoClipDebounceTimerRef.current = null;
+      }
+      setExcludeRanges([]);
+      setHistScores([]);
+      setRmsScores([]);
+      setCandidatesHist([]);
+      setCandidatesRms([]);
+      return;
+    }
+    if (autoClipDebounceTimerRef.current !== null) {
+      window.clearTimeout(autoClipDebounceTimerRef.current);
+    }
+    autoClipDebounceTimerRef.current = window.setTimeout(() => {
+      void analyzeAutoClip();
+      autoClipDebounceTimerRef.current = null;
+    }, 320);
+    return () => {
+      if (autoClipDebounceTimerRef.current !== null) {
+        window.clearTimeout(autoClipDebounceTimerRef.current);
+        autoClipDebounceTimerRef.current = null;
+      }
+    };
+  }, [autoClipTarget, autoClipSource, histThreshold, rmsThreshold, minGapSec, analyzeAutoClip]);
+
+  useEffect(() => {
+    setExcludeRanges([]);
+  }, [histThreshold, rmsThreshold, minGapSec, minCandidatePercent, autoClipSource]);
+
   useEffect(() => {
     if (isDragging) {
       window.addEventListener('mousemove', handleProgressBarMouseMove);
@@ -2374,6 +2699,165 @@ export default function PreviewModal({
                         showMilliseconds={isSingleModeVideo}
                       />
                     </div>
+                  </div>
+                )}
+
+                {isSingleModeVideo && autoClipTarget && (
+                  <div className="auto-clip-row">
+                    <div
+                      className="auto-clip-bar"
+                      ref={autoClipBarRef}
+                      onMouseDown={handleAutoClipBarMouseDown}
+                      title="Drag to add exclude. Alt+drag to erase."
+                    >
+                      {(histScores.length > 1 || rmsScores.length > 1) && (
+                        <div className="auto-clip-scores">
+                          {histScores.map((score, index) => {
+                            const left = (index / Math.max(1, histScores.length - 1)) * 100;
+                            const normalized = Math.max(0, Math.min(1, score / Math.max(histThreshold, 0.001)));
+                            return (
+                              <span
+                                key={`${index}-${score}`}
+                                className="auto-clip-score-bar"
+                                style={{
+                                  left: `${left}%`,
+                                  height: `${Math.max(4, normalized * 100)}%`,
+                                }}
+                              />
+                            );
+                          })}
+                          {rmsScores.map((score, index) => {
+                            const left = (index / Math.max(1, rmsScores.length - 1)) * 100;
+                            const normalized = Math.max(0, Math.min(1, score / Math.max(rmsThreshold, 0.001)));
+                            return (
+                              <span
+                                key={`rms-score-${index}-${score}`}
+                                className="auto-clip-score-bar auto-clip-score-bar--rms"
+                                style={{
+                                  left: `${left}%`,
+                                  height: `${Math.max(2, normalized * 90)}%`,
+                                }}
+                              />
+                            );
+                          })}
+                        </div>
+                      )}
+                      {autoClipSource !== 'rms' && candidatesHist.map((time) => (
+                        <span
+                          key={`hist-${time}`}
+                          className="auto-clip-candidate auto-clip-candidate--hist"
+                          style={{ left: `${(time / autoClipTarget.duration) * 100}%` }}
+                        />
+                      ))}
+                      {autoClipSource !== 'hist' && candidatesRms.map((time) => (
+                        <span
+                          key={`rms-${time}`}
+                          className="auto-clip-candidate auto-clip-candidate--rms"
+                          style={{ left: `${(time / autoClipTarget.duration) * 100}%` }}
+                        />
+                      ))}
+                      {normalizeExcludeRanges(excludeRanges, autoClipTarget.duration, AUTO_CLIP_BRUSH_MIN_SEC).map((range, index) => (
+                        <span
+                          key={`exclude-${index}-${range.start}`}
+                          className="auto-clip-exclude"
+                          style={{
+                            left: `${(range.start / autoClipTarget.duration) * 100}%`,
+                            width: `${Math.max(0.4, ((range.end - range.start) / autoClipTarget.duration) * 100)}%`,
+                          }}
+                        />
+                      ))}
+                      <span
+                        className="auto-clip-head"
+                        style={{ left: `${(currentLocalTimeSec / Math.max(0.001, autoClipTarget.duration)) * 100}%` }}
+                      />
+                    </div>
+                    <button
+                      className={`auto-clip-settings-toggle ${autoClipOpen ? 'is-open' : ''}`}
+                      onClick={() => setAutoClipOpen((prev) => !prev)}
+                      title="AutoClip settings"
+                    >
+                      <SlidersHorizontal size={14} />
+                    </button>
+                    {autoClipOpen && (
+                      <div className="auto-clip-settings">
+                        <label>
+                          Source
+                          <select value={autoClipSource} onChange={(e) => setAutoClipSource(e.target.value as 'hist' | 'rms' | 'both')}>
+                            <option value="hist">Histogram</option>
+                            <option value="rms">RMS</option>
+                            <option value="both">Both</option>
+                          </select>
+                        </label>
+                        <label>
+                          Hist
+                          <input
+                            type="number"
+                            min={0}
+                            max={2}
+                            step={0.01}
+                            value={histThreshold}
+                            onChange={(e) => setHistThreshold(Math.max(0, Number(e.target.value) || 0))}
+                          />
+                        </label>
+                        <label>
+                          RMS
+                          <input
+                            type="number"
+                            min={0}
+                            max={1}
+                            step={0.01}
+                            value={rmsThreshold}
+                            onChange={(e) => setRmsThreshold(Math.max(0, Number(e.target.value) || 0))}
+                          />
+                        </label>
+                        <label>
+                          MinGap
+                          <input
+                            type="number"
+                            min={0.1}
+                            max={5}
+                            step={0.1}
+                            value={minGapSec}
+                            onChange={(e) => setMinGapSec(Math.max(0.1, Number(e.target.value) || 0.1))}
+                          />
+                        </label>
+                        <label>
+                          MinPeak%
+                          <input
+                            type="number"
+                            min={0}
+                            max={100}
+                            step={1}
+                            value={minCandidatePercent}
+                            onChange={(e) => setMinCandidatePercent(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
+                          />
+                        </label>
+                        <label className="auto-clip-checkbox">
+                          <input
+                            type="checkbox"
+                            checked={groupResults}
+                            onChange={(e) => setGroupResults(e.target.checked)}
+                          />
+                          Group results
+                        </label>
+                        <button
+                          className="auto-clip-btn"
+                          onClick={() => {
+                            if (autoClipDebounceTimerRef.current !== null) {
+                              window.clearTimeout(autoClipDebounceTimerRef.current);
+                              autoClipDebounceTimerRef.current = null;
+                            }
+                            void analyzeAutoClip();
+                          }}
+                          disabled={autoClipBusy}
+                        >
+                          Analyze
+                        </button>
+                        <button className="auto-clip-btn auto-clip-btn--primary" onClick={applyAutoClip} disabled={autoClipCandidates.length === 0}>
+                          Apply Cuts
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 

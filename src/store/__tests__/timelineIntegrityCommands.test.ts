@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  AutoClipVideoCutCommand,
   RemoveCutFromGroupCommand,
   RemoveSceneCommand,
   ReorderCutsWithGroupSyncCommand,
@@ -375,5 +376,60 @@ describe('timeline integrity commands', () => {
     await command.undo();
     const restoredCut = useStore.getState().scenes[0]?.cuts[0];
     expect(restoredCut?.subtitle).toBeUndefined();
+  });
+
+  it('auto clips source cut, creates collapsed group, and restores on undo', async () => {
+    useStore.getState().initializeProject({
+      name: 'AutoClip Command Test',
+      vaultPath: 'C:/vault',
+      scenes: [
+        {
+          id: 'scene-1',
+          name: 'Scene 1',
+          order: 0,
+          notes: [],
+          cuts: [
+            {
+              id: 'cut-source',
+              assetId: VIDEO_ASSET.id,
+              asset: VIDEO_ASSET,
+              displayTime: 10,
+              order: 0,
+              isClip: false,
+              useEmbeddedAudio: true,
+              audioBindings: [],
+            },
+          ],
+          groups: [],
+        },
+      ],
+    });
+
+    const command = new AutoClipVideoCutCommand(
+      'scene-1',
+      'cut-source',
+      [
+        { inPoint: 0, outPoint: 2 },
+        { inPoint: 2, outPoint: 5 },
+      ],
+      true
+    );
+    await command.execute();
+
+    const afterExecute = useStore.getState().scenes[0];
+    expect(afterExecute?.cuts.length).toBe(3);
+    expect(afterExecute?.cuts[0]?.id).toBe('cut-source');
+    expect(afterExecute?.cuts[1]?.isClip).toBe(true);
+    expect(afterExecute?.cuts[1]?.inPoint).toBe(0);
+    expect(afterExecute?.cuts[1]?.outPoint).toBe(2);
+    expect(afterExecute?.groups?.length).toBe(1);
+    expect(afterExecute?.groups?.[0]?.isCollapsed).toBe(true);
+    expect(afterExecute?.groups?.[0]?.cutIds[0]).toBe('cut-source');
+
+    await command.undo();
+
+    const afterUndo = useStore.getState().scenes[0];
+    expect(afterUndo?.cuts.map((cut) => cut.id)).toEqual(['cut-source']);
+    expect(afterUndo?.groups ?? []).toEqual([]);
   });
 });

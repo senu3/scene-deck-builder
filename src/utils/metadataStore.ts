@@ -224,6 +224,18 @@ export function updateLipSyncSettings(
   });
 }
 
+export function updateAutoClipMetadata(
+  store: MetadataStore,
+  assetId: string,
+  autoClip: AssetMetadata['autoClip']
+): MetadataStore {
+  const existing = store.metadata[assetId] || { assetId };
+  return updateAssetMetadata(store, {
+    ...existing,
+    autoClip,
+  });
+}
+
 /**
  * Remove lip sync settings for an asset (immutable)
  * @param store - Current MetadataStore

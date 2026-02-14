@@ -728,6 +728,155 @@ export class DuplicateCutWithClipCommand implements Command {
   }
 }
 
+interface AutoClipRange {
+  inPoint: number;
+  outPoint: number;
+}
+
+function cloneCutForAutoClip(sourceCut: Cut, clip: AutoClipRange): Cut {
+  return {
+    ...sourceCut,
+    id: crypto.randomUUID(),
+    order: 0,
+    inPoint: clip.inPoint,
+    outPoint: clip.outPoint,
+    isClip: true,
+    displayTime: Math.abs(clip.outPoint - clip.inPoint),
+    subtitle: sourceCut.subtitle
+      ? {
+          text: sourceCut.subtitle.text,
+          range: sourceCut.subtitle.range
+            ? { start: sourceCut.subtitle.range.start, end: sourceCut.subtitle.range.end }
+            : undefined,
+        }
+      : undefined,
+    audioBindings: sourceCut.audioBindings ? sourceCut.audioBindings.map((binding) => ({ ...binding })) : [],
+  };
+}
+
+/**
+ * AutoClip result generation command
+ * - keeps source cut
+ * - inserts generated clip cuts right after source
+ * - optionally creates collapsed group with source + generated cuts
+ */
+export class AutoClipVideoCutCommand implements Command {
+  type = 'AUTO_CLIP_VIDEO_CUT';
+  description = 'Auto clip video cut';
+
+  private sceneId: string;
+  private sourceCutId: string;
+  private ranges: AutoClipRange[];
+  private groupResults: boolean;
+  private previousScene?: Scene;
+  private createdCutIds: string[] = [];
+
+  constructor(sceneId: string, sourceCutId: string, ranges: AutoClipRange[], groupResults = true) {
+    this.sceneId = sceneId;
+    this.sourceCutId = sourceCutId;
+    this.ranges = ranges;
+    this.groupResults = groupResults;
+    this.description = `Auto clip video cut (${ranges.length} segments)`;
+  }
+
+  async execute(): Promise<void> {
+    if (this.ranges.length === 0) return;
+
+    const store = useStore.getState();
+    const scene = store.scenes.find((s) => s.id === this.sceneId);
+    if (!scene) return;
+
+    const sourceIndex = scene.cuts.findIndex((cut) => cut.id === this.sourceCutId);
+    if (sourceIndex < 0) return;
+    const sourceCut = scene.cuts[sourceIndex];
+    if (!sourceCut) return;
+
+    this.previousScene = {
+      ...scene,
+      cuts: scene.cuts.map((cut) => ({
+        ...cut,
+        subtitle: cut.subtitle
+          ? {
+              text: cut.subtitle.text,
+              range: cut.subtitle.range ? { start: cut.subtitle.range.start, end: cut.subtitle.range.end } : undefined,
+            }
+          : undefined,
+        audioBindings: cut.audioBindings ? cut.audioBindings.map((binding) => ({ ...binding })) : [],
+      })),
+      groups: scene.groups
+        ? scene.groups.map((group) => ({
+            ...group,
+            cutIds: [...group.cutIds],
+          }))
+        : undefined,
+    };
+
+    const clips = this.ranges
+      .filter(
+        (range) =>
+          Number.isFinite(range.inPoint) &&
+          Number.isFinite(range.outPoint) &&
+          Math.abs(range.outPoint - range.inPoint) > 0.01
+      )
+      .map((range) => ({
+        inPoint: Math.min(range.inPoint, range.outPoint),
+        outPoint: Math.max(range.inPoint, range.outPoint),
+      }));
+
+    if (clips.length === 0) return;
+
+    const newCuts = clips.map((clip) => cloneCutForAutoClip(sourceCut, clip));
+    this.createdCutIds = newCuts.map((cut) => cut.id);
+
+    const nextCuts = [...scene.cuts];
+    nextCuts.splice(sourceIndex + 1, 0, ...newCuts);
+    const orderedCuts = nextCuts.map((cut, index) => ({ ...cut, order: index }));
+
+    let nextGroups = scene.groups ? scene.groups.map((group) => ({ ...group, cutIds: [...group.cutIds] })) : [];
+    if (this.groupResults) {
+      nextGroups = nextGroups
+        .map((group) => ({
+          ...group,
+          cutIds: group.cutIds.filter((cutId) => cutId !== this.sourceCutId),
+        }))
+        .filter((group) => group.cutIds.length > 0);
+
+      nextGroups.push({
+        id: crypto.randomUUID(),
+        name: `AutoClip ${new Date().toLocaleTimeString()}`,
+        cutIds: [this.sourceCutId, ...this.createdCutIds],
+        isCollapsed: true,
+      });
+    }
+
+    useStore.setState((state) => ({
+      scenes: state.scenes.map((s) =>
+        s.id === this.sceneId
+          ? {
+              ...s,
+              cuts: orderedCuts,
+              groups: nextGroups,
+            }
+          : s
+      ),
+    }));
+  }
+
+  async undo(): Promise<void> {
+    if (!this.previousScene) return;
+
+    useStore.setState((state) => ({
+      scenes: state.scenes.map((scene) =>
+        scene.id === this.sceneId
+          ? {
+              ...this.previousScene!,
+            }
+          : scene
+      ),
+    }));
+  }
+}
+
 /**
  * クリップポイントクリアコマンド
  */
