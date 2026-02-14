@@ -70,6 +70,14 @@ function constrainMarkerTime(
   return next;
 }
 
+function isEditableTarget(target: EventTarget | null): boolean {
+  const element = target as HTMLElement | null;
+  if (!element) return false;
+  if (element.isContentEditable) return true;
+  const tagName = element.tagName;
+  return tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT';
+}
+
 function revokeIfBlob(url: string): void {
   if (url.startsWith('blob:')) {
     URL.revokeObjectURL(url);
@@ -677,7 +685,7 @@ export default function PreviewModal({
       }
       videoRef.current.play();
     }
-    setSingleModeIsPlaying(!singleModeIsPlaying);
+    setSingleModeIsPlaying(prev => !prev);
   }, [isSingleModeVideo, singleModeIsPlaying, inPoint, outPoint]);
 
   // Apply playback speed (Single Mode)
@@ -1624,10 +1632,20 @@ export default function PreviewModal({
     setSequenceRange,
   ]);
 
+  const pauseBeforeExport = useCallback(() => {
+    if (!usesSequenceController) {
+      setSingleModeIsPlaying(false);
+      return;
+    }
+    sequencePause();
+  }, [usesSequenceController, sequencePause]);
+
   // Keyboard controls - unified for both modes
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement) return;
+      if (e.defaultPrevented) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (isEditableTarget(e.target)) return;
 
       switch (e.key) {
         case 'Escape':
@@ -1752,11 +1770,7 @@ export default function PreviewModal({
     if (items.length === 0) return;
 
     setIsExporting(true);
-    if (!usesSequenceController) {
-      setSingleModeIsPlaying(false);
-    } else {
-      sequencePause();
-    }
+    pauseBeforeExport();
 
     try {
       const exportWidth = selectedResolution.width > 0 ? selectedResolution.width : DEFAULT_EXPORT_RESOLUTION.width;
@@ -1774,7 +1788,6 @@ export default function PreviewModal({
 
       const outputPath = await window.electronAPI.showSaveSequenceDialog('sequence_export.mp4');
       if (!outputPath) {
-        setIsExporting(false);
         return;
       }
 
@@ -1807,7 +1820,7 @@ export default function PreviewModal({
     } finally {
       setIsExporting(false);
     }
-  }, [items, selectedResolution, usesSequenceController, sequencePause, metadataStore, getAsset, onExportSequence]);
+  }, [items, selectedResolution, pauseBeforeExport, metadataStore, getAsset, onExportSequence]);
 
   // Export with IN/OUT range (Save button) - kept for future UI implementation
   const _handleExportRange = useCallback(async () => {
@@ -1815,11 +1828,7 @@ export default function PreviewModal({
     if (inPoint === null || outPoint === null) return;
 
     setIsExporting(true);
-    if (!usesSequenceController) {
-      setSingleModeIsPlaying(false);
-    } else {
-      sequencePause();
-    }
+    pauseBeforeExport();
 
     try {
       const exportWidth = selectedResolution.width > 0 ? selectedResolution.width : DEFAULT_EXPORT_RESOLUTION.width;
@@ -1827,7 +1836,6 @@ export default function PreviewModal({
 
       const outputPath = await window.electronAPI.showSaveSequenceDialog('sequence_export.mp4');
       if (!outputPath) {
-        setIsExporting(false);
         return;
       }
 
@@ -1879,7 +1887,6 @@ export default function PreviewModal({
 
       if (sequenceItems.length === 0) {
         alert('No items in the selected range');
-        setIsExporting(false);
         return;
       }
 
@@ -1902,7 +1909,7 @@ export default function PreviewModal({
     } finally {
       setIsExporting(false);
     }
-  }, [items, selectedResolution, inPoint, outPoint, usesSequenceController, sequencePause, resolveCutAsset]);
+  }, [items, selectedResolution, inPoint, outPoint, pauseBeforeExport, resolveCutAsset]);
   // Suppress unused variable warning - code kept for future use
   void _handleExportRange;
 
@@ -2354,7 +2361,7 @@ export default function PreviewModal({
                 <div className="preview-controls-row">
                   <button
                     className="preview-ctrl-btn"
-                    onClick={isSingleModeVideo ? () => skip(-5) : () => skip(-5)}
+                    onClick={() => skip(-5)}
                     title="Rewind 5s (←)"
                   >
                     <SkipBack size={18} />
@@ -2368,7 +2375,7 @@ export default function PreviewModal({
                   </button>
                   <button
                     className="preview-ctrl-btn"
-                    onClick={isSingleModeVideo ? () => skip(5) : () => skip(5)}
+                    onClick={() => skip(5)}
                     title="Forward 5s (→)"
                   >
                     <SkipForward size={18} />

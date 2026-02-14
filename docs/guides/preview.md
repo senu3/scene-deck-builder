@@ -68,6 +68,10 @@ Video sources queue play/seek until the element is mounted, avoiding the cut bou
 - IN/OUT marker movement is limited to marker drag and frame-step shortcuts when a marker is focused.
 - Marker drag end clears focused marker state to avoid accidental marker edits after drop.
 - IN/OUT constraints (IN <= OUT, OUT >= IN) are applied in a shared path used by marker drag and focused marker frame-step.
+- Keyboard shortcuts are ignored when focus is on editable targets (`input/textarea/select/contentEditable`) or when `ctrl/meta/alt` modifiers are pressed.
+
+## Export Interaction
+- Export entry points share a common pre-export pause path so playback stop behavior stays consistent across full export and range export flows.
 
 ## Buffering / Preload
 - Sequence preloads URLs in a time window (`PLAY_SAFE_AHEAD`, `PRELOAD_AHEAD`).
