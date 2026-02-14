@@ -2,7 +2,7 @@
 
 **目的**: サムネイル生成プロファイルの責務と使い分けを固定し、画質/サイズの混線を防ぐ。  
 **適用範囲**: Electron thumbnail service と renderer の thumbnail 利用箇所。  
-**関連ファイル**: `electron/services/thumbnailService.ts`, `src/utils/thumbnailCache.ts`, `src/components/PreviewModal.tsx`, `src/components/DetailsPanel.tsx`, `src/components/AssetGrid.tsx`, `src/components/CutCard.tsx`。  
+**関連ファイル**: `electron/services/thumbnailService.ts`, `src/utils/thumbnailCache.ts`, `src/features/cut/clipThumbnail.ts`, `src/components/PreviewModal.tsx`, `src/components/DetailsPanel.tsx`, `src/components/AssetGrid.tsx`, `src/components/CutCard.tsx`。  
 **更新頻度**: 中。
 
 ## プロファイル一覧（固定）
@@ -34,6 +34,7 @@
 - `PreviewModal` が `sequence-preview` を使っていること。
 - `DetailsPanel` が `details-panel` を使っていること。
 - `AssetGrid` が `asset-grid` を使っていること。
+- 動画 clip サムネイル更新で `src/features/cut/clipThumbnail.ts` の共通ヘルパーを使っていること。
 - `thumbnailService` の profile map と renderer 側 union 型が一致していること。
 
 ## Related Docs

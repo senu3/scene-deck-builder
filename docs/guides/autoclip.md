@@ -40,13 +40,13 @@
 - `AutoClipSimpleCommand` は scene スナップショットを保持し、`undo` で丸ごと復元する。
 - `redo` は保存済み `nextScene` を再適用し、再解析は行わない。
 
-## 既知課題 / TODO
-- TODO: AutoClip で新規追加された clip cut のサムネイルが inPoint 基準で再生成されない場合がある。
-- 現状は `AutoClipSimpleCommand` が cut を直接構築して挿入しており、通常の「clip保存時サムネイル更新」経路（`DetailsPanel` 側）と処理が分離している。
-- 対応方針:
-  - clip作成後に「clip inPoint からのサムネイル再生成」を共通ユーティリティ化する。
-  - `AutoClipSimpleCommand` と通常 clip 作成（`DuplicateCutWithClipCommand` / clip保存処理）で同じヘルパーを使う。
-  - サムネイル生成失敗時は機能継続し、既存サムネイルを維持する。
+## サムネイル更新（共通化）
+- `AutoClipSimpleCommand` と通常の clip 保存経路は、動画 clip サムネイル生成ヘルパーを共通利用する。
+- 共通ヘルパー: `src/features/cut/clipThumbnail.ts` `generateVideoClipThumbnail(assetPath, timeOffset)`。
+- 生成位置:
+  - AutoClip 生成 cut: 各 cut の `inPoint` で生成して cut asset に反映。
+  - 通常 clip 保存/クリア: `DetailsPanel` から同ヘルパー経由で反映。
+- サムネイル生成失敗時は処理継続（既存サムネイル維持、clip作成は成功させる）。
 
 ## 変更時チェック
 - `src/features/cut/simpleAutoClip.ts` の mode 値変更時は本ドキュメントを更新する。

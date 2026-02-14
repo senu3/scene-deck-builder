@@ -9,6 +9,7 @@ import {
   generateSimpleAutoClipSplitPoints,
   type SimpleAutoClipMode,
 } from '../features/cut/simpleAutoClip';
+import { generateVideoClipThumbnail } from '../features/cut/clipThumbnail';
 
 function restoreCutState(
   store: ReturnType<typeof useStore.getState>,
@@ -937,6 +938,22 @@ export class AutoClipSimpleCommand implements Command {
       lipSyncFrameCount: undefined,
       subtitle: undefined,
     }));
+
+    if (sourceAsset.path) {
+      const thumbnails = await Promise.all(
+        createdCuts.map((cut) => generateVideoClipThumbnail(sourceAsset.path, cut.inPoint))
+      );
+      for (let i = 0; i < createdCuts.length; i++) {
+        const thumbnail = thumbnails[i];
+        if (!thumbnail) continue;
+        const targetCut = createdCuts[i];
+        if (!targetCut) continue;
+        targetCut.asset = {
+          ...(targetCut.asset || sourceAsset),
+          thumbnail,
+        };
+      }
+    }
 
     const nextCuts = [...scene.cuts];
     nextCuts.splice(sourceIndex + 1, 0, ...createdCuts);
