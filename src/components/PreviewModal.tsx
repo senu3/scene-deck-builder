@@ -95,8 +95,6 @@ interface SingleModeProps {
   asset: Asset;
   initialInPoint?: number;
   initialOutPoint?: number;
-  onInPointSet?: (time: number) => void;
-  onOutPointSet?: (time: number) => void;
   onClipSave?: (inPoint: number, outPoint: number) => void;
   onFrameCapture?: (timestamp: number) => Promise<string | void> | void;
 }
@@ -107,6 +105,7 @@ interface BasePreviewModalProps {
   exportResolution?: ResolutionPresetType;
   onResolutionChange?: (resolution: ResolutionPresetType) => void;
   focusCutId?: string;
+  onRangeChange?: (range: { inPoint: number | null; outPoint: number | null }) => void;
   onExportSequence?: (cuts: Cut[], resolution: { width: number; height: number }) => Promise<void> | void;
   openSubtitleModalOnMount?: boolean;
   onSubtitleModalOpenHandled?: () => void;
@@ -153,8 +152,7 @@ export default function PreviewModal({
   asset,
   initialInPoint,
   initialOutPoint,
-  onInPointSet,
-  onOutPointSet,
+  onRangeChange,
   onClipSave,
   onFrameCapture,
 }: PreviewModalProps) {
@@ -434,6 +432,10 @@ export default function PreviewModal({
     }
   }, [isSingleModeVideo, singleModeDuration, isPlaying, FRAME_DURATION, sequencePause]);
 
+  const notifyRangeChange = useCallback((nextInPoint: number | null, nextOutPoint: number | null) => {
+    onRangeChange?.({ inPoint: nextInPoint, outPoint: nextOutPoint });
+  }, [onRangeChange]);
+
   const setMarkerTimeAndSeek = useCallback((marker: 'in' | 'out', newTime: number) => {
     const duration = usesSequenceController
       ? sequenceState.totalDuration
@@ -443,14 +445,18 @@ export default function PreviewModal({
     if (marker === 'in') {
       if (!usesSequenceController) {
         setSingleModeInPoint(constrainedTime);
+        notifyRangeChange(constrainedTime, outPoint);
       } else {
         setSequenceRange(constrainedTime, outPoint ?? null);
+        notifyRangeChange(constrainedTime, outPoint ?? null);
       }
     } else {
       if (!usesSequenceController) {
         setSingleModeOutPoint(constrainedTime);
+        notifyRangeChange(inPoint, constrainedTime);
       } else {
         setSequenceRange(inPoint ?? null, constrainedTime);
+        notifyRangeChange(inPoint ?? null, constrainedTime);
       }
     }
 
@@ -467,6 +473,7 @@ export default function PreviewModal({
     items.length,
     inPoint,
     outPoint,
+    notifyRangeChange,
     setSequenceRange,
     seekSequenceAbsolute,
   ]);
@@ -629,8 +636,8 @@ export default function PreviewModal({
       return;
     }
     setSingleModeInPoint(singleModeCurrentTime);
-    onInPointSet?.(singleModeCurrentTime);
-  }, [isSingleModeVideo, singleModeInPoint, singleModeCurrentTime, onInPointSet]);
+    notifyRangeChange(singleModeCurrentTime, outPoint);
+  }, [isSingleModeVideo, singleModeInPoint, singleModeCurrentTime, outPoint, notifyRangeChange]);
 
   const handleSingleModeSetOutPoint = useCallback(() => {
     if (!isSingleModeVideo) return;
@@ -639,8 +646,8 @@ export default function PreviewModal({
       return;
     }
     setSingleModeOutPoint(singleModeCurrentTime);
-    onOutPointSet?.(singleModeCurrentTime);
-  }, [isSingleModeVideo, singleModeOutPoint, singleModeCurrentTime, onOutPointSet]);
+    notifyRangeChange(inPoint, singleModeCurrentTime);
+  }, [isSingleModeVideo, singleModeOutPoint, singleModeCurrentTime, inPoint, notifyRangeChange]);
 
   // Single Mode Save handler: save clip when both IN and OUT are set
   const handleSingleModeSave = useCallback(() => {
@@ -1593,6 +1600,7 @@ export default function PreviewModal({
         setSingleModeInPoint(null);
       } else {
         setSingleModeInPoint(currentTime);
+        notifyRangeChange(currentTime, outPoint);
       }
       return;
     }
@@ -1601,6 +1609,7 @@ export default function PreviewModal({
       return;
     }
     setSequenceRange(currentTime, outPoint ?? null);
+    notifyRangeChange(currentTime, outPoint ?? null);
   }, [
     items.length,
     getUiPlayheadTime,
@@ -1608,6 +1617,7 @@ export default function PreviewModal({
     singleModeInPoint,
     inPoint,
     outPoint,
+    notifyRangeChange,
     setSequenceRange,
   ]);
 
@@ -1619,6 +1629,7 @@ export default function PreviewModal({
         setSingleModeOutPoint(null);
       } else {
         setSingleModeOutPoint(currentTime);
+        notifyRangeChange(inPoint, currentTime);
       }
       return;
     }
@@ -1627,6 +1638,7 @@ export default function PreviewModal({
       return;
     }
     setSequenceRange(inPoint ?? null, currentTime);
+    notifyRangeChange(inPoint ?? null, currentTime);
   }, [
     items.length,
     getUiPlayheadTime,
@@ -1634,6 +1646,7 @@ export default function PreviewModal({
     singleModeOutPoint,
     inPoint,
     outPoint,
+    notifyRangeChange,
     setSequenceRange,
   ]);
 
