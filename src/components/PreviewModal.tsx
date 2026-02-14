@@ -1577,14 +1577,22 @@ export default function PreviewModal({
     }
   }, [usesSequenceController, sequenceState.isLooping, setSequenceLooping]);
 
+  const getUiPlayheadTime = useCallback(() => {
+    if (isSingleModeVideo) {
+      return singleModeCurrentTime;
+    }
+    return sequenceSelectors.getAbsoluteTime();
+  }, [isSingleModeVideo, singleModeCurrentTime, sequenceSelectors]);
+
   // IN/OUT point handlers
   const handleSetInPoint = useCallback(() => {
     if (items.length === 0) return;
+    const currentTime = getUiPlayheadTime();
     if (isSingleModeVideo) {
       if (singleModeInPoint !== null) {
         setSingleModeInPoint(null);
       } else {
-        setSingleModeInPoint(singleModeCurrentTime);
+        setSingleModeInPoint(currentTime);
       }
       return;
     }
@@ -1592,26 +1600,25 @@ export default function PreviewModal({
       setSequenceRange(null, outPoint ?? null);
       return;
     }
-    const elapsedDuration = sequenceSelectors.getAbsoluteTime();
-    setSequenceRange(elapsedDuration, outPoint ?? null);
+    setSequenceRange(currentTime, outPoint ?? null);
   }, [
     items.length,
+    getUiPlayheadTime,
     isSingleModeVideo,
-    singleModeCurrentTime,
     singleModeInPoint,
     inPoint,
     outPoint,
-    sequenceSelectors,
     setSequenceRange,
   ]);
 
   const handleSetOutPoint = useCallback(() => {
     if (items.length === 0) return;
+    const currentTime = getUiPlayheadTime();
     if (isSingleModeVideo) {
       if (singleModeOutPoint !== null) {
         setSingleModeOutPoint(null);
       } else {
-        setSingleModeOutPoint(singleModeCurrentTime);
+        setSingleModeOutPoint(currentTime);
       }
       return;
     }
@@ -1619,18 +1626,57 @@ export default function PreviewModal({
       setSequenceRange(inPoint ?? null, null);
       return;
     }
-    const elapsedDuration = sequenceSelectors.getAbsoluteTime();
-    setSequenceRange(inPoint ?? null, elapsedDuration);
+    setSequenceRange(inPoint ?? null, currentTime);
   }, [
     items.length,
+    getUiPlayheadTime,
     isSingleModeVideo,
-    singleModeCurrentTime,
     singleModeOutPoint,
     inPoint,
     outPoint,
-    sequenceSelectors,
     setSequenceRange,
   ]);
+
+  const handleShortcutPlayPause = useCallback(() => {
+    if (isSingleModeVideo) {
+      toggleSingleModePlay();
+      return;
+    }
+    handlePlayPause();
+  }, [isSingleModeVideo, toggleSingleModePlay, handlePlayPause]);
+
+  const handleShortcutStepFrameOrMarker = useCallback((direction: -1 | 1) => {
+    if (focusedMarker) {
+      stepFocusedMarker(direction);
+      return;
+    }
+    if (isSingleModeVideo) {
+      stepFrame(direction);
+      return;
+    }
+    // In Sequence Mode, frame step only works during video clip playback
+    const currentItem = items[currentIndex];
+    const currentAsset = currentItem ? resolveCutAsset(currentItem.cut) : undefined;
+    if (currentAsset?.type === 'video') {
+      stepFrame(direction);
+    }
+  }, [focusedMarker, isSingleModeVideo, stepFocusedMarker, stepFrame, items, currentIndex, resolveCutAsset]);
+
+  const handleShortcutSetInPoint = useCallback(() => {
+    if (isSingleModeVideo) {
+      handleSingleModeSetInPoint();
+      return;
+    }
+    handleSetInPoint();
+  }, [isSingleModeVideo, handleSingleModeSetInPoint, handleSetInPoint]);
+
+  const handleShortcutSetOutPoint = useCallback(() => {
+    if (isSingleModeVideo) {
+      handleSingleModeSetOutPoint();
+      return;
+    }
+    handleSetOutPoint();
+  }, [isSingleModeVideo, handleSingleModeSetOutPoint, handleSetOutPoint]);
 
   const pauseBeforeExport = useCallback(() => {
     if (!usesSequenceController) {
@@ -1653,11 +1699,7 @@ export default function PreviewModal({
           break;
         case ' ':
           e.preventDefault();
-          if (isSingleModeVideo) {
-            toggleSingleModePlay();
-          } else {
-            handlePlayPause();
-          }
+          handleShortcutPlayPause();
           break;
         case 'ArrowLeft':
           e.preventDefault();
@@ -1669,35 +1711,11 @@ export default function PreviewModal({
           break;
         case ',':
           e.preventDefault();
-          // If marker is focused, step the marker; otherwise step the frame
-          if (focusedMarker) {
-            stepFocusedMarker(-1);
-          } else if (isSingleModeVideo) {
-            stepFrame(-1);
-          } else {
-            // In Sequence Mode, frame step only works during video clip playback
-            const currentItem = items[currentIndex];
-            const currentAsset = currentItem ? resolveCutAsset(currentItem.cut) : undefined;
-            if (currentAsset?.type === 'video') {
-              stepFrame(-1);
-            }
-          }
+          handleShortcutStepFrameOrMarker(-1);
           break;
         case '.':
           e.preventDefault();
-          // If marker is focused, step the marker; otherwise step the frame
-          if (focusedMarker) {
-            stepFocusedMarker(1);
-          } else if (isSingleModeVideo) {
-            stepFrame(1);
-          } else {
-            // In Sequence Mode, frame step only works during video clip playback
-            const currentItem = items[currentIndex];
-            const currentAsset = currentItem ? resolveCutAsset(currentItem.cut) : undefined;
-            if (currentAsset?.type === 'video') {
-              stepFrame(1);
-            }
-          }
+          handleShortcutStepFrameOrMarker(1);
           break;
         case '[':
           e.preventDefault();
@@ -1714,18 +1732,10 @@ export default function PreviewModal({
           toggleLooping();
           break;
         case 'i':
-          if (isSingleModeVideo) {
-            handleSingleModeSetInPoint();
-          } else {
-            handleSetInPoint();
-          }
+          handleShortcutSetInPoint();
           break;
         case 'o':
-          if (isSingleModeVideo) {
-            handleSingleModeSetOutPoint();
-          } else {
-            handleSetOutPoint();
-          }
+          handleShortcutSetOutPoint();
           break;
         case 'm':
           toggleGlobalMute();
@@ -1737,21 +1747,12 @@ export default function PreviewModal({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
     onClose,
-    isSingleModeVideo,
-    toggleSingleModePlay,
-    handlePlayPause,
+    handleShortcutPlayPause,
     skip,
-    stepFrame,
-    stepFocusedMarker,
-    focusedMarker,
-    items,
-    currentIndex,
-    resolveCutAsset,
+    handleShortcutStepFrameOrMarker,
     cycleSpeed,
-    handleSingleModeSetInPoint,
-    handleSingleModeSetOutPoint,
-    handleSetInPoint,
-    handleSetOutPoint,
+    handleShortcutSetInPoint,
+    handleShortcutSetOutPoint,
     toggleGlobalMute,
   ]);
 
