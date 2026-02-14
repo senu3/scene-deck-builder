@@ -2,7 +2,7 @@
 
 **目的**: `Storyline` と `useStorylineDragController` の仕様と運用ルールを整理する。
 **適用範囲**: `src/components/Storyline.tsx`, `src/hooks/useStorylineDragController.ts`, `src/components/CutCard.tsx`, `src/components/SceneDurationBar.tsx`。
-**関連ファイル**: `docs/references/DOMAIN.md`, `docs/references/MAPPING.md`, `docs/ui/scene-duration-bar.md`, `docs/guides/preview.md`。
+**関連ファイル**: `docs/references/DOMAIN.md`, `docs/references/MAPPING.md`, `docs/ui/scene-duration-bar.md`, `docs/guides/preview.md`, `docs/guides/autoclip.md`。
 **更新頻度**: 中。
 
 ## Naming Boundaries (Must Follow)
@@ -25,6 +25,10 @@
 - Storyline cut double-click uses media type routing.
 - Video cuts open Single Mode preview via `openVideoPreview(cut.id)`.
 - Non-video cuts (image/lipsync) open Sequence Mode preview via `openSequencePreview(cut.id)`.
+
+## AutoClip Entry
+- Video cut context menu provides `AutoClip (Simple)` actions.
+- AutoClip mode profiles and generation rules are defined in `docs/guides/autoclip.md`.
 
 ## External D&D Rules
 - StoryTimeline/Storyline drop targets accept image/video assets.
