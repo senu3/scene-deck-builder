@@ -62,7 +62,6 @@ export const selectGetSceneAudioBinding = (s: AppState) => s.getSceneAudioBindin
 export const selectGetAttachedAudioForScene = (s: AppState) => s.getAttachedAudioForScene;
 export const selectSetCutUseEmbeddedAudio = (s: AppState) => s.setCutUseEmbeddedAudio;
 export const selectRelinkCutAsset = (s: AppState) => s.relinkCutAsset;
-export const selectSetAutoClipMetadata = (s: AppState) => s.setAutoClipMetadata;
 
 export const selectSetGlobalVolume = (s: AppState) => s.setGlobalVolume;
 export const selectToggleGlobalMute = (s: AppState) => s.toggleGlobalMute;

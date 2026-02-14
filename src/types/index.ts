@@ -237,7 +237,6 @@ export interface AssetMetadata {
   attachedImageIds?: string[];  // Multiple image attachments
   audioAnalysis?: AudioAnalysis; // Precomputed audio analysis data
   lipSync?: LipSyncSettings;     // Lip sync settings (assetId-based)
-  autoClip?: AutoClipMetadata;   // AutoClip cache data
 }
 
 export interface AudioAnalysis {
@@ -247,27 +246,6 @@ export interface AudioAnalysis {
   sampleRate: number;
   channels: number;
   hash?: string;
-}
-
-export interface AutoClipHistogramMetadata {
-  sampleFps: number;
-  scores: number[];
-  candidates: number[];
-  paramsHash: string;
-}
-
-export interface AutoClipRmsMetadata {
-  fps: number;
-  smoothingMs: number;
-  series: number[];
-  peaks: number[];
-  candidates: number[];
-  paramsHash: string;
-}
-
-export interface AutoClipMetadata {
-  hist?: AutoClipHistogramMetadata;
-  rms?: AutoClipRmsMetadata;
 }
 
 export interface LipSyncSettings {

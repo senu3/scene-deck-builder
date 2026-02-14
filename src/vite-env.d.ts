@@ -148,24 +148,6 @@ interface ExtractAudioResult {
   error?: string;
 }
 
-interface AnalyzeVideoHistogramOptions {
-  sourcePath: string;
-  startSec?: number;
-  endSec?: number;
-  sampleFps?: number;
-  width?: number;
-  height?: number;
-}
-
-interface AnalyzeVideoHistogramResult {
-  success: boolean;
-  sampleFps?: number;
-  width?: number;
-  height?: number;
-  scores?: number[];
-  error?: string;
-}
-
 interface ExtractFrameOptions {
   sourcePath: string;
   outputPath: string;
@@ -374,7 +356,6 @@ interface ElectronAPI {
 
   // Video frame extraction
   extractVideoFrame: (options: ExtractFrameOptions) => Promise<ExtractFrameResult>;
-  analyzeVideoHistogram: (options: AnalyzeVideoHistogramOptions) => Promise<AnalyzeVideoHistogramResult>;
   cropImageToAspect: (options: CropImageOptions) => Promise<CropImageResult>;
   precomposeLipSyncFrames: (options: PrecomposeLipSyncFramesOptions) => Promise<PrecomposeLipSyncFramesResult>;
 

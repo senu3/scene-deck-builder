@@ -4,7 +4,6 @@ import {
   loadMetadataStore,
   saveMetadataStore,
   updateAudioAnalysis,
-  updateAutoClipMetadata,
   updateLipSyncSettings,
   removeLipSyncSettings,
   syncSceneMetadata,
@@ -198,15 +197,6 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
         return { metadataStore: updated };
       });
 
-      void get().saveMetadata();
-    },
-
-    setAutoClipMetadata: (assetId, autoClip) => {
-      set((state) => {
-        const store = state.metadataStore || { version: 1, metadata: {}, sceneMetadata: {} };
-        const updated = updateAutoClipMetadata(store, assetId, autoClip);
-        return { metadataStore: updated };
-      });
       void get().saveMetadata();
     },
 
