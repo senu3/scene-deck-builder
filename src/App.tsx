@@ -40,10 +40,10 @@ import {
   RemoveCutCommand,
   RemoveCutFromGroupCommand,
   ReorderCutsWithGroupSyncCommand,
-  DuplicateCutWithClipCommand,
   UpdateClipPointsCommand,
   UpdateGroupCutOrderCommand,
 } from './store/commands';
+import { DuplicateCutWithClipCommand } from './store/clipCommands';
 import AssetDrawer from './components/AssetDrawer';
 import Sidebar from './components/Sidebar';
 import Storyline from './components/Storyline';
