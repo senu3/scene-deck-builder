@@ -22,7 +22,7 @@ describe('buildSequenceItemsForExport', () => {
     vi.restoreAllMocks();
   });
 
-  it('builds export sequence from timeline order (scene.order -> cut.order)', () => {
+  it('builds export sequence from timeline order (sceneOrder -> cut.order)', () => {
     const scenes: Scene[] = [
       {
         id: 'scene-2',
@@ -43,7 +43,7 @@ describe('buildSequenceItemsForExport', () => {
       },
     ];
 
-    const items = buildSequenceItemsForExport(scenes);
+    const items = buildSequenceItemsForExport(scenes, ['scene-1', 'scene-2']);
     expect(items.map((item) => item.duration)).toEqual([3.0, 1.5, 2.0]);
     expect(items.every((item) => item.framingMode === 'cover' && item.framingAnchor === 'center')).toBe(true);
   });
@@ -91,7 +91,7 @@ describe('buildSequenceItemsForExport', () => {
       ],
     }];
 
-    const items = buildSequenceItemsForExport(scenes);
+    const items = buildSequenceItemsForExport(scenes, ['scene-1', 'scene-2']);
     expect(items).toHaveLength(1);
     expect(items[0].subtitle?.text).toBe('line1\nline2');
     expect(items[0].subtitle?.range).toEqual({ start: 0, end: 2 });
@@ -115,7 +115,7 @@ describe('buildSequenceItemsForExport', () => {
       ],
     }];
 
-    const items = buildSequenceItemsForExport(scenes);
+    const items = buildSequenceItemsForExport(scenes, ['scene-1', 'scene-2']);
     expect(items).toHaveLength(1);
     expect(items[0].subtitle).toBeUndefined();
   });
@@ -333,7 +333,7 @@ describe('buildSequenceItemsForExport', () => {
       },
     ];
 
-    const items = buildSequenceItemsForExport(scenes, {
+    const items = buildSequenceItemsForExport(scenes, ['scene-a', 'scene-b'], {
       framingDefaults: { mode: 'cover', anchor: 'center' },
       metadataByAssetId: {
         [lipOwner.id]: {

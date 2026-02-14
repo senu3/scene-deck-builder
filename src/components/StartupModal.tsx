@@ -107,6 +107,7 @@ interface PendingProject {
   name: string;
   vaultPath: string;
   scenes: Scene[];
+  sceneOrder?: string[];
   targetTotalDurationSec?: number;
   sourcePanelState?: SourcePanelState;
   projectPath: string;
@@ -188,6 +189,7 @@ export default function StartupModal() {
           { id: crypto.randomUUID(), name: 'Scene 2', cuts: [] },
           { id: crypto.randomUUID(), name: 'Scene 3', cuts: [] },
         ];
+        const defaultSceneOrder = defaultScenes.map((scene) => scene.id);
 
         // Save initial empty project file immediately
         const projectData = JSON.stringify({
@@ -195,6 +197,7 @@ export default function StartupModal() {
           name: projectName,
           vaultPath: vault.path,
           scenes: defaultScenes,
+          sceneOrder: defaultSceneOrder,
           targetTotalDurationSec: undefined,
           sourcePanel: undefined,
           savedAt: new Date().toISOString(),
@@ -216,6 +219,7 @@ export default function StartupModal() {
         initializeProject({
           name: projectName,
           vaultPath: vault.path,
+          sceneOrder: defaultSceneOrder,
           scenes: defaultScenes as any,
         });
         setProjectPath(projectFilePath);
@@ -265,6 +269,7 @@ export default function StartupModal() {
         name?: string;
         vaultPath?: string;
         scenes?: Scene[];
+        sceneOrder?: string[];
         version?: number;
         targetTotalDurationSec?: number;
         sourcePanel?: SourcePanelState;
@@ -286,11 +291,12 @@ export default function StartupModal() {
       // If there are missing assets, show recovery dialog
       if (foundMissingAssets.length > 0) {
         setMissingAssets(foundMissingAssets);
-        setPendingProject({
-          name: projectData.name || 'Loaded Project',
-          vaultPath: loadedVaultPath,
-          scenes,
-          targetTotalDurationSec: projectData.targetTotalDurationSec,
+          setPendingProject({
+            name: projectData.name || 'Loaded Project',
+            vaultPath: loadedVaultPath,
+            scenes,
+            sceneOrder: projectData.sceneOrder,
+            targetTotalDurationSec: projectData.targetTotalDurationSec,
           sourcePanelState: projectData.sourcePanel,
           projectPath: path,
         });
@@ -303,6 +309,7 @@ export default function StartupModal() {
         name: projectData.name || 'Loaded Project',
         vaultPath: loadedVaultPath,
         scenes,
+        sceneOrder: projectData.sceneOrder,
         targetTotalDurationSec: projectData.targetTotalDurationSec,
         sourcePanelState: projectData.sourcePanel,
         projectPath: path,
@@ -427,6 +434,7 @@ export default function StartupModal() {
       name: project.name,
       vaultPath: project.vaultPath,
       targetTotalDurationSec: project.targetTotalDurationSec,
+      sceneOrder: project.sceneOrder,
       scenes: finalScenes as ReturnType<typeof useStore.getState>['scenes'],
     });
     setProjectPath(project.projectPath);
@@ -489,6 +497,7 @@ export default function StartupModal() {
           name?: string;
           vaultPath?: string;
           scenes?: Scene[];
+          sceneOrder?: string[];
           version?: number;
           targetTotalDurationSec?: number;
           sourcePanel?: SourcePanelState;
@@ -514,6 +523,7 @@ export default function StartupModal() {
             name: projectData.name || project.name,
             vaultPath: loadedVaultPath,
             scenes,
+            sceneOrder: projectData.sceneOrder,
             targetTotalDurationSec: projectData.targetTotalDurationSec,
             sourcePanelState: projectData.sourcePanel,
             projectPath: project.path,
@@ -527,6 +537,7 @@ export default function StartupModal() {
           name: projectData.name || project.name,
           vaultPath: loadedVaultPath,
           scenes,
+          sceneOrder: projectData.sceneOrder,
           targetTotalDurationSec: projectData.targetTotalDurationSec,
           sourcePanelState: projectData.sourcePanel,
           projectPath: project.path,

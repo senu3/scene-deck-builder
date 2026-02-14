@@ -479,8 +479,8 @@ export class RemoveSceneCommand implements Command {
 
   async execute(): Promise<void> {
     const store = useStore.getState();
-    this.removedSceneIndex = store.scenes.findIndex((s) => s.id === this.sceneId);
-    this.removedScene = store.scenes[this.removedSceneIndex];
+    this.removedSceneIndex = store.sceneOrder.findIndex((id) => id === this.sceneId);
+    this.removedScene = store.scenes.find((s) => s.id === this.sceneId);
 
     store.removeScene(this.sceneId);
   }
@@ -493,19 +493,21 @@ export class RemoveSceneCommand implements Command {
 
     const store = useStore.getState();
     const restoreIndex = Math.min(
-      Math.max(this.removedSceneIndex ?? store.scenes.length, 0),
-      store.scenes.length
+      Math.max(this.removedSceneIndex ?? store.sceneOrder.length, 0),
+      store.sceneOrder.length
     );
 
     useStore.setState((state) => {
       const scenes = [...state.scenes];
-      scenes.splice(restoreIndex, 0, this.removedScene as Scene);
-      const reindexedScenes = scenes.map((scene, idx) => ({ ...scene, order: idx }));
+      scenes.push(this.removedScene as Scene);
+      const sceneOrder = [...state.sceneOrder];
+      sceneOrder.splice(restoreIndex, 0, (this.removedScene as Scene).id);
       const currentStore = state.metadataStore || { version: 1, metadata: {}, sceneMetadata: {} };
-      const metadataStore = syncSceneMetadata(currentStore, reindexedScenes);
+      const metadataStore = syncSceneMetadata(currentStore, scenes);
 
       return {
-        scenes: reindexedScenes,
+        scenes,
+        sceneOrder,
         metadataStore,
       };
     });

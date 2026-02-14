@@ -3,6 +3,7 @@ import { X, Play, Pause, SkipBack, SkipForward, Download, Loader2, Repeat, Maxim
 import { useStore } from '../store/useStore';
 import {
   selectScenes,
+  selectSceneOrder,
   selectPreviewMode,
   selectSelectedSceneId,
   selectGetAsset,
@@ -30,6 +31,7 @@ import { buildPreviewViewportFramingStyle } from '../utils/previewFraming';
 import { resolveSubtitleVisibility, normalizeSubtitleRange } from '../utils/subtitleUtils';
 import { getSubtitleStyleSettings } from '../utils/subtitleStyleSettings';
 import { getSubtitleStyleForExport } from '../features/export/subtitleStyle';
+import { getScenesInOrder } from '../utils/sceneOrder';
 import {
   PlaybackRangeMarkers,
   VolumeControl,
@@ -127,6 +129,8 @@ export default function PreviewModal({
   onFrameCapture,
 }: PreviewModalProps) {
   const scenes = useStore(selectScenes);
+  const sceneOrder = useStore(selectSceneOrder);
+  const orderedScenes = useMemo(() => getScenesInOrder(scenes, sceneOrder), [scenes, sceneOrder]);
   const previewMode = useStore(selectPreviewMode);
   const selectedSceneId = useStore(selectSelectedSceneId);
   const getAsset = useStore(selectGetAsset);
@@ -145,15 +149,15 @@ export default function PreviewModal({
 
   const focusCutData = useMemo(() => {
     if (!focusCutId) return null;
-    for (let sIdx = 0; sIdx < scenes.length; sIdx++) {
-      const scene = scenes[sIdx];
+    for (let sIdx = 0; sIdx < orderedScenes.length; sIdx++) {
+      const scene = orderedScenes[sIdx];
       const cutIndex = scene.cuts.findIndex(c => c.id === focusCutId);
       if (cutIndex >= 0) {
         return { scene, sceneIndex: sIdx, cut: scene.cuts[cutIndex], cutIndex };
       }
     }
     return null;
-  }, [focusCutId, scenes]);
+  }, [focusCutId, orderedScenes]);
   const hasCutContext = !!focusCutData?.cut;
   const isAssetOnlyPreview = isSingleMode && !hasCutContext;
   const missingFocusedCut = !isSingleMode && !!focusCutId && !focusCutData;
@@ -1069,8 +1073,8 @@ export default function PreviewModal({
       let absoluteCursor = 0;
 
       const scenesToPreview = previewMode === 'scene' && selectedSceneId
-        ? scenes.filter(s => s.id === selectedSceneId)
-        : scenes;
+        ? orderedScenes.filter(s => s.id === selectedSceneId)
+        : orderedScenes;
 
       for (let sIdx = 0; sIdx < scenesToPreview.length; sIdx++) {
         const scene = scenesToPreview[sIdx];
@@ -1149,7 +1153,7 @@ export default function PreviewModal({
     isSingleModeImage,
     asset,
     singleModeImageData,
-    scenes,
+    orderedScenes,
     previewMode,
     selectedSceneId,
     getAsset,

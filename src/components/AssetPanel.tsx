@@ -21,6 +21,7 @@ import { useStore } from '../store/useStore';
 import {
   selectVaultPath,
   selectScenes,
+  selectSceneOrder,
   selectMetadataStore,
   selectSelectedSceneId,
   selectCreateCutFromImport,
@@ -34,6 +35,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getCachedThumbnail, getThumbnail, removeThumbnailCache } from '../utils/thumbnailCache';
 import { getMediaType as getAnyMediaType } from '../utils/mediaType';
 import { collectAssetRefs, getBlockingRefsForAssetIds, type AssetRefMap } from '../utils/assetRefs';
+import { getFirstSceneId } from '../utils/sceneOrder';
 import { useDialog, useToast } from '../ui';
 import {
   AssetContextMenu,
@@ -191,6 +193,7 @@ export default function AssetPanel({
 
   const vaultPath = useStore(selectVaultPath);
   const scenes = useStore(selectScenes);
+  const sceneOrder = useStore(selectSceneOrder);
   const metadataStore = useStore(selectMetadataStore);
   const selectedSceneId = useStore(selectSelectedSceneId);
   const createCutFromImport = useStore(selectCreateCutFromImport);
@@ -852,7 +855,7 @@ export default function AssetPanel({
     }
 
     // Drawer mode: add to timeline
-    const targetSceneId = selectedSceneId || scenes[0]?.id;
+    const targetSceneId = selectedSceneId || getFirstSceneId(scenes, sceneOrder);
     if (!targetSceneId) return;
 
     const assetId = uuidv4();

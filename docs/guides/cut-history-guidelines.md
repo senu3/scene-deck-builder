@@ -25,6 +25,7 @@
 ### 1. Timeline 構造変更は Command 経由
 - 対象: cut/scene/group の追加・削除・移動・順序変更・グループ除外/並び更新。
 - 直接 `useStore` 更新を行う場合は、Undo/Redo 非対象である理由をコードコメントで明示する。
+- Scene 並び順は `sceneOrder: sceneId[]` を正とし、Command/slice では `scene.order` を更新しない。
 
 Command 必須操作（2026-02-12 時点）:
 - Cut 貼り付け: `PasteCutsCommand`

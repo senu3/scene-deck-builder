@@ -232,9 +232,12 @@ export function buildSequenceItemsForCuts(
 
 export function buildSequenceItemsForExport(
   scenes: Scene[],
-  options: BuildExportSequenceOptions = {}
+  sceneOrderOrOptions?: string[] | BuildExportSequenceOptions,
+  optionsArg?: BuildExportSequenceOptions
 ): ExportSequenceItem[] {
-  const orderedScenes = getScenesAndCutsInTimelineOrder(scenes);
+  const sceneOrder = Array.isArray(sceneOrderOrOptions) ? sceneOrderOrOptions : undefined;
+  const options = (Array.isArray(sceneOrderOrOptions) ? optionsArg : sceneOrderOrOptions) || {};
+  const orderedScenes = getScenesAndCutsInTimelineOrder(scenes, sceneOrder);
   const sequenceItems: ExportSequenceItem[] = [];
 
   for (const scene of orderedScenes) {

@@ -11,6 +11,7 @@ import {
   selectSelectCutRange,
   selectGetAsset,
   selectScenes,
+  selectSceneOrder,
   selectGetSelectedCuts,
   selectCopySelectedCuts,
   selectCanPaste,
@@ -21,6 +22,7 @@ import {
   selectGetCutGroup,
   selectCreateCutFromImport,
 } from '../store/selectors';
+import { getScenesInOrder } from '../utils/sceneOrder';
 import { useHistoryStore } from '../store/historyStore';
 import type { Asset, CutAudioBinding } from '../types';
 import './CutCard.css';
@@ -80,6 +82,8 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
   const selectCutRange = useStore(selectSelectCutRange);
   const getAsset = useStore(selectGetAsset);
   const scenes = useStore(selectScenes);
+  const sceneOrder = useStore(selectSceneOrder);
+  const orderedScenes = getScenesInOrder(scenes, sceneOrder);
   const getSelectedCuts = useStore(selectGetSelectedCuts);
   const copySelectedCuts = useStore(selectCopySelectedCuts);
   const canPaste = useStore(selectCanPaste);
@@ -557,7 +561,7 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
         position={contextMenu}
         isMultiSelect={isMultiSelected}
         selectedCount={selectedCutIds.size}
-        scenes={scenes}
+        scenes={orderedScenes}
         currentSceneId={sceneId}
         canPaste={canPaste()}
         isClip={!!cut.isClip}

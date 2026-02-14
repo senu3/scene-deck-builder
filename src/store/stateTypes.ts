@@ -59,6 +59,7 @@ export interface AppState extends ProjectSliceContract, CutTimelineSliceContract
   sourceViewMode: SourceViewMode;
 
   scenes: Scene[];
+  sceneOrder: string[];
   cutRuntimeById: Record<string, CutRuntimeState>;
   selectedSceneId: string | null;
   selectedCutId: string | null;

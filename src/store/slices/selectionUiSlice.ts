@@ -1,5 +1,6 @@
 import type { SelectionUiSliceContract } from '../contracts';
 import type { SliceGet, SliceSet } from './sliceTypes';
+import { getScenesInOrder } from '../../utils/sceneOrder';
 
 export function createSelectionUiSlice(set: SliceSet, get: SliceGet): SelectionUiSliceContract {
   return {
@@ -92,7 +93,8 @@ export function createSelectionUiSlice(set: SliceSet, get: SliceGet): SelectionU
         }
 
         const allCuts: Array<{ cutId: string; sceneId: string }> = [];
-        for (const scene of state.scenes) {
+        const orderedScenes = getScenesInOrder(state.scenes, state.sceneOrder);
+        for (const scene of orderedScenes) {
           for (const cut of scene.cuts) {
             allCuts.push({ cutId: cut.id, sceneId: scene.id });
           }

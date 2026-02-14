@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { Scene, Cut } from '../../types';
 import { clearThumbnailCache } from '../../utils/thumbnailCache';
+import { normalizeSceneOrder } from '../../utils/sceneOrder';
 import type { SourceFolder } from '../stateTypes';
 import type { ProjectSliceContract } from '../contracts';
 import type { SliceGet, SliceSet } from './sliceTypes';
@@ -38,10 +39,12 @@ export function createProjectSlice(set: SliceSet, get: SliceGet): ProjectSliceCo
     initializeProject: (project) => {
       clearThumbnailCache();
       const defaultScenes: Scene[] = [
-        { id: uuidv4(), name: 'Scene 1', cuts: [], order: 0, notes: [] },
-        { id: uuidv4(), name: 'Scene 2', cuts: [], order: 1, notes: [] },
-        { id: uuidv4(), name: 'Scene 3', cuts: [], order: 2, notes: [] },
+        { id: uuidv4(), name: 'Scene 1', cuts: [], notes: [] },
+        { id: uuidv4(), name: 'Scene 2', cuts: [], notes: [] },
+        { id: uuidv4(), name: 'Scene 3', cuts: [], notes: [] },
       ];
+      const nextScenes = normalizeScenesUseEmbeddedAudio(project.scenes || defaultScenes);
+      const nextSceneOrder = normalizeSceneOrder(project.sceneOrder, nextScenes);
 
       set({
         projectLoaded: true,
@@ -53,7 +56,8 @@ export function createProjectSlice(set: SliceSet, get: SliceGet): ProjectSliceCo
           Number.isFinite(project.targetTotalDurationSec) && (project.targetTotalDurationSec as number) > 0
             ? Math.floor(project.targetTotalDurationSec as number)
             : undefined,
-        scenes: normalizeScenesUseEmbeddedAudio(project.scenes || defaultScenes),
+        scenes: nextScenes,
+        sceneOrder: nextSceneOrder,
         cutRuntimeById: {},
         selectedSceneId: null,
         selectedCutId: null,
@@ -76,6 +80,7 @@ export function createProjectSlice(set: SliceSet, get: SliceGet): ProjectSliceCo
         targetTotalDurationSec: undefined,
         metadataStore: null,
         scenes: [],
+        sceneOrder: [],
         selectedSceneId: null,
         selectedCutId: null,
         selectedCutIds: new Set(),
@@ -91,7 +96,14 @@ export function createProjectSlice(set: SliceSet, get: SliceGet): ProjectSliceCo
       });
     },
 
-    loadProject: (scenes) => set({ scenes: normalizeScenesUseEmbeddedAudio(scenes), cutRuntimeById: {} }),
+    loadProject: (scenes, sceneOrder) => {
+      const nextScenes = normalizeScenesUseEmbeddedAudio(scenes);
+      set({
+        scenes: nextScenes,
+        sceneOrder: normalizeSceneOrder(sceneOrder, nextScenes),
+        cutRuntimeById: {},
+      });
+    },
 
     setRootFolder: (folder) =>
       set((state) => {

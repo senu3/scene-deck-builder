@@ -1,22 +1,15 @@
 import type { Cut, Scene } from '../types';
+import { getScenesInOrder } from './sceneOrder';
 
 function safeOrder(value: number | undefined, fallback: number): number {
   return Number.isFinite(value) ? (value as number) : fallback;
 }
 
-export function getScenesAndCutsInTimelineOrder(scenes: Scene[]): Scene[] {
-  const orderedScenes = [...scenes]
-    .map((scene, sceneIndex) => ({ scene, sceneIndex }))
-    .sort((a, b) => {
-      const sceneOrderA = safeOrder(a.scene.order, a.sceneIndex);
-      const sceneOrderB = safeOrder(b.scene.order, b.sceneIndex);
-      if (sceneOrderA !== sceneOrderB) return sceneOrderA - sceneOrderB;
-      return a.sceneIndex - b.sceneIndex;
-    })
-    .map(({ scene }) => ({
-      ...scene,
-      cuts: getCutsInTimelineOrder(scene.cuts),
-    }));
+export function getScenesAndCutsInTimelineOrder(scenes: Scene[], sceneOrder?: string[]): Scene[] {
+  const orderedScenes = getScenesInOrder(scenes, sceneOrder).map((scene) => ({
+    ...scene,
+    cuts: getCutsInTimelineOrder(scene.cuts),
+  }));
 
   return orderedScenes;
 }
@@ -33,11 +26,11 @@ export function getCutsInTimelineOrder(cuts: Cut[]): Cut[] {
     .map(({ cut }) => cut);
 }
 
-export function getCutIdsInTimelineOrder(scenes: Scene[], cutIds: string[]): string[] {
+export function getCutIdsInTimelineOrder(scenes: Scene[], cutIds: string[], sceneOrder?: string[]): string[] {
   const requestedCutIds = new Set(cutIds);
   const orderedIds: string[] = [];
 
-  const orderedScenes = getScenesAndCutsInTimelineOrder(scenes);
+  const orderedScenes = getScenesAndCutsInTimelineOrder(scenes, sceneOrder);
   for (const scene of orderedScenes) {
     for (const cut of scene.cuts) {
       if (requestedCutIds.has(cut.id)) {

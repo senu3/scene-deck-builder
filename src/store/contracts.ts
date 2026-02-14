@@ -35,7 +35,7 @@ export interface ProjectSliceContract {
   setTargetTotalDurationSec: (seconds: number | undefined) => void;
   initializeProject: (project: Partial<Project>) => void;
   clearProject: () => void;
-  loadProject: (scenes: Scene[]) => void;
+  loadProject: (scenes: Scene[], sceneOrder?: string[]) => void;
 
   setRootFolder: (folder: { path: string; name: string; structure: FileItem[] } | null) => void;
   addSourceFolder: (folder: SourceFolderContract) => void;

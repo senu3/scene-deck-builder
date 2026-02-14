@@ -4,6 +4,7 @@ import { useStore } from '../store/useStore';
 import { useHistoryStore } from '../store/historyStore';
 import { Input } from '../ui';
 import { getDurationTargetSettings, resolveEffectiveTargetDurationSec } from '../utils/durationTarget';
+import { getScenesInOrder } from '../utils/sceneOrder';
 import MissingAssetRecoveryModal from './MissingAssetRecoveryModal';
 import { useHeaderProjectController } from '../hooks/useHeaderProjectController';
 import { formatTimeCode } from '../hooks/useStoryTimelinePosition';
@@ -19,7 +20,8 @@ interface HeaderProps {
 }
 
 export default function Header({ onOpenSettings, onPreview, onExport, isExporting }: HeaderProps) {
-  const { projectName, scenes, selectedSceneId, selectedCutId, selectScene, targetTotalDurationSec, setTargetTotalDurationSec } = useStore();
+  const { projectName, scenes, sceneOrder, selectedSceneId, selectedCutId, selectScene, targetTotalDurationSec, setTargetTotalDurationSec } = useStore();
+  const orderedScenes = getScenesInOrder(scenes, sceneOrder);
   const { undo, redo, canUndo, canRedo, getUndoPreview } = useHistoryStore();
   const {
     handleSaveProject,
@@ -43,7 +45,7 @@ export default function Header({ onOpenSettings, onPreview, onExport, isExportin
     let cutTime: number | null = null;
     let elapsed = 0;
 
-    for (const scene of scenes) {
+    for (const scene of orderedScenes) {
       for (const cut of scene.cuts) {
         const dt = isFinite(cut.displayTime) ? cut.displayTime : 0;
         if (selectedCutId && cut.id === selectedCutId && cutTime === null) {
@@ -60,7 +62,7 @@ export default function Header({ onOpenSettings, onPreview, onExport, isExportin
       totalCuts: cuts,
       selectedCutTime: selectedCutId ? cutTime : null,
     };
-  }, [scenes, selectedCutId]);
+  }, [orderedScenes, selectedCutId]);
 
   // Close menu on outside click
   useEffect(() => {
@@ -261,7 +263,7 @@ export default function Header({ onOpenSettings, onPreview, onExport, isExportin
 
         <div className="header-timeline">
           <SceneDurationBar
-            scenes={scenes}
+            scenes={orderedScenes}
             selectedSceneId={selectedSceneId}
             onSelectScene={selectScene}
             targetSec={effectiveTargetSec}

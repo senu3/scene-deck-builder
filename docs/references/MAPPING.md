@@ -9,8 +9,8 @@
 
 | 概念 | データモデル（TS型） | ストア/ユーティリティ | 主要UI/コンポーネント |
 | --- | --- | --- | --- |
-| プロジェクト | `Project`（vaultPath, scenes, targetTotalDurationSec, sourcePanel）。 | `initializeProject` / `loadProject` / `window.electronAPI.saveProject`。 | `StartupModal`、`Header` |
-| シーン | `Scene`（cuts/order/notes/groups）。 | `addScene/removeScene/renameScene`。 | `Storyline` |
+| プロジェクト | `Project`（vaultPath, scenes, sceneOrder, targetTotalDurationSec, sourcePanel）。 | `initializeProject` / `loadProject` / `window.electronAPI.saveProject`。 | `StartupModal`、`Header` |
+| シーン | `Scene`（cuts/notes/groups。順序は `sceneOrder` で管理）。 | `addScene/removeScene/renameScene/reorderScenes`。 | `Storyline` |
 | シーンノート | `SceneNote`。 | `addSceneNote/updateSceneNote/removeSceneNote`。 | `DetailsPanel` |
 | カット | `Cut`（assetId/displayTime/in/out/useEmbeddedAudio/audioBindings）。 | `addCutToScene/updateCutDisplayTime/moveCutToScene/moveCutsToScene`。 | `CutCard`、`DetailsPanel`、`PreviewModal` |
 | カットグループ | `CutGroup`（cutIds/isCollapsed）。 | `createGroup/deleteGroup/toggleGroupCollapsed/renameGroup`。 | `CutGroupCard`、`Storyline` |

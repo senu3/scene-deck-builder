@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import type { Scene, Cut } from '../types';
 import type { AppState } from './stateTypes';
+import { getScenesInOrder } from '../utils/sceneOrder';
 import { createProjectSlice } from './slices/projectSlice';
 import { createCutTimelineSlice } from './slices/cutTimelineSlice';
 import { createSelectionUiSlice } from './slices/selectionUiSlice';
@@ -26,6 +27,7 @@ export const useStore = create<AppState>((set, get) => ({
   sourceViewMode: 'list',
 
   scenes: [],
+  sceneOrder: [],
   cutRuntimeById: {},
   selectedSceneId: null,
   selectedCutId: null,
@@ -177,6 +179,7 @@ export const useStore = create<AppState>((set, get) => ({
       name: state.projectName,
       vaultPath: state.vaultPath || '',
       scenes: state.scenes,
+      sceneOrder: state.sceneOrder,
       targetTotalDurationSec: state.targetTotalDurationSec,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -189,7 +192,7 @@ export const useStore = create<AppState>((set, get) => ({
     const state = get();
     const result: Array<{ scene: Scene; cut: Cut }> = [];
 
-    for (const scene of state.scenes) {
+    for (const scene of getScenesInOrder(state.scenes, state.sceneOrder)) {
       for (const cut of scene.cuts) {
         if (state.selectedCutIds.has(cut.id)) {
           result.push({ scene, cut });

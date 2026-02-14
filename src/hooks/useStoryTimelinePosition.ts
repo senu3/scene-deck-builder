@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useStore } from '../store/useStore';
+import { getScenesInOrder } from '../utils/sceneOrder';
 
 export interface StoryTimelinePosition {
   /** Current position in seconds (start of selected scene/cut) */
@@ -19,7 +20,7 @@ export interface StoryTimelinePosition {
  * Returns the position as the start time of the selected item in the overall timeline.
  */
 export function useStoryTimelinePosition(): StoryTimelinePosition {
-  const { scenes, selectedSceneId, selectedCutId } = useStore();
+  const { scenes, sceneOrder, selectedSceneId, selectedCutId } = useStore();
 
   return useMemo(() => {
     let totalDuration = 0;
@@ -28,7 +29,7 @@ export function useStoryTimelinePosition(): StoryTimelinePosition {
     let hasSelection = false;
 
     // Calculate total duration and find position of selected item
-    for (const scene of scenes) {
+    for (const scene of getScenesInOrder(scenes, sceneOrder)) {
       let sceneStartTime = totalDuration;
 
       for (let i = 0; i < scene.cuts.length; i++) {
@@ -59,7 +60,7 @@ export function useStoryTimelinePosition(): StoryTimelinePosition {
       sceneCount: scenes.length,
       cutCount,
     };
-  }, [scenes, selectedSceneId, selectedCutId]);
+  }, [scenes, sceneOrder, selectedSceneId, selectedCutId]);
 }
 
 /**

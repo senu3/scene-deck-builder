@@ -11,6 +11,7 @@ function baseState() {
     projectName: 'Test',
     vaultPath: 'C:/vault',
     scenes: [{ id: 's1', name: 'Scene 1', cuts: [], order: 0, notes: [] }],
+    sceneOrder: ['s1'],
     sourcePanelState: { folders: [], expandedPaths: [], viewMode: 'list' },
     uiOnly: { selectedSceneId: 's1', sidebarOpen: true },
   } as any;

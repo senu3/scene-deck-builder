@@ -16,6 +16,7 @@ import {
   getOrderedAssetIdsFromScenes,
   buildAssetUsageRefs,
   ensureSceneIds,
+  ensureSceneOrder,
 } from '../utils/projectSave';
 
 // Resolve asset paths from relative to absolute
@@ -90,6 +91,7 @@ interface PendingProject {
   name: string;
   vaultPath: string;
   scenes: Scene[];
+  sceneOrder?: string[];
   targetTotalDurationSec?: number;
   sourcePanelState?: SourcePanelState;
   projectPath: string;
@@ -99,6 +101,7 @@ export function useHeaderProjectController() {
   const {
     projectLoaded,
     scenes,
+    sceneOrder,
     vaultPath,
     clearProject,
     projectName,
@@ -132,6 +135,7 @@ export function useHeaderProjectController() {
     }
 
     const { scenes: normalizedScenes, missingCount } = ensureSceneIds(scenes);
+    const { sceneOrder: normalizedSceneOrder, changed: sceneOrderChanged } = ensureSceneOrder(sceneOrder, normalizedScenes);
     if (missingCount > 0) {
       if (options?.allowPrompt !== false) {
         await dialogAlert({
@@ -141,7 +145,9 @@ export function useHeaderProjectController() {
           confirmLabel: 'OK',
         });
       }
-      loadProject(normalizedScenes);
+      loadProject(normalizedScenes, normalizedSceneOrder);
+    } else if (sceneOrderChanged) {
+      loadProject(normalizedScenes, normalizedSceneOrder);
     }
 
     // Prepare scenes with relative paths for portability
@@ -153,8 +159,8 @@ export function useHeaderProjectController() {
     // Reorder asset index by Storyline order (scene/cut order)
     if (vaultPath && window.electronAPI.loadAssetIndex && window.electronAPI.vaultGateway?.saveAssetIndex) {
       try {
-        const orderedIds = getOrderedAssetIdsFromScenes(normalizedScenes);
-        const usageRefs = buildAssetUsageRefs(normalizedScenes);
+        const orderedIds = getOrderedAssetIdsFromScenes(normalizedScenes, normalizedSceneOrder);
+        const usageRefs = buildAssetUsageRefs(normalizedScenes, normalizedSceneOrder);
         const index = await window.electronAPI.loadAssetIndex(vaultPath);
         const refs = collectAssetRefs(normalizedScenes, metadataStore);
         const existingAssetIds = new Set(index.assets.map((entry) => entry.id));
@@ -190,6 +196,7 @@ export function useHeaderProjectController() {
       name: projectName,
       vaultPath,
       scenes: scenesToSave,
+      sceneOrder: normalizedSceneOrder,
       targetTotalDurationSec,
       sourcePanel: sourcePanelState,
       savedAt: new Date().toISOString(),
@@ -219,7 +226,7 @@ export function useHeaderProjectController() {
         await window.electronAPI.saveRecentProjects([newRecent, ...filtered.slice(0, 9)]);
       }
     }
-  }, [dialogAlert, getSourcePanelState, loadProject, metadataStore, projectName, scenes, setProjectPath, targetTotalDurationSec, toast, vaultPath]);
+  }, [dialogAlert, getSourcePanelState, loadProject, metadataStore, projectName, sceneOrder, scenes, setProjectPath, targetTotalDurationSec, toast, vaultPath]);
 
   const handleSaveProject = useCallback(async () => {
     await saveProjectInternal();
@@ -344,6 +351,7 @@ export function useHeaderProjectController() {
       name: project.name,
       vaultPath: project.vaultPath,
       scenes: finalScenes,
+      sceneOrder: project.sceneOrder,
       targetTotalDurationSec: project.targetTotalDurationSec,
     });
     setProjectPath(project.projectPath);
@@ -398,6 +406,7 @@ export function useHeaderProjectController() {
         name?: string;
         vaultPath?: string;
         scenes?: Scene[];
+        sceneOrder?: string[];
         version?: number;
         targetTotalDurationSec?: number;
         sourcePanel?: SourcePanelState;
@@ -423,6 +432,7 @@ export function useHeaderProjectController() {
           name: projectData.name || 'Loaded Project',
           vaultPath: loadedVaultPath,
           scenes: loadedScenes,
+          sceneOrder: projectData.sceneOrder,
           targetTotalDurationSec: projectData.targetTotalDurationSec,
           sourcePanelState: projectData.sourcePanel,
           projectPath: path,
@@ -436,6 +446,7 @@ export function useHeaderProjectController() {
         name: projectData.name || 'Loaded Project',
         vaultPath: loadedVaultPath,
         scenes: loadedScenes,
+        sceneOrder: projectData.sceneOrder,
         targetTotalDurationSec: projectData.targetTotalDurationSec,
         sourcePanelState: projectData.sourcePanel,
         projectPath: path,

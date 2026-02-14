@@ -5,6 +5,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import {
   selectScenes,
+  selectSceneOrder,
   selectSelectedSceneId,
   selectSelectScene,
   selectVaultPath,
@@ -14,6 +15,7 @@ import {
   selectSelectGroup,
   selectToggleGroupCollapsed,
 } from '../store/selectors';
+import { getScenesInOrder } from '../utils/sceneOrder';
 import { useHistoryStore } from '../store/historyStore';
 import { AddSceneCommand, RemoveSceneCommand, RenameSceneCommand } from '../store/commands';
 import CutCard from './CutCard';
@@ -41,6 +43,8 @@ interface StorylineProps {
 
 export default function Storyline({ activeId, cropBaseResolution }: StorylineProps) {
   const scenes = useStore(selectScenes);
+  const sceneOrder = useStore(selectSceneOrder);
+  const orderedScenes = getScenesInOrder(scenes, sceneOrder);
   const selectedSceneId = useStore(selectSelectedSceneId);
   const selectScene = useStore(selectSelectScene);
   const vaultPath = useStore(selectVaultPath);
@@ -71,7 +75,7 @@ export default function Storyline({ activeId, cropBaseResolution }: StorylinePro
     handleStorylineDragLeave,
     handleInboundDrop,
   } = useStorylineDragController({
-    scenes,
+    scenes: orderedScenes,
     active,
     over,
     vaultPath,
@@ -101,7 +105,7 @@ export default function Storyline({ activeId, cropBaseResolution }: StorylinePro
       onDrop={handleInboundDrop}
     >
       <div className="storyline-content">
-        {scenes.map((scene, index) => (
+        {orderedScenes.map((scene, index) => (
           <SceneColumn
             key={scene.id}
             sceneId={scene.id}
@@ -120,7 +124,7 @@ export default function Storyline({ activeId, cropBaseResolution }: StorylinePro
         ))}
 
         <button className="add-scene-btn" onClick={() => {
-          const sceneName = `Scene ${scenes.length + 1}`;
+          const sceneName = `Scene ${orderedScenes.length + 1}`;
           executeCommand(new AddSceneCommand(sceneName)).catch((error) => {
             console.error('Failed to add scene:', error);
           });

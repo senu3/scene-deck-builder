@@ -3,6 +3,7 @@ import type { Scene, Cut } from '../../types';
 import { upsertSceneMetadata, removeSceneMetadata } from '../../utils/metadataStore';
 import { buildAssetForCut } from '../../utils/cutImport';
 import { getScenesAndCutsInTimelineOrder } from '../../utils/timelineOrder';
+import { normalizeSceneOrder } from '../../utils/sceneOrder';
 import type { ClipboardCut } from '../stateTypes';
 import type { CutTimelineSliceContract } from '../contracts';
 import type { SliceGet, SliceSet } from './sliceTypes';
@@ -12,19 +13,20 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
     addScene: (name?: string) => {
       const id = uuidv4();
       set((state) => {
-        const newOrder = state.scenes.length;
         const newScene: Scene = {
           id,
-          name: name || `Scene ${newOrder + 1}`,
+          name: name || `Scene ${state.sceneOrder.length + 1}`,
           cuts: [],
-          order: newOrder,
           notes: [],
         };
         const currentStore = state.metadataStore || { version: 1, metadata: {}, sceneMetadata: {} };
         const updatedStore = upsertSceneMetadata(currentStore, newScene);
+        const scenes = [...state.scenes, newScene];
+        const sceneOrder = normalizeSceneOrder([...state.sceneOrder, id], scenes);
 
         return {
-          scenes: [...state.scenes, newScene],
+          scenes,
+          sceneOrder,
           metadataStore: updatedStore,
         };
       });
@@ -46,9 +48,8 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
           delete nextCutRuntimeById[cut.id];
         }
         return {
-          scenes: state.scenes
-            .filter((s) => s.id !== sceneId)
-            .map((s, idx) => ({ ...s, order: idx })),
+          scenes: state.scenes.filter((s) => s.id !== sceneId),
+          sceneOrder: state.sceneOrder.filter((id) => id !== sceneId),
           cutRuntimeById: nextCutRuntimeById,
           selectedSceneId: state.selectedSceneId === sceneId ? null : state.selectedSceneId,
           selectionType: state.selectedSceneId === sceneId ? null : state.selectionType,
@@ -85,11 +86,12 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
 
     reorderScenes: (fromIndex, toIndex) =>
       set((state) => {
-        const newScenes = [...state.scenes];
-        const [removed] = newScenes.splice(fromIndex, 1);
-        newScenes.splice(toIndex, 0, removed);
+        const newSceneOrder = [...state.sceneOrder];
+        const [removed] = newSceneOrder.splice(fromIndex, 1);
+        if (!removed) return state;
+        newSceneOrder.splice(toIndex, 0, removed);
         return {
-          scenes: newScenes.map((s, idx) => ({ ...s, order: idx })),
+          sceneOrder: normalizeSceneOrder(newSceneOrder, state.scenes),
         };
       }),
 
@@ -523,7 +525,7 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
         const cutsToMove: Cut[] = [];
         const cutIdSet = new Set(cutIds);
 
-        const orderedScenes = getScenesAndCutsInTimelineOrder(state.scenes);
+        const orderedScenes = getScenesAndCutsInTimelineOrder(state.scenes, state.sceneOrder);
         for (const scene of orderedScenes) {
           const matchedCutIds = scene.cuts.filter((cut) => cutIdSet.has(cut.id)).map((cut) => cut.id);
           if (matchedCutIds.length > 0) {

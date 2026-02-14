@@ -6,6 +6,7 @@ import {
   selectScenes,
   selectVaultPath,
   selectSelectedSceneId,
+  selectSceneOrder,
   selectGetSelectedCutIds,
   selectGetSelectedCuts,
   selectCopySelectedCuts,
@@ -59,6 +60,7 @@ import { importFileToVault } from './utils/assetPath';
 import { getDragKind, queueExternalFilesToScene } from './utils/dragDrop';
 import { buildSequenceItemsForCuts } from './utils/exportSequence';
 import { getCutIdsInTimelineOrder, getScenesAndCutsInTimelineOrder } from './utils/timelineOrder';
+import { getFirstSceneId, getScenesInOrder } from './utils/sceneOrder';
 import { insertCutIdsIntoGroupOrder } from './utils/cutGroupOps';
 import { DEFAULT_EXPORT_RESOLUTION } from './constants/export';
 import { EXPORT_FRAMING_DEFAULTS } from './constants/framing';
@@ -85,6 +87,7 @@ function App() {
   const scenes = useStore(selectScenes);
   const vaultPath = useStore(selectVaultPath);
   const selectedSceneId = useStore(selectSelectedSceneId);
+  const sceneOrder = useStore(selectSceneOrder);
   const getSelectedCutIds = useStore(selectGetSelectedCutIds);
   const getSelectedCuts = useStore(selectGetSelectedCuts);
   const copySelectedCuts = useStore(selectCopySelectedCuts);
@@ -108,6 +111,7 @@ function App() {
   const selectionType = useStore(selectSelectionType);
   const detailsPanelOpen = useStore(selectDetailsPanelOpen);
   const closeDetailsPanel = useStore(selectCloseDetailsPanel);
+  const orderedScenes = getScenesInOrder(scenes, sceneOrder);
 
   const { executeCommand, undo, redo } = useHistoryStore();
   const { banner } = useBanner();
@@ -204,7 +208,7 @@ function App() {
         if (canPaste()) {
           e.preventDefault();
           // Paste to currently selected scene or first scene
-          const targetSceneId = selectedSceneId || scenes[0]?.id;
+          const targetSceneId = selectedSceneId || getFirstSceneId(scenes, sceneOrder);
           if (targetSceneId) {
             try {
               await executeCommand(new PasteCutsCommand(targetSceneId));
@@ -243,7 +247,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo, copySelectedCuts, canPaste, selectedSceneId, scenes, executeCommand, getSelectedCutIds, getSelectedCuts, clearCutSelection, toggleAssetDrawer, toggleSidebar]);
+  }, [undo, redo, copySelectedCuts, canPaste, selectedSceneId, scenes, sceneOrder, executeCommand, getSelectedCutIds, getSelectedCuts, clearCutSelection, toggleAssetDrawer, toggleSidebar]);
 
   // App menu shortcut (native menubar)
   useEffect(() => {
@@ -343,7 +347,7 @@ function App() {
         const toIndex = overData.type === 'dropzone' ?
           (scenes.find(s => s.id === toSceneId)?.cuts.length || 0) :
           (overData.index ?? 0);
-        const orderedSelectedIds = getCutIdsInTimelineOrder(scenes, selectedIds);
+        const orderedSelectedIds = getCutIdsInTimelineOrder(scenes, selectedIds, sceneOrder);
         const isReorderingWithinExpandedGroup =
           fromSceneId === toSceneId &&
           !!cutGroup &&
@@ -464,7 +468,7 @@ function App() {
       return;
     }
 
-    const targetSceneId = selectedSceneId || scenes[0]?.id;
+    const targetSceneId = selectedSceneId || getFirstSceneId(scenes, sceneOrder);
     if (!targetSceneId) return;
 
     queueExternalFilesToScene({
@@ -472,7 +476,7 @@ function App() {
       files: Array.from(e.dataTransfer.files),
       createCutFromImport,
     });
-  }, [selectedSceneId, scenes, createCutFromImport]);
+  }, [selectedSceneId, scenes, sceneOrder, createCutFromImport]);
 
   // Open export modal from controls
   const handleExportFromControls = useCallback(() => {
@@ -551,7 +555,7 @@ function App() {
             progress: 85,
           });
           const contextResolver = (cut: Cut) => {
-            for (const scene of scenes) {
+            for (const scene of orderedScenes) {
               const cutIndex = scene.cuts.findIndex((item) => item.id === cut.id);
               if (cutIndex >= 0) {
                 return { sceneId: scene.id, sceneName: scene.name, cutIndex };
@@ -593,7 +597,7 @@ function App() {
       banner.dismiss(EXPORT_PROGRESS_BANNER_ID);
       setIsExporting(false);
     }
-  }, [banner, getAsset, isExporting, metadataStore, scenes, toast]);
+  }, [banner, getAsset, isExporting, metadataStore, orderedScenes, toast]);
 
   // Handle export from ExportModal
   const handleExport = useCallback(async (settings: ExportSettings) => {
@@ -602,7 +606,7 @@ function App() {
     setShowExportModal(false);
 
     try {
-      const orderedCutsAll = getScenesAndCutsInTimelineOrder(scenes).flatMap((scene) => scene.cuts);
+      const orderedCutsAll = getScenesAndCutsInTimelineOrder(scenes, sceneOrder).flatMap((scene) => scene.cuts);
 
       if (orderedCutsAll.length === 0) {
         toast.warning('No items to export', 'Add cuts to the timeline first.');
@@ -622,7 +626,7 @@ function App() {
       }
 
       const orderedCuts = plan.range === 'selection'
-        ? getCutIdsInTimelineOrder(scenes, getSelectedCutIds())
+          ? getCutIdsInTimelineOrder(scenes, getSelectedCutIds(), sceneOrder)
           .map((cutId) => orderedCutsAll.find((cut) => cut.id === cutId))
           .filter((cut): cut is Cut => !!cut)
         : orderedCutsAll;
@@ -643,7 +647,7 @@ function App() {
     } catch (error) {
       toast.error('Export error', String(error));
     }
-  }, [scenes, exportResolution, isExporting, exportMp4Sequence, getSelectedCutIds, toast]);
+  }, [scenes, sceneOrder, exportResolution, isExporting, exportMp4Sequence, getSelectedCutIds, toast]);
 
   const handlePreviewExport = useCallback(async (
     cuts: Cut[],
@@ -677,7 +681,7 @@ function App() {
   // Find cut data for Single Mode preview modal
   const previewCutData = useCallback(() => {
     if (!videoPreviewCutId) return null;
-    for (const scene of scenes) {
+    for (const scene of orderedScenes) {
       const cut = scene.cuts.find(c => c.id === videoPreviewCutId);
       const resolvedAsset = cut ? (getAsset(cut.assetId) || cut.asset) : undefined;
       if (cut && resolvedAsset) {
@@ -685,7 +689,7 @@ function App() {
       }
     }
     return null;
-  }, [videoPreviewCutId, scenes, getAsset]);
+  }, [videoPreviewCutId, orderedScenes, getAsset]);
 
   const previewData = previewCutData();
 

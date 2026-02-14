@@ -1,11 +1,14 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { Asset, AssetUsageRef, Scene, SourcePanelState } from '../types';
+import { getScenesAndCutsInTimelineOrder } from './timelineOrder';
+import { normalizeSceneOrder } from './sceneOrder';
 
 export interface ProjectSavePayload {
   version: number;
   name: string;
   vaultPath: string | null;
   scenes: Scene[];
+  sceneOrder: string[];
   targetTotalDurationSec?: number;
   sourcePanel: SourcePanelState | undefined;
   savedAt: string;
@@ -16,15 +19,18 @@ export function buildProjectSavePayload(input: {
   name: string;
   vaultPath: string | null;
   scenes: Scene[];
+  sceneOrder?: string[];
   targetTotalDurationSec?: number;
   sourcePanel: SourcePanelState | undefined;
   savedAt: string;
 }): ProjectSavePayload {
+  const sceneOrder = normalizeSceneOrder(input.sceneOrder, input.scenes);
   const payload: ProjectSavePayload = {
     version: input.version,
     name: input.name,
     vaultPath: input.vaultPath,
     scenes: input.scenes,
+    sceneOrder,
     sourcePanel: input.sourcePanel,
     savedAt: input.savedAt,
   };
@@ -63,13 +69,12 @@ export function prepareScenesForSave(scenes: Scene[]): Scene[] {
   }));
 }
 
-export function getOrderedAssetIdsFromScenes(scenes: Scene[]): string[] {
+export function getOrderedAssetIdsFromScenes(scenes: Scene[], sceneOrder?: string[]): string[] {
   const orderedIds: string[] = [];
   const seen = new Set<string>();
 
-  for (const scene of scenes) {
-    const cuts = [...scene.cuts].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-    for (const cut of cuts) {
+  for (const scene of getScenesAndCutsInTimelineOrder(scenes, sceneOrder)) {
+    for (const cut of scene.cuts) {
       const assetId = cut.asset?.id || cut.assetId;
       if (assetId && !seen.has(assetId)) {
         seen.add(assetId);
@@ -81,20 +86,19 @@ export function getOrderedAssetIdsFromScenes(scenes: Scene[]): string[] {
   return orderedIds;
 }
 
-export function buildAssetUsageRefs(scenes: Scene[]): Map<string, AssetUsageRef[]> {
+export function buildAssetUsageRefs(scenes: Scene[], sceneOrder?: string[]): Map<string, AssetUsageRef[]> {
   const usageMap = new Map<string, AssetUsageRef[]>();
-  const orderedScenes = [...scenes].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const orderedScenes = getScenesAndCutsInTimelineOrder(scenes, sceneOrder);
 
-  for (const scene of orderedScenes) {
-    const sceneOrder = scene.order ?? 0;
-    const cuts = [...scene.cuts].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-    cuts.forEach((cut, index) => {
+  for (let sceneIndex = 0; sceneIndex < orderedScenes.length; sceneIndex++) {
+    const scene = orderedScenes[sceneIndex];
+    scene.cuts.forEach((cut, index) => {
       const assetId = cut.asset?.id || cut.assetId;
       if (!assetId) return;
       const ref: AssetUsageRef = {
         sceneId: scene.id,
         sceneName: scene.name,
-        sceneOrder,
+        sceneOrder: sceneIndex,
         cutId: cut.id,
         cutOrder: cut.order ?? index,
         cutIndex: index + 1,
@@ -117,4 +121,16 @@ export function ensureSceneIds(scenes: Scene[]): { scenes: Scene[]; missingCount
   });
 
   return { scenes: updatedScenes, missingCount };
+}
+
+export function ensureSceneOrder(
+  sceneOrder: string[] | undefined,
+  scenes: Scene[]
+): { sceneOrder: string[]; changed: boolean } {
+  const normalized = normalizeSceneOrder(sceneOrder, scenes);
+  const changed =
+    !sceneOrder ||
+    sceneOrder.length !== normalized.length ||
+    sceneOrder.some((id, index) => id !== normalized[index]);
+  return { sceneOrder: normalized, changed };
 }

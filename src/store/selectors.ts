@@ -1,6 +1,9 @@
 import type { AppState } from './stateTypes';
+import { getScenesInOrder } from '../utils/sceneOrder';
 
 export const selectScenes = (s: AppState) => s.scenes;
+export const selectSceneOrder = (s: AppState) => s.sceneOrder;
+export const selectOrderedScenes = (s: AppState) => getScenesInOrder(s.scenes, s.sceneOrder);
 export const selectVaultPath = (s: AppState) => s.vaultPath;
 export const selectMetadataStore = (s: AppState) => s.metadataStore;
 export const selectSelectedSceneId = (s: AppState) => s.selectedSceneId;

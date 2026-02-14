@@ -70,10 +70,10 @@ describe('timeline integrity commands', () => {
 
     await command.undo();
 
-    const scenes = useStore.getState().scenes;
-    expect(scenes.map((scene) => scene.id)).toEqual(['scene-1', 'scene-2', 'scene-3']);
-    expect(scenes.map((scene) => scene.order)).toEqual([0, 1, 2]);
-    expect(scenes[1].cuts[0]?.id).toBe('cut-2-1');
+    const state = useStore.getState();
+    expect(state.sceneOrder).toEqual(['scene-1', 'scene-2', 'scene-3']);
+    const restored = state.scenes.find((scene) => scene.id === 'scene-2');
+    expect(restored?.cuts[0]?.id).toBe('cut-2-1');
   });
 
   it('moves multiple cuts in timeline order regardless of input id order', () => {

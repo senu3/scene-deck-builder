@@ -19,6 +19,7 @@ import type { FileItem, Asset } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { getCachedThumbnail, getThumbnail } from '../utils/thumbnailCache';
 import { getCuttableMediaType } from '../utils/mediaType';
+import { getFirstSceneId } from '../utils/sceneOrder';
 import './Sidebar.css';
 
 export default function Sidebar() {
@@ -402,7 +403,7 @@ interface FileItemComponentProps {
 }
 
 function FileItemComponent({ item, depth, mediaType, loadThumbnail, thumbnailVersion, viewMode }: FileItemComponentProps) {
-  const { scenes, selectedSceneId, createCutFromImport } = useStore();
+  const { scenes, sceneOrder, selectedSceneId, createCutFromImport } = useStore();
   const [thumbnail, setThumbnail] = useState<string | null>(
     getCachedThumbnail(item.path) || null
   );
@@ -440,7 +441,7 @@ function FileItemComponent({ item, depth, mediaType, loadThumbnail, thumbnailVer
   };
 
   const handleAddToTimeline = async () => {
-    const targetSceneId = selectedSceneId || scenes[0]?.id;
+    const targetSceneId = selectedSceneId || getFirstSceneId(scenes, sceneOrder);
     if (!targetSceneId) return;
     if (isImporting) return;
 

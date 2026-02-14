@@ -45,8 +45,8 @@
 
 | 用語 | 定義 | 境界（含む / 含まない） | 主要操作 | 関連TS型 / ファイル |
 | --- | --- | --- | --- | --- |
-| **プロジェクト** | `Project` は `id/name/vaultPath/scenes/createdAt/updatedAt/version/sourcePanel` を持つ永続ルート。 | **含む:** vaultPath と scenes。**含まない:** UI状態（選択/再生）は `AppState` 側。 | **作成/保存/読み込み:** StartupModal → project.sdp。 | `Project`（`src/types/index.ts`）、`StartupModal.tsx` |
-| **シーン** | `Scene` は `id/name/cuts/order/notes/folderPath/groups` を持つ編集単位。 | **含む:** cuts と notes。**含まない:** vaultPath。 | **追加/削除/名称変更:** `addScene/removeScene/renameScene`。 | `Scene`、`Storyline.tsx` |
+| **プロジェクト** | `Project` は `id/name/vaultPath/scenes/sceneOrder/createdAt/updatedAt/version/sourcePanel` を持つ永続ルート。 | **含む:** vaultPath と scenes。**含まない:** UI状態（選択/再生）は `AppState` 側。 | **作成/保存/読み込み:** StartupModal → project.sdp。 | `Project`（`src/types/index.ts`）、`StartupModal.tsx` |
+| **シーン** | `Scene` は `id/name/cuts/notes/folderPath/groups` を持つ編集単位。表示順は `sceneOrder: sceneId[]` を正とする。 | **含む:** cuts と notes。**含まない:** vaultPath。 | **追加/削除/名称変更/並び替え:** `addScene/removeScene/renameScene/reorderScenes`。 | `Scene`、`Storyline.tsx` |
 | **シーンノート** | `SceneNote` はシーン内のメモ（text/image）を表す。 | **含む:** notes 配列。**含まない:** asset 本体。 | **追加/更新/削除:** `addSceneNote/updateSceneNote/removeSceneNote`。 | `SceneNote`、`DetailsPanel.tsx` |
 | **カット** | `Cut` は `assetId/asset/displayTime/order/inPoint/outPoint/isClip/useEmbeddedAudio/audioBindings` を持つ再生単位。 | **含む:** clip(in/out)・loading 状態・cut単位の音声設定。**含まない:** scene の並び順。 | **追加/削除/時間更新/移動:** `addCutToScene/updateCutDisplayTime/moveCutToScene/moveCutsToScene`。 | `Cut`、`CutCard.tsx`、`DetailsPanel.tsx`、`Storyline.tsx` |
 | **カットグループ** | `CutGroup` はタイムライン上の視覚的グルーピング。 | **含む:** `cutIds` と `isCollapsed`。**含まない:** カット本体。 | **作成/削除/折りたたみ/並び替え:** `useStore` 内 group 操作。 | `CutGroup`、`CutGroupCard.tsx`、`Storyline.tsx` |

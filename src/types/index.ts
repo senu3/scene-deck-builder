@@ -184,7 +184,7 @@ export interface Scene {
   id: string;
   name: string;
   cuts: Cut[];
-  order: number;
+  order?: number; // Deprecated: kept only for backward compatibility.
   notes: SceneNote[];
   folderPath?: string; // Path to scene folder in vault
   groups?: CutGroup[]; // Optional cut groups for visual organization
@@ -211,6 +211,7 @@ export interface Project {
   name: string;
   vaultPath: string;
   scenes: Scene[];
+  sceneOrder?: string[];
   targetTotalDurationSec?: number;
   createdAt: string;
   updatedAt: string;

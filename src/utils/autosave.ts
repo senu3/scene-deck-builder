@@ -4,6 +4,7 @@ export interface ProjectSaveSnapshot {
   name: string;
   vaultPath: string | null;
   scenes: Scene[];
+  sceneOrder: string[];
   targetTotalDurationSec?: number;
   sourcePanel: SourcePanelState | undefined;
 }
@@ -12,6 +13,7 @@ export interface ProjectStateLike {
   projectName: string;
   vaultPath: string | null;
   scenes: Scene[];
+  sceneOrder: string[];
   targetTotalDurationSec?: number;
   getSourcePanelState?: () => SourcePanelState;
   sourcePanelState?: SourcePanelState;
@@ -23,6 +25,7 @@ export function pickProjectStateForSave(state: ProjectStateLike): ProjectSaveSna
     name: state.projectName,
     vaultPath: state.vaultPath,
     scenes: state.scenes,
+    sceneOrder: state.sceneOrder,
     targetTotalDurationSec: state.targetTotalDurationSec,
     sourcePanel,
   };
