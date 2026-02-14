@@ -34,16 +34,17 @@ import type { Asset, AssetIndexEntry } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { getCachedThumbnail, getThumbnail, removeThumbnailCache } from '../utils/thumbnailCache';
 import { getMediaType as getAnyMediaType } from '../utils/mediaType';
-import { collectAssetRefs, getBlockingRefsForAssetIds, type AssetRefMap } from '../utils/assetRefs';
+import { collectAssetRefs, type AssetRefMap } from '../utils/assetRefs';
 import { getFirstSceneId } from '../utils/sceneOrder';
 import { useDialog, useToast } from '../ui';
 import {
   AssetContextMenu,
 } from './context-menus';
 import {
-  extractAudioAndRegisterAsset,
-  finalizeClipAndRegisterAsset,
-} from '../features/cut/actions';
+  runAssetDelete,
+  runAssetExtractAudio,
+  runAssetFinalize,
+} from '../actions/assetActions';
 import './AssetPanel.css';
 
 export type SortMode = 'name' | 'type' | 'used' | 'unused';
@@ -609,14 +610,14 @@ export default function AssetPanel({
     });
   };
 
-  const resolveAssetDuration = useCallback(async (asset: AssetInfo): Promise<number | null> => {
-    const linkedDuration = asset.linkedAssetIds
+  const resolveAssetDuration = useCallback(async (assetPath: string, linkedAssetIds: string[]): Promise<number | null> => {
+    const linkedDuration = linkedAssetIds
       .map((id) => assetCache.get(id)?.duration)
       .find((duration) => typeof duration === 'number' && Number.isFinite(duration) && duration > 0);
     if (typeof linkedDuration === 'number') return linkedDuration;
     if (typeof window.electronAPI?.getVideoMetadata !== 'function') return null;
     try {
-      const meta = await window.electronAPI.getVideoMetadata(asset.path);
+      const meta = await window.electronAPI.getVideoMetadata(assetPath);
       return typeof meta?.duration === 'number' && Number.isFinite(meta.duration) && meta.duration > 0
         ? meta.duration
         : null;
@@ -625,28 +626,9 @@ export default function AssetPanel({
     }
   }, [assetCache]);
 
-  const resolveContextRange = useCallback(async (
-    ctx: NonNullable<typeof assetContextMenu>,
-    requireClipRange: boolean
-  ): Promise<{ inPoint: number; outPoint: number } | null> => {
-    if (
-      ctx.hasClipRange &&
-      typeof ctx.clipInPoint === 'number' &&
-      typeof ctx.clipOutPoint === 'number'
-    ) {
-      return { inPoint: ctx.clipInPoint, outPoint: ctx.clipOutPoint };
-    }
-    if (requireClipRange) {
-      return null;
-    }
-    const duration = await resolveAssetDuration(ctx.asset);
-    if (!duration || duration <= 0) {
-      return null;
-    }
-    return { inPoint: 0, outPoint: duration };
-  }, [assetContextMenu, resolveAssetDuration]);
-
-  const reportFinalizeResult = (result: Awaited<ReturnType<typeof finalizeClipAndRegisterAsset>>) => {
+  const reportFinalizeResult = (
+    result: { success: boolean; fileName?: string; fileSize?: number; error?: string; reason?: string }
+  ) => {
     if (result.success) {
       const sizeText = result.fileSize ? `${(result.fileSize / 1024 / 1024).toFixed(2)} MB` : 'Unknown size';
       toast.success('Asset created', `${result.fileName} (${sizeText})`);
@@ -659,7 +641,9 @@ export default function AssetPanel({
     toast.error('Asset conversion failed', result.error || 'Unknown error');
   };
 
-  const reportExtractAudioResult = (result: Awaited<ReturnType<typeof extractAudioAndRegisterAsset>>) => {
+  const reportExtractAudioResult = (
+    result: { success: boolean; fileName?: string; fileSize?: number; error?: string }
+  ) => {
     if (result.success) {
       const sizeText = result.fileSize ? `${(result.fileSize / 1024 / 1024).toFixed(2)} MB` : 'Unknown size';
       toast.success('Audio extracted', `${result.fileName} (${sizeText})`);
@@ -670,26 +654,37 @@ export default function AssetPanel({
 
   const handleAssetMenuFinalize = async () => {
     if (!assetContextMenu) return;
-    if (!vaultPath) {
+
+    const result = await runAssetFinalize({
+      assetPath: assetContextMenu.asset.path,
+      sourceName: assetContextMenu.asset.sourceName,
+      assetType: assetContextMenu.asset.type,
+      linkedAssetIds: assetContextMenu.asset.linkedAssetIds,
+      fallbackAssetId: assetContextMenu.asset.id,
+      hasClipRange: assetContextMenu.hasClipRange,
+      clipInPoint: assetContextMenu.clipInPoint,
+      clipOutPoint: assetContextMenu.clipOutPoint,
+    }, {
+      vaultPath,
+      reverseOutput: false,
+      requireClipRange: true,
+    }, {
+      resolveDurationSec: (assetPath) => resolveAssetDuration(assetPath, assetContextMenu.asset.linkedAssetIds),
+    });
+
+    if (!result.success && result.reason === 'missing-vault') {
       toast.warning('Vault path not set', 'Please set up a vault first.');
       setAssetContextMenu(null);
       return;
     }
-    const range = await resolveContextRange(assetContextMenu, true);
-    if (!range) {
+    if (!result.success && result.reason === 'range-required') {
       toast.warning('Clip range not found', 'Finalize Clip requires a clip with IN/OUT points.');
       setAssetContextMenu(null);
       return;
     }
-    const result = await finalizeClipAndRegisterAsset({
-      sourceAssetPath: assetContextMenu.asset.path,
-      sourceAssetName: assetContextMenu.asset.sourceName,
-      inPoint: range.inPoint,
-      outPoint: range.outPoint,
-      reverseOutput: false,
-      vaultPath,
-    });
-    reportFinalizeResult(result);
+    if (result.success) {
+      reportFinalizeResult(result.result);
+    }
     await loadAssets();
     setAssetContextMenu(null);
   };
@@ -711,41 +706,78 @@ export default function AssetPanel({
       setAssetContextMenu(null);
       return;
     }
-    const range = await resolveContextRange(assetContextMenu, false);
-    if (!range) {
+
+    const result = await runAssetFinalize({
+      assetPath: assetContextMenu.asset.path,
+      sourceName: assetContextMenu.asset.sourceName,
+      assetType: assetContextMenu.asset.type,
+      linkedAssetIds: assetContextMenu.asset.linkedAssetIds,
+      fallbackAssetId: assetContextMenu.asset.id,
+      hasClipRange: assetContextMenu.hasClipRange,
+      clipInPoint: assetContextMenu.clipInPoint,
+      clipOutPoint: assetContextMenu.clipOutPoint,
+    }, {
+      vaultPath,
+      reverseOutput: true,
+      requireClipRange: false,
+    }, {
+      resolveDurationSec: (assetPath) => resolveAssetDuration(assetPath, assetContextMenu.asset.linkedAssetIds),
+    });
+
+    if (!result.success && result.reason === 'duration-unavailable') {
       toast.warning('Duration unavailable', 'Unable to resolve video duration for reverse.');
       setAssetContextMenu(null);
       return;
     }
-    const result = await finalizeClipAndRegisterAsset({
-      sourceAssetPath: assetContextMenu.asset.path,
-      sourceAssetName: assetContextMenu.asset.sourceName,
-      inPoint: range.inPoint,
-      outPoint: range.outPoint,
-      reverseOutput: true,
-      vaultPath,
-    });
-    reportFinalizeResult(result);
+    if (!result.success && result.reason === 'unsupported-asset-type') {
+      toast.warning('Unsupported asset type', 'Reverse is available only for video assets.');
+      setAssetContextMenu(null);
+      return;
+    }
+    if (result.success) {
+      reportFinalizeResult(result.result);
+    }
     await loadAssets();
     setAssetContextMenu(null);
   };
 
   const handleAssetMenuExtractAudio = async () => {
     if (!assetContextMenu) return;
-    if (!vaultPath) {
+
+    const result = await runAssetExtractAudio({
+      assetPath: assetContextMenu.asset.path,
+      sourceName: assetContextMenu.asset.sourceName,
+      assetType: assetContextMenu.asset.type,
+      linkedAssetIds: assetContextMenu.asset.linkedAssetIds,
+      fallbackAssetId: assetContextMenu.asset.id,
+      hasClipRange: assetContextMenu.hasClipRange,
+      clipInPoint: assetContextMenu.clipInPoint,
+      clipOutPoint: assetContextMenu.clipOutPoint,
+    }, {
+      vaultPath,
+    }, {
+      resolveDurationSec: (assetPath) => resolveAssetDuration(assetPath, assetContextMenu.asset.linkedAssetIds),
+    });
+
+    if (!result.success && result.reason === 'missing-vault') {
       toast.warning('Vault path not set', 'Please set up a vault first.');
       setAssetContextMenu(null);
       return;
     }
-    const range = await resolveContextRange(assetContextMenu, false);
-    const result = await extractAudioAndRegisterAsset({
-      sourceAssetPath: assetContextMenu.asset.path,
-      sourceAssetName: assetContextMenu.asset.sourceName,
-      vaultPath,
-      inPoint: range?.inPoint,
-      outPoint: range?.outPoint,
-    });
-    reportExtractAudioResult(result);
+    if (!result.success && result.reason === 'duration-unavailable') {
+      toast.warning('Duration unavailable', 'Unable to resolve video duration for extract audio.');
+      setAssetContextMenu(null);
+      return;
+    }
+    if (!result.success && result.reason === 'unsupported-asset-type') {
+      toast.warning('Unsupported asset type', 'Extract Audio is available only for video assets.');
+      setAssetContextMenu(null);
+      return;
+    }
+
+    if (result.success) {
+      reportExtractAudioResult(result.result);
+    }
     await loadAssets();
     setAssetContextMenu(null);
   };
@@ -774,10 +806,31 @@ export default function AssetPanel({
       return;
     }
 
-    const assetIds = asset.linkedAssetIds.length ? asset.linkedAssetIds : [asset.id];
-    const blockingRefs = getBlockingRefsForAssetIds(assetRefs, assetIds);
-    if (blockingRefs.length > 0) {
-      const firstKind = blockingRefs[0]?.kind || 'unknown';
+    let result: Awaited<ReturnType<typeof runAssetDelete>>;
+    try {
+      result = await runAssetDelete({
+        assetPath: asset.path,
+        sourceName: asset.sourceName,
+        assetType: asset.type,
+        linkedAssetIds: asset.linkedAssetIds,
+        fallbackAssetId: asset.id,
+        hasClipRange: assetContextMenu.hasClipRange,
+        clipInPoint: assetContextMenu.clipInPoint,
+        clipOutPoint: assetContextMenu.clipOutPoint,
+      }, {
+        reason: 'asset-panel-delete',
+        assetRefs,
+      }, {
+        deleteAssetWithPolicy,
+      });
+    } catch (error) {
+      toast.error('Delete failed', String(error));
+      setAssetContextMenu(null);
+      return;
+    }
+
+    if (!result.success && result.reason === 'blocked') {
+      const firstKind = result.blockingKind || 'unknown';
       await dialogAlert({
         title: 'Cannot Delete Asset',
         message: `This asset is still referenced (${firstKind}).`,
@@ -787,28 +840,10 @@ export default function AssetPanel({
       return;
     }
 
-    try {
-      const result = await deleteAssetWithPolicy({
-        assetPath: asset.path,
-        assetIds,
-        reason: 'asset-panel-delete',
-      });
-      if (!result.success) {
-        if (result.reason === 'asset-in-use') {
-          const firstKind = result.blockingRefs?.[0]?.kind || 'unknown';
-          await dialogAlert({
-            title: 'Cannot Delete Asset',
-            message: `This asset is still referenced (${firstKind}).`,
-            variant: 'warning',
-          });
-        } else {
-          toast.error('Delete failed', 'Failed to move asset to trash.');
-        }
-        setAssetContextMenu(null);
-        return;
-      }
-    } catch (error) {
-      toast.error('Delete failed', String(error));
+    if (!result.success && result.reason === 'delete-failed') {
+      toast.error('Delete failed', 'Failed to move asset to trash.');
+      setAssetContextMenu(null);
+      return;
     }
 
     setAssets((prev) => prev.filter((a) => a.path !== asset.path));

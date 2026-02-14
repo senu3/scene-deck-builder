@@ -66,6 +66,11 @@ Command 必須操作（2026-02-12 時点）:
 - 配列/オブジェクトを selector で組み立てる場合は、不要な新規参照生成を避ける。
 - `asset` 参照は selector 内で `getAsset(cut.assetId)` 優先にし、`cut.asset` は fallback とする。
 
+### 8. Asset 操作入口の集約
+- `AssetPanel` からの Finalize/Reverse/Extract/Delete は `src/actions/assetActions.ts` を経由する。
+- action は UI イベント (`MouseEvent` など) を受け取らず、assetId/path/range/vaultPath などドメイン引数だけを扱う。
+- confirm/dialog/toast は UI 層に残し、action 層へ混在させない。
+
 標準例:
 ```ts
 const selectedCutId = useStore((s) => s.selectedCutId);
@@ -82,6 +87,7 @@ const store = useStore(); // 全体購読
 - `commands.ts` -> ブラウザ UI API 直接呼び出し（`confirm`, `alert`, modal）。
 - slice -> 他 slice の private helper 直接 import。
 - Asset 系 action -> Cut 配列の直接書き換え（まず Cut action 経由を検討）。
+- Asset action -> UI コンポーネント import（`components/*` 依存を禁止）。
 
 ## CUT Event メモ
 - `CUT_DELETED`: 実装済み。Cut 削除時の group/selection 後処理に利用。
@@ -110,6 +116,7 @@ const store = useStore(); // 全体購読
 - 現状（2026-02-12）: AssetPanel の Cut コンテキストメニューは撤去済み。右クリックは Asset options に統一。
 - 現状（2026-02-12）: AssetPanel の Finalize/Reverse は `asset-only`（Cut非追加）導線へ接続済み。
 - 現状（2026-02-12）: 音声抽出は `CutCard` の Cut options / AssetPanel の Asset options から実行可能（いずれも Cut非追加）。
+- 現状（2026-02-14）: AssetPanel の Asset 操作は `assetActions` に集約済み。
 - 置換先: Cut 操作は `CutCard` / `DetailsPanel` / ショートカット（history command 経由）へ寄せる。
 - 実装計画アーカイブ: `docs/notes/archive/assetpanel-cut-ffmpeg-reorg-plan-implemented-2026-02-12.md`。
 - 完了条件:
