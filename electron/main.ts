@@ -4,7 +4,6 @@ import * as fs from 'fs';
 import { pathToFileURL } from 'url';
 import { spawn } from 'child_process';
 import ffmpegPath from 'ffmpeg-static';
-import { Readable } from 'stream';
 import { calculateFileHashStream, getMediaType, importAssetToVaultInternal, moveToTrashInternal, registerVaultGatewayHandlers, saveAssetIndexInternal, type AssetIndex, type TrashMeta } from './vaultGateway';
 import { createSaveProjectHandler } from './handlers/saveProject';
 import { createFfmpegController } from './services/ffmpegController';
@@ -66,6 +65,65 @@ const mimeTypes: Record<string, string> = {
   '.aac': 'audio/aac',
   '.flac': 'audio/flac',
 };
+
+function createReadableBodyFromNodeStream(stream: fs.ReadStream): ReadableStream<Uint8Array> {
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      let settled = false;
+      const closeOnce = () => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        try {
+          controller.close();
+        } catch (error) {
+          const err = error as { code?: string } | undefined;
+          if (err?.code !== 'ERR_INVALID_STATE') {
+            throw error;
+          }
+        }
+      };
+      const errorOnce = (error: unknown) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        controller.error(error);
+      };
+      const onData = (chunk: Buffer | string) => {
+        if (settled) return;
+        const data = typeof chunk === 'string'
+          ? new TextEncoder().encode(chunk)
+          : new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength);
+        controller.enqueue(data);
+        if ((controller.desiredSize ?? 0) <= 0) {
+          stream.pause();
+        }
+      };
+      const onEnd = () => closeOnce();
+      const onError = (error: unknown) => errorOnce(error);
+      const onClose = () => closeOnce();
+      const cleanup = () => {
+        stream.off('data', onData);
+        stream.off('end', onEnd);
+        stream.off('error', onError);
+        stream.off('close', onClose);
+      };
+
+      stream.on('data', onData);
+      stream.once('end', onEnd);
+      stream.once('error', onError);
+      stream.once('close', onClose);
+    },
+    pull() {
+      if (stream.readableFlowing === false) {
+        stream.resume();
+      }
+    },
+    cancel() {
+      stream.destroy();
+    },
+  });
+}
 
 type FfmpegTask<T> = () => Promise<T>;
 
@@ -264,7 +322,7 @@ function registerMediaProtocol() {
           }
           const lastByte = fileSize - 1;
           const stream = fs.createReadStream(filePath, { start: lastByte, end: lastByte });
-          const body = Readable.toWeb(stream) as ReadableStream;
+          const body = createReadableBodyFromNodeStream(stream);
           return new Response(body, {
             status: 206,
             headers: {
@@ -278,7 +336,7 @@ function registerMediaProtocol() {
         }
 
         const stream = fs.createReadStream(filePath, { start: safeStart, end: safeEnd });
-        const body = Readable.toWeb(stream) as ReadableStream;
+        const body = createReadableBodyFromNodeStream(stream);
         return new Response(body, {
           status: 206,
           headers: {
@@ -292,7 +350,7 @@ function registerMediaProtocol() {
       }
 
       const stream = fs.createReadStream(filePath);
-      const body = Readable.toWeb(stream) as ReadableStream;
+      const body = createReadableBodyFromNodeStream(stream);
       return new Response(body, {
         status: 200,
         headers: {
