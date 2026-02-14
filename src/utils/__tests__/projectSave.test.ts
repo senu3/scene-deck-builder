@@ -21,4 +21,9 @@ describe('projectSave', () => {
     const serialized = serializeProjectSavePayload(payload);
     expect(serialized).toBe(JSON.stringify(base));
   });
+
+  it('includes target duration when provided', () => {
+    const payload = buildProjectSavePayload({ ...base, targetTotalDurationSec: 1500 });
+    expect(payload.targetTotalDurationSec).toBe(1500);
+  });
 });

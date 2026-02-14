@@ -107,6 +107,7 @@ interface PendingProject {
   name: string;
   vaultPath: string;
   scenes: Scene[];
+  targetTotalDurationSec?: number;
   sourcePanelState?: SourcePanelState;
   projectPath: string;
 }
@@ -194,6 +195,7 @@ export default function StartupModal() {
           name: projectName,
           vaultPath: vault.path,
           scenes: defaultScenes,
+          targetTotalDurationSec: undefined,
           sourcePanel: undefined,
           savedAt: new Date().toISOString(),
         });
@@ -259,7 +261,14 @@ export default function StartupModal() {
     const result = await window.electronAPI.loadProject();
     if (result) {
       const { data, path } = result;
-      const projectData = data as { name?: string; vaultPath?: string; scenes?: Scene[]; version?: number; sourcePanel?: SourcePanelState };
+      const projectData = data as {
+        name?: string;
+        vaultPath?: string;
+        scenes?: Scene[];
+        version?: number;
+        targetTotalDurationSec?: number;
+        sourcePanel?: SourcePanelState;
+      };
 
       // Determine vault path
       const loadedVaultPath = projectData.vaultPath || path.replace(/[/\\]project\.sdp$/, '').replace(/[/\\][^/\\]+\.sdp$/, '');
@@ -281,6 +290,7 @@ export default function StartupModal() {
           name: projectData.name || 'Loaded Project',
           vaultPath: loadedVaultPath,
           scenes,
+          targetTotalDurationSec: projectData.targetTotalDurationSec,
           sourcePanelState: projectData.sourcePanel,
           projectPath: path,
         });
@@ -293,6 +303,7 @@ export default function StartupModal() {
         name: projectData.name || 'Loaded Project',
         vaultPath: loadedVaultPath,
         scenes,
+        targetTotalDurationSec: projectData.targetTotalDurationSec,
         sourcePanelState: projectData.sourcePanel,
         projectPath: path,
       });
@@ -415,6 +426,7 @@ export default function StartupModal() {
     initializeProject({
       name: project.name,
       vaultPath: project.vaultPath,
+      targetTotalDurationSec: project.targetTotalDurationSec,
       scenes: finalScenes as ReturnType<typeof useStore.getState>['scenes'],
     });
     setProjectPath(project.projectPath);
@@ -473,7 +485,14 @@ export default function StartupModal() {
       const result = await window.electronAPI.loadProjectFromPath(project.path);
       if (result) {
         const { data } = result;
-        const projectData = data as { name?: string; vaultPath?: string; scenes?: Scene[]; version?: number; sourcePanel?: SourcePanelState };
+        const projectData = data as {
+          name?: string;
+          vaultPath?: string;
+          scenes?: Scene[];
+          version?: number;
+          targetTotalDurationSec?: number;
+          sourcePanel?: SourcePanelState;
+        };
 
         // Determine vault path
         const loadedVaultPath = projectData.vaultPath || project.path.replace(/[/\\]project\.sdp$/, '').replace(/[/\\][^/\\]+\.sdp$/, '');
@@ -495,6 +514,7 @@ export default function StartupModal() {
             name: projectData.name || project.name,
             vaultPath: loadedVaultPath,
             scenes,
+            targetTotalDurationSec: projectData.targetTotalDurationSec,
             sourcePanelState: projectData.sourcePanel,
             projectPath: project.path,
           });
@@ -507,6 +527,7 @@ export default function StartupModal() {
           name: projectData.name || project.name,
           vaultPath: loadedVaultPath,
           scenes,
+          targetTotalDurationSec: projectData.targetTotalDurationSec,
           sourcePanelState: projectData.sourcePanel,
           projectPath: project.path,
         });

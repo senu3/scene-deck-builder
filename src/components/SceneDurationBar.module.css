@@ -1,7 +1,14 @@
+.timelineWrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .timelineBar {
   display: flex;
   align-items: center;
   gap: 4px;
+  flex: 1;
   padding: 6px;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-pill);
@@ -22,6 +29,10 @@
   transition: all 0.2s ease;
   cursor: pointer;
   transform-origin: center;
+}
+
+.timelineBar[data-mode='target'] .segment {
+  min-width: 4px;
 }
 
 .segment:hover:not(:disabled) {
@@ -47,6 +58,42 @@
 .segmentLabel {
   /* Hidden - tooltip only via title attribute */
   display: none;
+}
+
+.remainingSegment {
+  background: repeating-linear-gradient(
+    -45deg,
+    color-mix(in srgb, var(--bg-depth-4) 72%, transparent) 0 5px,
+    color-mix(in srgb, var(--bg-depth-2) 50%, transparent) 5px 10px
+  );
+  border: 1px dashed color-mix(in srgb, var(--border-color) 75%, transparent);
+  opacity: 0.95;
+}
+
+.overSegment {
+  background: linear-gradient(90deg, #f97316, #ef4444);
+  opacity: 0.95;
+}
+
+.modeToggle {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-color);
+  background: var(--panel-bg);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.modeToggle:hover {
+  color: var(--text-primary);
+  border-color: var(--border-glass-hover);
+}
+
+.modeToggle[data-mode='target'] {
+  color: #f59e0b;
 }
 
 .empty {

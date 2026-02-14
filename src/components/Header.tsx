@@ -2,9 +2,12 @@ import { useMemo, useState, useRef, useEffect } from 'react';
 import { Clapperboard, FolderOpen, Save, MoreVertical, Undo, Redo, X, Play, Download, Clock, Layers, Film, Settings } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { useHistoryStore } from '../store/historyStore';
+import { Input } from '../ui';
+import { getDurationTargetSettings, resolveEffectiveTargetDurationSec } from '../utils/durationTarget';
 import MissingAssetRecoveryModal from './MissingAssetRecoveryModal';
 import { useHeaderProjectController } from '../hooks/useHeaderProjectController';
 import { formatTimeCode } from '../hooks/useStoryTimelinePosition';
+import DurationTargetGauge from './DurationTargetGauge';
 import SceneDurationBar from './SceneDurationBar';
 import './Header.css';
 
@@ -16,7 +19,7 @@ interface HeaderProps {
 }
 
 export default function Header({ onOpenSettings, onPreview, onExport, isExporting }: HeaderProps) {
-  const { projectName, scenes, selectedSceneId, selectedCutId, selectScene } = useStore();
+  const { projectName, scenes, selectedSceneId, selectedCutId, selectScene, targetTotalDurationSec, setTargetTotalDurationSec } = useStore();
   const { undo, redo, canUndo, canRedo, getUndoPreview } = useHistoryStore();
   const {
     handleSaveProject,
@@ -30,6 +33,7 @@ export default function Header({ onOpenSettings, onPreview, onExport, isExportin
   } = useHeaderProjectController();
 
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [targetMinutesInput, setTargetMinutesInput] = useState('');
   const moreMenuRef = useRef<HTMLDivElement>(null);
 
   // Project stats
@@ -71,6 +75,19 @@ export default function Header({ onOpenSettings, onPreview, onExport, isExportin
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showMoreMenu]);
 
+  useEffect(() => {
+    if (!showMoreMenu) return;
+    const minutes = Number.isFinite(targetTotalDurationSec) && (targetTotalDurationSec as number) > 0
+      ? Math.round((targetTotalDurationSec as number) / 60)
+      : 0;
+    setTargetMinutesInput(String(minutes));
+  }, [showMoreMenu, targetTotalDurationSec]);
+
+  const effectiveTargetSec = useMemo(() => {
+    const settings = getDurationTargetSettings();
+    return resolveEffectiveTargetDurationSec(targetTotalDurationSec, settings.envDefaultTargetSec);
+  }, [targetTotalDurationSec]);
+
   const handleUndo = async () => {
     try {
       const preview = getUndoPreview();
@@ -100,6 +117,15 @@ export default function Header({ onOpenSettings, onPreview, onExport, isExportin
       console.error('Redo failed:', error);
     }
     setShowMoreMenu(false);
+  };
+
+  const handleApplyTargetMinutes = () => {
+    const parsed = Number(targetMinutesInput);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      setTargetTotalDurationSec(undefined);
+      return;
+    }
+    setTargetTotalDurationSec(Math.round(parsed * 60));
   };
 
   return (
@@ -137,6 +163,7 @@ export default function Header({ onOpenSettings, onPreview, onExport, isExportin
                 <span className="header-time-sep">/</span>
                 <span className="header-time-total">{formatTimeCode(totalDuration)}</span>
               </div>
+              <DurationTargetGauge totalSec={totalDuration} targetSec={effectiveTargetSec} />
             </div>
 
             {/* Preview Button */}
@@ -203,6 +230,25 @@ export default function Header({ onOpenSettings, onPreview, onExport, isExportin
 
                   <div className="menu-divider" />
 
+                  <div className="header-menu-input">
+                    <span className="header-menu-input-label">Target (min)</span>
+                    <div className="header-menu-input-row">
+                      <Input
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={targetMinutesInput}
+                        onChange={(e) => setTargetMinutesInput(e.target.value)}
+                        onBlur={handleApplyTargetMinutes}
+                        className="header-menu-number"
+                        title="Set project target duration in minutes"
+                      />
+                      <button type="button" onClick={handleApplyTargetMinutes}>Set</button>
+                    </div>
+                  </div>
+
+                  <div className="menu-divider" />
+
                   <button onClick={() => { handleCloseApp(); setShowMoreMenu(false); }} className="danger" title="Close App">
                     <X size={16} />
                     <span>Close</span>
@@ -218,6 +264,7 @@ export default function Header({ onOpenSettings, onPreview, onExport, isExportin
             scenes={scenes}
             selectedSceneId={selectedSceneId}
             onSelectScene={selectScene}
+            targetSec={effectiveTargetSec}
           />
         </div>
       </header>

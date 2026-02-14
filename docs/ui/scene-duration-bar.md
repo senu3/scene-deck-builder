@@ -53,6 +53,22 @@
 - `scenes: Scene[]`
 - `selectedSceneId: string | null`
 - `onSelectScene(sceneId: string)`
+- `targetSec?: number`（未設定時は相対モードのみ）
+
+**Display Modes**
+- `relative`（既定）:
+  - 従来挙動。各シーン幅は「シーン尺同士の相対比」。
+  - 0秒シーンは最小幅確保のため weight=1 を使用。
+- `target`（目標尺モード）:
+  - 各シーン幅は `sceneSec / targetSec`。
+  - 未超過時は末尾に `Remaining` セグメントを追加（暗色 + 斜線）。
+  - 超過時は `Remaining` を出さず、末尾に `Over` セグメントを追加（警告色）。
+  - `Over` 幅は `min((total-target)/target, 0.25)` で 25% cap。
+
+**Mode Toggle**
+- バー右端の小トグルで切替。
+- `targetSec` が未設定のときはトグル非表示。
+- 切替状態は localStorage（`scene-deck.duration-target-settings.v1`）に保存。
 
 **Duration Rules**
 - Scene duration = sum of `cut.displayTime` in that scene.
@@ -76,6 +92,7 @@ The Header displays project statistics alongside the action buttons.
 | Scenes | `Layers` | `scenes.length` |
 | Cuts | `Film` | Total cuts across all scenes |
 | Time | `Clock` | Selected cut position / total duration |
+| Target Gauge | (custom) | `Total / Target` progress (battery-style) |
 
 **Time Display Rules**
 - Current position: cyan (`--accent-primary`), monospace, bold — shows timeline start time of the selected cut.
@@ -83,12 +100,22 @@ The Header displays project statistics alongside the action buttons.
 - When no cut is selected: current position shows `--`.
 - Format uses `formatTimeCode()` from `useStoryTimelinePosition`.
 
+**Target Gauge Rules**
+- `effectiveTarget = projectTarget ?? envDefaultTarget ?? undefined`
+- `effectiveTarget` 未設定（`undefined`/`0`）時は非表示。
+- 超過判定は `totalSec > targetSec` のときのみ（`==` は通常色）。
+- ツールチップ:
+  - 未超過: `Total ... / Target ... (xx%)` + `Remaining ...`
+  - 超過: `Total ... / Target ... (xx%)` + `Over +...`
+
 **Header Background**
 - Uses depth gradient: `linear-gradient(180deg, var(--bg-depth-1), var(--bg-depth-2))`.
 
 ## Integration Points
 - `Header` renders `SceneDurationBar` under the main header row.
 - `SceneChipBar` was removed.
+- `Header` renders `DurationTargetGauge` in `.header-stats`.
+- Project target duration input (`min`) is available in Header more-menu (`0` = clear).
 
 ## Known Constraints
 - Header must not use `document.querySelector` to scroll Storyline.

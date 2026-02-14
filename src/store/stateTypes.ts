@@ -46,6 +46,7 @@ export interface AppState extends ProjectSliceContract, CutTimelineSliceContract
   vaultPath: string | null;
   trashPath: string | null;
   projectName: string;
+  targetTotalDurationSec?: number;
 
   metadataStore: MetadataStore | null;
 

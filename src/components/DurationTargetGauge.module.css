@@ -1,0 +1,36 @@
+.gaugeWrap {
+  display: inline-flex;
+  align-items: center;
+}
+
+.gauge {
+  position: relative;
+  width: 36px;
+  height: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--panel-bg) 85%, transparent);
+  overflow: hidden;
+}
+
+.gauge::after {
+  content: '';
+  position: absolute;
+  right: -4px;
+  top: 3px;
+  width: 3px;
+  height: 6px;
+  border-radius: 0 2px 2px 0;
+  border: 1px solid var(--border-color);
+  background: color-mix(in srgb, var(--panel-bg) 85%, transparent);
+}
+
+.fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-primary), color-mix(in srgb, var(--accent-primary) 70%, white));
+  transition: width 0.2s ease;
+}
+
+.gauge[data-over='true'] .fill {
+  background: linear-gradient(90deg, #f97316, #ef4444);
+}

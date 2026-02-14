@@ -287,3 +287,35 @@
   background: var(--border-glass);
   margin: 4px 0;
 }
+
+.header-menu-input {
+  padding: 10px 14px;
+}
+
+.header-menu-input-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.header-menu-input-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.header-menu-number {
+  width: 72px;
+  height: 30px;
+  font-size: 12px;
+}
+
+.header-menu-input-row button {
+  width: auto;
+  padding: 6px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-color);
+  background: var(--panel-bg);
+  font-size: 12px;
+}

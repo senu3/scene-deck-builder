@@ -211,6 +211,7 @@ export interface Project {
   name: string;
   vaultPath: string;
   scenes: Scene[];
+  targetTotalDurationSec?: number;
   createdAt: string;
   updatedAt: string;
   version?: number;  // 1 = absolute paths, 2 = relative paths with vault sync

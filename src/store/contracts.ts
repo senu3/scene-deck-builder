@@ -32,6 +32,7 @@ export interface ProjectSliceContract {
   setVaultPath: (path: string | null) => void;
   setTrashPath: (path: string | null) => void;
   setProjectName: (name: string) => void;
+  setTargetTotalDurationSec: (seconds: number | undefined) => void;
   initializeProject: (project: Partial<Project>) => void;
   clearProject: () => void;
   loadProject: (scenes: Scene[]) => void;

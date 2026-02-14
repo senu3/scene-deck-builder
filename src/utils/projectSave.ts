@@ -6,6 +6,7 @@ export interface ProjectSavePayload {
   name: string;
   vaultPath: string | null;
   scenes: Scene[];
+  targetTotalDurationSec?: number;
   sourcePanel: SourcePanelState | undefined;
   savedAt: string;
 }
@@ -15,10 +16,11 @@ export function buildProjectSavePayload(input: {
   name: string;
   vaultPath: string | null;
   scenes: Scene[];
+  targetTotalDurationSec?: number;
   sourcePanel: SourcePanelState | undefined;
   savedAt: string;
 }): ProjectSavePayload {
-  return {
+  const payload: ProjectSavePayload = {
     version: input.version,
     name: input.name,
     vaultPath: input.vaultPath,
@@ -26,6 +28,12 @@ export function buildProjectSavePayload(input: {
     sourcePanel: input.sourcePanel,
     savedAt: input.savedAt,
   };
+
+  if (Number.isFinite(input.targetTotalDurationSec) && (input.targetTotalDurationSec as number) > 0) {
+    payload.targetTotalDurationSec = Math.floor(input.targetTotalDurationSec as number);
+  }
+
+  return payload;
 }
 
 export function serializeProjectSavePayload(payload: ProjectSavePayload): string {

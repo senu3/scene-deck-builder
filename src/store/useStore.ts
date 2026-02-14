@@ -14,6 +14,7 @@ export const useStore = create<AppState>((set, get) => ({
   vaultPath: null,
   trashPath: null,
   projectName: 'Untitled Project',
+  targetTotalDurationSec: undefined,
   metadataStore: null,
 
   clipboard: [],
@@ -176,6 +177,7 @@ export const useStore = create<AppState>((set, get) => ({
       name: state.projectName,
       vaultPath: state.vaultPath || '',
       scenes: state.scenes,
+      targetTotalDurationSec: state.targetTotalDurationSec,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       version: 3,

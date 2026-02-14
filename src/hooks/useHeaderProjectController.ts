@@ -90,6 +90,7 @@ interface PendingProject {
   name: string;
   vaultPath: string;
   scenes: Scene[];
+  targetTotalDurationSec?: number;
   sourcePanelState?: SourcePanelState;
   projectPath: string;
 }
@@ -101,6 +102,7 @@ export function useHeaderProjectController() {
     vaultPath,
     clearProject,
     projectName,
+    targetTotalDurationSec,
     metadataStore,
     setProjectLoaded,
     setProjectPath,
@@ -188,6 +190,7 @@ export function useHeaderProjectController() {
       name: projectName,
       vaultPath,
       scenes: scenesToSave,
+      targetTotalDurationSec,
       sourcePanel: sourcePanelState,
       savedAt: new Date().toISOString(),
     });
@@ -216,7 +219,7 @@ export function useHeaderProjectController() {
         await window.electronAPI.saveRecentProjects([newRecent, ...filtered.slice(0, 9)]);
       }
     }
-  }, [dialogAlert, getSourcePanelState, loadProject, metadataStore, projectName, scenes, setProjectPath, toast, vaultPath]);
+  }, [dialogAlert, getSourcePanelState, loadProject, metadataStore, projectName, scenes, setProjectPath, targetTotalDurationSec, toast, vaultPath]);
 
   const handleSaveProject = useCallback(async () => {
     await saveProjectInternal();
@@ -341,6 +344,7 @@ export function useHeaderProjectController() {
       name: project.name,
       vaultPath: project.vaultPath,
       scenes: finalScenes,
+      targetTotalDurationSec: project.targetTotalDurationSec,
     });
     setProjectPath(project.projectPath);
 
@@ -390,7 +394,14 @@ export function useHeaderProjectController() {
     const result = await window.electronAPI.loadProject();
     if (result) {
       const { data, path } = result;
-      const projectData = data as { name?: string; vaultPath?: string; scenes?: Scene[]; version?: number; sourcePanel?: SourcePanelState };
+      const projectData = data as {
+        name?: string;
+        vaultPath?: string;
+        scenes?: Scene[];
+        version?: number;
+        targetTotalDurationSec?: number;
+        sourcePanel?: SourcePanelState;
+      };
 
       // Determine vault path
       const loadedVaultPath = projectData.vaultPath || path.replace(/[/\\]project\.sdp$/, '').replace(/[/\\][^/\\]+\.sdp$/, '');
@@ -412,6 +423,7 @@ export function useHeaderProjectController() {
           name: projectData.name || 'Loaded Project',
           vaultPath: loadedVaultPath,
           scenes: loadedScenes,
+          targetTotalDurationSec: projectData.targetTotalDurationSec,
           sourcePanelState: projectData.sourcePanel,
           projectPath: path,
         });
@@ -424,6 +436,7 @@ export function useHeaderProjectController() {
         name: projectData.name || 'Loaded Project',
         vaultPath: loadedVaultPath,
         scenes: loadedScenes,
+        targetTotalDurationSec: projectData.targetTotalDurationSec,
         sourcePanelState: projectData.sourcePanel,
         projectPath: path,
       });

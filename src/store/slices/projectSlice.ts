@@ -29,6 +29,11 @@ export function createProjectSlice(set: SliceSet, get: SliceGet): ProjectSliceCo
     setVaultPath: (path) => set({ vaultPath: path }),
     setTrashPath: (path) => set({ trashPath: path }),
     setProjectName: (name) => set({ projectName: name }),
+    setTargetTotalDurationSec: (seconds) =>
+      set({
+        targetTotalDurationSec:
+          Number.isFinite(seconds) && (seconds as number) > 0 ? Math.floor(seconds as number) : undefined,
+      }),
 
     initializeProject: (project) => {
       clearThumbnailCache();
@@ -44,6 +49,10 @@ export function createProjectSlice(set: SliceSet, get: SliceGet): ProjectSliceCo
         vaultPath: project.vaultPath || null,
         trashPath: project.vaultPath ? `${project.vaultPath}/.trash` : null,
         projectName: project.name || 'Untitled Project',
+        targetTotalDurationSec:
+          Number.isFinite(project.targetTotalDurationSec) && (project.targetTotalDurationSec as number) > 0
+            ? Math.floor(project.targetTotalDurationSec as number)
+            : undefined,
         scenes: normalizeScenesUseEmbeddedAudio(project.scenes || defaultScenes),
         cutRuntimeById: {},
         selectedSceneId: null,
@@ -64,6 +73,7 @@ export function createProjectSlice(set: SliceSet, get: SliceGet): ProjectSliceCo
         vaultPath: null,
         trashPath: null,
         projectName: 'Untitled Project',
+        targetTotalDurationSec: undefined,
         metadataStore: null,
         scenes: [],
         selectedSceneId: null,
