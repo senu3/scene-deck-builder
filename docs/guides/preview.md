@@ -63,6 +63,12 @@ Video sources queue play/seek until the element is mounted, avoiding the cut bou
 - When `focusCutId` is specified but not found, Preview does not fall back to full-sequence playback.
 - Instead it shows an empty state (`Selected cut is no longer available`).
 
+## Timeline Marker Interaction
+- Timeline progress bar click always performs seek (it does not move IN/OUT markers even when a marker is focused).
+- IN/OUT marker movement is limited to marker drag and frame-step shortcuts when a marker is focused.
+- Marker drag end clears focused marker state to avoid accidental marker edits after drop.
+- IN/OUT constraints (IN <= OUT, OUT >= IN) are applied in a shared path used by marker drag and focused marker frame-step.
+
 ## Buffering / Preload
 - Sequence preloads URLs in a time window (`PLAY_SAFE_AHEAD`, `PRELOAD_AHEAD`).
 - Initial preload warms the first `INITIAL_PRELOAD_ITEMS`.

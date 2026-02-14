@@ -47,6 +47,28 @@ import './shared/playback-controls.css';
 const PLAY_SAFE_AHEAD = 2.0; // seconds - minimum buffer required for playback
 const PRELOAD_AHEAD = 30.0; // seconds - preload this much ahead for smoother playback
 const INITIAL_PRELOAD_ITEMS = 5; // number of items to preload initially
+const FRAME_DURATION = 1 / 30;
+
+function clampToDuration(time: number, duration: number): number {
+  return Math.max(0, Math.min(duration, time));
+}
+
+function constrainMarkerTime(
+  marker: 'in' | 'out',
+  candidateTime: number,
+  duration: number,
+  inPoint: number | null,
+  outPoint: number | null,
+): number {
+  let next = clampToDuration(candidateTime, duration);
+  if (marker === 'in' && outPoint !== null) {
+    next = Math.min(next, outPoint);
+  }
+  if (marker === 'out' && inPoint !== null) {
+    next = Math.max(next, inPoint);
+  }
+  return next;
+}
 
 function revokeIfBlob(url: string): void {
   if (url.startsWith('blob:')) {
@@ -236,9 +258,6 @@ export default function PreviewModal({
   const [displaySize, setDisplaySize] = useState({ width: 0, height: 0 });
   const [sequenceMediaElement, setSequenceMediaElement] = useState<JSX.Element | null>(null);
 
-  // Frame stepping constant (assuming 30fps)
-  const FRAME_DURATION = 1 / 30;
-
   // ===== ATTACHED AUDIO HELPER =====
 
   const getPrimaryAudioBindingForCut = useCallback((cut: Cut | null | undefined) => {
@@ -407,99 +426,31 @@ export default function PreviewModal({
     }
   }, [isSingleModeVideo, singleModeDuration, isPlaying, FRAME_DURATION, sequencePause]);
 
-  // Step focused marker by one frame
-  const stepFocusedMarker = useCallback((direction: number) => {
-    if (!focusedMarker) return;
-
+  const setMarkerTimeAndSeek = useCallback((marker: 'in' | 'out', newTime: number) => {
     const duration = usesSequenceController
       ? sequenceState.totalDuration
       : singleModeDuration;
-    const stepAmount = direction * FRAME_DURATION;
-
-    if (focusedMarker === 'in' && inPoint !== null) {
-      // Constrain IN marker to not go past OUT point
-      const maxTime = outPoint !== null ? outPoint : duration;
-      const newTime = Math.max(0, Math.min(maxTime, inPoint + stepAmount));
-      if (!usesSequenceController) {
-        setSingleModeInPoint(newTime);
-      } else {
-        setSequenceRange(newTime, outPoint ?? null);
-        seekSequenceAbsolute(newTime);
-      }
-      // Also move playback position
-      if (!usesSequenceController && videoRef.current) {
-        videoRef.current.currentTime = newTime;
-        setSingleModeCurrentTime(newTime);
-      }
-    } else if (focusedMarker === 'out' && outPoint !== null) {
-      // Constrain OUT marker to not go before IN point
-      const minTime = inPoint !== null ? inPoint : 0;
-      const newTime = Math.max(minTime, Math.min(duration, outPoint + stepAmount));
-      if (!usesSequenceController) {
-        setSingleModeOutPoint(newTime);
-      } else {
-        setSequenceRange(inPoint ?? null, newTime);
-        seekSequenceAbsolute(newTime);
-      }
-      // Also move playback position
-      if (!usesSequenceController && videoRef.current) {
-        videoRef.current.currentTime = newTime;
-        setSingleModeCurrentTime(newTime);
-      }
-    }
-  }, [
-    focusedMarker,
-    inPoint,
-    outPoint,
-    usesSequenceController,
-    sequenceState.totalDuration,
-    singleModeDuration,
-    FRAME_DURATION,
-    setSequenceRange,
-    seekSequenceAbsolute,
-  ]);
-
-  // Handle marker focus
-  const handleMarkerFocus = useCallback((marker: FocusedMarker) => {
-    setFocusedMarker(marker);
-  }, []);
-
-  // Handle marker drag (both modes)
-  const handleMarkerDrag = useCallback((marker: 'in' | 'out', newTime: number) => {
-    const duration = usesSequenceController
-      ? sequenceState.totalDuration
-      : singleModeDuration;
-    let clampedTime = Math.max(0, Math.min(duration, newTime));
-
-    // Constrain IN marker to not go past OUT point
-    if (marker === 'in' && outPoint !== null) {
-      clampedTime = Math.min(clampedTime, outPoint);
-    }
-    // Constrain OUT marker to not go before IN point
-    if (marker === 'out' && inPoint !== null) {
-      clampedTime = Math.max(clampedTime, inPoint);
-    }
+    const constrainedTime = constrainMarkerTime(marker, newTime, duration, inPoint, outPoint);
 
     if (marker === 'in') {
       if (!usesSequenceController) {
-        setSingleModeInPoint(clampedTime);
+        setSingleModeInPoint(constrainedTime);
       } else {
-        setSequenceRange(clampedTime, outPoint ?? null);
+        setSequenceRange(constrainedTime, outPoint ?? null);
       }
     } else {
       if (!usesSequenceController) {
-        setSingleModeOutPoint(clampedTime);
+        setSingleModeOutPoint(constrainedTime);
       } else {
-        setSequenceRange(inPoint ?? null, clampedTime);
+        setSequenceRange(inPoint ?? null, constrainedTime);
       }
     }
 
-    // Also update playback position
     if (!usesSequenceController && videoRef.current) {
-      videoRef.current.currentTime = clampedTime;
-      setSingleModeCurrentTime(clampedTime);
+      videoRef.current.currentTime = constrainedTime;
+      setSingleModeCurrentTime(constrainedTime);
     } else if (usesSequenceController && items.length > 0) {
-      seekSequenceAbsolute(clampedTime);
+      seekSequenceAbsolute(constrainedTime);
     }
   }, [
     usesSequenceController,
@@ -512,9 +463,27 @@ export default function PreviewModal({
     seekSequenceAbsolute,
   ]);
 
+  // Step focused marker by one frame
+  const stepFocusedMarker = useCallback((direction: number) => {
+    if (!focusedMarker) return;
+    const currentMarkerTime = focusedMarker === 'in' ? inPoint : outPoint;
+    if (currentMarkerTime === null) return;
+    setMarkerTimeAndSeek(focusedMarker, currentMarkerTime + (direction * FRAME_DURATION));
+  }, [focusedMarker, inPoint, outPoint, setMarkerTimeAndSeek]);
+
+  // Handle marker focus
+  const handleMarkerFocus = useCallback((marker: FocusedMarker) => {
+    setFocusedMarker(marker);
+  }, []);
+
+  // Handle marker drag (both modes)
+  const handleMarkerDrag = useCallback((marker: 'in' | 'out', newTime: number) => {
+    setMarkerTimeAndSeek(marker, newTime);
+  }, [setMarkerTimeAndSeek]);
+
   // Handle marker drag end
   const handleMarkerDragEnd = useCallback(() => {
-    // Focus will be cleared when clicking outside progress bar
+    setFocusedMarker(null);
   }, []);
 
   // Clear focused marker when clicking outside progress bar
@@ -626,23 +595,7 @@ export default function PreviewModal({
 
     if (!usesSequenceController) {
       if (!videoRef.current) return;
-      let newTime = Math.max(0, Math.min(singleModeDuration, percent * singleModeDuration));
-
-      // If a marker is focused, move that marker with constraints
-      if (focusedMarker === 'in') {
-        // Constrain IN marker to not go past OUT point
-        if (outPoint !== null) {
-          newTime = Math.min(newTime, outPoint);
-        }
-        setSingleModeInPoint(newTime);
-      } else if (focusedMarker === 'out') {
-        // Constrain OUT marker to not go before IN point
-        if (inPoint !== null) {
-          newTime = Math.max(newTime, inPoint);
-        }
-        setSingleModeOutPoint(newTime);
-      }
-
+      const newTime = clampToDuration(percent * singleModeDuration, singleModeDuration);
       // Always update playback position
       videoRef.current.currentTime = newTime;
       setSingleModeCurrentTime(newTime);
@@ -651,30 +604,12 @@ export default function PreviewModal({
 
     const duration = sequenceState.totalDuration;
     if (duration <= 0) return;
-    let newTime = Math.max(0, Math.min(duration, percent * duration));
-
-    if (focusedMarker === 'in') {
-      if (outPoint !== null) {
-        newTime = Math.min(newTime, outPoint);
-      }
-      setSequenceRange(newTime, outPoint ?? null);
-    } else if (focusedMarker === 'out') {
-      if (inPoint !== null) {
-        newTime = Math.max(newTime, inPoint);
-      }
-      setSequenceRange(inPoint ?? null, newTime);
-    }
-
-    seekSequenceAbsolute(newTime);
+    seekSequenceAbsolute(clampToDuration(percent * duration, duration));
   }, [
     isSingleMode,
     usesSequenceController,
     singleModeDuration,
     sequenceState.totalDuration,
-    focusedMarker,
-    inPoint,
-    outPoint,
-    setSequenceRange,
     seekSequenceAbsolute,
   ]);
 
@@ -1981,26 +1916,11 @@ export default function PreviewModal({
 
     const totalDuration = sequenceState.totalDuration;
     if (totalDuration <= 0) return;
-    let newTime = (progressPercent / 100) * totalDuration;
+    const newTime = (progressPercent / 100) * totalDuration;
 
-    // If a marker is focused, move that marker with constraints
-    if (focusedMarker === 'in') {
-      // Constrain IN marker to not go past OUT point
-      if (outPoint !== null) {
-        newTime = Math.min(newTime, outPoint);
-      }
-      setSequenceRange(newTime, outPoint ?? null);
-    } else if (focusedMarker === 'out') {
-      // Constrain OUT marker to not go before IN point
-      if (inPoint !== null) {
-        newTime = Math.max(newTime, inPoint);
-      }
-      setSequenceRange(inPoint ?? null, newTime);
-    }
-
-    // Always update playback position (recalculate from constrained newTime)
+    // Progress bar click always seeks. Marker movement is drag/keyboard only.
     seekSequenceAbsolute(newTime);
-  }, [items, sequenceState.totalDuration, focusedMarker, inPoint, outPoint, setSequenceRange, seekSequenceAbsolute]);
+  }, [items, sequenceState.totalDuration, seekSequenceAbsolute]);
 
   const handleProgressBarMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     setIsDragging(true);

@@ -28,6 +28,9 @@ export function PlaybackRangeMarkers({
   progressBarRef,
 }: PlaybackRangeMarkersProps) {
   const draggingMarkerRef = useRef<'in' | 'out' | null>(null);
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const didDragRef = useRef(false);
+  const suppressClickRef = useRef(false);
   const [hoveredMarker, setHoveredMarker] = useState<'in' | 'out' | null>(null);
 
   const calculateTimeFromMouseEvent = useCallback((e: MouseEvent | React.MouseEvent): number => {
@@ -43,17 +46,37 @@ export function PlaybackRangeMarkers({
     e.stopPropagation();
 
     draggingMarkerRef.current = marker;
+    dragStartRef.current = { x: e.clientX, y: e.clientY };
+    didDragRef.current = false;
     onMarkerFocus?.(marker);
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
       if (!draggingMarkerRef.current) return;
+      const dragStart = dragStartRef.current;
+      if (!didDragRef.current && dragStart) {
+        const movedX = Math.abs(moveEvent.clientX - dragStart.x);
+        const movedY = Math.abs(moveEvent.clientY - dragStart.y);
+        if (movedX > 2 || movedY > 2) {
+          didDragRef.current = true;
+        }
+      }
+      if (!didDragRef.current) return;
       const newTime = calculateTimeFromMouseEvent(moveEvent);
       onMarkerDrag?.(draggingMarkerRef.current, newTime);
     };
 
     const handleMouseUp = () => {
+      const didDrag = didDragRef.current;
       draggingMarkerRef.current = null;
-      onMarkerDragEnd?.();
+      dragStartRef.current = null;
+      didDragRef.current = false;
+      if (didDrag) {
+        suppressClickRef.current = true;
+        window.setTimeout(() => {
+          suppressClickRef.current = false;
+        }, 0);
+        onMarkerDragEnd?.();
+      }
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
@@ -65,6 +88,7 @@ export function PlaybackRangeMarkers({
   const handleMarkerClick = useCallback((marker: 'in' | 'out', e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (suppressClickRef.current) return;
     // Toggle focus on click (if already focused, stay focused for consistency)
     onMarkerFocus?.(marker);
   }, [onMarkerFocus]);
