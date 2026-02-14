@@ -66,7 +66,7 @@ export async function resolveAssetRange(
 
 export type RunAssetFinalizeResult =
   | { success: true; result: FinalizeClipAssetOnlyResult }
-  | { success: false; reason: 'missing-vault' | 'range-required' | 'duration-unavailable' | 'unsupported-asset-type' };
+  | { success: false; reason: 'missing-vault' | 'range-required' | 'duration-unavailable' | 'unsupported-asset-type' | 'queue-busy' };
 
 export async function runAssetFinalize(
   context: AssetActionContext,
@@ -98,12 +98,15 @@ export async function runAssetFinalize(
     vaultPath: params.vaultPath,
   });
 
+  if (!result.success && result.reason === 'queue-busy') {
+    return { success: false, reason: 'queue-busy' };
+  }
   return { success: true, result };
 }
 
 export type RunAssetExtractAudioResult =
   | { success: true; result: ExtractAudioAssetOnlyResult }
-  | { success: false; reason: 'missing-vault' | 'duration-unavailable' | 'unsupported-asset-type' };
+  | { success: false; reason: 'missing-vault' | 'duration-unavailable' | 'unsupported-asset-type' | 'queue-busy' };
 
 export async function runAssetExtractAudio(
   context: AssetActionContext,
@@ -130,6 +133,9 @@ export async function runAssetExtractAudio(
     outPoint: range.outPoint,
   });
 
+  if (!result.success && result.reason === 'queue-busy') {
+    return { success: false, reason: 'queue-busy' };
+  }
   return { success: true, result };
 }
 

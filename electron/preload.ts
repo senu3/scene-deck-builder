@@ -232,6 +232,16 @@ export interface FfmpegLimits {
   maxTotalBytes: number;
 }
 
+export interface FfmpegQueueStats {
+  running: number;
+  queued: number;
+}
+
+export interface FfmpegQueueOverview {
+  light: FfmpegQueueStats;
+  heavy: FfmpegQueueStats;
+}
+
 export interface RecentProject {
   name: string;
   path: string;
@@ -288,6 +298,9 @@ const electronAPI = {
 
   setFfmpegLimits: (limits: Partial<FfmpegLimits>): Promise<FfmpegLimits> =>
     ipcRenderer.invoke('set-ffmpeg-limits', limits),
+
+  getFfmpegQueueStats: (): Promise<FfmpegQueueOverview> =>
+    ipcRenderer.invoke('get-ffmpeg-queue-stats'),
 
   // Image metadata
   readImageMetadata: (filePath: string): Promise<ImageMetadata | null> =>

@@ -150,11 +150,14 @@ function createFfmpegQueue(name: string, concurrency: number) {
     pump();
   });
 
-  return enqueue;
+  return {
+    enqueue,
+    stats: () => ({ running, queued: queue.length }),
+  };
 }
 
-const enqueueFfmpegLight = createFfmpegQueue('light', 2);
-const enqueueFfmpegHeavy = createFfmpegQueue('heavy', 1);
+const ffmpegLightQueue = createFfmpegQueue('light', 2);
+const ffmpegHeavyQueue = createFfmpegQueue('heavy', 1);
 type FfmpegQueueKind = 'light' | 'heavy';
 interface RunFfmpegResult {
   success: boolean;
@@ -170,7 +173,7 @@ interface RunFfmpegOptions {
 }
 
 function enqueueByQueue<T>(queue: FfmpegQueueKind, task: FfmpegTask<T>): Promise<T> {
-  return queue === 'light' ? enqueueFfmpegLight(task) : enqueueFfmpegHeavy(task);
+  return queue === 'light' ? ffmpegLightQueue.enqueue(task) : ffmpegHeavyQueue.enqueue(task);
 }
 
 function runFfmpegWithResult(ffmpegBinary: string, args: string[], options: RunFfmpegOptions = {}): Promise<RunFfmpegResult> {
@@ -334,7 +337,7 @@ function parseFfmpegMetadata(stderr: string): { duration?: number; width?: numbe
 }
 
 function probeVideoWithFfmpeg(ffmpegBinary: string, filePath: string): Promise<{ duration?: number; width?: number; height?: number }> {
-  return enqueueFfmpegLight(() => new Promise((resolve) => {
+  return ffmpegLightQueue.enqueue(() => new Promise((resolve) => {
     const args = ['-hide_banner', '-i', filePath];
     const proc = spawn(ffmpegBinary, args);
     const stderrRing = createStderrRing();
@@ -796,6 +799,10 @@ ipcMain.handle('read-audio-file', async (_, filePath: string) => {
 });
 
 ipcMain.handle('get-ffmpeg-limits', () => ({ ...ffmpegLimits }));
+ipcMain.handle('get-ffmpeg-queue-stats', () => ({
+  light: ffmpegLightQueue.stats(),
+  heavy: ffmpegHeavyQueue.stats(),
+}));
 
 ipcMain.handle('set-ffmpeg-limits', async (_, next: Partial<FfmpegLimits>) => {
   ffmpegLimits = sanitizeFfmpegLimits(next);
@@ -824,7 +831,7 @@ ipcMain.handle('read-audio-pcm', async (_, filePath: string) => {
       'pipe:1',
     ];
 
-    return await enqueueFfmpegLight(() => new Promise((resolve) => {
+    return await ffmpegLightQueue.enqueue(() => new Promise((resolve) => {
       const proc = spawn(ffmpegBinary, args);
       const chunks: Buffer[] = [];
       const stderrRing = createStderrRing();

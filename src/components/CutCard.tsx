@@ -29,7 +29,7 @@ import './CutCard.css';
 import { getThumbnail } from '../utils/thumbnailCache';
 import { CutContextMenu } from './context-menus';
 import ImageCropModal, { type ImageCropConfig } from './ImageCropModal';
-import { useDialog, useToast } from '../ui';
+import { useBanner, useToast } from '../ui';
 import {
   cropImageAndAddCut,
   extractAudioAndRegisterAsset,
@@ -95,7 +95,8 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
   const createCutFromImport = useStore(selectCreateCutFromImport);
   const { executeCommand } = useHistoryStore();
   const { toast } = useToast();
-  const { confirm: dialogConfirm } = useDialog();
+  const { banner } = useBanner();
+  const FFmpegBannerId = `cut-card-ffmpeg-${cut.id}`;
   const [thumbnail, setThumbnail] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [showCropModal, setShowCropModal] = useState(false);
@@ -335,20 +336,14 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
   };
 
   const handleFinalizeClip = async (reverseOutput: boolean) => {
-    if (reverseOutput) {
-      const proceed = await dialogConfirm({
-        title: 'Reverse Clip',
-        message: 'Reverse export is memory intensive and may temporarily pause the app.',
-        variant: 'warning',
-        confirmLabel: 'Continue',
-      });
-      if (!proceed) {
-        setContextMenu(null);
-        return;
-      }
-    }
-
     try {
+      banner.show({
+        id: FFmpegBannerId,
+        variant: 'progress',
+        message: reverseOutput ? 'Running Reverse Clip...' : 'Running Finalize Clip...',
+        icon: 'sync',
+        dismissible: false,
+      });
       const result = await finalizeClipFromContext({
         sceneId,
         sourceCutId: cut.id,
@@ -368,11 +363,15 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
         toast.success('Clip exported', `${result.fileName} (${sizeText})`);
       } else if (result.reason === 'missing-vault') {
         toast.warning('Vault path not set', 'Please set up a vault first.');
+      } else if (result.reason === 'queue-busy') {
+        toast.error('FFmpeg queue is busy', 'Please wait for the current process to finish.');
       } else {
         toast.error('Finalize Clip failed', result.error || 'Unknown error');
       }
     } catch (error) {
       toast.error('Finalize Clip failed', String(error));
+    } finally {
+      banner.dismiss(FFmpegBannerId);
     }
 
     setContextMenu(null);
@@ -392,18 +391,31 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
       return;
     }
 
-    const result = await extractAudioAndRegisterAsset({
-      sourceAssetPath: asset.path,
-      sourceAssetName: asset.name,
-      vaultPath,
-      inPoint: cut.isClip ? cut.inPoint : undefined,
-      outPoint: cut.isClip ? cut.outPoint : undefined,
+    banner.show({
+      id: FFmpegBannerId,
+      variant: 'progress',
+      message: 'Running Extract Audio...',
+      icon: 'sync',
+      dismissible: false,
     });
-    if (result.success) {
-      const sizeText = result.fileSize ? `${(result.fileSize / 1024 / 1024).toFixed(2)} MB` : 'Unknown size';
-      toast.success('Audio extracted', `${result.fileName} (${sizeText})`);
-    } else {
-      toast.error('Extract Audio failed', result.error || 'Unknown error');
+    try {
+      const result = await extractAudioAndRegisterAsset({
+        sourceAssetPath: asset.path,
+        sourceAssetName: asset.name,
+        vaultPath,
+        inPoint: cut.isClip ? cut.inPoint : undefined,
+        outPoint: cut.isClip ? cut.outPoint : undefined,
+      });
+      if (result.success) {
+        const sizeText = result.fileSize ? `${(result.fileSize / 1024 / 1024).toFixed(2)} MB` : 'Unknown size';
+        toast.success('Audio extracted', `${result.fileName} (${sizeText})`);
+      } else if (result.reason === 'queue-busy') {
+        toast.error('FFmpeg queue is busy', 'Please wait for the current process to finish.');
+      } else {
+        toast.error('Extract Audio failed', result.error || 'Unknown error');
+      }
+    } finally {
+      banner.dismiss(FFmpegBannerId);
     }
     setContextMenu(null);
   };

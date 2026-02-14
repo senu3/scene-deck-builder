@@ -106,7 +106,7 @@ export interface FinalizeClipAddCutResult {
   fileName?: string;
   fileSize?: number;
   error?: string;
-  reason?: 'missing-vault' | 'invalid-clip' | 'missing-asset' | 'runtime';
+  reason?: 'missing-vault' | 'invalid-clip' | 'missing-asset' | 'runtime' | 'queue-busy';
 }
 
 interface FinalizeClipDeriveFileParams {
@@ -125,7 +125,17 @@ interface FinalizeClipDeriveFileResult {
   outputPath?: string;
   clipDuration?: number;
   error?: string;
-  reason?: 'runtime';
+  reason?: 'runtime' | 'queue-busy';
+}
+
+async function isHeavyFfmpegQueueBusy(): Promise<boolean> {
+  if (!window.electronAPI?.getFfmpegQueueStats) return false;
+  try {
+    const stats = await window.electronAPI.getFfmpegQueueStats();
+    return (stats.heavy.running + stats.heavy.queued) > 0;
+  } catch {
+    return false;
+  }
 }
 
 async function finalizeClipToDerivedFile({
@@ -141,6 +151,9 @@ async function finalizeClipToDerivedFile({
   }
   if (typeof window.electronAPI.finalizeClip !== 'function' || typeof window.electronAPI.ensureAssetsFolder !== 'function') {
     return { success: false, reason: 'runtime', error: 'Finalize Clip feature requires app restart after update.' };
+  }
+  if (await isHeavyFfmpegQueueBusy()) {
+    return { success: false, reason: 'queue-busy', error: 'FFmpeg queue is busy. Please wait for current operation to finish.' };
   }
 
   const assetsFolder = await window.electronAPI.ensureAssetsFolder(vaultPath);
@@ -196,7 +209,7 @@ export interface FinalizeClipAssetOnlyResult {
   assetId?: string;
   outputPath?: string;
   error?: string;
-  reason?: 'runtime';
+  reason?: 'runtime' | 'queue-busy';
 }
 
 export async function finalizeClipAndRegisterAsset({
@@ -417,7 +430,7 @@ export interface ExtractAudioAssetOnlyResult {
   assetId?: string;
   outputPath?: string;
   error?: string;
-  reason?: 'runtime';
+  reason?: 'runtime' | 'queue-busy';
 }
 
 export async function extractAudioAndRegisterAsset({
@@ -432,6 +445,9 @@ export async function extractAudioAndRegisterAsset({
   }
   if (typeof window.electronAPI.extractAudio !== 'function' || typeof window.electronAPI.ensureAssetsFolder !== 'function') {
     return { success: false, reason: 'runtime', error: 'Extract Audio feature requires app restart after update.' };
+  }
+  if (await isHeavyFfmpegQueueBusy()) {
+    return { success: false, reason: 'queue-busy', error: 'FFmpeg queue is busy. Please wait for current operation to finish.' };
   }
 
   const assetsFolder = await window.electronAPI.ensureAssetsFolder(vaultPath);

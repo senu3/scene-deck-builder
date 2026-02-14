@@ -36,7 +36,7 @@ import { getCachedThumbnail, getThumbnail, removeThumbnailCache } from '../utils
 import { getMediaType as getAnyMediaType } from '../utils/mediaType';
 import { collectAssetRefs, type AssetRefMap } from '../utils/assetRefs';
 import { getFirstSceneId } from '../utils/sceneOrder';
-import { useDialog, useToast } from '../ui';
+import { useBanner, useDialog, useToast } from '../ui';
 import {
   AssetContextMenu,
 } from './context-menus';
@@ -229,7 +229,9 @@ export default function AssetPanel({
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const { banner } = useBanner();
   const { confirm: dialogConfirm, alert: dialogAlert } = useDialog();
+  const FFmpegBannerId = 'asset-panel-ffmpeg';
 
   const assetRefs = useMemo(
     () => collectAssetRefs(scenes, metadataStore),
@@ -654,6 +656,13 @@ export default function AssetPanel({
 
   const handleAssetMenuFinalize = async () => {
     if (!assetContextMenu) return;
+    banner.show({
+      id: FFmpegBannerId,
+      variant: 'progress',
+      message: 'Running Finalize Clip...',
+      icon: 'sync',
+      dismissible: false,
+    });
 
     const result = await runAssetFinalize({
       assetPath: assetContextMenu.asset.path,
@@ -671,6 +680,7 @@ export default function AssetPanel({
     }, {
       resolveDurationSec: (assetPath) => resolveAssetDuration(assetPath, assetContextMenu.asset.linkedAssetIds),
     });
+    banner.dismiss(FFmpegBannerId);
 
     if (!result.success && result.reason === 'missing-vault') {
       toast.warning('Vault path not set', 'Please set up a vault first.');
@@ -679,6 +689,11 @@ export default function AssetPanel({
     }
     if (!result.success && result.reason === 'range-required') {
       toast.warning('Clip range not found', 'Finalize Clip requires a clip with IN/OUT points.');
+      setAssetContextMenu(null);
+      return;
+    }
+    if (!result.success && result.reason === 'queue-busy') {
+      toast.error('FFmpeg queue is busy', 'Please wait for the current process to finish.');
       setAssetContextMenu(null);
       return;
     }
@@ -696,16 +711,13 @@ export default function AssetPanel({
       setAssetContextMenu(null);
       return;
     }
-    const proceed = await dialogConfirm({
-      title: 'Reverse Clip',
-      message: 'Reverse export is memory intensive and may temporarily pause the app.',
-      variant: 'warning',
-      confirmLabel: 'Continue',
+    banner.show({
+      id: FFmpegBannerId,
+      variant: 'progress',
+      message: 'Running Reverse Clip...',
+      icon: 'sync',
+      dismissible: false,
     });
-    if (!proceed) {
-      setAssetContextMenu(null);
-      return;
-    }
 
     const result = await runAssetFinalize({
       assetPath: assetContextMenu.asset.path,
@@ -723,6 +735,7 @@ export default function AssetPanel({
     }, {
       resolveDurationSec: (assetPath) => resolveAssetDuration(assetPath, assetContextMenu.asset.linkedAssetIds),
     });
+    banner.dismiss(FFmpegBannerId);
 
     if (!result.success && result.reason === 'duration-unavailable') {
       toast.warning('Duration unavailable', 'Unable to resolve video duration for reverse.');
@@ -731,6 +744,11 @@ export default function AssetPanel({
     }
     if (!result.success && result.reason === 'unsupported-asset-type') {
       toast.warning('Unsupported asset type', 'Reverse is available only for video assets.');
+      setAssetContextMenu(null);
+      return;
+    }
+    if (!result.success && result.reason === 'queue-busy') {
+      toast.error('FFmpeg queue is busy', 'Please wait for the current process to finish.');
       setAssetContextMenu(null);
       return;
     }
@@ -743,6 +761,13 @@ export default function AssetPanel({
 
   const handleAssetMenuExtractAudio = async () => {
     if (!assetContextMenu) return;
+    banner.show({
+      id: FFmpegBannerId,
+      variant: 'progress',
+      message: 'Running Extract Audio...',
+      icon: 'sync',
+      dismissible: false,
+    });
 
     const result = await runAssetExtractAudio({
       assetPath: assetContextMenu.asset.path,
@@ -758,6 +783,7 @@ export default function AssetPanel({
     }, {
       resolveDurationSec: (assetPath) => resolveAssetDuration(assetPath, assetContextMenu.asset.linkedAssetIds),
     });
+    banner.dismiss(FFmpegBannerId);
 
     if (!result.success && result.reason === 'missing-vault') {
       toast.warning('Vault path not set', 'Please set up a vault first.');
@@ -771,6 +797,11 @@ export default function AssetPanel({
     }
     if (!result.success && result.reason === 'unsupported-asset-type') {
       toast.warning('Unsupported asset type', 'Extract Audio is available only for video assets.');
+      setAssetContextMenu(null);
+      return;
+    }
+    if (!result.success && result.reason === 'queue-busy') {
+      toast.error('FFmpeg queue is busy', 'Please wait for the current process to finish.');
       setAssetContextMenu(null);
       return;
     }

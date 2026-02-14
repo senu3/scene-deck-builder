@@ -266,6 +266,16 @@ interface FfmpegLimits {
   maxTotalBytes: number;
 }
 
+interface FfmpegQueueStats {
+  running: number;
+  queued: number;
+}
+
+interface FfmpegQueueOverview {
+  light: FfmpegQueueStats;
+  heavy: FfmpegQueueStats;
+}
+
 interface AppVersions {
   electron: string;
   chrome: string;
@@ -286,6 +296,7 @@ interface ElectronAPI {
   readAudioPcm: (filePath: string) => Promise<{ success: boolean; pcm?: Uint8Array; sampleRate?: number; channels?: number; error?: string } | null>;
   getFfmpegLimits: () => Promise<FfmpegLimits>;
   setFfmpegLimits: (limits: Partial<FfmpegLimits>) => Promise<FfmpegLimits>;
+  getFfmpegQueueStats: () => Promise<FfmpegQueueOverview>;
 
   // Image metadata
   readImageMetadata: (filePath: string) => Promise<ImageMetadata | null>;
