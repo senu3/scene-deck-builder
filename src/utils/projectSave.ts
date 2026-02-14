@@ -58,13 +58,29 @@ export function prepareAssetForSave(asset: Asset): Asset {
   return asset;
 }
 
+function prepareCutAssetSnapshot(asset: Asset): Asset {
+  const snapshot: Asset = {
+    id: asset.id,
+    name: asset.name || asset.id,
+    path: '',
+    type: asset.type,
+  };
+  if (typeof asset.duration === 'number' && Number.isFinite(asset.duration) && asset.duration > 0) {
+    snapshot.duration = asset.duration;
+  }
+  if (asset.thumbnail) {
+    snapshot.thumbnail = asset.thumbnail;
+  }
+  return snapshot;
+}
+
 // Prepare scenes for saving (convert to relative paths)
 export function prepareScenesForSave(scenes: Scene[]): Scene[] {
   return scenes.map((scene) => ({
     ...scene,
     cuts: scene.cuts.map((cut) => ({
       ...cut,
-      asset: cut.asset ? prepareAssetForSave(cut.asset) : undefined,
+      asset: cut.asset ? prepareCutAssetSnapshot(prepareAssetForSave(cut.asset)) : undefined,
     })),
   }));
 }

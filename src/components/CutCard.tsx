@@ -27,6 +27,7 @@ import { useHistoryStore } from '../store/historyStore';
 import type { Asset, CutAudioBinding } from '../types';
 import './CutCard.css';
 import { getThumbnail } from '../utils/thumbnailCache';
+import { resolveCutAsset, resolveCutThumbnail } from '../utils/assetResolve';
 import { CutContextMenu } from './context-menus';
 import ImageCropModal, { type ImageCropConfig } from './ImageCropModal';
 import { useBanner, useToast } from '../ui';
@@ -150,9 +151,8 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
     display: isHidden ? 'none' : undefined,
   };
 
-  const asset = (cut.isClip && cut.asset?.thumbnail)
-    ? cut.asset
-    : (getAsset(cut.assetId) || cut.asset);
+  const asset = resolveCutAsset(cut, getAsset);
+  const preferredThumbnail = resolveCutThumbnail(cut, getAsset);
   const isSelected = selectedCutIds.has(cut.id) || selectedCutId === cut.id;
   const isMultiSelected = selectedCutIds.size > 1 && selectedCutIds.has(cut.id);
   const isVideo = asset?.type === 'video';
@@ -172,9 +172,9 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
         return;
       }
 
-      if (asset?.thumbnail) {
+      if (preferredThumbnail) {
         if (!cancelled) {
-          setThumbnail(asset.thumbnail);
+          setThumbnail(preferredThumbnail);
         }
         return;
       }
@@ -195,7 +195,7 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
     return () => {
       cancelled = true;
     };
-  }, [asset]);
+  }, [asset, preferredThumbnail]);
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -351,7 +351,7 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
         sourceCutId: cut.id,
         insertIndex: index + 1,
         cut,
-        asset,
+        asset: asset ?? undefined,
         reverseOutput,
         vaultPath,
         createCutFromImport,

@@ -4,6 +4,7 @@ import { upsertSceneMetadata, removeSceneMetadata } from '../../utils/metadataSt
 import { buildAssetForCut } from '../../utils/cutImport';
 import { getScenesAndCutsInTimelineOrder } from '../../utils/timelineOrder';
 import { normalizeSceneOrder } from '../../utils/sceneOrder';
+import { resolveCutDuration } from '../../utils/assetResolve';
 import type { ClipboardCut } from '../stateTypes';
 import type { CutTimelineSliceContract } from '../contracts';
 import type { SliceGet, SliceSet } from './sliceTypes';
@@ -358,13 +359,16 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
                 ...s,
                 cuts: s.cuts.map((c) =>
                   c.id === cutId
-                    ? {
-                        ...c,
-                        inPoint: undefined,
-                        outPoint: undefined,
-                        isClip: false,
-                        displayTime: c.asset?.duration ?? c.displayTime,
-                      }
+                    ? (() => {
+                        const restoredDuration = resolveCutDuration(c, state.getAsset);
+                        return {
+                          ...c,
+                          inPoint: undefined,
+                          outPoint: undefined,
+                          isClip: false,
+                          displayTime: restoredDuration ?? c.displayTime,
+                        };
+                      })()
                     : c
                 ),
               }

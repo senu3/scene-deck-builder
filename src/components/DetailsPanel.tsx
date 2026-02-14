@@ -66,6 +66,7 @@ import {
   UpdateCutSubtitleCommand,
 } from "../store/commands";
 import { getThumbnail } from "../utils/thumbnailCache";
+import { resolveCutAsset, resolveCutThumbnail } from "../utils/assetResolve";
 import { extractVideoMetadata } from "../utils/videoUtils";
 import { getLipSyncFrameAssetIds } from "../utils/lipSyncUtils";
 import { importFileToVault } from "../utils/assetPath";
@@ -154,10 +155,8 @@ export default function DetailsPanel() {
 
   const cut = selectedCutData?.cut;
   const cutScene = selectedCutData?.scene;
-  const asset =
-    cut?.isClip && cut?.asset?.thumbnail
-      ? cut.asset
-      : (cut?.assetId ? (getAsset(cut.assetId) || cut.asset) : cut?.asset);
+  const asset = cut ? resolveCutAsset(cut, getAsset) : null;
+  const preferredThumbnail = cut ? resolveCutThumbnail(cut, getAsset) : null;
   const primaryAudioBinding = cut?.audioBindings?.[0];
   const useEmbeddedAudio = cut?.useEmbeddedAudio ?? true;
   const attachedAudioSourceName =
@@ -191,9 +190,10 @@ export default function DetailsPanel() {
       const firstCut = selectedGroupData.scene.cuts.find((c) => c.id === firstCutId);
       if (!firstCut) return;
 
-      const firstAsset = firstCut.asset || (firstCut.assetId ? getAsset(firstCut.assetId) : undefined);
-      if (firstAsset?.thumbnail) {
-        if (isActive) setGroupThumbnail(firstAsset.thumbnail);
+      const firstAsset = resolveCutAsset(firstCut, getAsset);
+      const firstThumbnail = resolveCutThumbnail(firstCut, getAsset);
+      if (firstThumbnail) {
+        if (isActive) setGroupThumbnail(firstThumbnail);
         return;
       }
 
@@ -252,10 +252,14 @@ export default function DetailsPanel() {
       setThumbnail(null);
       setMetadata(null);
 
+      if (preferredThumbnail) {
+        setThumbnail(preferredThumbnail);
+      }
+
       if (!asset?.path) return;
 
       // Keep Details preview in thumbnail flow; use larger profile for readability.
-      if (asset.type === 'image' && asset.path) {
+      if (!preferredThumbnail && asset.type === 'image' && asset.path) {
         try {
           const cached = await getThumbnail(asset.path, 'image', { profile: 'details-panel' });
           if (cached) {
@@ -264,9 +268,7 @@ export default function DetailsPanel() {
         } catch {
           // Failed to load
         }
-      } else if (asset.thumbnail) {
-        setThumbnail(asset.thumbnail);
-      } else if (asset.type === 'video' && asset.path) {
+      } else if (!preferredThumbnail && asset.type === 'video' && asset.path) {
         try {
           const cached = await getThumbnail(asset.path, asset.type);
           if (cached) {
@@ -294,7 +296,7 @@ export default function DetailsPanel() {
     };
 
     loadAssetData();
-  }, [asset?.path, asset?.thumbnail, asset?.metadata, asset?.type]);
+  }, [asset?.path, asset?.metadata, asset?.type, preferredThumbnail]);
 
   // Load lip sync frame thumbnails
   useEffect(() => {

@@ -14,6 +14,7 @@
 - `docs/notes/archive/store-type-boundary-plan-implemented-2026-02-12.md`
 - `docs/notes/archive/cut-write-path-inventory-implemented-2026-02-12.md`
 - `docs/notes/archive/assetpanel-cut-ffmpeg-reorg-plan-implemented-2026-02-12.md`
+- `docs/notes/archive/getasset-thumbnail-resolution-implemented-2026-02-14.md`
 - `docs/notes/archive/autosave-toast-notes.md`
 - `docs/notes/archive/aviutl-exo-export-research.md`
 

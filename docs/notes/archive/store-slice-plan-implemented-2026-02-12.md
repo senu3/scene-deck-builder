@@ -14,6 +14,7 @@
 - `docs/guides/cut-history-guidelines.md`
 - `docs/notes/archive/cut-refactor-plan-implemented-2026-02-12.md`
 - `docs/notes/archive/cut-write-path-inventory-implemented-2026-02-12.md`
+- `docs/notes/archive/getasset-thumbnail-resolution-implemented-2026-02-14.md`（getAsset優先解決とClipサムネ例外の統一）
 - `src/store/useStore.ts`
 - `src/store/commands.ts`
 

@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { Scene, Cut } from '../../types';
+import type { Scene, Cut, Asset } from '../../types';
 import { clearThumbnailCache } from '../../utils/thumbnailCache';
 import { normalizeSceneOrder } from '../../utils/sceneOrder';
 import type { SourceFolder } from '../stateTypes';
@@ -21,6 +21,23 @@ function normalizeScenesUseEmbeddedAudio(scenes: Scene[]): Scene[] {
       };
     }),
   }));
+}
+
+function buildAssetCacheFromScenes(scenes: Scene[]): Map<string, Asset> {
+  const cache = new Map<string, Asset>();
+  for (const scene of scenes) {
+    for (const cut of scene.cuts) {
+      if (!cut.asset) continue;
+      const lookupId = cut.assetId || cut.asset.id;
+      if (lookupId) {
+        cache.set(lookupId, { ...cut.asset, id: lookupId });
+      }
+      if (cut.asset.id && cut.asset.id !== lookupId) {
+        cache.set(cut.asset.id, cut.asset);
+      }
+    }
+  }
+  return cache;
 }
 
 export function createProjectSlice(set: SliceSet, get: SliceGet): ProjectSliceContract {
@@ -58,6 +75,7 @@ export function createProjectSlice(set: SliceSet, get: SliceGet): ProjectSliceCo
             : undefined,
         scenes: nextScenes,
         sceneOrder: nextSceneOrder,
+        assetCache: buildAssetCacheFromScenes(nextScenes),
         cutRuntimeById: {},
         selectedSceneId: null,
         selectedCutId: null,
@@ -101,6 +119,7 @@ export function createProjectSlice(set: SliceSet, get: SliceGet): ProjectSliceCo
       set({
         scenes: nextScenes,
         sceneOrder: normalizeSceneOrder(sceneOrder, nextScenes),
+        assetCache: buildAssetCacheFromScenes(nextScenes),
         cutRuntimeById: {},
       });
     },
