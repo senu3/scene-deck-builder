@@ -85,6 +85,7 @@ Video sources queue play/seek until the element is mounted, avoiding the cut bou
 - Video URL cache is pruned as the playhead moves (keeps a small rewind window).
 - Video URL cache is keyed by **assetId** to prevent mismatched URLs.
 - Image preview sources use thumbnail IPC with a sequence-only profile (`sequence-preview`) instead of asset-grid sizing.
+- Project load path restoration: when `cut.asset.path` is empty in saved snapshots, load flow hydrates the asset from `assets/.index.json` by `assetId` before Sequence video URL creation.
 
 ## Known TODO
 - Sequence Mode may still show a brief buffering/loading state when consecutive video clips use the same source asset and switch at cut boundaries.

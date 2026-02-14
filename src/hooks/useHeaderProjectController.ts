@@ -1,7 +1,7 @@
 import { useCallback, useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { useDialog, useToast } from '../ui';
-import type { Scene, Asset, SourcePanelState } from '../types';
+import type { Scene, Asset, AssetIndexEntry, SourcePanelState } from '../types';
 import type { MissingAssetInfo, RecoveryDecision } from '../components/MissingAssetRecoveryModal';
 import { importFileToVault } from '../utils/assetPath';
 import { extractVideoMetadata } from '../utils/videoUtils';
@@ -51,12 +51,74 @@ async function resolveAssetPath(asset: Asset, vaultPath: string): Promise<Asset>
 async function resolveScenesAssets(scenes: Scene[], vaultPath: string): Promise<{ scenes: Scene[]; missingAssets: MissingAssetInfo[] }> {
   const resolvedScenes: Scene[] = [];
   const missingAssets: MissingAssetInfo[] = [];
+  const assetIndexById = new Map<string, AssetIndexEntry>();
+  const hydratedAssetById = new Map<string, Asset>();
+
+  if (window.electronAPI?.loadAssetIndex) {
+    try {
+      const index = await window.electronAPI.loadAssetIndex(vaultPath);
+      for (const entry of index.assets || []) {
+        if (entry?.id) {
+          assetIndexById.set(entry.id, entry);
+        }
+      }
+    } catch {
+      // Keep best-effort load path; individual cuts may still resolve via saved paths.
+    }
+  }
+
+  const hydrateAssetFromIndex = async (assetId: string, fallback?: Asset): Promise<Asset | undefined> => {
+    if (!assetId) return fallback;
+    const cached = hydratedAssetById.get(assetId);
+    if (cached) return cached;
+
+    const indexEntry = assetIndexById.get(assetId);
+    if (!indexEntry) return fallback;
+
+    const vaultRelativePath = `assets/${indexEntry.filename}`;
+    let absolutePath = fallback?.path || '';
+    if (window.electronAPI?.resolveVaultPath) {
+      try {
+        const resolved = await window.electronAPI.resolveVaultPath(vaultPath, vaultRelativePath);
+        if (resolved?.exists && resolved.absolutePath) {
+          absolutePath = resolved.absolutePath;
+        }
+      } catch {
+        // Keep fallback path.
+      }
+    }
+
+    const hydrated: Asset = {
+      ...(fallback || {}),
+      id: assetId,
+      name: fallback?.name || indexEntry.originalName || indexEntry.filename || assetId,
+      path: absolutePath || vaultRelativePath,
+      type: fallback?.type || indexEntry.type,
+      vaultRelativePath,
+      originalPath: fallback?.originalPath || indexEntry.originalPath,
+      hash: fallback?.hash || indexEntry.hash,
+      fileSize: fallback?.fileSize ?? indexEntry.fileSize,
+    };
+
+    hydratedAssetById.set(assetId, hydrated);
+    return hydrated;
+  };
 
   for (const scene of scenes) {
     const resolvedCuts = await Promise.all(
       scene.cuts.map(async (cut) => {
-        if (cut.asset) {
-          const resolvedAsset = await resolveAssetPath(cut.asset, vaultPath);
+        const cutAssetId = cut.assetId || cut.asset?.id;
+        if (cut.asset || cutAssetId) {
+          const baseAsset: Asset | undefined = cut.asset
+            ? { ...cut.asset, id: cutAssetId || cut.asset.id }
+            : (cutAssetId ? await hydrateAssetFromIndex(cutAssetId) : undefined);
+
+          if (!baseAsset) return cut;
+
+          let resolvedAsset = await resolveAssetPath(baseAsset, vaultPath);
+          if ((!resolvedAsset.path || resolvedAsset.path.trim() === '') && cutAssetId) {
+            resolvedAsset = (await hydrateAssetFromIndex(cutAssetId, resolvedAsset)) || resolvedAsset;
+          }
 
           // Check if asset file exists
           if (resolvedAsset.path && window.electronAPI) {
@@ -71,7 +133,11 @@ async function resolveScenesAssets(scenes: Scene[], vaultPath: string): Promise<
             }
           }
 
-          return { ...cut, asset: resolvedAsset };
+          return {
+            ...cut,
+            assetId: cutAssetId || resolvedAsset.id,
+            asset: resolvedAsset,
+          };
         }
         return cut;
       })

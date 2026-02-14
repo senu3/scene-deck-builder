@@ -71,6 +71,9 @@ function prepareCutAssetSnapshot(asset: Asset): Asset {
   if (asset.thumbnail) {
     snapshot.thumbnail = asset.thumbnail;
   }
+  if (asset.vaultRelativePath) {
+    snapshot.vaultRelativePath = asset.vaultRelativePath;
+  }
   return snapshot;
 }
 

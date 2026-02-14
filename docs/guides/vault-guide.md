@@ -136,6 +136,11 @@ Renderer code must call `window.electronAPI.vaultGateway.*` for:
 3. `.metadata.json` for scene notes/labels and asset metadata (analysis/lipSync/displayTime)
 4. `.trash/.trash.json` for audit/history
 
+## Project Load / Save Notes
+- Save-time cut asset snapshots keep minimal fields and should include `vaultRelativePath` when available.
+- Load flow must treat `.index.json` as fallback source of truth for file path hydration (`assetId -> filename`) when `cut.asset.path` is empty.
+- This fallback is required to prevent Sequence video preview from stalling at LoadingVideo after project reload.
+
 ## Related Docs
 - `docs/references/DOMAIN.md`
 - `docs/guides/media-handling.md`
