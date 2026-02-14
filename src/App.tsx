@@ -1,5 +1,5 @@
 import { DndContext, DragEndEvent, DragOverEvent, DragStartEvent, pointerWithin, useSensors, useSensor, PointerSensor, useDndMonitor } from '@dnd-kit/core';
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { lazy, Suspense, useState, useRef, useCallback, useEffect } from 'react';
 import { useStore } from './store/useStore';
 import {
   selectProjectLoaded,
@@ -46,13 +46,7 @@ import {
 import AssetDrawer from './components/AssetDrawer';
 import Sidebar from './components/Sidebar';
 import Storyline from './components/Storyline';
-import DetailsPanel from './components/DetailsPanel';
-import PreviewModal from './components/PreviewModal';
 import Header from './components/Header';
-import StartupModal from './components/StartupModal';
-import ExportModal from './components/ExportModal';
-import EnvironmentSettingsModal from './components/EnvironmentSettingsModal';
-import NotificationTestModal from './components/NotificationTestModal';
 import { v4 as uuidv4 } from 'uuid';
 import type { Asset, Cut } from './types';
 import { getThumbnail } from './utils/thumbnailCache';
@@ -74,6 +68,12 @@ import { useBanner, useToast } from './ui';
 import './styles/App.css';
 
 const EXPORT_PROGRESS_BANNER_ID = 'export-progress';
+const StartupModal = lazy(() => import('./components/StartupModal'));
+const DetailsPanel = lazy(() => import('./components/DetailsPanel'));
+const PreviewModal = lazy(() => import('./components/PreviewModal'));
+const ExportModal = lazy(() => import('./components/ExportModal'));
+const EnvironmentSettingsModal = lazy(() => import('./components/EnvironmentSettingsModal'));
+const NotificationTestModal = lazy(() => import('./components/NotificationTestModal'));
 
 function DndMonitorShim({ onDragStart }: { onDragStart: () => void }) {
   useDndMonitor({
@@ -773,7 +773,11 @@ function App() {
 
   // Show startup modal if no project is loaded
   if (!projectLoaded) {
-    return <StartupModal />;
+    return (
+      <Suspense fallback={null}>
+        <StartupModal />
+      </Suspense>
+    );
   }
 
   return (
@@ -804,62 +808,68 @@ function App() {
             <Storyline activeId={activeId} activeType={activeType} cropBaseResolution={exportResolution} />
           </main>
           <div className={`details-panel-wrapper ${detailsPanelOpen && selectionType ? 'open' : ''}`}>
-            <DetailsPanel />
+            {detailsPanelOpen && selectionType && (
+              <Suspense fallback={null}>
+                <DetailsPanel />
+              </Suspense>
+            )}
           </div>
         </div>
-        {showPreview && (
-          <PreviewModal
-            onClose={() => setShowPreview(false)}
-            exportResolution={exportResolution}
-            onResolutionChange={setExportResolution}
-            onExportSequence={handlePreviewExport}
+        <Suspense fallback={null}>
+          {showPreview && (
+            <PreviewModal
+              onClose={() => setShowPreview(false)}
+              exportResolution={exportResolution}
+              onResolutionChange={setExportResolution}
+              onExportSequence={handlePreviewExport}
+            />
+          )}
+          {previewData && (
+            <PreviewModal
+              asset={previewData.asset}
+              focusCutId={previewData.cut.id}
+              onClose={closeVideoPreview}
+              openSubtitleModalOnMount={pendingSubtitleModalCutId === previewData.cut.id}
+              onSubtitleModalOpenHandled={clearPendingSubtitleModalCutId}
+              initialInPoint={previewData.cut.inPoint}
+              initialOutPoint={previewData.cut.outPoint}
+              onClipSave={handleVideoPreviewClipSave}
+              onFrameCapture={handleVideoPreviewFrameCapture}
+              exportResolution={exportResolution}
+              onResolutionChange={setExportResolution}
+              onExportSequence={handlePreviewExport}
+            />
+          )}
+          {sequencePreviewCutId && (
+            <PreviewModal
+              onClose={closeSequencePreview}
+              focusCutId={sequencePreviewCutId}
+              openSubtitleModalOnMount={pendingSubtitleModalCutId === sequencePreviewCutId}
+              onSubtitleModalOpenHandled={clearPendingSubtitleModalCutId}
+              exportResolution={exportResolution}
+              onResolutionChange={setExportResolution}
+              onExportSequence={handlePreviewExport}
+            />
+          )}
+          <ExportModal
+            open={showExportModal}
+            onClose={() => setShowExportModal(false)}
+            initialResolution={{
+              width: exportResolution.width > 0 ? exportResolution.width : DEFAULT_EXPORT_RESOLUTION.width,
+              height: exportResolution.height > 0 ? exportResolution.height : DEFAULT_EXPORT_RESOLUTION.height,
+            }}
+            onExport={handleExport}
           />
-        )}
-        {previewData && (
-          <PreviewModal
-            asset={previewData.asset}
-            focusCutId={previewData.cut.id}
-            onClose={closeVideoPreview}
-            openSubtitleModalOnMount={pendingSubtitleModalCutId === previewData.cut.id}
-            onSubtitleModalOpenHandled={clearPendingSubtitleModalCutId}
-            initialInPoint={previewData.cut.inPoint}
-            initialOutPoint={previewData.cut.outPoint}
-            onClipSave={handleVideoPreviewClipSave}
-            onFrameCapture={handleVideoPreviewFrameCapture}
-            exportResolution={exportResolution}
-            onResolutionChange={setExportResolution}
-            onExportSequence={handlePreviewExport}
+          <EnvironmentSettingsModal
+            open={showEnvironmentSettings}
+            onClose={() => setShowEnvironmentSettings(false)}
+            onOpenNotificationTests={handleOpenNotificationTests}
           />
-        )}
-        {sequencePreviewCutId && (
-          <PreviewModal
-            onClose={closeSequencePreview}
-            focusCutId={sequencePreviewCutId}
-            openSubtitleModalOnMount={pendingSubtitleModalCutId === sequencePreviewCutId}
-            onSubtitleModalOpenHandled={clearPendingSubtitleModalCutId}
-            exportResolution={exportResolution}
-            onResolutionChange={setExportResolution}
-            onExportSequence={handlePreviewExport}
+          <NotificationTestModal
+            open={showNotificationTests}
+            onClose={() => setShowNotificationTests(false)}
           />
-        )}
-        <ExportModal
-          open={showExportModal}
-          onClose={() => setShowExportModal(false)}
-          initialResolution={{
-            width: exportResolution.width > 0 ? exportResolution.width : DEFAULT_EXPORT_RESOLUTION.width,
-            height: exportResolution.height > 0 ? exportResolution.height : DEFAULT_EXPORT_RESOLUTION.height,
-          }}
-          onExport={handleExport}
-        />
-        <EnvironmentSettingsModal
-          open={showEnvironmentSettings}
-          onClose={() => setShowEnvironmentSettings(false)}
-          onOpenNotificationTests={handleOpenNotificationTests}
-        />
-        <NotificationTestModal
-          open={showNotificationTests}
-          onClose={() => setShowNotificationTests(false)}
-        />
+        </Suspense>
       </div>
     </DndContext>
   );
