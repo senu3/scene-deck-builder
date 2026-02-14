@@ -143,6 +143,24 @@ export function createVideoMediaSource(options: VideoMediaSourceOptions): MediaS
       options.refObject.current = el;
     }
     if (!videoEl) return;
+    // When React reuses a loaded <video>, onLoadedMetadata may not fire again.
+    if (videoEl.readyState >= 1) {
+      metadataLoaded = true;
+      const duration = videoEl.duration || 0;
+      normalizedInPoint = Math.max(0, Math.min(duration, options.inPoint ?? 0));
+      if (typeof options.outPoint === 'number') {
+        normalizedOutPoint = Math.max(normalizedInPoint, Math.min(options.outPoint, duration));
+      } else {
+        normalizedOutPoint = undefined;
+      }
+      if (pendingSeek !== null) {
+        const nextSeek = pendingSeek;
+        pendingSeek = null;
+        applySeek(nextSeek);
+      } else if (normalizedInPoint > 0) {
+        videoEl.currentTime = normalizedInPoint;
+      }
+    }
     videoEl.playbackRate = pendingRate;
     if (shouldPlay) {
       videoEl.play().catch(() => {});

@@ -1507,9 +1507,10 @@ export default function PreviewModal({
         ? currentItem.cut.outPoint
         : undefined;
 
+      const videoSourceKey = `${currentItem.cut.id}:${videoObjectUrl.url}:${clipInPoint}:${clipOutPoint ?? 'end'}`;
       const source = createVideoMediaSource({
         src: videoObjectUrl.url,
-        key: videoObjectUrl.url,
+        key: videoSourceKey,
         className: 'preview-media',
         muted: shouldMuteEmbeddedAudio(currentItem.cut),
         refObject: videoRef,

@@ -86,6 +86,10 @@ Video sources queue play/seek until the element is mounted, avoiding the cut bou
 - Video URL cache is keyed by **assetId** to prevent mismatched URLs.
 - Image preview sources use thumbnail IPC with a sequence-only profile (`sequence-preview`) instead of asset-grid sizing.
 
+## Known TODO
+- Sequence Mode may still show a brief buffering/loading state when consecutive video clips use the same source asset and switch at cut boundaries.
+- This is a Preview UX/performance follow-up only and does not affect Export output or export sequence construction.
+
 ## Must NOT Do
 - Do not control Sequence Mode playback by directly calling `<video>` methods.
 - Do not special-case Single Mode images back to plain `<img>` timers.
