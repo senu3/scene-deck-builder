@@ -65,4 +65,26 @@ describe('export plan', () => {
       copyMedia: false,
     });
   });
+
+  it('keeps exportScope when provided', () => {
+    const plan = resolveExportPlan({
+      settings: {
+        format: 'mp4',
+        outputRootPath: 'C:/vault/export',
+        outputFolderName: 'scenes/scene-1',
+        resolution: { width: 1280, height: 720 },
+        fps: 30,
+        range: 'all',
+        aviutl: { roundingMode: 'round', copyMedia: true },
+        mp4: { quality: 'medium' },
+      },
+      resolution: { width: 1280, height: 720 },
+      exportScope: { kind: 'scene', sceneId: 'scene-1' },
+    });
+
+    expect(plan.format).toBe('mp4');
+    if (plan.format === 'mp4') {
+      expect(plan.exportScope).toEqual({ kind: 'scene', sceneId: 'scene-1' });
+    }
+  });
 });

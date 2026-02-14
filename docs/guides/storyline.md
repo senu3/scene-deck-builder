@@ -25,10 +25,17 @@
 - Storyline cut double-click uses media type routing.
 - Video cuts open Single Mode preview via `openVideoPreview(cut.id)`.
 - Non-video cuts (image/lipsync) open Sequence Mode preview via `openSequencePreview(cut.id)`.
+- Scene more menu has `Preview this Scene` entry.
+- Scene more menu preview must pass `sceneId` directly (must not depend on selected scene state).
 
 ## AutoClip Entry
 - Video cut context menu provides `AutoClip (Simple)` actions.
 - AutoClip mode profiles and generation rules are defined in `docs/guides/autoclip.md`.
+
+## Scene More Menu Actions
+- Scene more menu has `Export this Scene` entry.
+- Both entries (`Preview this Scene` / `Export this Scene`) are guarded when `scene.cuts.length === 0` (disabled and runtime early return).
+- Scene resolution should use `resolveSceneById(sceneId)` and not `selectedSceneId`.
 
 ## External D&D Rules
 - StoryTimeline/Storyline drop targets accept image/video assets.

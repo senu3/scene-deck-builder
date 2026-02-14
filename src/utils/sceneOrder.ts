@@ -31,3 +31,12 @@ export function getScenesInOrder(scenes: Scene[], sceneOrder: string[] | undefin
 export function getFirstSceneId(scenes: Scene[], sceneOrder: string[] | undefined): string | undefined {
   return getScenesInOrder(scenes, sceneOrder)[0]?.id;
 }
+
+export function resolveSceneById(scenes: Scene[], sceneId: string): Scene | undefined {
+  return scenes.find((scene) => scene.id === sceneId);
+}
+
+export function getSceneIndex(scenes: Scene[], sceneOrder: string[] | undefined, sceneId: string): number {
+  const normalized = normalizeSceneOrder(sceneOrder, scenes);
+  return normalized.findIndex((id) => id === sceneId);
+}

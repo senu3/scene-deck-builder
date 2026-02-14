@@ -106,6 +106,8 @@ interface BasePreviewModalProps {
   exportResolution?: ResolutionPresetType;
   onResolutionChange?: (resolution: ResolutionPresetType) => void;
   focusCutId?: string;
+  sequenceCuts?: Cut[];
+  sequenceContext?: { kind: 'scene'; sceneId: string; sceneName?: string };
   onRangeChange?: (range: { inPoint: number | null; outPoint: number | null }) => void;
   onExportSequence?: (cuts: Cut[], resolution: { width: number; height: number }) => Promise<void> | void;
   openSubtitleModalOnMount?: boolean;
@@ -146,6 +148,8 @@ export default function PreviewModal({
   exportResolution,
   onResolutionChange,
   focusCutId,
+  sequenceCuts,
+  sequenceContext,
   onExportSequence,
   openSubtitleModalOnMount,
   onSubtitleModalOpenHandled,
@@ -953,6 +957,76 @@ export default function PreviewModal({
       return;
     }
 
+    if (sequenceCuts) {
+      const buildSceneScopedItems = async () => {
+        const newItems: PreviewItem[] = [];
+        const scopedSceneId = sequenceContext?.sceneId ?? 'sequence';
+        const scopedSceneName = sequenceContext?.sceneName || 'Scene';
+
+        for (let cIdx = 0; cIdx < sequenceCuts.length; cIdx++) {
+          const cut = sequenceCuts[cIdx];
+          const cutAsset = resolveAssetForCut(cut);
+          const lipSyncSettings = cut.isLipSync && cutAsset?.id
+            ? getLipSyncSettingsForAsset(cutAsset.id)
+            : undefined;
+
+          let thumbnail: string | null = resolveThumbnailForCut(cut) ?? null;
+
+          if (cutAsset?.type === 'image' && cutAsset.path) {
+            try {
+              const cached = await getThumbnail(cutAsset.path, 'image', { profile: 'sequence-preview' });
+              if (cached) thumbnail = cached;
+            } catch {
+              // ignore
+            }
+          }
+
+          if (lipSyncSettings) {
+            const firstFrameAssetId = getLipSyncFrameAssetIds(lipSyncSettings)[0];
+            const baseAsset = firstFrameAssetId ? getAsset(firstFrameAssetId) : undefined;
+            if (baseAsset?.thumbnail) {
+              thumbnail = baseAsset.thumbnail;
+            } else if (baseAsset?.path) {
+              try {
+                const cached = await getThumbnail(baseAsset.path, 'image', { profile: 'sequence-preview' });
+                if (cached) thumbnail = cached;
+              } catch {
+                // ignore
+              }
+            }
+          }
+
+          if (!thumbnail && cutAsset?.path) {
+            try {
+              if (cutAsset.type === 'video') {
+                thumbnail = await getThumbnail(cutAsset.path, 'video');
+              } else {
+                thumbnail = await getThumbnail(cutAsset.path, 'image', { profile: 'sequence-preview' });
+              }
+            } catch {
+              // Failed to load
+            }
+          }
+
+          newItems.push({
+            cut,
+            sceneId: scopedSceneId,
+            sceneName: scopedSceneName,
+            sceneIndex: 0,
+            cutIndex: cIdx,
+            sceneStartAbs: 0,
+            previewOffsetSec: 0,
+            thumbnail,
+          });
+        }
+
+        setItems(newItems);
+      };
+
+      void buildSceneScopedItems();
+      return;
+    }
+
     if (focusCutData) {
       const buildFocusedItems = async () => {
         const { scene, sceneIndex, cut, cutIndex } = focusCutData;
@@ -1115,6 +1189,8 @@ export default function PreviewModal({
     getLipSyncSettingsForAsset,
     focusCutData,
     missingFocusedCut,
+    sequenceCuts,
+    sequenceContext,
     resolveAssetForCut,
     resolveThumbnailForCut,
   ]);

@@ -27,10 +27,11 @@ import {
   selectGetCutGroup,
   selectGetAsset,
   selectMetadataStore,
-  selectSelectionType,
-  selectDetailsPanelOpen,
-  selectCloseDetailsPanel,
-} from './store/selectors';
+    selectSelectionType,
+    selectDetailsPanelOpen,
+    selectCloseDetailsPanel,
+    selectProjectName,
+  } from './store/selectors';
 import { useHistoryStore } from './store/historyStore';
 import {
   AddCutCommand,
@@ -54,14 +55,15 @@ import { getThumbnail } from './utils/thumbnailCache';
 import { importFileToVault } from './utils/assetPath';
 import { getDragKind, queueExternalFilesToScene } from './utils/dragDrop';
 import { buildSequenceItemsForCuts } from './utils/exportSequence';
-import { getCutIdsInTimelineOrder, getScenesAndCutsInTimelineOrder } from './utils/timelineOrder';
-import { getFirstSceneId, getScenesInOrder } from './utils/sceneOrder';
+import { getCutIdsInTimelineOrder, getCutsInTimelineOrder, getScenesAndCutsInTimelineOrder } from './utils/timelineOrder';
+import { getFirstSceneId, getSceneIndex, getScenesInOrder, resolveSceneById } from './utils/sceneOrder';
 import { insertCutIdsIntoGroupOrder } from './utils/cutGroupOps';
 import { DEFAULT_EXPORT_RESOLUTION } from './constants/export';
 import { EXPORT_FRAMING_DEFAULTS } from './constants/framing';
 import { resolveExportPlan } from './features/export/plan';
 import type { ResolutionInput } from './features/export/plan';
 import type { ExportSettings } from './features/export/types';
+import { buildSceneScopedExportPath } from './features/export/sceneScope';
 import { buildExportTimelineEntries, buildManifestJson, buildTimelineText } from './features/export/manifest';
 import type { SubtitleStyleSettings } from './utils/subtitleStyleSettings';
 import { getSubtitleStyleForExport } from './features/export/subtitleStyle';
@@ -112,6 +114,7 @@ function App() {
   const selectionType = useStore(selectSelectionType);
   const detailsPanelOpen = useStore(selectDetailsPanelOpen);
   const closeDetailsPanel = useStore(selectCloseDetailsPanel);
+  const projectName = useStore(selectProjectName);
   const orderedScenes = getScenesInOrder(scenes, sceneOrder);
 
   const { executeCommand, undo, redo } = useHistoryStore();
@@ -126,6 +129,7 @@ function App() {
   const [showNotificationTests, setShowNotificationTests] = useState(false);
   const [exportResolution, setExportResolution] = useState({ name: 'Free', width: 0, height: 0 });
   const [isExporting, setIsExporting] = useState(false);
+  const [scenePreviewRequest, setScenePreviewRequest] = useState<{ sceneId: string; sceneName: string; cuts: Cut[] } | null>(null);
   const dragDataRef = useRef<{ sceneId?: string; index?: number; type?: string }>({});
 
   const insertCutsIntoGroup = useCallback(async (sceneId: string, groupId: string, cutIds: string[], insertIndex?: number) => {
@@ -490,6 +494,32 @@ function App() {
     setShowNotificationTests(true);
   }, []);
 
+  const openPreviewForCuts = useCallback((cuts: Cut[], context: { kind: 'scene'; sceneId: string; sceneName: string }) => {
+    if (cuts.length === 0) {
+      toast.info('Scene is empty', 'Add cuts to this scene first.');
+      return;
+    }
+    setScenePreviewRequest({
+      sceneId: context.sceneId,
+      sceneName: context.sceneName,
+      cuts,
+    });
+  }, [toast]);
+
+  const handlePreviewScene = useCallback((sceneId: string) => {
+    const scene = resolveSceneById(scenes, sceneId);
+    if (!scene) {
+      toast.warning('Scene not found', 'This scene may have been removed.');
+      return;
+    }
+    const cuts = getCutsInTimelineOrder(scene.cuts);
+    if (cuts.length === 0) {
+      toast.info('Scene is empty', 'Add cuts to this scene first.');
+      return;
+    }
+    openPreviewForCuts(cuts, { kind: 'scene', sceneId: scene.id, sceneName: scene.name });
+  }, [openPreviewForCuts, scenes, toast]);
+
   const exportMp4Sequence = useCallback(async (
     cuts: Cut[],
     config: ResolutionInput & { fps: number; outputFilePath?: string; outputDir?: string; subtitleStyle: SubtitleStyleSettings }
@@ -599,6 +629,66 @@ function App() {
       setIsExporting(false);
     }
   }, [banner, getAsset, isExporting, metadataStore, orderedScenes, toast]);
+
+  const startExportForCuts = useCallback(async (
+    cuts: Cut[],
+    scope: { kind: 'scene'; sceneId: string; sceneName: string }
+  ) => {
+    if (isExporting) return;
+    if (cuts.length === 0) {
+      toast.warning('No items to export', 'Add cuts to this scene first.');
+      return;
+    }
+
+    const sceneIndex = getSceneIndex(scenes, sceneOrder, scope.sceneId);
+    const scopedPath = buildSceneScopedExportPath({
+      vaultPath,
+      projectName,
+      sceneId: scope.sceneId,
+      sceneName: scope.sceneName,
+      sceneIndex,
+    });
+    const plan = resolveExportPlan({
+      settings: {
+        format: 'mp4',
+        outputRootPath: scopedPath.outputRootPath,
+        outputFolderName: scopedPath.outputFolderName,
+        resolution: exportResolution,
+        fps: 30,
+        range: 'all',
+        aviutl: { roundingMode: 'round', copyMedia: false },
+        mp4: { quality: 'medium' },
+      },
+      resolution: exportResolution,
+      subtitleStyle: getSubtitleStyleForExport(),
+      exportScope: { kind: 'scene', sceneId: scope.sceneId },
+    });
+
+    if (plan.format !== 'mp4') return;
+
+    await exportMp4Sequence(cuts, {
+      width: plan.width,
+      height: plan.height,
+      fps: plan.fps,
+      outputFilePath: scopedPath.outputFilePath,
+      outputDir: scopedPath.outputDir,
+      subtitleStyle: plan.subtitleStyle,
+    });
+  }, [isExporting, toast, scenes, sceneOrder, vaultPath, projectName, exportResolution, exportMp4Sequence]);
+
+  const handleExportScene = useCallback(async (sceneId: string) => {
+    const scene = resolveSceneById(scenes, sceneId);
+    if (!scene) {
+      toast.warning('Scene not found', 'This scene may have been removed.');
+      return;
+    }
+    const cuts = getCutsInTimelineOrder(scene.cuts);
+    if (cuts.length === 0) {
+      toast.info('Scene is empty', 'Add cuts to this scene first.');
+      return;
+    }
+    await startExportForCuts(cuts, { kind: 'scene', sceneId: scene.id, sceneName: scene.name });
+  }, [scenes, startExportForCuts, toast]);
 
   // Handle export from ExportModal
   const handleExport = useCallback(async (settings: ExportSettings) => {
@@ -813,7 +903,13 @@ function App() {
             onDragLeave={handleWorkspaceDragLeave}
             onDrop={handleWorkspaceDrop}
           >
-            <Storyline activeId={activeId} activeType={activeType} cropBaseResolution={exportResolution} />
+            <Storyline
+              activeId={activeId}
+              activeType={activeType}
+              cropBaseResolution={exportResolution}
+              onPreviewScene={handlePreviewScene}
+              onExportScene={handleExportScene}
+            />
           </main>
           <div className={`details-panel-wrapper ${detailsPanelOpen && selectionType ? 'open' : ''}`}>
             {detailsPanelOpen && selectionType && (
@@ -854,6 +950,16 @@ function App() {
               focusCutId={sequencePreviewCutId}
               openSubtitleModalOnMount={pendingSubtitleModalCutId === sequencePreviewCutId}
               onSubtitleModalOpenHandled={clearPendingSubtitleModalCutId}
+              exportResolution={exportResolution}
+              onResolutionChange={setExportResolution}
+              onExportSequence={handlePreviewExport}
+            />
+          )}
+          {scenePreviewRequest && (
+            <PreviewModal
+              onClose={() => setScenePreviewRequest(null)}
+              sequenceCuts={scenePreviewRequest.cuts}
+              sequenceContext={{ kind: 'scene', sceneId: scenePreviewRequest.sceneId, sceneName: scenePreviewRequest.sceneName }}
               exportResolution={exportResolution}
               onResolutionChange={setExportResolution}
               onExportSequence={handlePreviewExport}

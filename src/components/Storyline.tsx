@@ -1,6 +1,6 @@
 import { useDroppable, useDndContext } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Plus, MoreHorizontal, Edit2, Trash2 } from 'lucide-react';
+import { Plus, MoreHorizontal, Edit2, Trash2, Play, Download } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import {
@@ -39,9 +39,16 @@ interface StorylineProps {
   activeId: string | null;
   activeType: 'cut' | 'scene' | null;
   cropBaseResolution: { name: string; width: number; height: number };
+  onPreviewScene: (sceneId: string) => void;
+  onExportScene: (sceneId: string) => void;
 }
 
-export default function Storyline({ activeId, cropBaseResolution }: StorylineProps) {
+export default function Storyline({
+  activeId,
+  cropBaseResolution,
+  onPreviewScene,
+  onExportScene,
+}: StorylineProps) {
   const scenes = useStore(selectScenes);
   const sceneOrder = useStore(selectSceneOrder);
   const orderedScenes = getScenesInOrder(scenes, sceneOrder);
@@ -120,6 +127,8 @@ export default function Storyline({ activeId, cropBaseResolution }: StorylinePro
             placeholder={placeholder?.sceneId === scene.id ? placeholder : null}
             sourceSceneId={sourceSceneId}
             isOverDifferentScene={!!isOverDifferentScene}
+            onPreviewScene={onPreviewScene}
+            onExportScene={onExportScene}
           />
         ))}
 
@@ -158,6 +167,8 @@ interface SceneColumnProps {
   placeholder: PlaceholderState | null;
   sourceSceneId?: string;
   isOverDifferentScene?: boolean;
+  onPreviewScene: (sceneId: string) => void;
+  onExportScene: (sceneId: string) => void;
 }
 
 function SceneColumn({
@@ -173,6 +184,8 @@ function SceneColumn({
   placeholder,
   sourceSceneId,
   isOverDifferentScene,
+  onPreviewScene,
+  onExportScene,
 }: SceneColumnProps) {
   const sceneColor = getSceneColor(sceneIndex);
   const scenes = useStore(selectScenes);
@@ -433,6 +446,28 @@ function SceneColumn({
 
           {showMenu && (
             <div className="scene-menu">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onPreviewScene(sceneId);
+                  setShowMenu(false);
+                }}
+                disabled={cuts.length === 0}
+              >
+                <Play size={14} />
+                Preview this Scene
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onExportScene(sceneId);
+                  setShowMenu(false);
+                }}
+                disabled={cuts.length === 0}
+              >
+                <Download size={14} />
+                Export this Scene
+              </button>
               <button
                 onClick={(e) => {
                   e.stopPropagation();

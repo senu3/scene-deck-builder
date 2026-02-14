@@ -32,6 +32,8 @@
 - Video: `createVideoMediaSource`.
 - Image: `createImageMediaSource`.
 - Cut changes are triggered by `onEnded` from the current `MediaSource`.
+- Scene scoped sequence preview is supported via `PreviewModal` props `sequenceCuts` + `sequenceContext`.
+- When `sequenceCuts` is provided, Sequence Mode must be built only from those cuts (no fallback to full project / selected scene).
 
 ## Resolution Defaults (Export Trigger)
 - `Free` resolution is treated as `1280x720` when invoking MP4 export from Preview/App.

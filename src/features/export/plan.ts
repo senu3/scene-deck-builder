@@ -2,6 +2,7 @@ import type { ExportSettings, EncodingQuality, ExportRange, RoundingMode } from 
 import { DEFAULT_EXPORT_RESOLUTION } from '../../constants/export';
 import type { SubtitleStyleSettings } from '../../utils/subtitleStyleSettings';
 import { getSubtitleStyleForExport } from './subtitleStyle';
+import type { SceneExportScope } from './sceneScope';
 
 export const DEFAULT_EXPORT_FPS = 30;
 
@@ -20,6 +21,7 @@ export interface Mp4ExportPlan {
   quality: EncodingQuality;
   range: ExportRange;
   subtitleStyle: SubtitleStyleSettings;
+  exportScope?: SceneExportScope;
 }
 
 export interface AviUtlExportPlan {
@@ -27,6 +29,7 @@ export interface AviUtlExportPlan {
   outputDir: string;
   roundingMode: RoundingMode;
   copyMedia: boolean;
+  exportScope?: SceneExportScope;
 }
 
 export type ExportPlan = Mp4ExportPlan | AviUtlExportPlan;
@@ -55,6 +58,7 @@ export function resolveExportPlan(input: {
   settings: ExportSettings;
   resolution: ResolutionInput;
   subtitleStyle?: Partial<SubtitleStyleSettings> | null;
+  exportScope?: SceneExportScope;
 }): ExportPlan {
   const outputRootPath = (input.settings.outputRootPath || '').trim();
   const outputFolderName = (input.settings.outputFolderName || '').trim();
@@ -68,6 +72,7 @@ export function resolveExportPlan(input: {
       outputDir,
       roundingMode: input.settings.aviutl.roundingMode,
       copyMedia: input.settings.aviutl.copyMedia,
+      ...(input.exportScope ? { exportScope: input.exportScope } : {}),
     };
   }
 
@@ -85,5 +90,6 @@ export function resolveExportPlan(input: {
     quality: input.settings.mp4.quality,
     range: input.settings.range,
     subtitleStyle: getSubtitleStyleForExport({ subtitleStyle: input.subtitleStyle }),
+    ...(input.exportScope ? { exportScope: input.exportScope } : {}),
   };
 }
