@@ -55,6 +55,7 @@ import {
   UpdateDisplayTimeCommand,
   RemoveCutCommand,
   BatchUpdateDisplayTimeCommand,
+  DuplicateCutWithClipCommand,
   UpdateClipPointsCommand,
   ClearClipPointsCommand,
   AddCutCommand,
@@ -64,7 +65,6 @@ import {
   SetSceneAttachAudioCommand,
   UpdateCutSubtitleCommand,
 } from "../store/commands";
-import { DuplicateCutWithClipCommand } from "../store/clipCommands";
 import { getThumbnail } from "../utils/thumbnailCache";
 import { resolveCutAsset, resolveCutThumbnail } from "../utils/assetResolve";
 import { extractVideoMetadata } from "../utils/videoUtils";

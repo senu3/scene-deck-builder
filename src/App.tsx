@@ -34,6 +34,7 @@ import {
 import { useHistoryStore } from './store/historyStore';
 import {
   AddCutCommand,
+  DuplicateCutWithClipCommand,
   MoveCutBetweenScenesCommand,
   MoveCutsToSceneCommand,
   PasteCutsCommand,
@@ -43,7 +44,6 @@ import {
   UpdateClipPointsCommand,
   UpdateGroupCutOrderCommand,
 } from './store/commands';
-import { DuplicateCutWithClipCommand } from './store/clipCommands';
 import AssetDrawer from './components/AssetDrawer';
 import Sidebar from './components/Sidebar';
 import Storyline from './components/Storyline';
