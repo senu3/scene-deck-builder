@@ -15,6 +15,7 @@ import {
   Layers,
   FolderMinus,
   Crop,
+  Scissors,
 } from 'lucide-react';
 import {
   ContextMenu,
@@ -65,6 +66,14 @@ export interface CutContextMenuProps {
   onCreateGroup?: () => void;
   /** Remove cut from its group */
   onRemoveFromGroup?: () => void;
+  /** Show Simple AutoClip actions (video cut only) */
+  showSimpleAutoClip?: boolean;
+  /** Whether Simple AutoClip is running */
+  isSimpleAutoClipRunning?: boolean;
+  /** Execute Simple AutoClip with default profile */
+  onSimpleAutoClipDefault?: () => void;
+  /** Execute Simple AutoClip with aggressive profile */
+  onSimpleAutoClipAggressive?: () => void;
 }
 
 export function CutContextMenu({
@@ -88,6 +97,10 @@ export function CutContextMenu({
   onCropImage,
   onCreateGroup,
   onRemoveFromGroup,
+  showSimpleAutoClip = false,
+  isSimpleAutoClipRunning = false,
+  onSimpleAutoClipDefault,
+  onSimpleAutoClipAggressive,
 }: CutContextMenuProps) {
   // Filter out current scene from move options
   const otherScenes = scenes.filter((s) => s.id !== currentSceneId);
@@ -122,6 +135,37 @@ export function CutContextMenu({
             </MenuItem>
           ))}
         </MenuSubmenu>
+      )}
+
+      {showSimpleAutoClip && !isMultiSelect && (
+        <>
+          <MenuSeparator />
+          {/* TODO(autoclip): restore submenu layout after MenuSubmenu interaction bug is fixed. */}
+          {isSimpleAutoClipRunning ? (
+            <MenuItem icon={<Scissors size={14} />} disabled>
+              Analyzing...
+            </MenuItem>
+          ) : (
+            <>
+              <MenuItem
+                icon={<Scissors size={14} />}
+                variant="action"
+                disabled={!onSimpleAutoClipDefault}
+                onClick={onSimpleAutoClipDefault}
+              >
+                AutoClip (Simple)
+              </MenuItem>
+              <MenuItem
+                icon={<Scissors size={14} />}
+                variant="action"
+                disabled={!onSimpleAutoClipAggressive}
+                onClick={onSimpleAutoClipAggressive}
+              >
+                AutoClip (Simple) - Aggressive
+              </MenuItem>
+            </>
+          )}
+        </>
       )}
 
       {/* Clip operations */}

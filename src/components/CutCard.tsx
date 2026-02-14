@@ -38,6 +38,7 @@ import {
 } from '../features/cut/actions';
 import { DEFAULT_EXPORT_RESOLUTION } from '../constants/export';
 import {
+  AutoClipSimpleCommand,
   CreateGroupCommand,
   DeleteGroupCommand,
   MoveCutsToSceneCommand,
@@ -45,6 +46,7 @@ import {
   RemoveCutsCommand,
   UpdateGroupCutOrderCommand,
 } from '../store/commands';
+import type { SimpleAutoClipMode } from '../features/cut/simpleAutoClip';
 
 interface ResolutionPresetType {
   name: string;
@@ -102,11 +104,13 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [showCropModal, setShowCropModal] = useState(false);
   const [showLoadingSpinner, setShowLoadingSpinner] = useState(false);
+  const [isSimpleAutoClipRunning, setIsSimpleAutoClipRunning] = useState(false);
   const loadingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const cutRuntime = getCutRuntime(cut.id);
-  const isCutLoading = cutRuntime?.isLoading ?? false;
-  const cutLoadingName = cutRuntime?.loadingName;
+  const resolvedAssetForLoading = getAsset(cut.assetId) || cut.asset;
+  const isCutLoading = (cutRuntime?.isLoading ?? false) && !resolvedAssetForLoading;
+  const cutLoadingName = cutRuntime?.loadingName || resolvedAssetForLoading?.name;
 
   // Show spinner after 1 second of loading
   useEffect(() => {
@@ -427,6 +431,28 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
     setShowCropModal(true);
   };
 
+  const handleSimpleAutoClip = async (mode: SimpleAutoClipMode) => {
+    if (!isVideo || isSimpleAutoClipRunning) return;
+
+    setIsSimpleAutoClipRunning(true);
+    try {
+      const command = new AutoClipSimpleCommand(sceneId, cut.id, mode);
+      await executeCommand(command);
+      if (command.getOutcome() === 'created') {
+        toast.success('AutoClip complete', `Created ${command.getCreatedCount()} clips`);
+      } else if (command.getOutcome() === 'noop') {
+        toast.info('AutoClip complete', 'No split points found');
+      } else {
+        toast.info('AutoClip skipped', 'Only video cuts can be auto-clipped');
+      }
+    } catch (error) {
+      toast.error('AutoClip failed', String(error));
+    } finally {
+      setIsSimpleAutoClipRunning(false);
+      setContextMenu(null);
+    }
+  };
+
   const handleCropImage = async (config: ImageCropConfig) => {
     if (!asset?.path || asset.type !== 'image') {
       setShowCropModal(false);
@@ -592,6 +618,10 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
         onCropImage={handleOpenCropModal}
         onCreateGroup={isMultiSelected ? handleCreateGroup : undefined}
         onRemoveFromGroup={isInGroup ? handleRemoveFromGroup : undefined}
+        showSimpleAutoClip={isVideo}
+        isSimpleAutoClipRunning={isSimpleAutoClipRunning}
+        onSimpleAutoClipDefault={() => handleSimpleAutoClip('default')}
+        onSimpleAutoClipAggressive={() => handleSimpleAutoClip('aggressive')}
       />
     )}
 

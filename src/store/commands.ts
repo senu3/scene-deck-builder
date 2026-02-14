@@ -1,7 +1,14 @@
 import { Command } from './historyStore';
 import { useStore } from './useStore';
-import type { Asset, Cut, Scene, CutGroup, SceneAudioBinding, CutSubtitle } from '../types';
+import type { Asset, Cut, Scene, CutGroup, SceneAudioBinding, CutSubtitle, AudioAnalysis } from '../types';
 import { syncSceneMetadata } from '../utils/metadataStore';
+import { v4 as uuidv4 } from 'uuid';
+import { analyzeAudioRms } from '../utils/audioUtils';
+import {
+  buildSimpleAutoClipRanges,
+  generateSimpleAutoClipSplitPoints,
+  type SimpleAutoClipMode,
+} from '../features/cut/simpleAutoClip';
 
 function restoreCutState(
   store: ReturnType<typeof useStore.getState>,
@@ -43,6 +50,36 @@ function addCutFromReference(
     return store.addCutToScene(sceneId, resolvedAsset);
   }
   return store.addLoadingCutToScene(sceneId, cut.assetId, `missing:${cut.assetId}`);
+}
+
+function cloneCut(cut: Cut): Cut {
+  return {
+    ...cut,
+    subtitle: cut.subtitle
+      ? {
+          text: cut.subtitle.text,
+          range: cut.subtitle.range
+            ? { start: cut.subtitle.range.start, end: cut.subtitle.range.end }
+            : undefined,
+        }
+      : undefined,
+    audioBindings: cut.audioBindings?.map((binding) => ({ ...binding })) || [],
+  };
+}
+
+function cloneScene(scene: Scene): Scene {
+  return {
+    ...scene,
+    cuts: scene.cuts.map((cut) => cloneCut(cut)),
+    groups: scene.groups?.map((group) => ({ ...group, cutIds: [...group.cutIds] })),
+    notes: scene.notes?.map((note) => ({ ...note })) || [],
+  };
+}
+
+function replaceScene(sceneId: string, nextScene: Scene): void {
+  useStore.setState((state) => ({
+    scenes: state.scenes.map((scene) => (scene.id === sceneId ? cloneScene(nextScene) : scene)),
+  }));
 }
 
 /**
@@ -763,6 +800,163 @@ export class ClearClipPointsCommand implements Command {
       const store = useStore.getState();
       store.updateCutClipPoints(this.sceneId, this.cutId, this.oldInPoint, this.oldOutPoint);
     }
+  }
+}
+
+interface AutoClipSimpleCommandDeps {
+  analyzeRms?: (path: string, fps: number) => Promise<AudioAnalysis | null>;
+}
+
+type AutoClipOutcome = 'created' | 'noop' | 'invalid-target';
+
+/**
+ * 動画cutを簡易分割して clip cut を一括追加するコマンド
+ * - 元cutは保持
+ * - 分割cutは元cut直後へ挿入
+ * - 追加cutはグループ化しない（通常cutとして追加）
+ */
+export class AutoClipSimpleCommand implements Command {
+  type = 'AUTOCLIP_SIMPLE';
+  description: string;
+
+  private sceneId: string;
+  private cutId: string;
+  private mode: SimpleAutoClipMode;
+  private analyzeRms: (path: string, fps: number) => Promise<AudioAnalysis | null>;
+
+  private previousScene?: Scene;
+  private nextScene?: Scene;
+  private createdCount = 0;
+  private outcome: AutoClipOutcome = 'noop';
+
+  constructor(
+    sceneId: string,
+    cutId: string,
+    mode: SimpleAutoClipMode = 'default',
+    deps: AutoClipSimpleCommandDeps = {}
+  ) {
+    this.sceneId = sceneId;
+    this.cutId = cutId;
+    this.mode = mode;
+    this.analyzeRms = deps.analyzeRms || analyzeAudioRms;
+    this.description = `AutoClip (Simple): ${mode}`;
+  }
+
+  getCreatedCount(): number {
+    return this.createdCount;
+  }
+
+  getOutcome(): AutoClipOutcome {
+    return this.outcome;
+  }
+
+  private resolveDuration(sourceCut: Cut, asset: Asset): number | null {
+    if (sourceCut.isClip && sourceCut.inPoint !== undefined && sourceCut.outPoint !== undefined) {
+      const clipDuration = Math.abs(sourceCut.outPoint - sourceCut.inPoint);
+      if (clipDuration > 0) return clipDuration;
+    }
+    if (typeof asset.duration === 'number' && Number.isFinite(asset.duration) && asset.duration > 0) {
+      return asset.duration;
+    }
+    if (Number.isFinite(sourceCut.displayTime) && sourceCut.displayTime > 0) {
+      return sourceCut.displayTime;
+    }
+    return null;
+  }
+
+  async execute(): Promise<void> {
+    if (this.nextScene) {
+      replaceScene(this.sceneId, this.nextScene);
+      this.outcome = this.createdCount > 0 ? 'created' : 'noop';
+      return;
+    }
+
+    const store = useStore.getState();
+    const scene = store.scenes.find((s) => s.id === this.sceneId);
+    if (!scene) {
+      this.outcome = 'invalid-target';
+      this.createdCount = 0;
+      return;
+    }
+
+    const sourceIndex = scene.cuts.findIndex((c) => c.id === this.cutId);
+    if (sourceIndex < 0) {
+      this.outcome = 'invalid-target';
+      this.createdCount = 0;
+      return;
+    }
+
+    const sourceCut = scene.cuts[sourceIndex];
+    const sourceAsset = resolveCutAsset(store, sourceCut);
+    if (!sourceCut || !sourceAsset || sourceAsset.type !== 'video') {
+      this.outcome = 'invalid-target';
+      this.createdCount = 0;
+      return;
+    }
+
+    const durationSec = this.resolveDuration(sourceCut, sourceAsset);
+    if (!durationSec || durationSec <= 0) {
+      this.outcome = 'invalid-target';
+      this.createdCount = 0;
+      return;
+    }
+
+    const splitPoints = await generateSimpleAutoClipSplitPoints({
+      mode: this.mode,
+      durationSec,
+      sourcePath: sourceAsset.path,
+      analyzeRms: this.analyzeRms,
+    });
+    if (splitPoints.length === 0) {
+      this.outcome = 'noop';
+      this.createdCount = 0;
+      return;
+    }
+
+    const ranges = buildSimpleAutoClipRanges(durationSec, splitPoints);
+    if (ranges.length === 0) {
+      this.outcome = 'noop';
+      this.createdCount = 0;
+      return;
+    }
+
+    const sourceStart = sourceCut.isClip && sourceCut.inPoint !== undefined && sourceCut.outPoint !== undefined
+      ? Math.min(sourceCut.inPoint, sourceCut.outPoint)
+      : 0;
+
+    const createdCuts: Cut[] = ranges.map((range) => ({
+      ...cloneCut(sourceCut),
+      id: uuidv4(),
+      assetId: sourceAsset.id,
+      asset: sourceAsset,
+      displayTime: range.end - range.start,
+      inPoint: sourceStart + range.start,
+      outPoint: sourceStart + range.end,
+      isClip: true,
+      isLipSync: false,
+      lipSyncFrameCount: undefined,
+      subtitle: undefined,
+    }));
+
+    const nextCuts = [...scene.cuts];
+    nextCuts.splice(sourceIndex + 1, 0, ...createdCuts);
+    const normalizedCuts = nextCuts.map((cut, index) => ({ ...cut, order: index }));
+
+    this.previousScene = cloneScene(scene);
+    this.nextScene = {
+      ...scene,
+      cuts: normalizedCuts,
+      groups: scene.groups ? scene.groups.map((group) => ({ ...group, cutIds: [...group.cutIds] })) : [],
+    };
+    this.createdCount = createdCuts.length;
+    this.outcome = this.createdCount > 0 ? 'created' : 'noop';
+
+    replaceScene(this.sceneId, this.nextScene);
+  }
+
+  async undo(): Promise<void> {
+    if (!this.previousScene) return;
+    replaceScene(this.sceneId, this.previousScene);
   }
 }
 
