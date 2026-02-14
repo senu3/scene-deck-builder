@@ -37,6 +37,7 @@ Command 必須操作（2026-02-12 時点）:
 - Group から Cut 除外: `RemoveCutFromGroupCommand`
 - Group 内 Cut 順更新: `UpdateGroupCutOrderCommand`
 - clip point 更新: `UpdateClipPointsCommand` / `ClearClipPointsCommand`
+- 初回 clip 保存（非clip cut を複製して clip 適用）: `DuplicateCutWithClipCommand`
 - Scene attachAudio 更新（一括 cut 音声整理を含む）: `SetSceneAttachAudioCommand`
 
 ### 2. Runtime 状態は永続モデルに混ぜない
@@ -104,7 +105,7 @@ const store = useStore(); // 全体購読
 - Scene attachAudio 設定時の「同一シーン動画cutの attachAudio 解除 + `useEmbeddedAudio=false`」は `SetSceneAttachAudioCommand` 1手で扱う。
 
 ## Cut Write Path 要点（2026-02-12）
-- Command 経由の主要書き込み: `AddCutCommand` / `RemoveCutCommand` / `RemoveCutsCommand` / `MoveCutBetweenScenesCommand` / `MoveCutsToSceneCommand` / `ReorderCutsWithGroupSyncCommand` / `PasteCutsCommand` / `CreateGroupCommand` / `RemoveCutFromGroupCommand` / `UpdateGroupCutOrderCommand` / `UpdateClipPointsCommand` / `ClearClipPointsCommand`。
+- Command 経由の主要書き込み: `AddCutCommand` / `RemoveCutCommand` / `RemoveCutsCommand` / `MoveCutBetweenScenesCommand` / `MoveCutsToSceneCommand` / `ReorderCutsWithGroupSyncCommand` / `PasteCutsCommand` / `CreateGroupCommand` / `RemoveCutFromGroupCommand` / `UpdateGroupCutOrderCommand` / `UpdateClipPointsCommand` / `ClearClipPointsCommand` / `DuplicateCutWithClipCommand`。
 - domain owner は `cutTimelineSlice`（scene/cut 追加・削除・並び替え・clip 更新・clipboard 反映）。
 - cross-slice 後処理は event 経由（`CUT_DELETED` / `CUT_MOVED`、`CUT_RELINKED` は emit 済みで購読用途保留）。
 - read-time join は `assetId` 優先（`getAsset(assetId)`）、`cut.asset` は fallback。
