@@ -449,7 +449,7 @@ describe('timeline integrity commands', () => {
     await command.execute();
 
     expect(command.getOutcome()).toBe('created');
-    expect(command.getCreatedCount()).toBe(12);
+    expect(command.getCreatedCount()).toBe(16);
   });
 
   it('falls back to fixed split when analysis fails', async () => {

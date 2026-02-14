@@ -15,13 +15,13 @@ export interface SimpleAutoClipProfile {
 
 const PROFILE_BY_MODE: Record<SimpleAutoClipMode, SimpleAutoClipProfile> = {
   default: {
-    targetLenSec: 3.0,
+    targetLenSec: 2.0,
     minLenSec: 1.0,
     maxCuts: 12,
     rmsFps: 30,
-    smoothingSec: 0.5,
-    strongPercentile: 0.9,
-    snapWindowSec: 0.9,
+    smoothingSec: 0.4,
+    strongPercentile: 0.88,
+    snapWindowSec: 0.7,
   },
   conservative: {
     targetLenSec: 4.0,
@@ -33,13 +33,13 @@ const PROFILE_BY_MODE: Record<SimpleAutoClipMode, SimpleAutoClipProfile> = {
     snapWindowSec: 1.0,
   },
   aggressive: {
-    targetLenSec: 2.0,
+    targetLenSec: 1.5,
     minLenSec: 1.0,
-    maxCuts: 12,
+    maxCuts: 16,
     rmsFps: 30,
-    smoothingSec: 0.4,
-    strongPercentile: 0.88,
-    snapWindowSec: 0.7,
+    smoothingSec: 0.35,
+    strongPercentile: 0.86,
+    snapWindowSec: 0.65,
   },
 };
 
