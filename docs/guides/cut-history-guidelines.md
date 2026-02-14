@@ -68,7 +68,7 @@ Command 必須操作（2026-02-12 時点）:
 - `asset` 参照は selector 内で `getAsset(cut.assetId)` 優先にし、`cut.asset` は fallback とする。
 
 ### 8. Asset 操作入口の集約
-- `AssetPanel` からの Finalize/Reverse/Extract/Delete は `src/actions/assetActions.ts` を経由する。
+- `AssetPanel` からの Finalize/Reverse/Extract/Delete は `src/features/asset/actions.ts` を経由する。
 - action は UI イベント (`MouseEvent` など) を受け取らず、assetId/path/range/vaultPath などドメイン引数だけを扱う。
 - confirm/dialog/toast は UI 層に残し、action 層へ混在させない。
 

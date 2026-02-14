@@ -44,7 +44,7 @@ import {
   runAssetDelete,
   runAssetExtractAudio,
   runAssetFinalize,
-} from '../actions/assetActions';
+} from '../features/asset/actions';
 import './AssetPanel.css';
 
 export type SortMode = 'name' | 'type' | 'used' | 'unused';

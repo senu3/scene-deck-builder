@@ -55,7 +55,7 @@
 | **Metadata Store** | `.metadata.json` に保存されるアセット/シーンの付随情報。 | **含む:** assetId→`AssetMetadata`、sceneId→`SceneMetadata`（scene attachAudio を含む）。 | **読み書き:** `loadMetadataStore` / `saveMetadataStore`。 | `MetadataStore`、`metadataStore.ts` |
 | **Asset Metadata** | `AssetMetadata` は displayTime/analysis/lipSync を保持する。 | **含む:** `displayTime` / `audioAnalysis` / `lipSync`。`lipSync.ownedGeneratedAssetIds` / `orphanedGeneratedAssetIds` は生成物ID（mask/composited等）のみを持つ。 | **更新:** `updateAudioAnalysis` / `setLipSyncForAsset`。 | `AssetMetadata`、`metadataStore.ts` |
 | **Asset Reference Graph** | `collectAssetRefs` が scenes + metadata から参照種別付きの asset 参照集合を構築。 | **含む:** `cut` / `cut-audio-binding` / `scene-audio` / `lipsync-*`。**含まない:** 物理ファイル一覧。 | **利用:** usage算出 / 削除可否判定 / 保存前検証。 | `assetRefs.ts` |
-| **Asset Delete Policy** | `deleteAssetWithPolicy` は asset 削除責務の単一入口。 | **含む:** 参照チェック + trash移動 + index/metadata整合更新。 | **呼び出し:** `assetActions.runAssetDelete` から store 経由。 | `useStore.ts`, `actions/assetActions.ts` |
+| **Asset Delete Policy** | `deleteAssetWithPolicy` は asset 削除責務の単一入口。 | **含む:** 参照チェック + trash移動 + index/metadata整合更新。 | **呼び出し:** `assetActions.runAssetDelete` から store 経由。 | `useStore.ts`, `features/asset/actions.ts` |
 | **Scene Metadata** | `.metadata.json` 内の `SceneMetadata`（scene notes/labels の永続化）。 | **含む:** シーン名・ノート。 | **更新:** シーン保存時に同期。 | `SceneMetadata`、`metadataStore.ts` |
 | **ソースパネル状態** | `SourcePanelState` は source panel の folders/expanded/viewMode を保持。 | **含む:** ユーザが追加した外部フォルダ。 | **初期化/取得:** `initializeSourcePanel` / `getSourcePanelState`（`Project.sourcePanel` に保存）。 | `SourcePanelState`、`useStore.ts` |
 | **保管庫パス** | `vaultPath` はプロジェクトの保管庫ルート。 | **含む:** `vault/assets` の初期化。 | **選択/作成:** StartupModal で作成。 | `Project.vaultPath`、`StartupModal.tsx` |
@@ -65,7 +65,7 @@
 | 用語 | 定義 | 境界（含む / 含まない） | 主要操作 | 関連TS型 / TSX |
 | --- | --- | --- | --- | --- |
 | **アセットドロワー** | vault のアセット一覧 Drawer。 | **含む:** vault/assets の一覧・検索・使用状況表示。 | **一覧構築:** `loadAssetIndex` / `metadataStore` 集計。 | `AssetDrawer.tsx` |
-| **アセットパネル** | アセット一覧の共通 UI。 | **含む:** 検索/フィルタ/並び替え/選択。 | **操作入口:** `assetActions`（Finalize/Reverse/Extract/Delete）。 **一覧構築:** `loadAssetIndex` / `getFolderContents`。 | `AssetPanel.tsx`, `actions/assetActions.ts` |
+| **アセットパネル** | アセット一覧の共通 UI。 | **含む:** 検索/フィルタ/並び替え/選択。 | **操作入口:** `assetActions`（Finalize/Reverse/Extract/Delete）。 **一覧構築:** `loadAssetIndex` / `getFolderContents`。 | `AssetPanel.tsx`, `features/asset/actions.ts` |
 | **アセットモーダル** | `AssetPanel` のモーダルラッパー。 | **含む:** オーバーレイ/ESC/閉じる挙動。 | **選択結果の返却。** | `AssetModal.tsx` |
 | **ストーリーライン** | シーン列とカットの D&D 配置を扱う編集軸（`StoryTimeline`）のUI。 | **含む:** シーン/カット D&D、外部ファイル投入。 | **ドロップ処理:** vault 取込とカット追加。 | `Storyline.tsx` |
 | **プレビュー** | `PreviewModal` が単体/シーケンス再生を行う。 | **含む:** Single/Sequence モードと再生 UI。 | **起動:** `CutCard`。 | `PreviewModal.tsx` |

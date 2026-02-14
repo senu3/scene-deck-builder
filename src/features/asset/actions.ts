@@ -1,11 +1,11 @@
-import type { AssetRefMap } from '../utils/assetRefs';
-import { getBlockingRefsForAssetIds } from '../utils/assetRefs';
+import type { AssetRefMap } from '../../utils/assetRefs';
+import { getBlockingRefsForAssetIds } from '../../utils/assetRefs';
 import {
   extractAudioAndRegisterAsset,
   finalizeClipAndRegisterAsset,
   type ExtractAudioAssetOnlyResult,
   type FinalizeClipAssetOnlyResult,
-} from '../features/cut/actions';
+} from '../cut/actions';
 
 export interface AssetActionContext {
   assetPath: string;
