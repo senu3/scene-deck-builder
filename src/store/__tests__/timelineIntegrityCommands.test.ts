@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  AutoClipSimpleCommand,
   RemoveCutFromGroupCommand,
   RemoveSceneCommand,
   ReorderCutsWithGroupSyncCommand,
@@ -375,5 +376,110 @@ describe('timeline integrity commands', () => {
     await command.undo();
     const restoredCut = useStore.getState().scenes[0]?.cuts[0];
     expect(restoredCut?.subtitle).toBeUndefined();
+  });
+
+  it('creates simple auto clips, keeps source cut as plain clips, and supports undo/redo', async () => {
+    useStore.getState().initializeProject({
+      name: 'Simple AutoClip Test',
+      vaultPath: 'C:/vault',
+      scenes: [{
+        id: 'scene-auto',
+        name: 'Scene Auto',
+        order: 0,
+        notes: [],
+        cuts: [{
+          id: 'cut-auto',
+          assetId: VIDEO_ASSET.id,
+          asset: { ...VIDEO_ASSET, duration: 12, path: 'C:/vault/assets/clip.mp4' },
+          displayTime: 12,
+          order: 0,
+          audioBindings: [],
+        }],
+      }],
+    });
+
+    const command = new AutoClipSimpleCommand('scene-auto', 'cut-auto', 'default', {
+      analyzeRms: async () => null,
+    });
+    await command.execute();
+
+    const sceneAfterExecute = useStore.getState().scenes.find((scene) => scene.id === 'scene-auto');
+    expect(command.getOutcome()).toBe('created');
+    expect(command.getCreatedCount()).toBeGreaterThan(0);
+    expect(command.getCreatedCount()).toBeLessThanOrEqual(12);
+    expect(sceneAfterExecute?.cuts[0]?.id).toBe('cut-auto');
+    expect(sceneAfterExecute?.cuts.length).toBe(1 + command.getCreatedCount());
+    expect(sceneAfterExecute?.cuts.slice(1).every((cut) => cut.isClip)).toBe(true);
+    expect(sceneAfterExecute?.cuts.slice(1).every((cut) => cut.displayTime >= 1)).toBe(true);
+    expect(sceneAfterExecute?.groups?.length ?? 0).toBe(0);
+
+    await command.undo();
+    const sceneAfterUndo = useStore.getState().scenes.find((scene) => scene.id === 'scene-auto');
+    expect(sceneAfterUndo?.cuts.map((cut) => cut.id)).toEqual(['cut-auto']);
+    expect(sceneAfterUndo?.groups?.length ?? 0).toBe(0);
+
+    await command.execute();
+    const sceneAfterRedo = useStore.getState().scenes.find((scene) => scene.id === 'scene-auto');
+    expect(sceneAfterRedo?.cuts.length).toBe(1 + command.getCreatedCount());
+  });
+
+  it('caps aggressive simple auto clip generation to maxCuts', async () => {
+    useStore.getState().initializeProject({
+      name: 'Simple AutoClip maxCuts',
+      vaultPath: 'C:/vault',
+      scenes: [{
+        id: 'scene-auto-max',
+        name: 'Scene Auto Max',
+        order: 0,
+        notes: [],
+        cuts: [{
+          id: 'cut-auto-max',
+          assetId: VIDEO_ASSET.id,
+          asset: { ...VIDEO_ASSET, duration: 80, path: 'C:/vault/assets/clip-long.mp4' },
+          displayTime: 80,
+          order: 0,
+          audioBindings: [],
+        }],
+      }],
+    });
+
+    const command = new AutoClipSimpleCommand('scene-auto-max', 'cut-auto-max', 'aggressive', {
+      analyzeRms: async () => null,
+    });
+    await command.execute();
+
+    expect(command.getOutcome()).toBe('created');
+    expect(command.getCreatedCount()).toBe(12);
+  });
+
+  it('falls back to fixed split when analysis fails', async () => {
+    useStore.getState().initializeProject({
+      name: 'Simple AutoClip fallback',
+      vaultPath: 'C:/vault',
+      scenes: [{
+        id: 'scene-auto-fallback',
+        name: 'Scene Auto Fallback',
+        order: 0,
+        notes: [],
+        cuts: [{
+          id: 'cut-auto-fallback',
+          assetId: VIDEO_ASSET.id,
+          asset: { ...VIDEO_ASSET, duration: 10, path: 'C:/vault/assets/clip-fallback.mp4' },
+          displayTime: 10,
+          order: 0,
+          audioBindings: [],
+        }],
+      }],
+    });
+
+    const command = new AutoClipSimpleCommand('scene-auto-fallback', 'cut-auto-fallback', 'default', {
+      analyzeRms: async () => {
+        throw new Error('decode failed');
+      },
+    });
+    await command.execute();
+
+    expect(command.getOutcome()).toBe('created');
+    expect(command.getCreatedCount()).toBeGreaterThan(0);
   });
 });
