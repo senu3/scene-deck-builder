@@ -73,6 +73,12 @@ Video sources queue play/seek until the element is mounted, avoiding the cut bou
 ## Export Interaction
 - Export entry points share a common pre-export pause path so playback stop behavior stays consistent across full export and range export flows.
 
+## Clip Save Behavior
+- In Single Mode video preview, saving clip points behaves differently for first-time and existing clips.
+- If the target cut is not clipped yet, the source cut is duplicated and clip points are applied to the duplicated cut.
+- If the target cut is already clipped, clip points are updated in place on that cut.
+- Clip thumbnails are treated as cut-specific. Thumbnail updates during clip save/clear should not mutate shared asset cache thumbnails.
+
 ## Buffering / Preload
 - Sequence preloads URLs in a time window (`PLAY_SAFE_AHEAD`, `PRELOAD_AHEAD`).
 - Initial preload warms the first `INITIAL_PRELOAD_ITEMS`.

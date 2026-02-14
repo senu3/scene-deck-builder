@@ -150,7 +150,9 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
     display: isHidden ? 'none' : undefined,
   };
 
-  const asset = getAsset(cut.assetId) || cut.asset;
+  const asset = (cut.isClip && cut.asset?.thumbnail)
+    ? cut.asset
+    : (getAsset(cut.assetId) || cut.asset);
   const isSelected = selectedCutIds.has(cut.id) || selectedCutId === cut.id;
   const isMultiSelected = selectedCutIds.size > 1 && selectedCutIds.has(cut.id);
   const isVideo = asset?.type === 'video';

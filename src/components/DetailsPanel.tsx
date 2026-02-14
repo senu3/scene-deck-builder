@@ -56,6 +56,7 @@ import {
   RemoveCutCommand,
   BatchUpdateDisplayTimeCommand,
   UpdateClipPointsCommand,
+  DuplicateCutWithClipCommand,
   ClearClipPointsCommand,
   AddCutCommand,
   CreateGroupCommand,
@@ -154,7 +155,9 @@ export default function DetailsPanel() {
   const cut = selectedCutData?.cut;
   const cutScene = selectedCutData?.scene;
   const asset =
-    cut?.assetId ? (getAsset(cut.assetId) || cut.asset) : cut?.asset;
+    cut?.isClip && cut?.asset?.thumbnail
+      ? cut.asset
+      : (cut?.assetId ? (getAsset(cut.assetId) || cut.asset) : cut?.asset);
   const primaryAudioBinding = cut?.audioBindings?.[0];
   const useEmbeddedAudio = cut?.useEmbeddedAudio ?? true;
   const attachedAudioSourceName =
@@ -404,18 +407,25 @@ export default function DetailsPanel() {
 
   const handleSaveClip = async (inPoint: number, outPoint: number) => {
     if (cutScene && cut && asset) {
-      // Update existing cut with clip points
-      await executeCommand(
-        new UpdateClipPointsCommand(cutScene.id, cut.id, inPoint, outPoint),
-      );
+      let targetCutId = cut.id;
+      if (cut.isClip) {
+        // Existing clip: update IN/OUT points in place
+        await executeCommand(
+          new UpdateClipPointsCommand(cutScene.id, cut.id, inPoint, outPoint),
+        );
+      } else {
+        // First-time clip: duplicate source cut and apply clip to duplicated cut
+        const duplicateClipCommand = new DuplicateCutWithClipCommand(cutScene.id, cut.id, inPoint, outPoint);
+        await executeCommand(duplicateClipCommand);
+        targetCutId = duplicateClipCommand.getCreatedCutId() ?? cut.id;
+      }
 
       // Regenerate thumbnail at IN point
       if (asset.path && asset.type === "video") {
         const newThumbnail = await getThumbnail(asset.path, 'video', { timeOffset: inPoint });
         if (newThumbnail) {
-          // Update both the cut's asset and the cache
-          updateCutAsset(cutScene.id, cut.id, { thumbnail: newThumbnail });
-          cacheAsset({ ...asset, thumbnail: newThumbnail });
+          // Clip thumbnail is cut-specific; do not mutate shared asset cache thumbnail.
+          updateCutAsset(cutScene.id, targetCutId, { thumbnail: newThumbnail });
           setThumbnail(newThumbnail);
         }
       }
@@ -430,9 +440,8 @@ export default function DetailsPanel() {
       if (asset.path && asset.type === "video") {
         const newThumbnail = await getThumbnail(asset.path, 'video', { timeOffset: 0 });
         if (newThumbnail) {
-          // Update both the cut's asset and the cache
+          // Clip clear thumbnail is cut-specific; do not mutate shared asset cache thumbnail.
           updateCutAsset(cutScene.id, cut.id, { thumbnail: newThumbnail });
-          cacheAsset({ ...asset, thumbnail: newThumbnail });
           setThumbnail(newThumbnail);
         }
       }

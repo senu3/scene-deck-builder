@@ -40,6 +40,7 @@ import {
   RemoveCutCommand,
   RemoveCutFromGroupCommand,
   ReorderCutsWithGroupSyncCommand,
+  DuplicateCutWithClipCommand,
   UpdateClipPointsCommand,
   UpdateGroupCutOrderCommand,
 } from './store/commands';
@@ -697,20 +698,27 @@ function App() {
   const handleVideoPreviewClipSave = useCallback(async (inPoint: number, outPoint: number) => {
     if (!previewData) return;
     const { scene, cut, asset } = previewData;
+    let targetCutId = cut.id;
 
-    // Update cut with clip points
-    await executeCommand(new UpdateClipPointsCommand(scene.id, cut.id, inPoint, outPoint));
+    if (cut.isClip) {
+      // Existing clip: update IN/OUT points in place
+      await executeCommand(new UpdateClipPointsCommand(scene.id, cut.id, inPoint, outPoint));
+    } else {
+      // First-time clip: duplicate source cut and apply clip to duplicated cut
+      const duplicateClipCommand = new DuplicateCutWithClipCommand(scene.id, cut.id, inPoint, outPoint);
+      await executeCommand(duplicateClipCommand);
+      targetCutId = duplicateClipCommand.getCreatedCutId() ?? cut.id;
+    }
 
     // Regenerate thumbnail at IN point
     if (asset.path) {
       const newThumbnail = await getThumbnail(asset.path, 'video', { timeOffset: inPoint });
       if (newThumbnail) {
-        // Update both the cut's asset and the cache
-        updateCutAsset(scene.id, cut.id, { thumbnail: newThumbnail });
-        cacheAsset({ ...asset, thumbnail: newThumbnail });
+        // Clip thumbnail is cut-specific; do not mutate shared asset cache thumbnail.
+        updateCutAsset(scene.id, targetCutId, { thumbnail: newThumbnail });
       }
     }
-  }, [previewData, executeCommand, cacheAsset, updateCutAsset]);
+  }, [previewData, executeCommand, updateCutAsset]);
 
   // Handle frame capture from video preview modal
   const handleVideoPreviewFrameCapture = useCallback(async (timestamp: number): Promise<string | void> => {
