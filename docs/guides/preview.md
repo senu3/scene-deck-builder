@@ -58,7 +58,7 @@ Video sources queue play/seek until the element is mounted, avoiding the cut bou
 - Attached audio keeps the current shared control (`globalMuted/globalVolume`) for now.
 - Attached audio binding selection priority is deterministic: `voice.lipsync` > `voice.other` > `se` (enabled entries only).
 - Scene attached audio is resolved via `resolvePreviewAudioTracks(...)` and takes priority over cut attached audio.
-- Single video preview keeps the video render path unchanged and syncs scene audio by `video.currentTime + scenePreviewOffset`.
+- Single video preview keeps the video render path unchanged and syncs scene audio by clip-local time (`video.currentTime - clipInPoint`) + `scenePreviewOffset`.
 - Sequence preview syncs scene audio by scene-relative absolute time (`absoluteTime - sceneStartAbs + previewOffsetSec`).
 
 ## Focused Cut Fallback

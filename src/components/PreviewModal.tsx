@@ -369,6 +369,17 @@ export default function PreviewModal({
     })[0] || null;
   }, [focusCutData, metadataStore, getAsset]);
 
+  const getSingleModeSceneAudioPlayhead = useCallback((): number => {
+    const absoluteTime = videoRef.current?.currentTime ?? 0;
+    if (!isSingleModeVideo) {
+      return absoluteTime;
+    }
+    const clipStart = inPoint !== null
+      ? Math.min(inPoint, outPoint ?? inPoint)
+      : 0;
+    return Math.max(0, absoluteTime - clipStart);
+  }, [isSingleModeVideo, inPoint, outPoint]);
+
   // Load video URL or image data for Single Mode
   useEffect(() => {
     if (!isSingleMode || !asset?.path) return;
@@ -765,7 +776,7 @@ export default function PreviewModal({
 
     if (isSingleModeVideo) {
       if (singleModeIsPlaying) {
-        const currentTime = videoRef.current?.currentTime ?? 0;
+        const currentTime = getSingleModeSceneAudioPlayhead();
         const sceneStartOffset = singleSceneAudioTrack?.previewOffsetSec ?? 0;
         manager.play(currentTime + sceneStartOffset);
       } else {
@@ -794,6 +805,7 @@ export default function PreviewModal({
     sequenceState.isBuffering,
     sequenceSelectors,
     singleSceneAudioTrack,
+    getSingleModeSceneAudioPlayhead,
   ]);
 
   // Apply volume to attached audio
