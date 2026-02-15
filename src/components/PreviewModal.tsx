@@ -1381,7 +1381,13 @@ export default function PreviewModal({
       : `cut:${attachedAudio?.id || ''}:${currentCut.id}`;
     const shouldReload = sequenceAudioSourceKeyRef.current !== nextSourceKey;
 
-    if (!attachedAudio?.path) return;
+    if (!attachedAudio?.path) {
+      sequenceAudioManagerRef.current.unload();
+      setAudioLoaded(false);
+      sequenceAudioPlayingRef.current = false;
+      sequenceAudioSourceKeyRef.current = null;
+      return;
+    }
 
     const manager = sequenceAudioManagerRef.current;
     if (manager.isDisposed()) return;
