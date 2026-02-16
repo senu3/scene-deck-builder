@@ -62,3 +62,10 @@
 - Preview/Export parity: 同一入力で視覚・時間・音が一致する。
 - Recovery: `project.sdp + assets/.index.json + .metadata.json` で復元できる。
 - 増殖抑制: 新機能が所属軸を明記し、docs 追加が最小で済む。
+
+## Docs Governance
+- 設計思想は ARCHITECTURE
+- 仕様正本は guides/
+- 実装規約は guides/implementation/
+- 判断履歴は DECISIONS/
+- TODO は TODO_MASTER のみ

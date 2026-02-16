@@ -2,7 +2,7 @@
 
 **目的**: Export の時系列・解決ロジック・出力運用を固定し、Preview/Export parity を維持する。
 **適用範囲**: `src/features/export/*`, `src/utils/exportSequence.ts`, `src/utils/timelineOrder.ts`, `electron/main.ts`（export系 IPC）。
-**関連ファイル**: `docs/ARCHITECTURE.md`, `docs/guides/preview.md`, `docs/guides/implementation/export-audio-mix.md`, `docs/guides/implementation/cut-history.md`。
+**関連ファイル**: `docs/ARCHITECTURE.md`, `docs/guides/preview.md`, `docs/guides/implementation/export-audio-mix.md`, `docs/guides/domain/cut-history.md`。
 **更新頻度**: 中。
 
 ## Must / Must Not
@@ -78,13 +78,13 @@
 ## 既知メモ
 - `TODO-NICE-002` を参照: `docs/TODO_MASTER.md`
 - MP4 export は分離音声 `*.audio.flac` を同時出力する（映像と同一ベース名）。`filter_complex` で映像由来音声 + Cut/Scene attachAudio を timeline 配置して `amix(normalize=0)` で1回レンダーする。
-- Cut/Undo/Redo の運用ルールは `docs/guides/implementation/cut-history.md` 側で管理。
+- Cut/Undo/Redo の運用ルールは `docs/guides/domain/cut-history.md` 側で管理。
 
 ## 参照
 - `docs/references/DOMAIN.md`
 - `docs/references/MAPPING.md`
 - `docs/guides/implementation/export-audio-mix.md`
-- `docs/guides/implementation/cut-history.md`
+- `docs/guides/domain/cut-history.md`
 - `docs/notes/archive/store-slice-plan-implemented-2026-02-12.md`
 - `docs/notes/archive/audio_pre_export_design-closed-2026-02-11.md`
 - `docs/notes/archive/export-mp4-lipsync-videoclip-plan-implemented-2026-02-11.md`

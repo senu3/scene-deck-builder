@@ -12,6 +12,15 @@
 - Must Not: 大容量メディアを base64 全量読み込みへ戻さない。
 - Must Not: ffmpeg 個別spawn を乱立させない。
 
+## 分割方針（運用）
+- 現時点では単一ファイルを維持する（参照コスト最小化を優先）。
+- 次のいずれかを満たした時点で分割を検討する:
+  - 1ファイルで 300 行超かつ、変更が独立セクションに反復している。
+  - 同時変更で Preview/I/O/ffmpeg queue の3領域を毎回またぐ。
+  - レビューで「責務混在」による差分追跡コストが継続的に発生する。
+- 分割候補は `protocol.md` / `ffmpeg-queue.md` / `audio-pcm.md`。
+- 追跡タスクは `docs/TODO_MASTER.md`（`TODO-INVEST-004`）で管理する。
+
 > 仮: 実装は進行中のため、詳細はコード参照が正。
 > 用語注意: 本ガイドの `MediaSource` は Preview向け app-specific abstraction を指し、Web APIの `MediaSource` とは別。
 

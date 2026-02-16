@@ -10,7 +10,9 @@
 
 ## 2) ドメイン正本（L1）
 - Vault / Assets: `docs/guides/vault-assets.md`
-- Storyline: `docs/guides/storyline.md`
+- Storyline: `docs/guides/domain/storyline.md`
+- SceneDurationBar: `docs/guides/domain/scene-duration-bar.md`
+- Cut/History: `docs/guides/domain/cut-history.md`
 - Preview: `docs/guides/preview.md`
 - Export: `docs/guides/export.md`
 - LipSync: `docs/guides/lip-sync.md`
@@ -21,10 +23,8 @@
 
 ## 3) 実装ルール（L2）
 - `docs/guides/implementation/thumbnail-profiles.md`
-- `docs/guides/implementation/cut-history.md`
 - `docs/guides/implementation/export-audio-mix.md`
 - `docs/guides/implementation/buffer-memory.md`
-- `docs/guides/implementation/scene-duration-bar.md`
 - `docs/guides/implementation/autosave-snapshots.md`
 - `docs/guides/implementation/ui-components.md`
 - `docs/guides/implementation/color-system.md`

@@ -2,7 +2,7 @@
 
 **目的**: `Storyline` と `useStorylineDragController` の仕様と運用ルールを整理する。
 **適用範囲**: `src/components/Storyline.tsx`, `src/hooks/useStorylineDragController.ts`, `src/components/CutCard.tsx`, `src/components/SceneDurationBar.tsx`。
-**関連ファイル**: `docs/references/DOMAIN.md`, `docs/references/MAPPING.md`, `docs/guides/implementation/scene-duration-bar.md`, `docs/guides/preview.md`, `docs/guides/autoclip.md`。
+**関連ファイル**: `docs/references/DOMAIN.md`, `docs/references/MAPPING.md`, `docs/guides/domain/scene-duration-bar.md`, `docs/guides/preview.md`, `docs/guides/autoclip.md`。
 **更新頻度**: 中。
 
 ## Must / Must Not
