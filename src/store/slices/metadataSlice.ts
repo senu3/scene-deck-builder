@@ -123,6 +123,7 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
           ),
         };
       });
+      void get().saveMetadata();
     },
 
     attachAudioToScene: (sceneId, audioAsset) => {

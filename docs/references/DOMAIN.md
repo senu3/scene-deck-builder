@@ -56,7 +56,7 @@
 | **Asset Metadata** | `AssetMetadata` は displayTime/analysis/lipSync を保持する。 | **含む:** `displayTime` / `audioAnalysis` / `lipSync`。`lipSync.ownedGeneratedAssetIds` / `orphanedGeneratedAssetIds` は生成物ID（mask/composited等）のみを持つ。 | **更新:** `updateAudioAnalysis` / `setLipSyncForAsset`。 | `AssetMetadata`、`metadataStore.ts` |
 | **Asset Reference Graph** | `collectAssetRefs` が scenes + metadata から参照種別付きの asset 参照集合を構築。 | **含む:** `cut` / `cut-audio-binding` / `scene-audio` / `lipsync-*`。**含まない:** 物理ファイル一覧。 | **利用:** usage算出 / 削除可否判定 / 保存前検証。 | `assetRefs.ts` |
 | **Asset Delete Policy** | `deleteAssetWithPolicy` は asset 削除責務の単一入口。 | **含む:** 参照チェック + trash移動 + index/metadata整合更新。 | **呼び出し:** `assetActions.runAssetDelete` から store 経由。 | `useStore.ts`, `features/asset/actions.ts` |
-| **Scene Metadata** | `.metadata.json` 内の `SceneMetadata`（scene notes/labels の永続化）。 | **含む:** シーン名・ノート。 | **更新:** シーン保存時に同期。 | `SceneMetadata`、`metadataStore.ts` |
+| **Scene Metadata** | `.metadata.json` 内の `SceneMetadata`（scene notes/labels/attachAudio の永続化）。 | **含む:** シーン名・ノート・`attachAudio`。 | **更新:** scene同期（`syncSceneMetadata`）+ Scene Audio更新（`setSceneAudioBinding`）。 | `SceneMetadata`、`metadataStore.ts` |
 | **ソースパネル状態** | `SourcePanelState` は source panel の folders/expanded/viewMode を保持。 | **含む:** ユーザが追加した外部フォルダ。 | **初期化/取得:** `initializeSourcePanel` / `getSourcePanelState`（`Project.sourcePanel` に保存）。 | `SourcePanelState`、`useStore.ts` |
 | **保管庫パス** | `vaultPath` はプロジェクトの保管庫ルート。 | **含む:** `vault/assets` の初期化。 | **選択/作成:** StartupModal で作成。 | `Project.vaultPath`、`StartupModal.tsx` |
 
