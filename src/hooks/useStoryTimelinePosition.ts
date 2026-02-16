@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useStore } from '../store/useStore';
-import { getScenesInOrder } from '../utils/sceneOrder';
+import { computeStoryTimings } from '../utils/storyTiming';
 
 export interface StoryTimelinePosition {
   /** Current position in seconds (start of selected scene/cut) */
@@ -23,39 +23,28 @@ export function useStoryTimelinePosition(): StoryTimelinePosition {
   const { scenes, sceneOrder, selectedSceneId, selectedCutId } = useStore();
 
   return useMemo(() => {
-    let totalDuration = 0;
-    let cutCount = 0;
+    const timings = computeStoryTimings(scenes, sceneOrder);
+    const cutCount = timings.cutTimings.size;
     let currentPosition = 0;
     let hasSelection = false;
 
-    // Calculate total duration and find position of selected item
-    for (const scene of getScenesInOrder(scenes, sceneOrder)) {
-      let sceneStartTime = totalDuration;
-
-      for (let i = 0; i < scene.cuts.length; i++) {
-        const cut = scene.cuts[i];
-        const cutStartTime = totalDuration;
-
-        // Check if this cut is selected
-        if (selectedCutId && cut.id === selectedCutId) {
-          currentPosition = cutStartTime;
-          hasSelection = true;
-        }
-
-        totalDuration += cut.displayTime;
-        cutCount++;
+    if (selectedCutId) {
+      const cutTiming = timings.cutTimings.get(selectedCutId);
+      if (cutTiming) {
+        currentPosition = cutTiming.startSec;
+        hasSelection = true;
       }
-
-      // Check if this scene is selected (but no specific cut)
-      if (!selectedCutId && selectedSceneId && scene.id === selectedSceneId) {
-        currentPosition = sceneStartTime;
+    } else if (selectedSceneId) {
+      const sceneTiming = timings.sceneTimings.get(selectedSceneId);
+      if (sceneTiming) {
+        currentPosition = sceneTiming.startSec;
         hasSelection = true;
       }
     }
 
     return {
       currentPosition,
-      totalDuration,
+      totalDuration: timings.totalDurationSec,
       hasSelection,
       sceneCount: scenes.length,
       cutCount,

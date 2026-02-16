@@ -194,6 +194,35 @@ export interface SequenceItem {
     thresholds: { t1: number; t2: number; t3: number };
     audioOffsetSec: number;
   };
+  subtitle?: {
+    text: string;
+    range?: { start: number; end: number };
+  };
+}
+
+export interface ExportAudioEvent {
+  sourcePath: string;
+  sourceStartSec: number;
+  timelineStartSec: number;
+  durationSec: number;
+  sceneId?: string;
+  cutId?: string;
+  sourceType: 'video' | 'cut-attach' | 'scene-attach';
+}
+
+export interface ExportAudioPlan {
+  totalDurationSec: number;
+  events: ExportAudioEvent[];
+}
+
+export interface ExportSubtitleStyle {
+  fontSizePx: number;
+  fontColor: string;
+  backgroundEnabled: boolean;
+  backgroundOpacity: number;
+  position: 'bottom' | 'center';
+  outlineEnabled: boolean;
+  shadowEnabled: boolean;
 }
 
 export interface ExportSequenceOptions {
@@ -202,6 +231,8 @@ export interface ExportSequenceOptions {
   width: number;
   height: number;
   fps: number;
+  subtitleStyle?: ExportSubtitleStyle;
+  audioPlan?: ExportAudioPlan;
 }
 
 export interface ExportSequenceResult {

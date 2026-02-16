@@ -32,7 +32,9 @@ import { buildPreviewViewportFramingStyle } from '../utils/previewFraming';
 import { resolveSubtitleVisibility, normalizeSubtitleRange } from '../utils/subtitleUtils';
 import { getSubtitleStyleSettings } from '../utils/subtitleStyleSettings';
 import { getSubtitleStyleForExport } from '../features/export/subtitleStyle';
+import { buildExportAudioPlan } from '../utils/exportAudioPlan';
 import { getScenesInOrder } from '../utils/sceneOrder';
+import { computeStoryTimings, computeStoryTimingsForCuts } from '../utils/storyTiming';
 import {
   PlaybackRangeMarkers,
   VolumeControl,
@@ -356,9 +358,19 @@ export default function PreviewModal({
   const singleSceneAudioTrack = useMemo(() => {
     const sceneId = focusCutData?.scene.id ?? null;
     const previewOffsetSec = focusCutData
-      ? focusCutData.scene.cuts
-          .slice(0, focusCutData.cutIndex)
-          .reduce((acc, item) => acc + item.displayTime, 0)
+      ? (() => {
+          const timings = computeStoryTimingsForCuts(
+            focusCutData.scene.cuts.map((item) => ({
+              cutId: item.id,
+              sceneId: focusCutData.scene.id,
+              displayTime: item.displayTime,
+            }))
+          );
+          const cutTiming = timings.cutTimings.get(focusCutData.cut.id);
+          const sceneTiming = timings.sceneTimings.get(focusCutData.scene.id);
+          if (!cutTiming || !sceneTiming) return 0;
+          return Math.max(0, cutTiming.startSec - sceneTiming.startSec);
+        })()
       : 0;
     return resolvePreviewAudioTracks({
       sceneId,
@@ -1042,6 +1054,15 @@ export default function PreviewModal({
     if (focusCutData) {
       const buildFocusedItems = async () => {
         const { scene, sceneIndex, cut, cutIndex } = focusCutData;
+        const focusTimings = computeStoryTimingsForCuts(
+          scene.cuts.map((item) => ({
+            cutId: item.id,
+            sceneId: scene.id,
+            displayTime: item.displayTime,
+          }))
+        );
+        const sceneStartAbs = focusTimings.sceneTimings.get(scene.id)?.startSec ?? 0;
+        const previewOffsetSec = Math.max(0, (focusTimings.cutTimings.get(cut.id)?.startSec ?? 0) - sceneStartAbs);
         const cutAsset = resolveAssetForCut(cut);
         if (!cutAsset) {
           setItems([]);
@@ -1096,10 +1117,8 @@ export default function PreviewModal({
           sceneName: scene.name,
           sceneIndex,
           cutIndex,
-          sceneStartAbs: 0,
-          previewOffsetSec: scene.cuts
-            .slice(0, cutIndex)
-            .reduce((acc, item) => acc + item.displayTime, 0),
+          sceneStartAbs,
+          previewOffsetSec,
           thumbnail,
         }]);
       };
@@ -1110,16 +1129,15 @@ export default function PreviewModal({
 
     const buildItems = async () => {
       const newItems: PreviewItem[] = [];
-      let absoluteCursor = 0;
 
       const scenesToPreview = previewMode === 'scene' && selectedSceneId
         ? orderedScenes.filter(s => s.id === selectedSceneId)
         : orderedScenes;
+      const timings = computeStoryTimings(scenesToPreview);
 
       for (let sIdx = 0; sIdx < scenesToPreview.length; sIdx++) {
         const scene = scenesToPreview[sIdx];
-        const sceneStartAbs = absoluteCursor;
-        let sceneLocalCursor = 0;
+        const sceneStartAbs = timings.sceneTimings.get(scene.id)?.startSec ?? 0;
         for (let cIdx = 0; cIdx < scene.cuts.length; cIdx++) {
           const cut = scene.cuts[cIdx];
           const cutAsset = resolveAssetForCut(cut);
@@ -1175,11 +1193,6 @@ export default function PreviewModal({
             previewOffsetSec: 0,
             thumbnail,
           });
-          sceneLocalCursor += cut.displayTime;
-          absoluteCursor += cut.displayTime;
-        }
-        if (scene.cuts.length === 0) {
-          absoluteCursor = sceneStartAbs + sceneLocalCursor;
         }
       }
 
@@ -1915,6 +1928,16 @@ export default function PreviewModal({
           resolveAssetById: getAsset,
         }
       );
+      const cutSceneMap = new Map<string, string>();
+      for (const item of items) {
+        cutSceneMap.set(item.cut.id, item.sceneId);
+      }
+      const audioPlan = buildExportAudioPlan({
+        cuts: exportCuts,
+        metadataStore: metadataStore ?? null,
+        getAssetById: getAsset,
+        resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
+      });
 
       const result = await window.electronAPI.exportSequence({
         items: sequenceItems,
@@ -1923,6 +1946,7 @@ export default function PreviewModal({
         height: exportHeight,
         fps: 30,
         subtitleStyle: getSubtitleStyleForExport(),
+        audioPlan,
       });
 
       if (result.success) {
@@ -1967,6 +1991,7 @@ export default function PreviewModal({
         inPoint?: number;
         outPoint?: number;
       }> = [];
+      const rangeCuts: Cut[] = [];
 
       let accumulatedTime = 0;
       for (const item of items) {
@@ -1987,6 +2012,14 @@ export default function PreviewModal({
 
         if (asset.type === 'video') {
           const originalInPoint = item.cut.isClip && item.cut.inPoint !== undefined ? item.cut.inPoint : 0;
+          const clippedCut: Cut = {
+            ...item.cut,
+            displayTime: clipDuration,
+            isClip: true,
+            inPoint: originalInPoint + clipStart,
+            outPoint: originalInPoint + clipEnd,
+          };
+          rangeCuts.push(clippedCut);
           sequenceItems.push({
             type: 'video',
             path: asset.path,
@@ -1995,6 +2028,13 @@ export default function PreviewModal({
             outPoint: originalInPoint + clipEnd,
           });
         } else {
+          rangeCuts.push({
+            ...item.cut,
+            displayTime: clipDuration,
+            isClip: false,
+            inPoint: undefined,
+            outPoint: undefined,
+          });
           sequenceItems.push({
             type: 'image',
             path: asset.path,
@@ -2007,6 +2047,16 @@ export default function PreviewModal({
         alert('No items in the selected range');
         return;
       }
+      const cutSceneMap = new Map<string, string>();
+      for (const item of items) {
+        cutSceneMap.set(item.cut.id, item.sceneId);
+      }
+      const audioPlan = buildExportAudioPlan({
+        cuts: rangeCuts,
+        metadataStore: metadataStore ?? null,
+        getAssetById: getAsset,
+        resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
+      });
 
       const result = await window.electronAPI.exportSequence({
         items: sequenceItems,
@@ -2015,6 +2065,7 @@ export default function PreviewModal({
         height: exportHeight,
         fps: 30,
         subtitleStyle: getSubtitleStyleForExport(),
+        audioPlan,
       });
 
       if (result.success) {
@@ -2030,7 +2081,7 @@ export default function PreviewModal({
     } finally {
       setIsExporting(false);
     }
-  }, [items, selectedResolution, inPoint, outPoint, pauseBeforeExport, resolveAssetForCut]);
+  }, [items, selectedResolution, inPoint, outPoint, pauseBeforeExport, resolveAssetForCut, metadataStore, getAsset]);
   // Suppress unused variable warning - code kept for future use
   void _handleExportRange;
 

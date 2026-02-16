@@ -219,6 +219,21 @@ interface SequenceItem {
   };
 }
 
+interface ExportAudioEvent {
+  sourcePath: string;
+  sourceStartSec: number;
+  timelineStartSec: number;
+  durationSec: number;
+  sceneId?: string;
+  cutId?: string;
+  sourceType: 'video' | 'cut-attach' | 'scene-attach';
+}
+
+interface ExportAudioPlan {
+  totalDurationSec: number;
+  events: ExportAudioEvent[];
+}
+
 interface ExportSubtitleStyle {
   fontSizePx: number;
   fontColor: string;
@@ -236,6 +251,7 @@ interface ExportSequenceOptions {
   height: number;
   fps: number;
   subtitleStyle?: ExportSubtitleStyle;
+  audioPlan?: ExportAudioPlan;
 }
 
 interface ExportSequenceResult {

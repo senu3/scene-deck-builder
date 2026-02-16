@@ -29,7 +29,8 @@
 | プレビューメディアソース | `MediaSource`（Preview専用 abstraction）。 | `createVideoMediaSource` / `createImageMediaSource`。 | `PreviewModal` |
 | エクスポート実行計画 | `ExportPlan` / `Mp4ExportPlan` / `AviUtlExportPlan`（`subtitleStyle` 含む）。 | `resolveExportPlan` / `getSubtitleStyleForExport`。 | `ExportModal`、`App` |
 | エクスポート出力シーケンス | `ExportSequenceItem`（`subtitle` 含む）。 | `buildSequenceItemsForCuts` / `buildSequenceItemsForExport`。 | `PreviewModal`、`App` |
-| エクスポート実行境界 | `ExportSequenceOptions` / `ExportSequenceResult`（IPC payload, `subtitleStyle` 含む）。 | `window.electronAPI.exportSequence`。 | `App`、`PreviewModal` |
+| エクスポート音声計画 | `ExportAudioPlan` / `ExportAudioEvent`。 | `buildExportAudioPlan`（`useEmbeddedAudio` を含む）。 | `App`、`PreviewModal` |
+| エクスポート実行境界 | `ExportSequenceOptions` / `ExportSequenceResult`（IPC payload, `subtitleStyle`/`audioPlan` 含む）。 | `window.electronAPI.exportSequence`。 | `App`、`PreviewModal` |
 | 字幕焼き込み（MP4） | `SequenceItem.subtitle` / `Mp4ExportPlan.subtitleStyle`。 | `buildSubtitleDrawtextFilter` / `escapeDrawtext`（`electron/subtitleExport.ts`）。 | （Export実行時のみ, Preview UIとは分離） |
 | カット可能メディア判定 | `CuttableMediaType`（`image`/`video`）。 | `getCuttableMediaType`（新規） / `getTimelineMediaType`（互換エイリアス・移行中）。 | `Sidebar`、`StartupModal`、`dragDrop` |
 | ソースパネル状態 | `SourcePanelState` / `SourceViewMode`。 | `initializeSourcePanel` / `getSourcePanelState`（`Project.sourcePanel` に保存）。 | `Sidebar` |

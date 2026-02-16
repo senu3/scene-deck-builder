@@ -412,6 +412,25 @@ function probeVideoWithFfmpeg(ffmpegBinary: string, filePath: string): Promise<{
   }));
 }
 
+function probeMediaHasAudio(ffmpegBinary: string, filePath: string): Promise<boolean> {
+  return ffmpegLightQueue.enqueue(() => new Promise((resolve) => {
+    const args = ['-hide_banner', '-i', filePath];
+    const proc = spawn(ffmpegBinary, args);
+    const stderrRing = createStderrRing();
+
+    proc.stderr.on('data', (data: Buffer) => {
+      appendStderr(stderrRing, data, ffmpegLimits.stderrMaxBytes);
+    });
+
+    proc.on('close', () => {
+      const stderr = getStderrText(stderrRing);
+      resolve(/Audio:/i.test(stderr));
+    });
+
+    proc.on('error', () => resolve(false));
+  }));
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -1643,6 +1662,21 @@ interface SequenceItem {
   subtitle?: ExportSubtitlePayload;
 }
 
+interface ExportAudioEvent {
+  sourcePath: string;
+  sourceStartSec: number;
+  timelineStartSec: number;
+  durationSec: number;
+  sceneId?: string;
+  cutId?: string;
+  sourceType: 'video' | 'cut-attach' | 'scene-attach';
+}
+
+interface ExportAudioPlan {
+  totalDurationSec: number;
+  events: ExportAudioEvent[];
+}
+
 interface ExportSequenceOptions {
   items: SequenceItem[];
   outputPath: string;
@@ -1650,6 +1684,7 @@ interface ExportSequenceOptions {
   height: number;
   fps: number;
   subtitleStyle?: Partial<ExportSubtitleStyle> | null;
+  audioPlan?: ExportAudioPlan;
 }
 
 interface ExportSequenceResult {
@@ -1736,6 +1771,105 @@ function cleanupTempFiles(tempFiles: string[]) {
   }
 }
 
+function formatFilterNumber(value: number): string {
+  const safe = Number.isFinite(value) ? value : 0;
+  return safe.toFixed(6).replace(/\.?0+$/, '');
+}
+
+async function renderMixedAudioTrack(
+  ffmpegBinary: string,
+  audioPlan: ExportAudioPlan,
+  audioOutputPath: string
+): Promise<ExportSequenceResult> {
+  const totalDurationSec = Number.isFinite(audioPlan.totalDurationSec) && audioPlan.totalDurationSec > 0
+    ? audioPlan.totalDurationSec
+    : 0;
+  if (totalDurationSec <= 0) {
+    return { success: false, error: 'Audio export failed: totalDurationSec is invalid.' };
+  }
+
+  const inputArgs: string[] = [];
+  const validEventsRaw = audioPlan.events.filter((event) =>
+    !!event.sourcePath &&
+    Number.isFinite(event.durationSec) &&
+    event.durationSec > 0 &&
+    Number.isFinite(event.timelineStartSec) &&
+    event.timelineStartSec >= 0 &&
+    Number.isFinite(event.sourceStartSec) &&
+    event.sourceStartSec >= 0
+  );
+  const audioPresenceCache = new Map<string, boolean>();
+  const validEvents: ExportAudioEvent[] = [];
+
+  for (const event of validEventsRaw) {
+    if (!fs.existsSync(event.sourcePath)) {
+      console.warn(`[export][audio] Skip missing source: ${event.sourcePath}`);
+      continue;
+    }
+    let hasAudio = audioPresenceCache.get(event.sourcePath);
+    if (hasAudio === undefined) {
+      hasAudio = await probeMediaHasAudio(ffmpegBinary, event.sourcePath);
+      audioPresenceCache.set(event.sourcePath, hasAudio);
+    }
+    if (!hasAudio) {
+      console.warn(`[export][audio] Skip source without audio stream: ${event.sourcePath}`);
+      continue;
+    }
+    validEvents.push(event);
+    inputArgs.push('-i', event.sourcePath);
+  }
+
+  const filterParts: string[] = [];
+  filterParts.push(`anullsrc=r=48000:cl=stereo,atrim=0:${formatFilterNumber(totalDurationSec)}[base]`);
+
+  for (let i = 0; i < validEvents.length; i++) {
+    const event = validEvents[i];
+    const srcStartSec = Math.max(0, event.sourceStartSec);
+    const durationSec = Math.max(0, event.durationSec);
+    const dstStartMs = Math.max(0, Math.round(event.timelineStartSec * 1000));
+    filterParts.push(
+      `[${i}:a]atrim=start=${formatFilterNumber(srcStartSec)}:duration=${formatFilterNumber(durationSec)},` +
+      `asetpts=PTS-STARTPTS,adelay=${dstStartMs}:all=1[a${i}]`
+    );
+    console.info(
+      `[export][audio] event=${i} type=${event.sourceType} scene=${event.sceneId || '-'} cut=${event.cutId || '-'} ` +
+      `srcStart=${srcStartSec.toFixed(3)} dstStart=${event.timelineStartSec.toFixed(3)} dur=${durationSec.toFixed(3)}`
+    );
+  }
+
+  if (validEvents.length > 0) {
+    const mixInputs = ['[base]', ...validEvents.map((_, i) => `[a${i}]`)].join('');
+    filterParts.push(`${mixInputs}amix=inputs=${validEvents.length + 1}:normalize=0[m]`);
+    filterParts.push('[m]aformat=sample_rates=48000:channel_layouts=stereo,alimiter[outa]');
+  } else {
+    filterParts.push('[base]aformat=sample_rates=48000:channel_layouts=stereo,alimiter[outa]');
+  }
+
+  const args = [
+    '-y',
+    ...inputArgs,
+    '-filter_complex', filterParts.join(';'),
+    '-map', '[outa]',
+    '-c:a', 'flac',
+    audioOutputPath,
+  ];
+
+  const result = await runFfmpegWithResult(ffmpegBinary, args, {
+    queue: 'heavy',
+    outputPath: audioOutputPath,
+    logStderr: true,
+  });
+  if (!result.success) {
+    return { success: false, error: `Audio export failed: ${result.error || 'unknown error'}` };
+  }
+
+  return {
+    success: true,
+    audioOutputPath,
+    audioFileSize: fs.existsSync(audioOutputPath) ? fs.statSync(audioOutputPath).size : undefined,
+  };
+}
+
 // Export sequence to MP4 using ffmpeg
 ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Promise<ExportSequenceResult> => {
   const { items, outputPath, fps } = options;
@@ -1757,31 +1891,13 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
     const outputDir = path.dirname(outputPath);
     fs.mkdirSync(outputDir, { recursive: true });
 
-    // Step 1: Convert each item to standardized video/audio segments
+    // Step 1: Convert each item to standardized video segments
     const segmentFiles: string[] = [];
-    const audioSegmentFiles: string[] = [];
-
-    const createSilenceSegment = async (outputAudioPath: string, durationSec: number) => {
-      const silenceDuration = Number.isFinite(durationSec) && durationSec > 0 ? durationSec : 0.001;
-      const silenceArgs = [
-        '-y',
-        '-f', 'lavfi',
-        '-i', 'anullsrc=r=48000:cl=stereo',
-        '-t', silenceDuration.toString(),
-        '-ac', '2',
-        '-ar', '48000',
-        '-c:a', 'pcm_s16le',
-        outputAudioPath,
-      ];
-      await runFfmpeg(ffmpegBinary, silenceArgs);
-    };
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       const segmentFile = path.join(tempDir, `segment_${sessionId}_${i}.mp4`);
-      const audioSegmentFile = path.join(tempDir, `segment_${sessionId}_${i}.wav`);
       tempFiles.push(segmentFile);
-      tempFiles.push(audioSegmentFile);
       const filter = buildFramingVideoFilter({
         width,
         height,
@@ -1822,7 +1938,6 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
         ];
 
         await runFfmpeg(ffmpegBinary, lipSyncArgs);
-        await createSilenceSegment(audioSegmentFile, item.duration);
       } else if (item.type === 'image') {
         // Convert image to video with specified duration
         const imageArgs = [
@@ -1840,7 +1955,6 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
         ];
 
         await runFfmpeg(ffmpegBinary, imageArgs);
-        await createSilenceSegment(audioSegmentFile, item.duration);
       } else {
         // Video: extract segment and re-encode to consistent format
         const inPoint = item.inPoint ?? 0;
@@ -1859,33 +1973,14 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
           '-preset', 'fast',
           '-crf', '18',
           '-pix_fmt', 'yuv420p',
-          '-an',  // Video segments stay silent; audio is exported separately as WAV.
+          '-an',  // Video segments stay silent; audio is exported separately as FLAC.
           segmentFile
         ];
 
         await runFfmpeg(ffmpegBinary, videoArgs);
-
-        const audioArgs = [
-          '-y',
-          '-ss', inPoint.toString(),
-          '-i', item.path,
-          '-t', duration.toString(),
-          '-vn',
-          '-map', '0:a:0?',
-          '-ac', '2',
-          '-ar', '48000',
-          '-c:a', 'pcm_s16le',
-          '-af', 'asetpts=PTS-STARTPTS',
-          audioSegmentFile,
-        ];
-        const audioResult = await runFfmpegWithResult(ffmpegBinary, audioArgs, { queue: 'heavy' });
-        if (!audioResult.success) {
-          await createSilenceSegment(audioSegmentFile, duration);
-        }
       }
 
       segmentFiles.push(segmentFile);
-      audioSegmentFiles.push(audioSegmentFile);
     }
 
     // Step 2: Create concat list file
@@ -1917,36 +2012,22 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
       return concatResult;
     }
 
-    const outputExt = path.extname(outputPath);
-    const outputBase = path.basename(outputPath, outputExt);
-    const outputDirForAudio = path.dirname(outputPath);
-    const audioOutputPath = path.join(outputDirForAudio, `${outputBase}.audio.wav`);
-    const audioListFile = path.join(tempDir, `concat_audio_${sessionId}.txt`);
-    tempFiles.push(audioListFile);
-    const audioConcatLines = audioSegmentFiles.map(f => `file '${f.replace(/\\/g, '/').replace(/'/g, "'\\''")}'`);
-    fs.writeFileSync(audioListFile, audioConcatLines.join('\n'), 'utf-8');
-    const audioConcatArgs = [
-      '-y',
-      '-f', 'concat',
-      '-safe', '0',
-      '-i', audioListFile,
-      '-c', 'copy',
-      audioOutputPath,
-    ];
-    const audioConcatResult = await runFfmpegWithResult(ffmpegBinary, audioConcatArgs, {
-      queue: 'heavy',
-      outputPath: audioOutputPath,
-      logStderr: true,
-    });
-    if (!audioConcatResult.success) {
-      cleanupTempFiles(tempFiles);
-      return {
-        success: false,
-        error: `Export failed (audio): ${audioConcatResult.error || 'audio concat failed'}`,
-      };
+    let audioOutputPath: string | undefined;
+    let audioFileSize: number | undefined;
+    if (options.audioPlan) {
+      const outputExt = path.extname(outputPath);
+      const outputBase = path.basename(outputPath, outputExt);
+      const outputDirForAudio = path.dirname(outputPath);
+      const nextAudioOutputPath = path.join(outputDirForAudio, `${outputBase}.audio.flac`);
+      const mixedAudioResult = await renderMixedAudioTrack(ffmpegBinary, options.audioPlan, nextAudioOutputPath);
+      if (!mixedAudioResult.success) {
+        cleanupTempFiles(tempFiles);
+        return mixedAudioResult;
+      }
+      audioOutputPath = mixedAudioResult.audioOutputPath;
+      audioFileSize = mixedAudioResult.audioFileSize;
     }
 
-    const audioFileSize = fs.existsSync(audioOutputPath) ? fs.statSync(audioOutputPath).size : undefined;
     cleanupTempFiles(tempFiles);
     return {
       ...concatResult,

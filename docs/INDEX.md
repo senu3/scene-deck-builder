@@ -25,6 +25,7 @@
 - `docs/guides/lip-sync.md`
 - `docs/guides/lip-sync-requirements.md`
 - `docs/guides/export-guide.md`（Export機能の運用ガイドライン）
+- `docs/guides/export-audio-mix-guidelines.md`（Export分離音声ミックス仕様）
 - `docs/guides/cut-history-guidelines.md`（Cut/Undo/Redo運用ガイドライン）
 - `docs/ui/components.md`
 - `docs/ui/color-system.md`

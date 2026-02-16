@@ -67,6 +67,7 @@ import { buildSceneScopedExportPath } from './features/export/sceneScope';
 import { buildExportTimelineEntries, buildManifestJson, buildTimelineText } from './features/export/manifest';
 import type { SubtitleStyleSettings } from './utils/subtitleStyleSettings';
 import { getSubtitleStyleForExport } from './features/export/subtitleStyle';
+import { buildExportAudioPlan } from './utils/exportAudioPlan';
 import { useBanner, useToast } from './ui';
 import './styles/App.css';
 
@@ -542,6 +543,18 @@ function App() {
         metadataByAssetId: metadataStore?.metadata,
         resolveAssetById: getAsset,
       });
+      const cutSceneMap = new Map<string, string>();
+      for (const scene of orderedScenes) {
+        for (const sceneCut of scene.cuts) {
+          cutSceneMap.set(sceneCut.id, scene.id);
+        }
+      }
+      const audioPlan = buildExportAudioPlan({
+        cuts,
+        metadataStore: metadataStore ?? null,
+        getAssetById: getAsset,
+        resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
+      });
 
       if (sequenceItems.length === 0) {
         toast.warning('No items to export', 'Add cuts to the timeline first.');
@@ -577,6 +590,7 @@ function App() {
         height,
         fps: config.fps,
         subtitleStyle: config.subtitleStyle,
+        audioPlan,
       });
 
       if (result.success) {
