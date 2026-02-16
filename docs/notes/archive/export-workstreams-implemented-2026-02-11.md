@@ -15,7 +15,7 @@
   - AttachAudio ON/OFF（`audioBindings[].enabled`）UI最小導入案
 - 中止:
   - Export向け音声出力仕様の最終確定
-- 現行運用: `docs/guides/export-guide.md`
+- 現行運用: `docs/guides/export.md`
 
 ### Line B: MP4 Export (LipSync + VideoClip + Framing)
 - ステータス: 完了（MVP実装完了）
@@ -28,11 +28,11 @@
   - 成果物 `video.mp4 + manifest.json + timeline.txt` 出力
   - parity/統合回帰テスト追加
   - Export進行中 Banner 表示と完了時自動削除
- - 現行運用: `docs/guides/export-guide.md`
+ - 現行運用: `docs/guides/export.md`
 
 ### Line C: Naming / Glossary Governance
 - ステータス: 継続運用（MP4実装範囲は反映済み）
-- 現行運用: `docs/guides/export-guide.md`
+- 現行運用: `docs/guides/export.md`
 
 ## 補足
 - Workstreamの親管理ノートは本ファイルでクローズした。

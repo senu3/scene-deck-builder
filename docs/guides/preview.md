@@ -5,7 +5,14 @@
 **関連ファイル**: `src/components/PreviewModal.tsx`, `src/utils/previewPlaybackController.ts`, `src/utils/previewMedia.tsx`。
 **更新頻度**: 中。
 
-> TODO: UI変更に合わせた文言の更新は必要になりうる。
+## Must / Must Not
+- Must: Sequence 再生は `useSequencePlaybackController` を単一制御面として使う。
+- Must: sequence item 構築時に `sequenceCuts` 指定がある場合はその範囲のみを使う。
+- Must: assetId ベースの URL キャッシュ整合を維持する。
+- Must Not: Sequence Mode を `<video>` 直接制御に戻さない。
+- Must Not: 画像 Sequence の時間制御を ad-hoc タイマーへ戻さない。
+
+> TODO は `docs/TODO_MASTER.md`（`TODO-DEBT-002`, `TODO-INVEST-001`）を参照。
 > 命名方針: public APIは `useSequencePlaybackController`、内部概念名は `SequenceClock` を使う。
 > 用語注意: 本ガイドの `MediaSource` は Preview向け app-specific abstraction を指し、Web APIの `MediaSource` とは別。
 
@@ -89,9 +96,8 @@ Video sources queue play/seek until the element is mounted, avoiding the cut bou
 - Image preview sources use thumbnail IPC with a sequence-only profile (`sequence-preview`) instead of asset-grid sizing.
 - Project load path restoration: when `cut.asset.path` is empty in saved snapshots, load flow hydrates the asset from `assets/.index.json` by `assetId` before Sequence video URL creation.
 
-## Known TODO
-- Sequence Mode may still show a brief buffering/loading state when consecutive video clips use the same source asset and switch at cut boundaries.
-- This is a Preview UX/performance follow-up only and does not affect Export output or export sequence construction.
+## Known Follow-up
+- `TODO-INVEST-001` を参照: `docs/TODO_MASTER.md`
 
 ## Must NOT Do
 - Do not control Sequence Mode playback by directly calling `<video>` methods.
@@ -104,5 +110,5 @@ Video sources queue play/seek until the element is mounted, avoiding the cut bou
 
 ## Related Docs
 - `docs/guides/media-handling.md`
-- `docs/guides/thumbnail-profiles.md`
+- `docs/guides/implementation/thumbnail-profiles.md`
 - `docs/references/DOMAIN.md`

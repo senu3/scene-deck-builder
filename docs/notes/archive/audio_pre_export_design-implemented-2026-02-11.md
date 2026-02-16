@@ -36,4 +36,4 @@ interface Cut {
 - 未定義値を `true` として扱う互換動作
 
 ## 備考
-- ここは履歴保管用。現行運用は `docs/guides/export-guide.md` を正とする。
+- ここは履歴保管用。現行運用は `docs/guides/export.md` を正とする。

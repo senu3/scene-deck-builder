@@ -2,8 +2,15 @@
 
 **目的**: Simple AutoClip の挙動・モード定義・既知課題を整理し、実装変更時の判断基準を固定する。  
 **適用範囲**: `src/components/CutCard.tsx`, `src/components/context-menus/CutContextMenu.tsx`, `src/store/commands.ts`, `src/features/cut/simpleAutoClip.ts`。  
-**関連ファイル**: `docs/guides/storyline.md`, `docs/guides/thumbnail-profiles.md`, `docs/guides/cut-history-guidelines.md`, `docs/references/MAPPING.md`。  
+**関連ファイル**: `docs/guides/storyline.md`, `docs/guides/implementation/thumbnail-profiles.md`, `docs/guides/implementation/cut-history.md`, `docs/references/MAPPING.md`。  
 **更新頻度**: 中。
+
+## Must / Must Not
+- Must: `AutoClip (Simple)` は動画 cut のみを対象にする。
+- Must: 生成 cut の追加は Command 経由で行い、Undo/Redo で可逆にする。
+- Must: clip サムネイル更新は共通ヘルパーを使う。
+- Must Not: source cut を破壊的に上書きしない。
+- Must Not: mode 定義変更時に docs 更新を省略しない。
 
 ## 対象機能
 - 対象は `AutoClip (Simple)` のみ。
@@ -51,4 +58,4 @@
 ## 変更時チェック
 - `src/features/cut/simpleAutoClip.ts` の mode 値変更時は本ドキュメントを更新する。
 - `maxCuts` の変更時は `src/store/__tests__/timelineIntegrityCommands.test.ts` の期待値を同期する。
-- サムネイル処理を変更したら `docs/guides/thumbnail-profiles.md` との整合を確認する。
+- サムネイル処理を変更したら `docs/guides/implementation/thumbnail-profiles.md` との整合を確認する。

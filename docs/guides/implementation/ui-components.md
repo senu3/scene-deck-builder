@@ -5,6 +5,14 @@
 **関連ファイル**: `src/ui/primitives/`, `src/ui/patterns/`, `src/ui/feedback/`。
 **更新頻度**: 中。
 
+## Must / Must Not
+- Must: 本ドキュメントは `src/ui` のプリミティブ/パターン/フィードバック層のみを扱う。
+- Must: 利用例と公開 API の同期を保つ。
+- Must Not: ドメインUI仕様（Storyline/SceneDurationBar など）をここへ混在させない。
+- Must Not: 色仕様をこのファイルで定義しない（色は color-system を参照）。
+
+ドメインUIは `docs/guides/implementation/scene-duration-bar.md` を参照。
+
 ## Structure
 
 ```
@@ -512,4 +520,4 @@ Menu primitives support keyboard navigation:
 | Explanation | Tooltip |
 
 ## Related Docs
-- `docs/ui/color-system.md`
+- `docs/guides/implementation/color-system.md`

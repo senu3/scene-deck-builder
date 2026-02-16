@@ -5,7 +5,14 @@
 **関連ファイル**: `src/utils/assetPath.ts`, `src/utils/assetRefs.ts`, `src/store/useStore.ts`, `electron/vaultGateway.ts`, `src/components/AssetPanel.tsx`。
 **更新頻度**: 中。
 
-> TODO: export 系フローの仕様が確定したら更新。
+## Must / Must Not
+- Must: `.index.json` / `.trash/.trash.json` の書き込みは VaultGateway 経由に統一する。
+- Must: `assetId -> filename` を `.index.json` に保持し続ける。
+- Must: `originalPath` は vault-relative を維持する。
+- Must Not: renderer から index/trash を直接書き換えない。
+- Must Not: `vault/assets` 内生成物を再コピーして二重登録しない。
+
+> TODO は `docs/TODO_MASTER.md`（`TODO-DEBT-001`）を参照。
 
 This note defines the Vault and asset management rules that ensure recovery. Cut-related flows are included only where they automatically create or register assets.
 

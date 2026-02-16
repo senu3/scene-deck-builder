@@ -2,7 +2,7 @@
 
 **目的**: EXO Export 実装着手前に、仕様・命名・責務分割・テスト計画を統合して確定する。  
 **適用範囲**: AviUtl(EXO) 出力の設計調査（実装前）。  
-**関連ファイル**: `docs/references/DOMAIN.md`, `docs/references/MAPPING.md`, `docs/guides/preview.md`, `docs/guides/media-handling.md`, `docs/guides/storyline.md`, `docs/guides/export-guide.md`, `.notes/export_plan.md`。  
+**関連ファイル**: `docs/references/DOMAIN.md`, `docs/references/MAPPING.md`, `docs/guides/preview.md`, `docs/guides/media-handling.md`, `docs/guides/storyline.md`, `docs/guides/export.md`, `.notes/export_plan.md`。  
 **更新頻度**: 中。  
 
 ## ステータス（2026-02-10）

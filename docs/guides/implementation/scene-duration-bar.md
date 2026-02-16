@@ -5,7 +5,14 @@
 **関連ファイル**: `src/components/Storyline.tsx`, `src/hooks/useStorylineDragController.ts`, `src/components/SceneDurationBar.tsx`。
 **更新頻度**: 中。
 
-> TODO: UI設計が固まったら表現の調整が必要。
+## Must / Must Not
+- Must: `SceneDurationBar` は編集軸（`StoryTimeline`）の要約表示に限定する。
+- Must: Scene 選択イベントのみを emit し、スクロール実制御は `Storyline` が担う。
+- Must: target モード時は `Remaining/Over` の表示条件を固定ルールで扱う。
+- Must Not: 再生時間軸 UI として扱わない。
+- Must Not: Header 層から DOM 直接スクロール制御を行わない。
+
+> TODO は `docs/TODO_MASTER.md`（`TODO-DEBT-003`）を参照。
 
 ## Storyline Controller
 
@@ -76,7 +83,7 @@
 
 **Styling Rules**
 - Base surface uses tokens: `--panel-bg`, `--border-color`.
-- Segment colors use `--timeline-scene-*` tokens (see `docs/ui/color-system.md` → Timeline Scene Colors).
+- Segment colors use `--timeline-scene-*` tokens (see `docs/guides/implementation/color-system.md` → Timeline Scene Colors).
 
 ## Header Stats
 

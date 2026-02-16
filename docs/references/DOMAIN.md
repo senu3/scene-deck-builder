@@ -5,6 +5,12 @@
 **関連ファイル**: `src/types/index.ts`, `src/components/*`, `src/store/useStore.ts`。
 **更新頻度**: 中。
 
+## Must / Must Not
+- Must: 用語の定義はこのファイルを正本とする。
+- Must: 命名変更時は `docs/references/MAPPING.md` と同時更新する。
+- Must Not: 同義語を別名で増やして概念境界を曖昧化しない。
+- Must Not: 編集/再生/出力軸の命名を混在させない。
+
 > 注意: 本書は用語の正本です。重複説明は最小にし、他ドキュメントは本書を参照します。
 
 ## Naming Conventions

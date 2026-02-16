@@ -4,7 +4,7 @@
 **適用範囲**: `useStore`, `commands`, `App.handleExport`, `projectSave`, 関連テスト。  
 **関連ファイル**: `src/store/useStore.ts`, `src/store/commands.ts`, `src/App.tsx`, `src/utils/projectSave.ts`, `src/utils/timelineOrder.ts`, `src/utils/exportSequence.ts`, `src/store/__tests__/*`, `src/utils/__tests__/*`。  
 **更新頻度**: 中。  
-**現行運用**: `docs/guides/export-guide.md`
+**現行運用**: `docs/guides/export.md`
 
 ## 実装ステータス（2026-02-10）
 - A〜D は実装済み。

@@ -5,6 +5,13 @@
 **関連ファイル**: `electron/main.ts`, `electron/preload.ts`, `electron/services/ffmpegController.ts`, `electron/services/thumbnailService.ts`, `src/components/PreviewModal.tsx`, `src/utils/videoUtils.ts`, `src/utils/thumbnailCache.ts`, `src/utils/audioUtils.ts`。
 **更新頻度**: 中。
 
+## Must / Must Not
+- Must: 動画再生は `media://` ストリームを基本経路とする。
+- Must: ffmpeg 実行は queue 境界（light/heavy）を守る。
+- Must: thumbnail は profile ベースの単一生成入口を維持する。
+- Must Not: 大容量メディアを base64 全量読み込みへ戻さない。
+- Must Not: ffmpeg 個別spawn を乱立させない。
+
 > 仮: 実装は進行中のため、詳細はコード参照が正。
 > 用語注意: 本ガイドの `MediaSource` は Preview向け app-specific abstraction を指し、Web APIの `MediaSource` とは別。
 
@@ -77,5 +84,5 @@
 
 ## Related Docs
 - `docs/guides/preview.md`
-- `docs/guides/buffer-guide.md`
-- `docs/guides/thumbnail-profiles.md`
+- `docs/guides/implementation/buffer-memory.md`
+- `docs/guides/implementation/thumbnail-profiles.md`

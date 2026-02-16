@@ -1,53 +1,60 @@
-# Docs Index
+# Documentation Index
 
-このINDEXは Codex が最短で参照先に到達するための入口です。
+このドキュメントは、読む順番と責務境界を示す入口。
+全ファイル一覧ではなく、判断に必要な導線だけを定義する。
 
-## 目的
-- ドメイン/実装/運用の参照先を一箇所に集約する。
-- 未確定部分は明示し、断定を避ける。
+## 1) まず読む
+- `docs/ARCHITECTURE.md`
+  - 目的 / 不変条件（Must・Must Not）/ 非スコープ / 意思決定ルール。
+  - 破壊的変更や大規模改修の前に必ず確認する。
 
-## 参照ガイド
-- 用語・境界は `docs/references/DOMAIN.md` を正とする。
-- 概念と型/ストア/UIの対応は `docs/references/MAPPING.md` を正とする。
-- 具体フローはガイド系を参照する。
+## 2) ドメイン正本（L1）
+- Vault / Assets: `docs/guides/vault-assets.md`
+- Storyline: `docs/guides/storyline.md`
+- Preview: `docs/guides/preview.md`
+- Export: `docs/guides/export.md`
+- LipSync: `docs/guides/lip-sync.md`
+- AutoClip: `docs/guides/autoclip.md`
+- Media Handling: `docs/guides/media-handling.md`
 
-## 主要ドキュメント
+機能追加・仕様変更時は、該当ガイドの更新を必須とする。
+
+## 3) 実装ルール（L2）
+- `docs/guides/implementation/thumbnail-profiles.md`
+- `docs/guides/implementation/cut-history.md`
+- `docs/guides/implementation/export-audio-mix.md`
+- `docs/guides/implementation/buffer-memory.md`
+- `docs/guides/implementation/scene-duration-bar.md`
+- `docs/guides/implementation/autosave-snapshots.md`
+- `docs/guides/implementation/ui-components.md`
+- `docs/guides/implementation/color-system.md`
+
+ここには思想ではなく、実装上の判断基準・制約を記載する。
+
+## 4) 用語と対応表（参照正本）
 - `docs/references/DOMAIN.md`
 - `docs/references/MAPPING.md`
-- `docs/guides/preview.md`
-- `docs/guides/autoclip.md`
-- `docs/guides/thumbnail-profiles.md`
-- `docs/guides/storyline.md`
-- `docs/guides/media-handling.md`
-- `docs/guides/buffer-guide.md`
-- `docs/guides/vault-guide.md`
-- `docs/guides/autosave-snapshots.md`
-- `docs/guides/lip-sync.md`
-- `docs/guides/lip-sync-requirements.md`
-- `docs/guides/export-guide.md`（Export機能の運用ガイドライン）
-- `docs/guides/export-audio-mix-guidelines.md`（Export分離音声ミックス仕様）
-- `docs/guides/cut-history-guidelines.md`（Cut/Undo/Redo運用ガイドライン）
-- `docs/ui/components.md`
-- `docs/ui/color-system.md`
-- `docs/ui/scene-duration-bar.md`
 
-## アーカイブ
-- `docs/notes/archive/INDEX.md`（アーカイブ目次）
-- `docs/notes/archive/audio_pre_export_design-implemented-2026-02-11.md`
-- `docs/notes/archive/audio_pre_export_design-closed-2026-02-11.md`
-- `docs/notes/archive/export-workstreams-implemented-2026-02-11.md`（Exportライン統合ノート / アーカイブ済み）
-- `docs/notes/archive/export-mp4-lipsync-videoclip-plan-implemented-2026-02-11.md`
-- `docs/notes/archive/export-naming-plan-implemented-2026-02-11.md`
-- `docs/notes/archive/export-timeline-integrity-plan-implemented-2026-02-11.md`
-- `docs/notes/archive/cut-refactor-plan-implemented-2026-02-12.md`
-- `docs/notes/archive/store-slice-plan-implemented-2026-02-12.md`
-- `docs/notes/archive/store-type-boundary-plan-implemented-2026-02-12.md`
-- `docs/notes/archive/cut-write-path-inventory-implemented-2026-02-12.md`
-- `docs/notes/archive/assetpanel-cut-ffmpeg-reorg-plan-implemented-2026-02-12.md`
-- `docs/notes/archive/getasset-thumbnail-resolution-implemented-2026-02-14.md`
-- `docs/notes/archive/preview-sequence-same-source-clip-buffering-todo-2026-02-14.md`
-- `docs/notes/archive/autosave-toast-notes.md`（完了済み）
-- `docs/notes/archive/aviutl-exo-export-research.md`（EXO中止履歴）
+命名、概念対応、型マッピングはこの2ファイルを正本とする。
 
-## 追加時のルール
-- 追加・更新ルールは `docs/DOCS_GUIDE.md` を参照。
+## 5) 決定ログ
+- `docs/DECISIONS/`
+
+重要な設計判断・破壊的変更・構造変更は ADR で残す。
+
+## 6) TODO 管理
+- `docs/TODO_MASTER.md`
+
+TODO は各ガイドに散在させない。元ドキュメントには `TODO_MASTER` へのリンクのみ残す。
+
+## docs 追加/更新ルール
+- 追加した docs は本 INDEX から辿れる構造にする。
+- 1ファイルの先頭に最低限、`目的` `適用範囲` `Must / Must Not` を置く。
+- 仕様・実装・調査ログは混在させず、必要なら `guides` / `implementation` / `notes/archive` に分離する。
+- 未解決課題は `TODO_MASTER.md` へ記録し、重複TODOを作らない。
+
+## 開発時のチェック順
+1. `ARCHITECTURE.md` に反していないか。
+2. 変更対象のドメイン正本（L1）を更新したか。
+3. 実装ルール（L2）に違反していないか。
+4. TODO を増やす場合に `TODO_MASTER.md` を更新したか。

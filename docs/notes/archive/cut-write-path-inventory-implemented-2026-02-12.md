@@ -12,7 +12,7 @@
 
 ## 関連ファイル
 - `docs/notes/archive/store-slice-plan-implemented-2026-02-12.md`
-- `docs/guides/cut-history-guidelines.md`
+- `docs/guides/implementation/cut-history.md`
 - `src/store/useStore.ts`
 - `src/store/historyStore.ts`
 

@@ -15,9 +15,9 @@
 - テスト: `src/features/cut/__tests__/actions.test.ts` および ffmpeg IPC 周辺の追加テスト
 
 ## 関連ファイル
-- `docs/guides/cut-history-guidelines.md`
+- `docs/guides/implementation/cut-history.md`
 - `docs/guides/media-handling.md`
-- `docs/guides/export-guide.md`
+- `docs/guides/export.md`
 - `docs/notes/archive/cut-refactor-plan-implemented-2026-02-12.md`
 
 ## 更新頻度

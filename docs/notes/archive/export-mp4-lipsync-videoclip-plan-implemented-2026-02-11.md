@@ -6,7 +6,7 @@
 ## ライン位置
 - Workstream: **Line B (MP4 Export)**
 - Workstream履歴: `docs/notes/archive/export-workstreams-implemented-2026-02-11.md`
-- 現行運用: `docs/guides/export-guide.md`
+- 現行運用: `docs/guides/export.md`
 - 参照:
   - `docs/notes/archive/export-timeline-integrity-plan-implemented-2026-02-11.md`
   - `docs/notes/archive/cut-refactor-plan-implemented-2026-02-12.md`

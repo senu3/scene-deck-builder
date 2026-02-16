@@ -1,6 +1,16 @@
 # Export Audio Mix Guidelines
 
-Export 時の分離音声（`*.audio.flac`）生成仕様を定義する。
+**目的**: Export 分離音声（`*.audio.flac`）の時間配置とミックス制約を固定する。
+**適用範囲**: `src/utils/exportAudioPlan.ts`, `src/utils/storyTiming.ts`, `electron/main.ts`（`renderMixedAudioTrack`）。
+**関連ファイル**: `docs/guides/export.md`, `docs/guides/preview.md`。
+**更新頻度**: 中。
+
+## Must / Must Not
+- Must: 開始時刻算出は `sceneOrder` + `cut.displayTime` の累積定義を使う。
+- Must: 分離音声は `filter_complex` 1回レンダーで生成する。
+- Must: `useEmbeddedAudio=false` は映像由来音声のみを無効化する。
+- Must Not: 旧セグメント連結経路（wav concat）を再導入しない。
+- Must Not: Preview/Export で別時間定義を持ち込まない。
 
 ## 対象
 - MP4 export 実行時の分離音声レンダー
@@ -49,7 +59,7 @@ Export 時の分離音声（`*.audio.flac`）生成仕様を定義する。
 4. 旧 `wav` セグメント連結経路を再導入しないこと。
 
 ## 関連
-- `docs/guides/export-guide.md`
+- `docs/guides/export.md`
 - `src/utils/storyTiming.ts`
 - `src/utils/exportAudioPlan.ts`
 - `electron/main.ts`

@@ -13,6 +13,13 @@
 - `src/vite-env.d.ts`  
 **更新頻度**: 中。  
 
+## Must / Must Not
+- Must: 再生時は `getLipSyncFrameAssetIds` を経由してフレーム列を解決する。
+- Must: generated IDs は「生成物のみ」の正準ルールを維持する。
+- Must: 登録時前処理（mask/composited）を優先し、再生時負荷を増やさない。
+- Must Not: base64 を metadata 永続化しない。
+- Must Not: `compositedFrameAssetIds` を編集入力へ流用しない。
+
 ## Design Principles
 - **再生は軽く、登録時に重く**  
   マスク合成は登録時に前処理し、再生中は RMS -> フレーム切替のみを行う。
@@ -104,13 +111,11 @@ type LipSyncSettings = {
 - base64 を metadata に保存しない。
 - 再生ループで Canvas 合成を行わない。
 
-## Next Phase TODO (metadataStore)
-- TODO: `setLipSyncForAsset` 保存時に generated IDs を正規化し、正準ルール（生成物のみ）を強制する。
-- TODO: `loadMetadataStore` 読み込み時に migration/normalize ステップを追加し、過去データの混在IDを補正する。
-- TODO: `.metadata.json` の LipSync スキーマに「generated IDs excludes owner/base/variant/rms/sourceVideo」を明文化する（`docs/references/DOMAIN.md` と型コメントを同期）。
+## Next Phase
+- `TODO-BREAKING-001` を参照: `docs/TODO_MASTER.md`
 
 ## Related Docs
-- `docs/guides/lip-sync-requirements.md`
+- `docs/notes/archive/lip-sync-requirements.md`
 - `docs/guides/preview.md`
 - `docs/guides/media-handling.md`
-- `docs/guides/buffer-guide.md`
+- `docs/guides/implementation/buffer-memory.md`

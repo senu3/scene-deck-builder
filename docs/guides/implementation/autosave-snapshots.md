@@ -5,6 +5,13 @@
 **関連ファイル**: `src/hooks/useHeaderProjectController.ts`, `src/utils/autosave.ts`, `electron/main.ts`, `electron/preload.ts`, `src/components/EnvironmentSettingsModal.tsx`, `docs/notes/archive/autosave-toast-notes.md`。
 **更新頻度**: 中。
 
+## Must / Must Not
+- Must: autosave の保存先は `vaultPath/project.sdp` を正本として維持する。
+- Must: close 時 flush は request/complete ハンドシェイクを維持する。
+- Must: 失敗 toast の重複抑止（`autosave-failed`）を維持する。
+- Must Not: autosave 失敗をサイレントで握りつぶさない。
+- Must Not: snapshot 機能を仕様未定のまま断片実装しない。
+
 ## Autosave（現行）
 - 有効条件は `projectLoaded === true` かつ `vaultPath` が存在し、`VITE_DISABLE_AUTOSAVE=1` ではないこと。
 - 変更検知は `subscribeProjectChanges` が `ProjectSaveSnapshot` をシリアライズ比較して行う。
@@ -17,10 +24,9 @@
 - Renderer は `useHeaderProjectController` で request を受けて autosave を実行し、`autosave-flush-complete` を返す。
 - 5秒でタイムアウトし、未完でも終了する。
 
-## Snapshot（現行 / TODO）
+## Snapshot（現行）
 - `ProjectSaveSnapshot` は「変更検知」用のインメモリ snapshot であり、永続化されない。
-- 設定UIの `Snapshot` 系トグルと最大数は存在するが、保存先や履歴管理には未接続。
-- スナップショットのファイル構造・保持数・復元UXは未実装（TODO）。
+- TODO は `docs/TODO_MASTER.md`（`TODO-INVEST-002`）を参照。
 
 ## 設定UIの現状（注意）
-- Autosave の ON/OFF と interval は UI で切り替え可能だが、保存先や interval は現在実装に反映されない（TODO）。
+- TODO は `docs/TODO_MASTER.md`（`TODO-NICE-001`）を参照。

@@ -2,8 +2,15 @@
 
 **目的**: `Storyline` と `useStorylineDragController` の仕様と運用ルールを整理する。
 **適用範囲**: `src/components/Storyline.tsx`, `src/hooks/useStorylineDragController.ts`, `src/components/CutCard.tsx`, `src/components/SceneDurationBar.tsx`。
-**関連ファイル**: `docs/references/DOMAIN.md`, `docs/references/MAPPING.md`, `docs/ui/scene-duration-bar.md`, `docs/guides/preview.md`, `docs/guides/autoclip.md`。
+**関連ファイル**: `docs/references/DOMAIN.md`, `docs/references/MAPPING.md`, `docs/guides/implementation/scene-duration-bar.md`, `docs/guides/preview.md`, `docs/guides/autoclip.md`。
 **更新頻度**: 中。
+
+## Must / Must Not
+- Must: Timeline 構造変更は Command 経由で行う。
+- Must: Scene の時系列順序は `sceneOrder` を正本とする。
+- Must: Scene more menu の Scene 解決は `sceneId` 直指定で行う。
+- Must Not: `selectedSceneId` 依存で Scene preview/export を解決しない。
+- Must Not: Storyline から Preview/Export 軸の命名を上書きしない。
 
 ## Naming Boundaries (Must Follow)
 - `Storyline`: 編集UI。

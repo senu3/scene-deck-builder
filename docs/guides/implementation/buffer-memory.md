@@ -5,7 +5,14 @@
 **関連ファイル**: `electron/main.ts`, `electron/vaultGateway.ts`, `src/utils/thumbnailCache.ts`, `src/utils/audioUtils.ts`, `src/components/PreviewModal.tsx`。
 **更新頻度**: 低。
 
-> TODO: 実装変更が入った場合は最新の検索結果で更新する。
+## Must / Must Not
+- Must: 大容量処理は stream/queue 前提で設計する。
+- Must: キャッシュは上限（件数/バイト）を持たせる。
+- Must: バッファ保持の生成点・解放点を追跡可能に保つ。
+- Must Not: base64 全量保持経路を安易に増やさない。
+- Must Not: ffmpeg 出力の無制限バッファリングを導入しない。
+
+> TODO は `docs/TODO_MASTER.md`（`TODO-DEBT-004`）を参照。
 
 このドキュメントは、バッファ（Buffer/ArrayBuffer/Uint8Array/ImageData/Blob/Canvas backing store）の生成・保持・解放点を棚卸しし、リーク/膨張パターンを点検したものです。
 検索キー: `Buffer` / `ArrayBuffer` / `Uint8Array` / `ImageData` / `createImageBitmap` / `URL.createObjectURL` / `stream`

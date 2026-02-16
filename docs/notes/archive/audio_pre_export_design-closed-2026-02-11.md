@@ -10,7 +10,7 @@
 
 ## 現在地（クローズ時点）
 - 基本モデル（`Cut.audioBindings` / `useEmbeddedAudio`）は実装済み。
-- 運用メモは `docs/guides/export-guide.md` に集約済み。
+- 運用メモは `docs/guides/export.md` に集約済み。
 
 ## 完了済み（2026-02-11）
 1. metadata attachedAudio 残骸の削除
@@ -36,7 +36,7 @@
 
 ## 依存関係
 - Line B（MP4 export）に `kind` と `enabled/useEmbeddedAudio` の意味を提供。
-- 命名ガバナンスは `docs/guides/export-guide.md` の固定ルールへ追従。
+- 命名ガバナンスは `docs/guides/export.md` の固定ルールへ追従。
 
 ## 注意
 - 本ファイルは履歴保管用。

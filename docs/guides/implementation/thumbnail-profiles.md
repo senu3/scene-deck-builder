@@ -5,6 +5,12 @@
 **関連ファイル**: `electron/services/thumbnailService.ts`, `src/utils/thumbnailCache.ts`, `src/features/cut/clipThumbnail.ts`, `src/components/PreviewModal.tsx`, `src/components/DetailsPanel.tsx`, `src/components/AssetGrid.tsx`, `src/components/CutCard.tsx`。  
 **更新頻度**: 中。
 
+## Must / Must Not
+- Must: 表示面ごとに profile を明示し、対応を固定する。
+- Must: profile 追加時は main/renderer の型と map を同時更新する。
+- Must Not: `asset-grid` / `sequence-preview` / `details-panel` を相互流用しない。
+- Must Not: profile 変更時に cache key の `profile` 要素を外さない。
+
 ## プロファイル一覧（固定）
 - `timeline-card`
   - 用途: Storyline の CutCard

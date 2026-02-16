@@ -20,6 +20,13 @@
 ## 更新頻度
 - 中
 
+## Must / Must Not
+- Must: scene/cut/group の構造変更は Command 経由で扱う。
+- Must: `sceneOrder` を Scene 順序の正本として維持する。
+- Must: cross-slice 後処理は store event 経由で接続する。
+- Must Not: Command 層から UI API（confirm/alert/modal）を直接呼ばない。
+- Must Not: asset action から timeline 配列を直接書き換えない。
+
 ## 実装ガイドライン
 
 ### 1. Timeline 構造変更は Command 経由
@@ -96,8 +103,8 @@ const store = useStore(); // 全体購読
 - `CUT_RELINKED`: emit のみ実装済み。UI 側の購読・表示用途は保留。
 - 展開グループ内の並び替え同期は event 追加ではなく `ReorderCutsWithGroupSyncCommand` で一操作に集約する。
 
-保留メモ（2026-02-12）:
-- `CUT_RELINKED` の UI 追従（通知/表示/同期）は未実装。仕様確定後に購読側を追加する。
+補足:
+- `CUT_RELINKED` の購読側仕様は `docs/TODO_MASTER.md`（`TODO-INVEST-003`）で管理する。
 
 ## Undo/Redo 対象（運用）
 - 対象: scene/cut/group の構造変更、clip point 更新。

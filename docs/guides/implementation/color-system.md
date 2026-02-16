@@ -5,6 +5,12 @@
 **関連ファイル**: `src/styles/globals.css`, `src/components/*.css`。
 **更新頻度**: 低。
 
+## Must / Must Not
+- Must: 色トークンの意味づけはこのドキュメントを正本とする。
+- Must: semantic token と RGB token をセットで維持する。
+- Must Not: コンポーネント個別で新しい意味色を無秩序に追加しない。
+- Must Not: 既存 token の用途を docs 更新なしで変更しない。
+
 > 注意: 色の意味づけはここを正とする。
 
 AI-Scene-Deck uses a slate-tinted dark color scheme with cool cyan accents.

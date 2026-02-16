@@ -6,7 +6,7 @@
 ## ライン位置
 - Workstream: **Line C (Naming / Glossary Governance)**
 - Workstream履歴: `docs/notes/archive/export-workstreams-implemented-2026-02-11.md`
-- 現行運用: `docs/guides/export-guide.md`
+- 現行運用: `docs/guides/export.md`
 
 ## 現在地
 - MP4 export 実装に追従した命名反映を実施済み。

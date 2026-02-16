@@ -5,6 +5,12 @@
 **関連ファイル**: `src/types/index.ts`, `src/store/useStore.ts`, `src/components/*`。
 **更新頻度**: 中。
 
+## Must / Must Not
+- Must: 概念 -> 型/ストア/UI の対応は1対1の主経路を維持する。
+- Must: 新機能追加時は該当行を更新し、参照先 docs を同期する。
+- Must Not: 廃止済み経路を現行マッピングとして残さない。
+- Must Not: 同一概念に矛盾する複数の owner を定義しない。
+
 > 注意: 用語定義は `docs/references/DOMAIN.md` を参照。
 
 | 概念 | データモデル（TS型） | ストア/ユーティリティ | 主要UI/コンポーネント |
