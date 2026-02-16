@@ -1656,6 +1656,8 @@ interface ExportSequenceResult {
   success: boolean;
   outputPath?: string;
   fileSize?: number;
+  audioOutputPath?: string;
+  audioFileSize?: number;
   error?: string;
 }
 
@@ -1755,13 +1757,31 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
     const outputDir = path.dirname(outputPath);
     fs.mkdirSync(outputDir, { recursive: true });
 
-    // Step 1: Convert each item to a standardized video segment
+    // Step 1: Convert each item to standardized video/audio segments
     const segmentFiles: string[] = [];
+    const audioSegmentFiles: string[] = [];
+
+    const createSilenceSegment = async (outputAudioPath: string, durationSec: number) => {
+      const silenceDuration = Number.isFinite(durationSec) && durationSec > 0 ? durationSec : 0.001;
+      const silenceArgs = [
+        '-y',
+        '-f', 'lavfi',
+        '-i', 'anullsrc=r=48000:cl=stereo',
+        '-t', silenceDuration.toString(),
+        '-ac', '2',
+        '-ar', '48000',
+        '-c:a', 'pcm_s16le',
+        outputAudioPath,
+      ];
+      await runFfmpeg(ffmpegBinary, silenceArgs);
+    };
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       const segmentFile = path.join(tempDir, `segment_${sessionId}_${i}.mp4`);
+      const audioSegmentFile = path.join(tempDir, `segment_${sessionId}_${i}.wav`);
       tempFiles.push(segmentFile);
+      tempFiles.push(audioSegmentFile);
       const filter = buildFramingVideoFilter({
         width,
         height,
@@ -1802,6 +1822,7 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
         ];
 
         await runFfmpeg(ffmpegBinary, lipSyncArgs);
+        await createSilenceSegment(audioSegmentFile, item.duration);
       } else if (item.type === 'image') {
         // Convert image to video with specified duration
         const imageArgs = [
@@ -1819,6 +1840,7 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
         ];
 
         await runFfmpeg(ffmpegBinary, imageArgs);
+        await createSilenceSegment(audioSegmentFile, item.duration);
       } else {
         // Video: extract segment and re-encode to consistent format
         const inPoint = item.inPoint ?? 0;
@@ -1837,14 +1859,33 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
           '-preset', 'fast',
           '-crf', '18',
           '-pix_fmt', 'yuv420p',
-          '-an',  // Remove audio for now (can be added later)
+          '-an',  // Video segments stay silent; audio is exported separately as WAV.
           segmentFile
         ];
 
         await runFfmpeg(ffmpegBinary, videoArgs);
+
+        const audioArgs = [
+          '-y',
+          '-ss', inPoint.toString(),
+          '-i', item.path,
+          '-t', duration.toString(),
+          '-vn',
+          '-map', '0:a:0?',
+          '-ac', '2',
+          '-ar', '48000',
+          '-c:a', 'pcm_s16le',
+          '-af', 'asetpts=PTS-STARTPTS',
+          audioSegmentFile,
+        ];
+        const audioResult = await runFfmpegWithResult(ffmpegBinary, audioArgs, { queue: 'heavy' });
+        if (!audioResult.success) {
+          await createSilenceSegment(audioSegmentFile, duration);
+        }
       }
 
       segmentFiles.push(segmentFile);
+      audioSegmentFiles.push(audioSegmentFile);
     }
 
     // Step 2: Create concat list file
@@ -1871,8 +1912,47 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
       outputPath,
       logStderr: true,
     });
+    if (!concatResult.success) {
+      cleanupTempFiles(tempFiles);
+      return concatResult;
+    }
+
+    const outputExt = path.extname(outputPath);
+    const outputBase = path.basename(outputPath, outputExt);
+    const outputDirForAudio = path.dirname(outputPath);
+    const audioOutputPath = path.join(outputDirForAudio, `${outputBase}.audio.wav`);
+    const audioListFile = path.join(tempDir, `concat_audio_${sessionId}.txt`);
+    tempFiles.push(audioListFile);
+    const audioConcatLines = audioSegmentFiles.map(f => `file '${f.replace(/\\/g, '/').replace(/'/g, "'\\''")}'`);
+    fs.writeFileSync(audioListFile, audioConcatLines.join('\n'), 'utf-8');
+    const audioConcatArgs = [
+      '-y',
+      '-f', 'concat',
+      '-safe', '0',
+      '-i', audioListFile,
+      '-c', 'copy',
+      audioOutputPath,
+    ];
+    const audioConcatResult = await runFfmpegWithResult(ffmpegBinary, audioConcatArgs, {
+      queue: 'heavy',
+      outputPath: audioOutputPath,
+      logStderr: true,
+    });
+    if (!audioConcatResult.success) {
+      cleanupTempFiles(tempFiles);
+      return {
+        success: false,
+        error: `Export failed (audio): ${audioConcatResult.error || 'audio concat failed'}`,
+      };
+    }
+
+    const audioFileSize = fs.existsSync(audioOutputPath) ? fs.statSync(audioOutputPath).size : undefined;
     cleanupTempFiles(tempFiles);
-    return concatResult;
+    return {
+      ...concatResult,
+      audioOutputPath,
+      audioFileSize,
+    };
   } catch (error) {
     cleanupTempFiles(tempFiles);
 

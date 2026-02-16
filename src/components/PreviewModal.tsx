@@ -1926,7 +1926,10 @@ export default function PreviewModal({
       });
 
       if (result.success) {
-        alert(`Export complete!\nFile: ${result.outputPath}\nSize: ${(result.fileSize! / 1024 / 1024).toFixed(2)} MB`);
+        alert(
+          `Export complete!\nFile: ${result.outputPath}\nSize: ${(result.fileSize! / 1024 / 1024).toFixed(2)} MB` +
+          `${result.audioOutputPath ? `\nAudio: ${result.audioOutputPath}` : ''}`
+        );
       } else {
         alert(`Export failed: ${result.error}`);
       }
@@ -2015,7 +2018,10 @@ export default function PreviewModal({
       });
 
       if (result.success) {
-        alert(`Export complete! (${formatTime(rangeStart)} - ${formatTime(rangeEnd)})\nFile: ${result.outputPath}\nSize: ${(result.fileSize! / 1024 / 1024).toFixed(2)} MB`);
+        alert(
+          `Export complete! (${formatTime(rangeStart)} - ${formatTime(rangeEnd)})\nFile: ${result.outputPath}\nSize: ${(result.fileSize! / 1024 / 1024).toFixed(2)} MB` +
+          `${result.audioOutputPath ? `\nAudio: ${result.audioOutputPath}` : ''}`
+        );
       } else {
         alert(`Export failed: ${result.error}`);
       }

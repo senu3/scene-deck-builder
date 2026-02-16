@@ -208,6 +208,8 @@ export interface ExportSequenceResult {
   success: boolean;
   outputPath?: string;
   fileSize?: number;
+  audioOutputPath?: string;
+  audioFileSize?: number;
   error?: string;
 }
 

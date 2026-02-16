@@ -617,7 +617,7 @@ function App() {
         });
         toast.success(
           'Export complete',
-          `${(result.fileSize! / 1024 / 1024).toFixed(2)} MB`
+          `${(result.fileSize! / 1024 / 1024).toFixed(2)} MB${result.audioOutputPath ? ` / audio: ${result.audioOutputPath}` : ''}`
         );
       } else {
         toast.error('Export failed', result.error || 'Unknown error');
