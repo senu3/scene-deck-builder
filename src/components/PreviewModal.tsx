@@ -1924,7 +1924,10 @@ export default function PreviewModal({
     try {
       const exportWidth = selectedResolution.width > 0 ? selectedResolution.width : DEFAULT_EXPORT_RESOLUTION.width;
       const exportHeight = selectedResolution.height > 0 ? selectedResolution.height : DEFAULT_EXPORT_RESOLUTION.height;
-      const exportCuts = items.map((item) => item.cut);
+      const exportCuts = items.map((item) => ({
+        ...item.cut,
+        displayTime: item.normalizedDisplayTime,
+      }));
 
       if (onExportSequence) {
         await onExportSequence(exportCuts, { width: exportWidth, height: exportHeight });
@@ -2005,13 +2008,6 @@ export default function PreviewModal({
       const rangeStart = Math.min(inPoint, outPoint);
       const rangeEnd = Math.max(inPoint, outPoint);
 
-      const sequenceItems: Array<{
-        type: 'image' | 'video';
-        path: string;
-        duration: number;
-        inPoint?: number;
-        outPoint?: number;
-      }> = [];
       const rangeCuts: Cut[] = [];
 
       let accumulatedTime = 0;
@@ -2041,13 +2037,6 @@ export default function PreviewModal({
             outPoint: originalInPoint + clipEnd,
           };
           rangeCuts.push(clippedCut);
-          sequenceItems.push({
-            type: 'video',
-            path: asset.path,
-            duration: clipDuration,
-            inPoint: originalInPoint + clipStart,
-            outPoint: originalInPoint + clipEnd,
-          });
         } else {
           rangeCuts.push({
             ...item.cut,
@@ -2056,13 +2045,18 @@ export default function PreviewModal({
             inPoint: undefined,
             outPoint: undefined,
           });
-          sequenceItems.push({
-            type: 'image',
-            path: asset.path,
-            duration: clipDuration,
-          });
         }
       }
+
+      const sequenceItems = buildSequenceItemsForCuts(
+        rangeCuts,
+        {
+          debugFraming: true,
+          framingDefaults: EXPORT_FRAMING_DEFAULTS,
+          metadataByAssetId: metadataStore?.metadata,
+          resolveAssetById: getAsset,
+        }
+      );
 
       if (sequenceItems.length === 0) {
         alert('No items in the selected range');
