@@ -28,7 +28,7 @@ import { buildSequenceItemsForCuts } from '../utils/exportSequence';
 import { resolvePreviewAudioTracks } from '../utils/previewAudioTracks';
 import { DEFAULT_EXPORT_RESOLUTION } from '../constants/export';
 import { EXPORT_FRAMING_DEFAULTS } from '../constants/framing';
-import { buildPreviewViewportFramingStyle } from '../utils/previewFraming';
+import { buildPreviewViewportFramingStyle, buildPreviewViewportFramingStyleFromResolved } from '../utils/previewFraming';
 import { resolveSubtitleVisibility, normalizeSubtitleRange } from '../utils/subtitleUtils';
 import { getSubtitleStyleSettings } from '../utils/subtitleStyleSettings';
 import { getSubtitleStyleForExport } from '../features/export/subtitleStyle';
@@ -333,11 +333,6 @@ export default function PreviewModal({
   const getLipSyncSettingsForAsset = useCallback((assetId: string) => {
     if (!metadataStore) return undefined;
     return metadataStore.metadata[assetId]?.lipSync;
-  }, [metadataStore]);
-
-  const getAudioAnalysisForAsset = useCallback((assetId: string) => {
-    if (!metadataStore) return undefined;
-    return metadataStore.metadata[assetId]?.audioAnalysis;
   }, [metadataStore]);
 
   // ===== SINGLE MODE LOGIC =====
@@ -1391,6 +1386,25 @@ export default function PreviewModal({
   // ===== SEQUENCE MODE ATTACHED AUDIO =====
 
   const currentSequenceItem = items[currentIndex] ?? null;
+  const previewSequenceItems = useMemo(() => {
+    const exportCuts = items.map((item) => ({
+      ...item.cut,
+      displayTime: item.normalizedDisplayTime,
+    }));
+    return buildSequenceItemsForCuts(exportCuts, {
+      framingDefaults: EXPORT_FRAMING_DEFAULTS,
+      metadataByAssetId: metadataStore?.metadata,
+      resolveAssetById: getAsset,
+      strictLipSync: false,
+    });
+  }, [items, metadataStore, getAsset]);
+  const previewSequenceItemByCutId = useMemo(
+    () => new Map(previewSequenceItems.map((item, index) => [items[index]?.cut.id, item] as const).filter((entry) => !!entry[0])),
+    [previewSequenceItems, items]
+  );
+  const currentSequenceSpec = currentSequenceItem
+    ? previewSequenceItemByCutId.get(currentSequenceItem.cut.id) || null
+    : null;
   const currentSceneAudioTrack = useMemo(() => resolvePreviewAudioTracks({
     sceneId: currentSequenceItem?.sceneId ?? null,
     sceneStartAbs: currentSequenceItem?.sceneStartAbs ?? 0,
@@ -1557,27 +1571,18 @@ export default function PreviewModal({
     const asset = resolveAssetForCut(currentItem?.cut);
     if (!currentItem || !asset) return;
 
-    const lipSyncSettings = currentItem.cut.isLipSync ? getLipSyncSettingsForAsset(asset.id) : undefined;
-    if (lipSyncSettings) {
+    const currentSpec = previewSequenceItemByCutId.get(currentItem.cut.id);
+    if (currentSpec?.lipSync) {
       let isActive = true;
       const loadLipSyncSources = async () => {
-        const frameAssetIds = [
-          ...getLipSyncFrameAssetIds(lipSyncSettings),
-        ];
-
         const sources: string[] = [];
-        for (const frameAssetId of frameAssetIds) {
+        for (const framePath of currentSpec.lipSync!.framePaths) {
           let src = '';
-          const frameAsset = getAsset(frameAssetId);
-          if (frameAsset?.thumbnail) {
-            src = frameAsset.thumbnail;
-          } else if (frameAsset?.path) {
-            try {
-              const thumb = await getThumbnail(frameAsset.path, 'image', { profile: 'sequence-preview' });
-              if (thumb) src = thumb;
-            } catch {
-              // ignore
-            }
+          try {
+            const thumb = await getThumbnail(framePath, 'image', { profile: 'sequence-preview' });
+            if (thumb) src = thumb;
+          } catch {
+            // ignore
           }
           sources.push(src);
         }
@@ -1585,8 +1590,7 @@ export default function PreviewModal({
         const baseFallback = sources[0] || currentItem.thumbnail || '';
         const resolvedSources = sources.map((src) => src || baseFallback);
 
-        const analysis = getAudioAnalysisForAsset(lipSyncSettings.rmsSourceAudioAssetId);
-        if (!analysis?.rms?.length) {
+        if (!currentSpec.lipSync!.rms?.length) {
           if (!lipSyncToastShownRef.current.has(asset.id)) {
             lipSyncToastShownRef.current.add(asset.id);
             showMiniToast('Lip sync RMS not available', 'warning');
@@ -1595,7 +1599,7 @@ export default function PreviewModal({
             src: baseFallback,
             alt: `${currentItem.sceneName} - Cut ${currentItem.cutIndex + 1}`,
             className: 'preview-media',
-            duration: currentItem.normalizedDisplayTime,
+            duration: currentSpec.duration,
             onTimeUpdate: sequenceTick,
             onEnded: sequenceGoToNext,
           });
@@ -1610,12 +1614,12 @@ export default function PreviewModal({
           sources: resolvedSources,
           alt: `${currentItem.sceneName} - Cut ${currentItem.cutIndex + 1}`,
           className: 'preview-media',
-          duration: currentItem.normalizedDisplayTime,
-          rms: analysis.rms,
-          rmsFps: analysis.fps,
-          thresholds: lipSyncSettings.thresholds,
+          duration: currentSpec.duration,
+          rms: currentSpec.lipSync!.rms,
+          rmsFps: currentSpec.lipSync!.rmsFps,
+          thresholds: currentSpec.lipSync!.thresholds,
           getAbsoluteTime: getSequenceLiveAbsoluteTime,
-          audioOffsetSec: getAudioOffsetForCut(currentItem.cut),
+          audioOffsetSec: currentSpec.lipSync!.audioOffsetSec,
           onTimeUpdate: sequenceTick,
           onEnded: sequenceGoToNext,
         });
@@ -1639,10 +1643,10 @@ export default function PreviewModal({
       }
 
       const clipInPoint = currentItem.cut.isClip && currentItem.cut.inPoint !== undefined
-        ? currentItem.cut.inPoint
+        ? currentSpec?.inPoint ?? currentItem.cut.inPoint
         : 0;
       const clipOutPoint = currentItem.cut.isClip && currentItem.cut.outPoint !== undefined
-        ? currentItem.cut.outPoint
+        ? currentSpec?.outPoint ?? currentItem.cut.outPoint
         : undefined;
 
       const videoSourceKey = `${currentItem.cut.id}:${videoObjectUrl.url}:${clipInPoint}:${clipOutPoint ?? 'end'}`;
@@ -1689,12 +1693,9 @@ export default function PreviewModal({
     sequenceTick,
     sequenceGoToNext,
     setSequenceRate,
-    getLipSyncSettingsForAsset,
-    getAudioAnalysisForAsset,
+    previewSequenceItemByCutId,
     getSequenceLiveAbsoluteTime,
-    getAudioOffsetForCut,
     showMiniToast,
-    getAsset,
     resolveAssetForCut,
   ]);
 
@@ -2222,8 +2223,17 @@ export default function PreviewModal({
     const targetCut = isSingleMode
       ? focusCutData?.cut
       : currentItem?.cut;
+    if (targetCut) {
+      const fromSequenceSpec = previewSequenceItemByCutId.get(targetCut.id);
+      if (fromSequenceSpec) {
+        return buildPreviewViewportFramingStyleFromResolved(
+          fromSequenceSpec.framingMode,
+          fromSequenceSpec.framingAnchor
+        );
+      }
+    }
     return buildPreviewViewportFramingStyle(targetCut?.framing, EXPORT_FRAMING_DEFAULTS);
-  }, [isSingleMode, focusCutData?.cut, currentItem?.cut]);
+  }, [isSingleMode, focusCutData?.cut, currentItem?.cut, previewSequenceItemByCutId]);
   const subtitleStyle = useMemo(() => getSubtitleStyleSettings(), []);
   const activeSubtitleTarget = useMemo(() => {
     if (isSingleMode) {
@@ -2239,9 +2249,8 @@ export default function PreviewModal({
       cut: currentItem.cut,
     };
   }, [isSingleMode, focusCutData, currentItem]);
-  const activeCutDisplayTime = activeSubtitleTarget
-    ? resolveCutDisplayTimeSec(activeSubtitleTarget.cut)
-    : 0;
+  const activeCutDisplayTime = currentSequenceSpec?.duration
+    ?? (activeSubtitleTarget ? resolveCutDisplayTimeSec(activeSubtitleTarget.cut) : 0);
   const currentLocalTimeSec = useMemo(() => {
     if (!activeSubtitleTarget || activeCutDisplayTime <= 0) return 0;
 
@@ -2263,10 +2272,10 @@ export default function PreviewModal({
     singleModeCurrentTime,
     sequenceState.localProgress,
   ]);
-  const subtitleText = activeSubtitleTarget?.cut.subtitle?.text ?? '';
+  const subtitleText = (currentSequenceSpec?.subtitle?.text ?? activeSubtitleTarget?.cut.subtitle?.text ?? '');
   const subtitleVisible = useMemo(
-    () => resolveSubtitleVisibility(activeSubtitleTarget?.cut.subtitle, currentLocalTimeSec, activeCutDisplayTime),
-    [activeSubtitleTarget, currentLocalTimeSec, activeCutDisplayTime]
+    () => resolveSubtitleVisibility(currentSequenceSpec?.subtitle ?? activeSubtitleTarget?.cut.subtitle, currentLocalTimeSec, activeCutDisplayTime),
+    [currentSequenceSpec, activeSubtitleTarget, currentLocalTimeSec, activeCutDisplayTime]
   );
   const hasSubtitle = !!subtitleText.trim();
 

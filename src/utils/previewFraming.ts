@@ -36,3 +36,13 @@ export function buildPreviewViewportFramingStyle(
     '--preview-framing-position': getFramingObjectPosition(resolved.anchor),
   };
 }
+
+export function buildPreviewViewportFramingStyleFromResolved(
+  mode: 'cover' | 'fit',
+  anchor: string
+): PreviewViewportFramingStyle {
+  return {
+    '--preview-framing-fit': resolveFramingMode(mode),
+    '--preview-framing-position': getFramingObjectPosition(resolveFramingAnchor(anchor)),
+  };
+}
