@@ -50,13 +50,26 @@
 - 破壊的変更は `docs/DECISIONS/` に ADR を追加してから進める。
 - docs 更新が不要と判断した場合は PR で理由を明記する。
 
-## Invariant Checklist
-- `sceneOrder` が全 scene を一意に含み、重複/欠落がない。
-- 各 Scene で `cut.order` が連番で、配列順と一致する。
-- export 前に `displayTime` が有限正数へ補正される。
-- Preview と Export が同一 sequence item 定義を使う。
-- Scene export の scene index は `sceneOrder` から算出する。
-- サムネイル profile が `asset-grid` / `details-panel` / `sequence-preview` / `timeline-card` で混線していない。
+## Invariant Checklist (Gate)
+- Gate 1 (`sceneOrder` 正本): Scene 順序の正本は `sceneOrder` のみで、`scenes` 配列順を順序根拠にしない。
+- Gate 2 (`cut.order` 整合): 各 Scene の cut は配列順と `cut.order` が一致し、編集操作後も連番を維持する。
+- Gate 3 (時系列定義): 開始秒・合計尺は `sceneOrder` と `displayTime` 累積に基づく canonical な計算入口へ集約する。
+- Gate 4 (`displayTime` 正規化): `displayTime` は Preview/Export の両方で有限正数へ正規化し、NaN/Infinity/0以下を通さない。
+- Gate 5 (Preview/Export parity): Preview と Export で時間解決・Framing 解決の入口を分岐させない。
+- Gate 6 (Command 境界): ユーザー操作起点の timeline 構造変更は Command 経由で実施する。
+- Gate 7 (Vault 書き込み入口): Vault の index/metadata/trash 更新は `window.electronAPI.vaultGateway.*` を renderer の単一入口にする。
+- Gate 8 (`assetId` 主経路): Asset 解決は `assetId` を主経路にし、`cut.asset` は read-time fallback として扱う。
+- Gate 9 (thumbnail profile): サムネイルは用途別 profile（`asset-grid`/`details-panel`/`sequence-preview`/`timeline-card`）を混線させない。
+- Gate 10 (重い処理の分離): 解析・変換・合成など重い処理は登録時/変換時へ寄せ、再生ループへ入れない。
+
+## Known Broken Invariants
+- Gate 2 (`cut.order` 整合): `src/utils/timelineOrder.ts` が fallback ソートを許容しており、壊れたデータが実行時に温存される余地がある（`Partial`）。
+- Gate 3 (時系列定義): `src/components/PreviewModal.tsx` 内に累積時間計算が複数あり、`src/utils/storyTiming.ts` への集約が未完了（`Partial`）。
+- Gate 4 (`displayTime` 正規化): Preview/Export で正規化ロジックが分散している（`src/components/PreviewModal.tsx`, `src/utils/exportSequence.ts`）（`Partial`）。
+- Gate 5 (Preview/Export parity): Preview item 構築と Export item 構築の入口が別実装で、完全 parity になっていない（`Broken`）。
+- Gate 6 (Command 境界): 例外境界を固定する。ロード/復元/テスト初期化は Command 対象外とし、ユーザー操作起点のみ必須にする（`Partial`）。
+- Gate 8 (`assetId` 主経路): `cut.asset` 直接参照が複数箇所に残っている（`src/utils/exportSequence.ts`, `src/components/StartupModal.tsx`, `src/utils/projectSave.ts`）（`Broken`）。
+- Gate 9 (thumbnail profile): `getThumbnail` の profile 省略呼び出しが残っており、暗黙 `timeline-card` 依存がある（`src/components/Sidebar.tsx`, `src/components/CutCard.tsx`, `src/components/DetailsPanel.tsx`）（`Partial`）。
 
 ## 成功指標
 - Preview/Export parity: 同一入力で視覚・時間・音が一致する。
