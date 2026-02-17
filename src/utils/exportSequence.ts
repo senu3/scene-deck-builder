@@ -2,7 +2,8 @@ import type { Asset, AssetMetadata, Cut, CutSubtitle, FramingAnchor, FramingMode
 import { getScenesAndCutsInTimelineOrder } from './timelineOrder';
 import { getLipSyncFrameAssetIds, normalizeThresholds } from './lipSyncUtils';
 import { normalizeSubtitleRange } from './subtitleUtils';
-import { resolveCutAsset, resolveNormalizedCutDisplayTime } from './assetResolve';
+import { resolveCutAsset } from './assetResolve';
+import { computeCanonicalStoryTimingsForCuts } from './storyTiming';
 
 export interface ExportSequenceItem {
   type: 'image' | 'video';
@@ -51,18 +52,6 @@ function resolveAssetForExport(cut: Cut, options: BuildExportSequenceOptions): A
   return resolveCutAsset(cut, (assetId) => options.resolveAssetById?.(assetId));
 }
 
-function resolveExportDuration(cut: Cut, options: BuildExportSequenceOptions): { duration: number; adjusted: boolean } {
-  const resolved = resolveNormalizedCutDisplayTime(
-    cut,
-    (assetId) => options.resolveAssetById?.(assetId),
-    { fallbackDurationSec: 1.0, preferAssetDuration: true }
-  );
-  return {
-    duration: resolved.durationSec,
-    adjusted: resolved.adjusted,
-  };
-}
-
 export function resolveFramingParams(
   cut: Cut,
   framingDefaults: ExportFramingDefaults = {}
@@ -95,7 +84,8 @@ export function resolveFramingParams(
 function buildExportSequenceItemFromCut(
   cut: Cut,
   options: BuildExportSequenceOptions,
-  context: { sceneId?: string; cutId: string }
+  context: { sceneId?: string; cutId: string },
+  durationInfo: { duration: number; adjusted: boolean }
 ): ExportSequenceItem | null {
   const cutAsset = resolveAssetForExport(cut, options);
   const path = cutAsset?.path || '';
@@ -106,7 +96,7 @@ function buildExportSequenceItemFromCut(
     return null;
   }
 
-  const { duration, adjusted } = resolveExportDuration(cut, options);
+  const { duration, adjusted } = durationInfo;
   if (adjusted) {
     console.warn(
       `[export] Invalid displayTime detected for cut ${context.cutId}${context.sceneId ? ` in scene ${context.sceneId}` : ''}. ` +
@@ -225,9 +215,21 @@ export function buildSequenceItemsForCuts(
   options: BuildExportSequenceOptions = {}
 ): ExportSequenceItem[] {
   const sequenceItems: ExportSequenceItem[] = [];
+  const timings = computeCanonicalStoryTimingsForCuts(
+    cuts.map((cut) => ({ cut, sceneId: '__sequence__' })),
+    (assetId) => options.resolveAssetById?.(assetId),
+    { fallbackDurationSec: 1.0, preferAssetDuration: true }
+  );
+  const durationByCutId = new Map(timings.normalizedCuts.map((entry) => [entry.cutId, entry]));
 
   for (const cut of cuts) {
-    const item = buildExportSequenceItemFromCut(cut, options, { cutId: cut.id });
+    const durationInfo = durationByCutId.get(cut.id) ?? { durationSec: 1.0, adjusted: true };
+    const item = buildExportSequenceItemFromCut(
+      cut,
+      options,
+      { cutId: cut.id },
+      { duration: durationInfo.durationSec, adjusted: durationInfo.adjusted }
+    );
     if (item) {
       sequenceItems.push(item);
     }
@@ -245,10 +247,22 @@ export function buildSequenceItemsForExport(
   const options = (Array.isArray(sceneOrderOrOptions) ? optionsArg : sceneOrderOrOptions) || {};
   const orderedScenes = getScenesAndCutsInTimelineOrder(scenes, sceneOrder);
   const sequenceItems: ExportSequenceItem[] = [];
+  const timings = computeCanonicalStoryTimingsForCuts(
+    orderedScenes.flatMap((scene) => scene.cuts.map((cut) => ({ cut, sceneId: scene.id }))),
+    (assetId) => options.resolveAssetById?.(assetId),
+    { fallbackDurationSec: 1.0, preferAssetDuration: true }
+  );
+  const durationByCutId = new Map(timings.normalizedCuts.map((entry) => [entry.cutId, entry]));
 
   for (const scene of orderedScenes) {
     for (const cut of scene.cuts) {
-      const item = buildExportSequenceItemFromCut(cut, options, { sceneId: scene.id, cutId: cut.id });
+      const durationInfo = durationByCutId.get(cut.id) ?? { durationSec: 1.0, adjusted: true };
+      const item = buildExportSequenceItemFromCut(
+        cut,
+        options,
+        { sceneId: scene.id, cutId: cut.id },
+        { duration: durationInfo.durationSec, adjusted: durationInfo.adjusted }
+      );
       if (item) {
         sequenceItems.push(item);
       }

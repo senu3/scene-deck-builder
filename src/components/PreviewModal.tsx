@@ -18,7 +18,7 @@ import { useHistoryStore } from '../store/historyStore';
 import { UpdateCutSubtitleCommand } from '../store/commands';
 import { createVideoObjectUrl } from '../utils/videoUtils';
 import { formatTime, cyclePlaybackSpeed } from '../utils/timeUtils';
-import { resolveCutAsset, resolveCutThumbnail, resolveNormalizedCutDisplayTime } from '../utils/assetResolve';
+import { resolveCutAsset, resolveCutThumbnail } from '../utils/assetResolve';
 import { AudioManager } from '../utils/audioUtils';
 import { createImageMediaSource, createLipSyncImageMediaSource, createVideoMediaSource } from '../utils/previewMedia';
 import { getLipSyncFrameAssetIds } from '../utils/lipSyncUtils';
@@ -34,7 +34,7 @@ import { getSubtitleStyleSettings } from '../utils/subtitleStyleSettings';
 import { getSubtitleStyleForExport } from '../features/export/subtitleStyle';
 import { buildExportAudioPlan } from '../utils/exportAudioPlan';
 import { getScenesInOrder } from '../utils/sceneOrder';
-import { computeStoryTimingsForCuts } from '../utils/storyTiming';
+import { computeCanonicalStoryTimingsForCuts, resolveCanonicalCutDuration } from '../utils/storyTiming';
 import {
   PlaybackRangeMarkers,
   VolumeControl,
@@ -233,7 +233,7 @@ export default function PreviewModal({
   const [singleModeOutPoint, setSingleModeOutPoint] = useState<number | null>(initialOutPoint ?? null);
 
   const resolveCutDisplayTimeSec = useCallback((cut: Cut | null | undefined): number => {
-    return resolveNormalizedCutDisplayTime(cut, getAsset, {
+    return resolveCanonicalCutDuration(cut, getAsset, {
       fallbackDurationSec: 1.0,
       preferAssetDuration: true,
     }).durationSec;
@@ -367,12 +367,13 @@ export default function PreviewModal({
     const sceneId = focusCutData?.scene.id ?? null;
     const previewOffsetSec = focusCutData
       ? (() => {
-          const timings = computeStoryTimingsForCuts(
+          const timings = computeCanonicalStoryTimingsForCuts(
             focusCutData.scene.cuts.map((item) => ({
-              cutId: item.id,
+              cut: item,
               sceneId: focusCutData.scene.id,
-              displayTime: resolveCutDisplayTimeSec(item),
-            }))
+            })),
+            getAsset,
+            { fallbackDurationSec: 1.0, preferAssetDuration: true }
           );
           const cutTiming = timings.cutTimings.get(focusCutData.cut.id);
           const sceneTiming = timings.sceneTimings.get(focusCutData.scene.id);
@@ -387,7 +388,7 @@ export default function PreviewModal({
       metadataStore,
       getAssetById: getAsset,
     })[0] || null;
-  }, [focusCutData, metadataStore, getAsset, resolveCutDisplayTimeSec]);
+  }, [focusCutData, metadataStore, getAsset]);
 
   const getSingleModeSceneAudioPlayhead = useCallback((): number => {
     const absoluteTime = videoRef.current?.currentTime ?? 0;
@@ -956,14 +957,13 @@ export default function PreviewModal({
     }
 
     if (isSingleModeImage && asset) {
-      const displayTime = getDisplayTimeForAsset(asset.id) ?? 1.0;
-      const resolvedDisplayTime = Math.max(0.1, displayTime);
+      const displayTime = getDisplayTimeForAsset(asset.id);
       const lipSyncSettings = getLipSyncSettingsForAsset(asset.id);
       const singleCut: Cut = {
         id: `single-${asset.id}`,
         assetId: asset.id,
         asset,
-        displayTime: resolvedDisplayTime,
+        displayTime: displayTime ?? Number.NaN,
         order: 0,
         isLipSync: !!lipSyncSettings,
         lipSyncFrameCount: lipSyncSettings ? getLipSyncFrameAssetIds(lipSyncSettings).length : undefined,
@@ -995,6 +995,12 @@ export default function PreviewModal({
         const newItems: PreviewItem[] = [];
         const scopedSceneId = sequenceContext?.sceneId ?? 'sequence';
         const scopedSceneName = sequenceContext?.sceneName || 'Scene';
+        const scopedTimings = computeCanonicalStoryTimingsForCuts(
+          sequenceCuts.map((cut) => ({ cut, sceneId: scopedSceneId })),
+          getAsset,
+          { fallbackDurationSec: 1.0, preferAssetDuration: true }
+        );
+        const normalizedByCutId = new Map(scopedTimings.normalizedCuts.map((entry) => [entry.cutId, entry.durationSec]));
 
         for (let cIdx = 0; cIdx < sequenceCuts.length; cIdx++) {
           const cut = sequenceCuts[cIdx];
@@ -1049,7 +1055,7 @@ export default function PreviewModal({
             cutIndex: cIdx,
             sceneStartAbs: 0,
             previewOffsetSec: 0,
-            normalizedDisplayTime: resolveCutDisplayTimeSec(cut),
+            normalizedDisplayTime: normalizedByCutId.get(cut.id) ?? 1.0,
             thumbnail,
           });
         }
@@ -1064,15 +1070,17 @@ export default function PreviewModal({
     if (focusCutData) {
       const buildFocusedItems = async () => {
         const { scene, sceneIndex, cut, cutIndex } = focusCutData;
-        const focusTimings = computeStoryTimingsForCuts(
+        const focusTimings = computeCanonicalStoryTimingsForCuts(
           scene.cuts.map((item) => ({
-            cutId: item.id,
+            cut: item,
             sceneId: scene.id,
-            displayTime: resolveCutDisplayTimeSec(item),
-          }))
+          })),
+          getAsset,
+          { fallbackDurationSec: 1.0, preferAssetDuration: true }
         );
         const sceneStartAbs = focusTimings.sceneTimings.get(scene.id)?.startSec ?? 0;
         const previewOffsetSec = Math.max(0, (focusTimings.cutTimings.get(cut.id)?.startSec ?? 0) - sceneStartAbs);
+        const normalizedDisplayTime = focusTimings.normalizedCuts.find((item) => item.cutId === cut.id)?.durationSec ?? 1.0;
         const cutAsset = resolveAssetForCut(cut);
         if (!cutAsset) {
           setItems([]);
@@ -1129,7 +1137,7 @@ export default function PreviewModal({
           cutIndex,
           sceneStartAbs,
           previewOffsetSec,
-          normalizedDisplayTime: resolveCutDisplayTimeSec(cut),
+          normalizedDisplayTime,
           thumbnail,
         }]);
       };
@@ -1144,15 +1152,17 @@ export default function PreviewModal({
       const scenesToPreview = previewMode === 'scene' && selectedSceneId
         ? orderedScenes.filter(s => s.id === selectedSceneId)
         : orderedScenes;
-      const timings = computeStoryTimingsForCuts(
+      const timings = computeCanonicalStoryTimingsForCuts(
         scenesToPreview.flatMap((scene) =>
           scene.cuts.map((cut) => ({
-            cutId: cut.id,
+            cut,
             sceneId: scene.id,
-            displayTime: resolveCutDisplayTimeSec(cut),
           }))
-        )
+        ),
+        getAsset,
+        { fallbackDurationSec: 1.0, preferAssetDuration: true }
       );
+      const normalizedByCutId = new Map(timings.normalizedCuts.map((entry) => [entry.cutId, entry.durationSec]));
 
       for (let sIdx = 0; sIdx < scenesToPreview.length; sIdx++) {
         const scene = scenesToPreview[sIdx];
@@ -1210,7 +1220,7 @@ export default function PreviewModal({
             cutIndex: cIdx,
             sceneStartAbs,
             previewOffsetSec: 0,
-            normalizedDisplayTime: resolveCutDisplayTimeSec(cut),
+            normalizedDisplayTime: normalizedByCutId.get(cut.id) ?? 1.0,
             thumbnail,
           });
         }

@@ -71,8 +71,8 @@
 - CI 未接続期間は `npm run check:gate`（warning-only）をローカル/PRで実行し、警告ゼロを維持する。
 
 ## Canonical APIs (Gate 3/4/5)
-- 正規化入口（Gate 4）: `resolveNormalizedCutDisplayTime` を `displayTime` 解決の正本にする。
-- 時系列入口（Gate 3）: `computeStoryTimingsForCuts` を開始秒・合計尺計算の正本にする。
+- 正規化入口（Gate 4）: `resolveCanonicalCutDuration`（`src/utils/storyTiming.ts`）を `displayTime` 解決の正本にする。
+- 時系列入口（Gate 3）: `computeCanonicalStoryTimingsForCuts` を開始秒・合計尺計算の正本にする。
 - 出力item入口（Gate 5）: `buildSequenceItemsForCuts` を export sequence item 生成の正本にする。
 - Preview 実装は上記正本APIで得た値を消費する側とし、同等ロジックの再実装を増やさない。
 

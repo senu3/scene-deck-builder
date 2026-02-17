@@ -1,5 +1,6 @@
-import type { Scene } from '../types';
+import type { Asset, Cut, Scene } from '../types';
 import { getScenesAndCutsInTimelineOrder } from './timelineOrder';
+import { resolveNormalizedCutDisplayTime, type ResolveCutDisplayTimeOptions, type ResolvedCutDisplayTime } from './assetResolve';
 
 export interface SceneTiming {
   startSec: number;
@@ -22,6 +23,23 @@ export interface StoryTimingCutInput {
   cutId: string;
   sceneId: string;
   displayTime: number;
+}
+
+export interface CanonicalStoryTimingCutInput {
+  cut: Cut;
+  sceneId: string;
+}
+
+export interface CanonicalStoryTimingCut {
+  cutId: string;
+  sceneId: string;
+  durationSec: number;
+  adjusted: boolean;
+  source: ResolvedCutDisplayTime['source'];
+}
+
+export interface CanonicalStoryTimings extends StoryTimings {
+  normalizedCuts: CanonicalStoryTimingCut[];
 }
 
 function normalizeDurationSec(value: number): number {
@@ -81,5 +99,43 @@ export function computeStoryTimingsForCuts(cuts: StoryTimingCutInput[]): StoryTi
     sceneTimings,
     cutTimings,
     totalDurationSec,
+  };
+}
+
+export function resolveCanonicalCutDuration(
+  cut: Cut | null | undefined,
+  getAsset: (assetId: string) => Asset | undefined,
+  options: ResolveCutDisplayTimeOptions = {}
+): ResolvedCutDisplayTime {
+  return resolveNormalizedCutDisplayTime(cut, getAsset, options);
+}
+
+export function computeCanonicalStoryTimingsForCuts(
+  cuts: CanonicalStoryTimingCutInput[],
+  getAsset: (assetId: string) => Asset | undefined,
+  options: ResolveCutDisplayTimeOptions = {}
+): CanonicalStoryTimings {
+  const normalizedCuts = cuts.map(({ cut, sceneId }) => {
+    const resolved = resolveCanonicalCutDuration(cut, getAsset, options);
+    return {
+      cutId: cut.id,
+      sceneId,
+      durationSec: resolved.durationSec,
+      adjusted: resolved.adjusted,
+      source: resolved.source,
+    };
+  });
+
+  const timings = computeStoryTimingsForCuts(
+    normalizedCuts.map((cut) => ({
+      cutId: cut.cutId,
+      sceneId: cut.sceneId,
+      displayTime: cut.durationSec,
+    }))
+  );
+
+  return {
+    ...timings,
+    normalizedCuts,
   };
 }
