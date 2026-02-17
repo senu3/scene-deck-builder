@@ -620,7 +620,7 @@ export default function DetailsPanel() {
       };
 
       // Load thumbnail for images or generate for videos
-      const thumbnail = await getThumbnail(importResult.vaultPath!, isVideo ? 'video' : 'image');
+      const thumbnail = await getThumbnail(importResult.vaultPath!, isVideo ? 'video' : 'image', { profile: 'timeline-card' });
       if (thumbnail) {
         newAsset.thumbnail = thumbnail;
       }
@@ -692,7 +692,7 @@ export default function DetailsPanel() {
       }
 
       // Read the captured image as base64 for thumbnail
-      const thumbnailBase64 = await getThumbnail(outputPath, 'image');
+      const thumbnailBase64 = await getThumbnail(outputPath, 'image', { profile: 'timeline-card' });
 
       // Load image metadata if available
       let imageMetadata: ImageMetadata | undefined;

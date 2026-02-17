@@ -43,7 +43,10 @@ export async function buildAssetForCut(
     }
 
     if (!thumbnail) {
-      const thumb = await getThumbnail(source.sourcePath, 'video', { timeOffset: source.thumbnailTimeOffset ?? 0 });
+      const thumb = await getThumbnail(source.sourcePath, 'video', {
+        timeOffset: source.thumbnailTimeOffset ?? 0,
+        profile: 'timeline-card',
+      });
       if (thumb) {
         thumbnail = thumb;
       }

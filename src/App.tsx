@@ -817,7 +817,7 @@ function App() {
 
     // Regenerate thumbnail at IN point
     if (asset.path) {
-      const newThumbnail = await getThumbnail(asset.path, 'video', { timeOffset: inPoint });
+      const newThumbnail = await getThumbnail(asset.path, 'video', { timeOffset: inPoint, profile: 'timeline-card' });
       if (newThumbnail) {
         // Clip thumbnail is cut-specific; do not mutate shared asset cache thumbnail.
         updateCutAsset(scene.id, targetCutId, { thumbnail: newThumbnail });
@@ -859,7 +859,7 @@ function App() {
         throw new Error(`Failed to capture frame: ${result.error}`);
       }
 
-      const thumbnailBase64 = await getThumbnail(outputPath, 'image');
+      const thumbnailBase64 = await getThumbnail(outputPath, 'image', { profile: 'timeline-card' });
 
       const newAssetId = uuidv4();
       const baseAsset: Asset = {

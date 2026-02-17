@@ -359,13 +359,13 @@ export default function StartupModal() {
                       duration = videoMeta.duration;
                       metadata = { width: videoMeta.width, height: videoMeta.height };
                     }
-                    const thumb = await getThumbnail(newPath, 'video', { timeOffset: 0 });
+                    const thumb = await getThumbnail(newPath, 'video', { timeOffset: 0, profile: 'timeline-card' });
                     if (thumb) {
                       thumbnail = thumb;
                     }
                   } else {
                     // Load image as base64 for thumbnail
-                    const base64 = await getThumbnail(newPath, 'image');
+                    const base64 = await getThumbnail(newPath, 'image', { profile: 'timeline-card' });
                     if (base64) {
                       thumbnail = base64;
                     }
@@ -418,7 +418,10 @@ export default function StartupModal() {
         // Only process video clips with valid IN points
         const currentAsset = resolveCutAsset(cut, () => undefined);
         if (cut.isClip && cut.inPoint !== undefined && currentAsset?.type === 'video' && currentAsset.path) {
-          const newThumbnail = await getThumbnail(currentAsset.path, 'video', { timeOffset: cut.inPoint });
+          const newThumbnail = await getThumbnail(currentAsset.path, 'video', {
+            timeOffset: cut.inPoint,
+            profile: 'timeline-card',
+          });
           if (newThumbnail) {
             return {
               ...cut,

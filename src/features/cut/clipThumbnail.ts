@@ -13,7 +13,10 @@ export async function generateVideoClipThumbnail(
   if (!window.electronAPI?.generateThumbnail) return null;
 
   try {
-    return await getThumbnail(assetPath, 'video', { timeOffset: normalizeTimeOffset(timeOffset) });
+    return await getThumbnail(assetPath, 'video', {
+      timeOffset: normalizeTimeOffset(timeOffset),
+      profile: 'timeline-card',
+    });
   } catch {
     return null;
   }
