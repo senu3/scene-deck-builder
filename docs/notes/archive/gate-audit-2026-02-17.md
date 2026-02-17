@@ -163,3 +163,34 @@ rg -n "requestAnimationFrame\(|setInterval\(|analyzeAudioRms\(|read-audio-pcm|ff
 2. Gate 8 の `cut.asset` 直接参照を削減
 3. Gate 9 の thumbnail profile 明示を徹底
 4. Gate 6 の例外境界を ADR か憲章注記で固定
+
+---
+
+## Update 2026-02-17 (Implementation Pass)
+
+### 状態更新
+- Gate 3: `Partial` 継続
+  - `PreviewModal` で `normalizedDisplayTime` を導入し、sequence/range の時間軸は共通化。
+  - ただし再生側の局所時間窓計算は残存。
+- Gate 4: `Partial` 継続
+  - `resolveNormalizedCutDisplayTime` を追加し Preview/Export で利用開始。
+  - 未統一路線がないかは継続監査対象。
+- Gate 5: `Known broken -> Partial`
+  - range export が `buildSequenceItemsForCuts` 経由になり full/range の item 生成は統一。
+  - 再生側 item 構築レイヤとの完全 parity は未完。
+- Gate 6: `ADR -> Partial`
+  - 境界定義を ADR-0003 で固定。
+  - 残課題は違反検出の自動化。
+- Gate 8: `Known broken -> Partial`
+  - `cut.asset` 直接参照は `src/utils/assetResolve.ts` に局所化。
+  - `assetId` 主経路 + read-time fallback の形に収束。
+- Gate 9: `Known broken -> Resolved (for current surfaces)`
+  - `getThumbnail` 呼び出しの profile 未指定を、主要UI面で明示化済み。
+
+### 参照コミット
+- `568ac7d` `refactor: unify preview/export displayTime normalization`
+- `986a02a` `refactor: prefer assetId path in save/load and export helpers`
+- `6008d2a` `refactor: specify thumbnail profiles for cut-facing flows`
+- `2544ab5` `refactor: route range export through shared sequence builder`
+- `1a7ffd0` `refactor: use shared cut asset resolver in store actions`
+- `3540b67` `refactor: centralize cut asset fallback in asset resolver`

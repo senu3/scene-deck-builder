@@ -64,12 +64,11 @@
 
 ## Known Broken Invariants
 - Gate 2 (`cut.order` 整合): `src/utils/timelineOrder.ts` が fallback ソートを許容しており、壊れたデータが実行時に温存される余地がある（`Partial`）。
-- Gate 3 (時系列定義): `src/components/PreviewModal.tsx` 内に累積時間計算が複数あり、`src/utils/storyTiming.ts` への集約が未完了（`Partial`）。
-- Gate 4 (`displayTime` 正規化): Preview/Export で正規化ロジックが分散している（`src/components/PreviewModal.tsx`, `src/utils/exportSequence.ts`）（`Partial`）。
-- Gate 5 (Preview/Export parity): Preview item 構築と Export item 構築の入口が別実装で、完全 parity になっていない（`Broken`）。
-- Gate 6 (Command 境界): 例外境界を固定する。ロード/復元/テスト初期化は Command 対象外とし、ユーザー操作起点のみ必須にする（`Partial`）。
-- Gate 8 (`assetId` 主経路): `cut.asset` 直接参照が複数箇所に残っている（`src/utils/exportSequence.ts`, `src/components/StartupModal.tsx`, `src/utils/projectSave.ts`）（`Broken`）。
-- Gate 9 (thumbnail profile): `getThumbnail` の profile 省略呼び出しが残っており、暗黙 `timeline-card` 依存がある（`src/components/Sidebar.tsx`, `src/components/CutCard.tsx`, `src/components/DetailsPanel.tsx`）（`Partial`）。
+- Gate 3 (時系列定義): `displayTime` 正規化は共通化済みだが、Preview 側にはローカルな時間窓計算が残っており canonical timing API への完全統合は未完了（`Partial`）。
+- Gate 4 (`displayTime` 正規化): 共通ヘルパ (`resolveNormalizedCutDisplayTime`) を導入済み。残課題は全経路でこの入口へ統一されているかの継続監査（`Partial`）。
+- Gate 5 (Preview/Export parity): full/range export の sequence item 生成は統一済み。再生側 media item 構築は別レイヤ実装のため、framing/lipsync/audio も含めた完全 parity は未完了（`Partial`）。
+- Gate 6 (Command 境界): 例外境界は ADR-0003 で固定済み。残課題は境界違反の検出自動化（`Partial`）。
+- Gate 8 (`assetId` 主経路): `cut.asset` 直接参照は `src/utils/assetResolve.ts` に局所化済み。fallback 廃止時期（read-time only維持 or stricter移行）は次の判断が必要（`Partial`）。
 
 ## 成功指標
 - Preview/Export parity: 同一入力で視覚・時間・音が一致する。
