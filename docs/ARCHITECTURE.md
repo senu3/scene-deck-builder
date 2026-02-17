@@ -86,7 +86,7 @@
 ## Known Broken Invariants
 - Gate 3 (時系列定義): canonical API は ADR-0004 で固定済み。Preview 側のローカル時間窓計算を正本API消費へさらに寄せる余地がある（`Partial`）。
 - Gate 4 (`displayTime` 正規化): canonical API は ADR-0004 で固定済み。残課題は全経路での統一使用を継続監査すること（`Partial`）。
-- Gate 5 (Preview/Export parity): full/range export の sequence item 生成は統一済み。再生側 media item 構築は別レイヤ実装のため、framing/lipsync/audio も含めた完全 parity は未完了（`Partial`）。
+- Gate 5 (Preview/Export parity): Preview は sequence再生時に `buildSequenceItemsForCuts` 由来の framing/lipsync/subtitle を消費する段階まで到達。残課題は scene/cut attach audio の完全同一計画化（`Partial`）。
 - Gate 6 (Command 境界): 例外境界は ADR-0003 で固定済み。残課題は境界違反の検出自動化（`Partial`）。
 - Gate 8 (`assetId` 主経路): 失敗時ポリシーは ADR-0005 で固定済み。残課題は fallback 縮小の段階計画（`Partial`）。
 

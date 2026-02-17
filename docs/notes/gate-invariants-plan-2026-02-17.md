@@ -182,3 +182,12 @@
 
 ## 備考
 - 本計画は `.notes/Invariant_plan.md` の意図（段階導入）を継承しつつ、現状実装と運用基盤に合わせて実行可能性を優先して再構成した。
+
+## 進捗メモ（2026-02-17）
+- Phase 2 の 3本柱は以下まで到達:
+  - Gate 3/4/5: 時系列・`displayTime` は canonical API へ移行し、Preview sequence の framing/lipsync/subtitle は export sequence spec を消費する段階まで反映。
+  - Gate 8: `assetId` join helper を導入し、`cut.assetId || ...` の散在を縮小。
+  - Gate 9: thumbnail profile は型/ラッパで省略禁止を強制。
+- Phase 2 残タスク:
+  - Gate 5: scene/cut attach audio の計画入口を Preview/Export でさらに同一化する。
+  - Gate 8: `cut.asset` fallback の最終縮退（廃止条件の明文化と段階実施）。

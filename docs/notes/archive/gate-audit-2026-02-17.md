@@ -209,3 +209,27 @@ rg -n "requestAnimationFrame\(|setInterval\(|analyzeAudioRms\(|read-audio-pcm|ff
 - Gate 2 fail化条件を固定（ARCHITECTURE `Gate Enforcement`）。
 - Gate 3/4/5 の canonical API を ADR-0004 で固定。
 - Gate 8 の resolve失敗時ポリシーを ADR-0005 で固定。
+
+---
+
+## Update 2026-02-17 (Phase2 Progress Pass)
+
+### 状態更新
+- Gate 3: `Partial` 継続
+  - `computeCanonicalStoryTimingsForCuts` を追加し、Preview/Export 双方の時系列入口を canonical API に寄せた。
+- Gate 4: `Partial` 継続
+  - `resolveCanonicalCutDuration` を追加し、`displayTime` 正規化入口を `storyTiming` 側へ集約した。
+- Gate 5: `Partial` 進展
+  - Preview sequence 再生で `buildSequenceItemsForCuts` 由来の framing/lipsync/subtitle を消費するよう変更。
+  - 残課題は audio 計画の完全同一化（scene attach / cut attach の同入口化）。
+- Gate 8: `Partial` 進展
+  - `resolveCutAssetId` / `cutAssetPathStartsWith` を追加し、`cut.assetId || resolve...` の散在を縮小。
+  - save/load/panel 系の判定を helper 経由へ移し、fallback 経路の局所化を進めた。
+- Gate 9: `Resolved` 維持
+  - profile 必須化 + 実行時ガードにより再発防止を強化。
+
+### 参照コミット（追加分）
+- `70fd579` `refactor(gate9): require thumbnail profile in cache API`
+- `b162091` `refactor(gate3-4): route preview/export timing through canonical storyTiming API`
+- `0006646` `refactor(gate8): centralize cut assetId resolution helpers`
+- `14b6962` `refactor(gate5): consume export sequence spec in preview playback`

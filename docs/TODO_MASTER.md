@@ -16,6 +16,10 @@
   - 関連: `docs/guides/domain/scene-duration-bar.md`
 - `TODO-DEBT-004` Buffer/Memory ガイドを最新実装検索結果で再棚卸しする。
   - 関連: `docs/guides/implementation/buffer-memory.md`
+- `TODO-DEBT-005` SceneAudio を保存したプロジェクト再ロード時に、`metadataStore.sceneMetadata.attachAudio` は復元されても `assetCache` に音声Assetが戻らず再生/表示に反映されない不具合を修正する。
+  - 関連: `src/store/slices/metadataSlice.ts`
+  - 関連: `src/store/slices/projectSlice.ts`
+  - 関連: `src/utils/previewAudioTracks.ts`
 
 ## Nice-to-have
 - `TODO-NICE-001` Autosave 設定 UI の interval/保存先連動を実装へ接続する。
