@@ -258,3 +258,23 @@ rg -n "requestAnimationFrame\(|setInterval\(|analyzeAudioRms\(|read-audio-pcm|ff
   - 追加ケース: `useEmbeddedAudio=false` 時の attach 維持、disabled binding/scene attach 除外
 - Gate check:
   - `npm run check:gate` warning 0
+
+---
+
+## Update 2026-02-17 (Gate8 AssetId-First Pass)
+
+### 状態更新
+- Gate 8: `Partial -> Ready`
+  - read-time の asset 参照は resolver 経由へ統一。
+  - save/load の write-time は `assetId` 主経路へ寄せ、`cut.asset` を前提にしない形へ更新。
+  - `cut.asset` は互換fallbackとして `assetResolve.ts` に局所化を維持。
+  - gateチェック strict 化の入口（baseline方式）を導入し、新規違反を fail 可能化。
+
+### 検証
+- `npm run build`
+- `npm run check:gate`
+- `npm run check:gate:strict`
+- `npm test -- src/utils/__tests__/projectSave.test.ts src/utils/__tests__/exportSequence.test.ts`
+
+### フェーズ判定
+- Phase 2 対象（Gate 5 / Gate 8 / Gate 9）は完了。

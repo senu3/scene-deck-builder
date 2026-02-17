@@ -185,9 +185,8 @@
 
 ## 進捗メモ（2026-02-17）
 - Phase 2 の 3本柱は以下まで到達:
-  - Gate 3/4/5: 時系列・`displayTime` は canonical API へ移行し、Preview sequence の framing/lipsync/subtitle は export sequence spec を消費する段階まで反映。
-  - Gate 8: `assetId` join helper を導入し、`cut.assetId || ...` の散在を縮小。
+  - Gate 3/4/5: 時系列・`displayTime` は canonical API へ移行。加えて Gate 5 は Preview sequence 音声計画を `buildExportAudioPlan` に統一し、scene/cut attach を含む同一イベント列へ収束（`Ready`）。
+  - Gate 8: `assetId` join helper 導入に加えて、save/load の `assetId` 主経路化、write-time の `cut.asset` 非依存化、strict gate で新規違反検出まで反映（`Ready`）。
   - Gate 9: thumbnail profile は型/ラッパで省略禁止を強制。
 - Phase 2 残タスク:
-  - Gate 5: scene/cut attach audio の計画入口を Preview/Export でさらに同一化する。
-  - Gate 8: `cut.asset` fallback の最終縮退（廃止条件の明文化と段階実施）。
+  - なし（Phase 2 の対象Gateは実装完了。以降は運用監査とドキュメント保守フェーズ）。
