@@ -153,7 +153,7 @@ export default function Sidebar() {
     if (cached) return cached;
     if (!mediaType) return null;
     try {
-      const thumbnail = await getThumbnail(filePath, mediaType);
+      const thumbnail = await getThumbnail(filePath, mediaType, { profile: 'asset-grid' });
       if (thumbnail) {
         setThumbnailVersion((v) => v + 1);
         return thumbnail;

@@ -200,7 +200,7 @@ export default function DetailsPanel() {
 
       if (firstAsset?.path && (firstAsset.type === "image" || firstAsset.type === "video")) {
         try {
-          const cached = await getThumbnail(firstAsset.path, firstAsset.type);
+          const cached = await getThumbnail(firstAsset.path, firstAsset.type, { profile: 'details-panel' });
           if (isActive && cached) {
             setGroupThumbnail(cached);
           }
@@ -271,7 +271,7 @@ export default function DetailsPanel() {
         }
       } else if (!preferredThumbnail && asset.type === 'video' && asset.path) {
         try {
-          const cached = await getThumbnail(asset.path, asset.type);
+          const cached = await getThumbnail(asset.path, asset.type, { profile: 'details-panel' });
           if (cached) {
             setThumbnail(cached);
           }
@@ -317,7 +317,7 @@ export default function DetailsPanel() {
           src = frameAsset.thumbnail;
         } else if (frameAsset?.path) {
           try {
-            const cached = await getThumbnail(frameAsset.path, "image");
+            const cached = await getThumbnail(frameAsset.path, "image", { profile: 'details-panel' });
             if (cached) src = cached;
           } catch {
             // ignore

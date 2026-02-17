@@ -185,7 +185,7 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
 
       if (asset?.path && (asset.type === 'image' || asset.type === 'video')) {
         try {
-          const thumbnail = await getThumbnail(asset.path, asset.type);
+          const thumbnail = await getThumbnail(asset.path, asset.type, { profile: 'timeline-card' });
           if (!cancelled && thumbnail) {
             setThumbnail(thumbnail);
           }

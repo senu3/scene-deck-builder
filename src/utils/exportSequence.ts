@@ -2,6 +2,7 @@ import type { Asset, AssetMetadata, Cut, CutSubtitle, FramingAnchor, FramingMode
 import { getScenesAndCutsInTimelineOrder } from './timelineOrder';
 import { getLipSyncFrameAssetIds, normalizeThresholds } from './lipSyncUtils';
 import { normalizeSubtitleRange } from './subtitleUtils';
+import { resolveCutAsset, resolveNormalizedCutDisplayTime } from './assetResolve';
 
 export interface ExportSequenceItem {
   type: 'image' | 'video';
@@ -46,16 +47,20 @@ interface ResolvedFramingParams {
 const DEFAULT_FRAMING_MODE: FramingMode = 'cover';
 const DEFAULT_FRAMING_ANCHOR: FramingAnchor = 'center';
 
-function resolveExportDuration(cut: Cut): { duration: number; adjusted: boolean } {
-  if (Number.isFinite(cut.displayTime) && cut.displayTime > 0) {
-    return { duration: cut.displayTime, adjusted: false };
-  }
+function resolveAssetForExport(cut: Cut, options: BuildExportSequenceOptions): Asset | null {
+  return resolveCutAsset(cut, (assetId) => options.resolveAssetById?.(assetId));
+}
 
-  if (cut.asset?.type === 'video' && Number.isFinite(cut.asset.duration) && (cut.asset.duration as number) > 0) {
-    return { duration: cut.asset.duration as number, adjusted: true };
-  }
-
-  return { duration: 1.0, adjusted: true };
+function resolveExportDuration(cut: Cut, options: BuildExportSequenceOptions): { duration: number; adjusted: boolean } {
+  const resolved = resolveNormalizedCutDisplayTime(
+    cut,
+    (assetId) => options.resolveAssetById?.(assetId),
+    { fallbackDurationSec: 1.0, preferAssetDuration: true }
+  );
+  return {
+    duration: resolved.durationSec,
+    adjusted: resolved.adjusted,
+  };
 }
 
 export function resolveFramingParams(
@@ -92,15 +97,16 @@ function buildExportSequenceItemFromCut(
   options: BuildExportSequenceOptions,
   context: { sceneId?: string; cutId: string }
 ): ExportSequenceItem | null {
-  const path = cut.asset?.path || '';
+  const cutAsset = resolveAssetForExport(cut, options);
+  const path = cutAsset?.path || '';
   if (!path) return null;
 
-  if (cut.asset?.type === 'audio') {
+  if (cutAsset?.type === 'audio') {
     console.warn(`[export] Skipping audio-only cut ${context.cutId}${context.sceneId ? ` in scene ${context.sceneId}` : ''}.`);
     return null;
   }
 
-  const { duration, adjusted } = resolveExportDuration(cut);
+  const { duration, adjusted } = resolveExportDuration(cut, options);
   if (adjusted) {
     console.warn(
       `[export] Invalid displayTime detected for cut ${context.cutId}${context.sceneId ? ` in scene ${context.sceneId}` : ''}. ` +
@@ -119,7 +125,7 @@ function buildExportSequenceItemFromCut(
   const subtitle = resolveExportSubtitle(cut.subtitle, duration);
 
   return {
-    type: cut.asset?.type || 'image',
+    type: cutAsset?.type || 'image',
     path,
     duration,
     inPoint: cut.isClip ? cut.inPoint : undefined,
@@ -178,7 +184,7 @@ function resolveLipSyncExport(
 
   if (!cut.isLipSync) return null;
 
-  const cutAssetId = cut.asset?.id ?? cut.assetId;
+  const cutAssetId = resolveAssetForExport(cut, options)?.id ?? cut.assetId;
   const metadata = cutAssetId ? options.metadataByAssetId?.[cutAssetId] : undefined;
   const lipSyncSettings = metadata?.lipSync;
   if (!lipSyncSettings) {

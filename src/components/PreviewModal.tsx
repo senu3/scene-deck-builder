@@ -18,7 +18,7 @@ import { useHistoryStore } from '../store/historyStore';
 import { UpdateCutSubtitleCommand } from '../store/commands';
 import { createVideoObjectUrl } from '../utils/videoUtils';
 import { formatTime, cyclePlaybackSpeed } from '../utils/timeUtils';
-import { resolveCutAsset, resolveCutThumbnail } from '../utils/assetResolve';
+import { resolveCutAsset, resolveCutThumbnail, resolveNormalizedCutDisplayTime } from '../utils/assetResolve';
 import { AudioManager } from '../utils/audioUtils';
 import { createImageMediaSource, createLipSyncImageMediaSource, createVideoMediaSource } from '../utils/previewMedia';
 import { getLipSyncFrameAssetIds } from '../utils/lipSyncUtils';
@@ -34,7 +34,7 @@ import { getSubtitleStyleSettings } from '../utils/subtitleStyleSettings';
 import { getSubtitleStyleForExport } from '../features/export/subtitleStyle';
 import { buildExportAudioPlan } from '../utils/exportAudioPlan';
 import { getScenesInOrder } from '../utils/sceneOrder';
-import { computeStoryTimings, computeStoryTimingsForCuts } from '../utils/storyTiming';
+import { computeStoryTimingsForCuts } from '../utils/storyTiming';
 import {
   PlaybackRangeMarkers,
   VolumeControl,
@@ -127,6 +127,7 @@ interface PreviewItem {
   cutIndex: number;
   sceneStartAbs: number;
   previewOffsetSec: number;
+  normalizedDisplayTime: number;
   thumbnail: string | null;
 }
 
@@ -231,7 +232,14 @@ export default function PreviewModal({
   const [singleModeInPoint, setSingleModeInPoint] = useState<number | null>(initialInPoint ?? null);
   const [singleModeOutPoint, setSingleModeOutPoint] = useState<number | null>(initialOutPoint ?? null);
 
-  const sequenceDurations = useMemo(() => items.map(item => item.cut.displayTime), [items]);
+  const resolveCutDisplayTimeSec = useCallback((cut: Cut | null | undefined): number => {
+    return resolveNormalizedCutDisplayTime(cut, getAsset, {
+      fallbackDurationSec: 1.0,
+      preferAssetDuration: true,
+    }).durationSec;
+  }, [getAsset]);
+
+  const sequenceDurations = useMemo(() => items.map(item => item.normalizedDisplayTime), [items]);
   const sequencePlayback = useSequencePlaybackController(sequenceDurations);
   const {
     state: sequenceState,
@@ -363,7 +371,7 @@ export default function PreviewModal({
             focusCutData.scene.cuts.map((item) => ({
               cutId: item.id,
               sceneId: focusCutData.scene.id,
-              displayTime: item.displayTime,
+              displayTime: resolveCutDisplayTimeSec(item),
             }))
           );
           const cutTiming = timings.cutTimings.get(focusCutData.cut.id);
@@ -379,7 +387,7 @@ export default function PreviewModal({
       metadataStore,
       getAssetById: getAsset,
     })[0] || null;
-  }, [focusCutData, metadataStore, getAsset]);
+  }, [focusCutData, metadataStore, getAsset, resolveCutDisplayTimeSec]);
 
   const getSingleModeSceneAudioPlayhead = useCallback((): number => {
     const absoluteTime = videoRef.current?.currentTime ?? 0;
@@ -843,7 +851,7 @@ export default function PreviewModal({
 
     for (let i = startIndex; i < items.length && accumulatedTime < windowSeconds; i++) {
       indices.push(i);
-      accumulatedTime += items[i].cut.displayTime;
+      accumulatedTime += items[i].normalizedDisplayTime;
     }
 
     return indices;
@@ -970,6 +978,7 @@ export default function PreviewModal({
         cutIndex: 0,
         sceneStartAbs: 0,
         previewOffsetSec: 0,
+        normalizedDisplayTime: resolveCutDisplayTimeSec(singleCut),
         thumbnail,
       }]);
       return;
@@ -1023,7 +1032,7 @@ export default function PreviewModal({
           if (!thumbnail && cutAsset?.path) {
             try {
               if (cutAsset.type === 'video') {
-                thumbnail = await getThumbnail(cutAsset.path, 'video');
+                thumbnail = await getThumbnail(cutAsset.path, 'video', { profile: 'sequence-preview' });
               } else {
                 thumbnail = await getThumbnail(cutAsset.path, 'image', { profile: 'sequence-preview' });
               }
@@ -1040,6 +1049,7 @@ export default function PreviewModal({
             cutIndex: cIdx,
             sceneStartAbs: 0,
             previewOffsetSec: 0,
+            normalizedDisplayTime: resolveCutDisplayTimeSec(cut),
             thumbnail,
           });
         }
@@ -1058,7 +1068,7 @@ export default function PreviewModal({
           scene.cuts.map((item) => ({
             cutId: item.id,
             sceneId: scene.id,
-            displayTime: item.displayTime,
+            displayTime: resolveCutDisplayTimeSec(item),
           }))
         );
         const sceneStartAbs = focusTimings.sceneTimings.get(scene.id)?.startSec ?? 0;
@@ -1102,7 +1112,7 @@ export default function PreviewModal({
         if (!thumbnail && cutAsset.path) {
           try {
             if (cutAsset.type === 'video') {
-              thumbnail = await getThumbnail(cutAsset.path, 'video');
+              thumbnail = await getThumbnail(cutAsset.path, 'video', { profile: 'sequence-preview' });
             } else {
               thumbnail = await getThumbnail(cutAsset.path, 'image', { profile: 'sequence-preview' });
             }
@@ -1119,6 +1129,7 @@ export default function PreviewModal({
           cutIndex,
           sceneStartAbs,
           previewOffsetSec,
+          normalizedDisplayTime: resolveCutDisplayTimeSec(cut),
           thumbnail,
         }]);
       };
@@ -1133,7 +1144,15 @@ export default function PreviewModal({
       const scenesToPreview = previewMode === 'scene' && selectedSceneId
         ? orderedScenes.filter(s => s.id === selectedSceneId)
         : orderedScenes;
-      const timings = computeStoryTimings(scenesToPreview);
+      const timings = computeStoryTimingsForCuts(
+        scenesToPreview.flatMap((scene) =>
+          scene.cuts.map((cut) => ({
+            cutId: cut.id,
+            sceneId: scene.id,
+            displayTime: resolveCutDisplayTimeSec(cut),
+          }))
+        )
+      );
 
       for (let sIdx = 0; sIdx < scenesToPreview.length; sIdx++) {
         const scene = scenesToPreview[sIdx];
@@ -1174,7 +1193,7 @@ export default function PreviewModal({
           if (!thumbnail && cutAsset?.path) {
             try {
               if (cutAsset.type === 'video') {
-                thumbnail = await getThumbnail(cutAsset.path, 'video');
+                thumbnail = await getThumbnail(cutAsset.path, 'video', { profile: 'sequence-preview' });
               } else {
                 thumbnail = await getThumbnail(cutAsset.path, 'image', { profile: 'sequence-preview' });
               }
@@ -1191,6 +1210,7 @@ export default function PreviewModal({
             cutIndex: cIdx,
             sceneStartAbs,
             previewOffsetSec: 0,
+            normalizedDisplayTime: resolveCutDisplayTimeSec(cut),
             thumbnail,
           });
         }
@@ -1218,6 +1238,7 @@ export default function PreviewModal({
     sequenceContext,
     resolveAssetForCut,
     resolveThumbnailForCut,
+    resolveCutDisplayTimeSec,
   ]);
 
   useEffect(() => {
@@ -1564,7 +1585,7 @@ export default function PreviewModal({
             src: baseFallback,
             alt: `${currentItem.sceneName} - Cut ${currentItem.cutIndex + 1}`,
             className: 'preview-media',
-            duration: currentItem.cut.displayTime,
+            duration: currentItem.normalizedDisplayTime,
             onTimeUpdate: sequenceTick,
             onEnded: sequenceGoToNext,
           });
@@ -1579,7 +1600,7 @@ export default function PreviewModal({
           sources: resolvedSources,
           alt: `${currentItem.sceneName} - Cut ${currentItem.cutIndex + 1}`,
           className: 'preview-media',
-          duration: currentItem.cut.displayTime,
+          duration: currentItem.normalizedDisplayTime,
           rms: analysis.rms,
           rmsFps: analysis.fps,
           thresholds: lipSyncSettings.thresholds,
@@ -1638,7 +1659,7 @@ export default function PreviewModal({
           src: currentItem.thumbnail,
           alt: `${currentItem.sceneName} - Cut ${currentItem.cutIndex + 1}`,
           className: 'preview-media',
-          duration: currentItem.cut.displayTime,
+          duration: currentItem.normalizedDisplayTime,
           onTimeUpdate: sequenceTick,
           onEnded: sequenceGoToNext,
         });
@@ -1999,13 +2020,13 @@ export default function PreviewModal({
         if (!asset?.path) continue;
 
         const itemStart = accumulatedTime;
-        const itemEnd = accumulatedTime + item.cut.displayTime;
+        const itemEnd = accumulatedTime + item.normalizedDisplayTime;
         accumulatedTime = itemEnd;
 
         if (itemEnd <= rangeStart || itemStart >= rangeEnd) continue;
 
         const clipStart = Math.max(0, rangeStart - itemStart);
-        const clipEnd = Math.min(item.cut.displayTime, rangeEnd - itemStart);
+        const clipEnd = Math.min(item.normalizedDisplayTime, rangeEnd - itemStart);
         const clipDuration = clipEnd - clipStart;
 
         if (clipDuration <= 0) continue;
@@ -2214,7 +2235,9 @@ export default function PreviewModal({
       cut: currentItem.cut,
     };
   }, [isSingleMode, focusCutData, currentItem]);
-  const activeCutDisplayTime = activeSubtitleTarget?.cut.displayTime ?? 0;
+  const activeCutDisplayTime = activeSubtitleTarget
+    ? resolveCutDisplayTimeSec(activeSubtitleTarget.cut)
+    : 0;
   const currentLocalTimeSec = useMemo(() => {
     if (!activeSubtitleTarget || activeCutDisplayTime <= 0) return 0;
 
