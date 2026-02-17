@@ -20,6 +20,21 @@ export function resolveCutAsset(cut: CutLike | null | undefined, getAsset: GetAs
   return getAsset(cut.assetId) ?? cut.asset ?? null;
 }
 
+export function resolveCutAssetId(cut: CutLike | null | undefined, getAsset: GetAssetById): string | null {
+  if (!cut) return null;
+  if (cut.assetId) return cut.assetId;
+  return resolveCutAsset(cut, getAsset)?.id ?? null;
+}
+
+export function cutAssetPathStartsWith(
+  cut: CutLike | null | undefined,
+  getAsset: GetAssetById,
+  prefix: string
+): boolean {
+  const path = resolveCutAsset(cut, getAsset)?.path;
+  return typeof path === 'string' && path.startsWith(prefix);
+}
+
 export function resolveCutDuration(cut: CutLike | null | undefined, getAsset: GetAssetById): number | null {
   if (!cut) return null;
   const resolved = resolveCutAsset(cut, getAsset);

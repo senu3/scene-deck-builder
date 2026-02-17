@@ -20,7 +20,7 @@ import { importFileToVault } from '../utils/assetPath';
 import { extractVideoMetadata } from '../utils/videoUtils';
 import { getThumbnail } from '../utils/thumbnailCache';
 import { getCuttableMediaType } from '../utils/mediaType';
-import { resolveCutAsset } from '../utils/assetResolve';
+import { cutAssetPathStartsWith, resolveCutAsset, resolveCutAssetId } from '../utils/assetResolve';
 import './StartupModal.css';
 
 // Resolve asset paths from relative to absolute
@@ -93,7 +93,7 @@ async function resolveScenesAssets(scenes: Scene[], vaultPath: string): Promise<
 
 function hasLegacyRelativeAssetPaths(scenes: Scene[]): boolean {
   return scenes.some((scene) =>
-    scene.cuts?.some((cut) => resolveCutAsset(cut, () => undefined)?.path?.startsWith('assets/'))
+    scene.cuts?.some((cut) => cutAssetPathStartsWith(cut, () => undefined, 'assets/'))
   );
 }
 
@@ -375,7 +375,7 @@ export default function StartupModal() {
                   const importedAsset = await importFileToVault(
                     newPath,
                     project.vaultPath,
-                    cut.assetId || currentAsset.id,
+                    resolveCutAssetId(cut, () => undefined) || currentAsset.id,
                     {
                       name: newName,
                       type: newType,

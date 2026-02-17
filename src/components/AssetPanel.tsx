@@ -36,7 +36,7 @@ import { getCachedThumbnail, getThumbnail, removeThumbnailCache } from '../utils
 import { getMediaType as getAnyMediaType } from '../utils/mediaType';
 import { collectAssetRefs, type AssetRefMap } from '../utils/assetRefs';
 import { getFirstSceneId } from '../utils/sceneOrder';
-import { resolveCutAsset } from '../utils/assetResolve';
+import { resolveCutAssetId } from '../utils/assetResolve';
 import { useBanner, useDialog, useToast } from '../ui';
 import {
   AssetContextMenu,
@@ -575,7 +575,7 @@ export default function AssetPanel({
         const idx = scene.cuts.findIndex((c) => c.id === selectedCutId);
         if (idx >= 0) {
           const cut = scene.cuts[idx];
-          const cutAssetId = cut.assetId || resolveCutAsset(cut, () => undefined)?.id;
+          const cutAssetId = resolveCutAssetId(cut, () => undefined);
           if (cutAssetId && idSet.has(cutAssetId)) {
             return { scene, cut, index: idx };
           }
@@ -585,7 +585,7 @@ export default function AssetPanel({
 
     for (const scene of scenes) {
       const idx = scene.cuts.findIndex((c) => {
-        const cutAssetId = c.assetId || resolveCutAsset(c, () => undefined)?.id;
+        const cutAssetId = resolveCutAssetId(c, () => undefined);
         return cutAssetId ? idSet.has(cutAssetId) : false;
       });
       if (idx >= 0) {

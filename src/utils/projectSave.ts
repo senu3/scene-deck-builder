@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Asset, AssetUsageRef, Scene, SourcePanelState } from '../types';
 import { getScenesAndCutsInTimelineOrder } from './timelineOrder';
 import { normalizeSceneOrder } from './sceneOrder';
-import { resolveCutAsset } from './assetResolve';
+import { resolveCutAsset, resolveCutAssetId } from './assetResolve';
 
 export interface ProjectSavePayload {
   version: number;
@@ -98,7 +98,7 @@ export function getOrderedAssetIdsFromScenes(scenes: Scene[], sceneOrder?: strin
 
   for (const scene of getScenesAndCutsInTimelineOrder(scenes, sceneOrder)) {
     for (const cut of scene.cuts) {
-      const assetId = cut.assetId || resolveCutAsset(cut, () => undefined)?.id;
+      const assetId = resolveCutAssetId(cut, () => undefined);
       if (assetId && !seen.has(assetId)) {
         seen.add(assetId);
         orderedIds.push(assetId);
@@ -116,7 +116,7 @@ export function buildAssetUsageRefs(scenes: Scene[], sceneOrder?: string[]): Map
   for (let sceneIndex = 0; sceneIndex < orderedScenes.length; sceneIndex++) {
     const scene = orderedScenes[sceneIndex];
     scene.cuts.forEach((cut, index) => {
-      const assetId = cut.assetId || resolveCutAsset(cut, () => undefined)?.id;
+      const assetId = resolveCutAssetId(cut, () => undefined);
       if (!assetId) return;
       const ref: AssetUsageRef = {
         sceneId: scene.id,

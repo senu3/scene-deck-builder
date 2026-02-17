@@ -7,7 +7,7 @@ import { importFileToVault } from '../utils/assetPath';
 import { extractVideoMetadata } from '../utils/videoUtils';
 import { getThumbnail } from '../utils/thumbnailCache';
 import { getCuttableMediaType } from '../utils/mediaType';
-import { resolveCutAsset } from '../utils/assetResolve';
+import { cutAssetPathStartsWith, resolveCutAsset, resolveCutAssetId } from '../utils/assetResolve';
 import { createAutosaveController, subscribeProjectChanges } from '../utils/autosave';
 import { collectAssetRefs, findDanglingAssetRefs } from '../utils/assetRefs';
 import {
@@ -109,7 +109,7 @@ async function resolveScenesAssets(scenes: Scene[], vaultPath: string): Promise<
     const resolvedCuts = await Promise.all(
       scene.cuts.map(async (cut) => {
         const resolvedCutAsset = resolveCutAsset(cut, () => undefined);
-        const cutAssetId = cut.assetId || resolvedCutAsset?.id;
+        const cutAssetId = resolveCutAssetId(cut, () => undefined);
         if (resolvedCutAsset || cutAssetId) {
           const baseAsset: Asset | undefined = resolvedCutAsset
             ? { ...resolvedCutAsset, id: cutAssetId || resolvedCutAsset.id }
@@ -361,7 +361,7 @@ export function useHeaderProjectController() {
                   const importedAsset = await importFileToVault(
                     newPath,
                     project.vaultPath,
-                    cut.assetId || currentAsset.id,
+                    resolveCutAssetId(cut, () => undefined) || currentAsset.id,
                     {
                       name: newName,
                       type: newType,
@@ -492,7 +492,10 @@ export function useHeaderProjectController() {
       let loadedScenes = projectData.scenes || [];
       let foundMissingAssets: MissingAssetInfo[] = [];
 
-      if (projectData.version && projectData.version >= 2 || loadedScenes.some(s => s.cuts?.some(c => c.asset?.path?.startsWith('assets/')))) {
+      if (
+        (projectData.version && projectData.version >= 2) ||
+        loadedScenes.some((s) => s.cuts?.some((c) => cutAssetPathStartsWith(c, () => undefined, 'assets/')))
+      ) {
         const resolved = await resolveScenesAssets(loadedScenes, loadedVaultPath);
         loadedScenes = resolved.scenes;
         foundMissingAssets = resolved.missingAssets;
