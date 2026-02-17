@@ -194,3 +194,8 @@ rg -n "requestAnimationFrame\(|setInterval\(|analyzeAudioRms\(|read-audio-pcm|ff
 - `2544ab5` `refactor: route range export through shared sequence builder`
 - `1a7ffd0` `refactor: use shared cut asset resolver in store actions`
 - `3540b67` `refactor: centralize cut asset fallback in asset resolver`
+
+### Gateチェック自動化（Stage A: warning-only）
+- `npm run check:gate` を追加（`scripts/check-gate.mjs`）。
+- 現在は warning-only で運用し、`--strict` 指定時のみ non-zero exit。
+- 最新実行結果では Gate2 (`safeOrder` fallback) のみ警告。
