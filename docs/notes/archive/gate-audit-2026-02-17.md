@@ -204,3 +204,8 @@ rg -n "requestAnimationFrame\(|setInterval\(|analyzeAudioRms\(|read-audio-pcm|ff
 - `npm run check:gate` を追加（`scripts/check-gate.mjs`）。
 - 現在は warning-only で運用し、`--strict` 指定時のみ non-zero exit。
 - 最新実行結果は warning 0。
+
+### 固定済み判断（2026-02-17）
+- Gate 2 fail化条件を固定（ARCHITECTURE `Gate Enforcement`）。
+- Gate 3/4/5 の canonical API を ADR-0004 で固定。
+- Gate 8 の resolve失敗時ポリシーを ADR-0005 で固定。

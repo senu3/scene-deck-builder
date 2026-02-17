@@ -62,12 +62,33 @@
 - Gate 9 (thumbnail profile): サムネイルは用途別 profile（`asset-grid`/`details-panel`/`sequence-preview`/`timeline-card`）を混線させない。
 - Gate 10 (重い処理の分離): 解析・変換・合成など重い処理は登録時/変換時へ寄せ、再生ループへ入れない。
 
+## Gate Enforcement
+- Gate 2 fallback 許容は 2026-02-17 で終了。`safeOrder` のような順序fallbackを再導入しない。
+- Gate 2 fail 化条件は固定する:
+  - `npm run check:gate --strict` が CI に接続されていること。
+  - `src/utils/timelineOrder.ts` に順序fallbackが存在しないこと。
+  - ロード時に `cut.order` 正規化（配列順再採番）が有効であること。
+- CI 未接続期間は `npm run check:gate`（warning-only）をローカル/PRで実行し、警告ゼロを維持する。
+
+## Canonical APIs (Gate 3/4/5)
+- 正規化入口（Gate 4）: `resolveNormalizedCutDisplayTime` を `displayTime` 解決の正本にする。
+- 時系列入口（Gate 3）: `computeStoryTimingsForCuts` を開始秒・合計尺計算の正本にする。
+- 出力item入口（Gate 5）: `buildSequenceItemsForCuts` を export sequence item 生成の正本にする。
+- Preview 実装は上記正本APIで得た値を消費する側とし、同等ロジックの再実装を増やさない。
+
+## Asset Resolve Failure Policy (Gate 8)
+- 詳細は ADR-0005 に従う。`assetId` 解決失敗時の扱いは用途別に固定する:
+  - Preview/UI: `null` を返してプレースホルダ表示、非致命ログ（warn）まで。
+  - Export: 該当cutをskipし警告。LipSync strict条件では例外で停止可。
+  - Load/Recovery: index補完を試行し、未解決は missing asset フローへ送る。
+- `cut.asset` への直接依存は `src/utils/assetResolve.ts` の fallback に限定する。
+
 ## Known Broken Invariants
-- Gate 3 (時系列定義): `displayTime` 正規化は共通化済みだが、Preview 側にはローカルな時間窓計算が残っており canonical timing API への完全統合は未完了（`Partial`）。
-- Gate 4 (`displayTime` 正規化): 共通ヘルパ (`resolveNormalizedCutDisplayTime`) を導入済み。残課題は全経路でこの入口へ統一されているかの継続監査（`Partial`）。
+- Gate 3 (時系列定義): canonical API は ADR-0004 で固定済み。Preview 側のローカル時間窓計算を正本API消費へさらに寄せる余地がある（`Partial`）。
+- Gate 4 (`displayTime` 正規化): canonical API は ADR-0004 で固定済み。残課題は全経路での統一使用を継続監査すること（`Partial`）。
 - Gate 5 (Preview/Export parity): full/range export の sequence item 生成は統一済み。再生側 media item 構築は別レイヤ実装のため、framing/lipsync/audio も含めた完全 parity は未完了（`Partial`）。
 - Gate 6 (Command 境界): 例外境界は ADR-0003 で固定済み。残課題は境界違反の検出自動化（`Partial`）。
-- Gate 8 (`assetId` 主経路): `cut.asset` 直接参照は `src/utils/assetResolve.ts` に局所化済み。fallback 廃止時期（read-time only維持 or stricter移行）は次の判断が必要（`Partial`）。
+- Gate 8 (`assetId` 主経路): 失敗時ポリシーは ADR-0005 で固定済み。残課題は fallback 縮小の段階計画（`Partial`）。
 
 ## 成功指標
 - Preview/Export parity: 同一入力で視覚・時間・音が一致する。
