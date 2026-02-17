@@ -233,3 +233,28 @@ rg -n "requestAnimationFrame\(|setInterval\(|analyzeAudioRms\(|read-audio-pcm|ff
 - `b162091` `refactor(gate3-4): route preview/export timing through canonical storyTiming API`
 - `0006646` `refactor(gate8): centralize cut assetId resolution helpers`
 - `14b6962` `refactor(gate5): consume export sequence spec in preview playback`
+
+---
+
+## Update 2026-02-17 (Gate5 Audio Plan Parity Pass)
+
+### 状態更新
+- Gate 5: `Partial -> Ready`
+  - Preview Sequence の音声計画入口を `buildExportAudioPlan` に統一。
+  - Preview 側の単独ローカル解決を縮退し、Export と同じイベント列（video/cut-attach/scene-attach）を基準化。
+  - `useEmbeddedAudio` は埋め込み音声イベントの生成条件に限定し、attachAudio へは非干渉に固定。
+  - Scene attach / Cut attach の duration / offset / gain を Preview/Export で同一解釈に統一。
+  - Sequence の動画要素音声は常時ミュートとし、AudioPlan 再生との二重鳴りを防止。
+
+### 実装メモ
+- `exportAudioPlan` のイベント型を拡張（`assetId` / `sourceOffsetSec` / `gain`）。
+- Export 側ミックスでも `sourceOffsetSec` と `gain` を反映。
+- Preview 側は AudioManager に「計画済みイベント」を渡す責務へ限定し、計画決定ロジックを持たない構成へ移行。
+
+### 検証
+- Unit:
+  - `src/utils/__tests__/exportAudioPlan.test.ts`
+  - `src/utils/__tests__/previewAudioTracks.test.ts`
+  - 追加ケース: `useEmbeddedAudio=false` 時の attach 維持、disabled binding/scene attach 除外
+- Gate check:
+  - `npm run check:gate` warning 0

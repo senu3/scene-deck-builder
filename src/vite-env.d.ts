@@ -220,10 +220,13 @@ interface SequenceItem {
 }
 
 interface ExportAudioEvent {
+  assetId?: string;
   sourcePath: string;
   sourceStartSec: number;
+  sourceOffsetSec?: number;
   timelineStartSec: number;
   durationSec: number;
+  gain?: number;
   sceneId?: string;
   cutId?: string;
   sourceType: 'video' | 'cut-attach' | 'scene-attach';

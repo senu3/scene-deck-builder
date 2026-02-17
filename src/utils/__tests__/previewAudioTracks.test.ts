@@ -5,6 +5,7 @@ describe('previewAudioTracks', () => {
   it('resolves scene audio track with scene-relative start', () => {
     const tracks = resolvePreviewAudioTracks({
       sceneId: 'scene-1',
+      cuts: [{ id: 'cut-1', assetId: 'img-1', displayTime: 5, order: 0 }],
       sceneStartAbs: 12,
       previewOffsetSec: 3,
       metadataStore: {
@@ -40,6 +41,7 @@ describe('previewAudioTracks', () => {
   it('returns empty when scene audio is disabled or missing', () => {
     const tracks = resolvePreviewAudioTracks({
       sceneId: 'scene-1',
+      cuts: [{ id: 'cut-1', assetId: 'img-1', displayTime: 5, order: 0 }],
       sceneStartAbs: 0,
       metadataStore: {
         version: 1,

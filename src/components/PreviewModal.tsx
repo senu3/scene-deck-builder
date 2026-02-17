@@ -32,7 +32,7 @@ import { buildPreviewViewportFramingStyle, buildPreviewViewportFramingStyleFromR
 import { resolveSubtitleVisibility, normalizeSubtitleRange } from '../utils/subtitleUtils';
 import { getSubtitleStyleSettings } from '../utils/subtitleStyleSettings';
 import { getSubtitleStyleForExport } from '../features/export/subtitleStyle';
-import { buildExportAudioPlan } from '../utils/exportAudioPlan';
+import { buildExportAudioPlan, type ExportAudioEvent } from '../utils/exportAudioPlan';
 import { getScenesInOrder } from '../utils/sceneOrder';
 import { computeCanonicalStoryTimingsForCuts, resolveCanonicalCutDuration } from '../utils/storyTiming';
 import {
@@ -340,21 +340,24 @@ export default function PreviewModal({
   // State for image data in Single Mode
   const [singleModeImageData, setSingleModeImageData] = useState<string | null>(null);
 
-  // Attached audio state (both modes)
-  // Keep separate managers for Single/Sequence to avoid cross-mode races.
+  // Attached audio state
+  // Keep separate managers for single-mode and sequence event-mix to avoid cross-mode races.
   const singleAudioManagerRef = useRef(new AudioManager());
   const singleAudioPlayingRef = useRef(false);
-  const sequenceAudioManagerRef = useRef(new AudioManager());
-  const sequenceAudioPlayingRef = useRef(false);
-  const [audioLoaded, setAudioLoaded] = useState(false);
-  const sequenceAudioSourceKeyRef = useRef<string | null>(null);
+  const sequenceAudioManagersRef = useRef<Map<string, AudioManager>>(new Map());
+  const sequenceAudioLoadIdsRef = useRef<Map<string, number>>(new Map());
+  const [singleAudioLoaded, setSingleAudioLoaded] = useState(false);
 
   // Unload audio on unmount (but do NOT dispose the AudioManager)
   useEffect(() => {
     return () => {
       singleAudioManagerRef.current.unload();
-      sequenceAudioManagerRef.current.unload();
-      sequenceAudioSourceKeyRef.current = null;
+      for (const manager of sequenceAudioManagersRef.current.values()) {
+        manager.unload();
+        manager.dispose();
+      }
+      sequenceAudioManagersRef.current.clear();
+      sequenceAudioLoadIdsRef.current.clear();
     };
   }, []);
 
@@ -378,6 +381,7 @@ export default function PreviewModal({
       : 0;
     return resolvePreviewAudioTracks({
       sceneId,
+      cuts: focusCutData?.scene.cuts || [],
       sceneStartAbs: 0,
       previewOffsetSec,
       metadataStore,
@@ -743,28 +747,24 @@ export default function PreviewModal({
   useEffect(() => {
     if (!isSingleMode || !asset?.id) {
       singleAudioManagerRef.current.unload();
-      setAudioLoaded(false);
+      setSingleAudioLoaded(false);
       singleAudioPlayingRef.current = false;
       return;
     }
 
     if (!hasCutContext) {
       singleAudioManagerRef.current.unload();
-      setAudioLoaded(false);
+      setSingleAudioLoaded(false);
       singleAudioPlayingRef.current = false;
       return;
     }
 
     const attachedAudio = singleSceneAudioTrack?.asset || getAttachedAudioForCut(focusCutData?.cut ?? null);
     singleAudioManagerRef.current.unload();
-    setAudioLoaded(false);
+    setSingleAudioLoaded(false);
     singleAudioPlayingRef.current = false;
 
     if (!attachedAudio?.path) {
-      sequenceAudioManagerRef.current.unload();
-      setAudioLoaded(false);
-      sequenceAudioPlayingRef.current = false;
-      sequenceAudioSourceKeyRef.current = null;
       return;
     }
 
@@ -778,7 +778,7 @@ export default function PreviewModal({
       const loaded = await manager.load(attachedAudio.path);
       if (!loaded) return;
       if (manager.getActiveLoadId() === expectedLoadId) {
-        setAudioLoaded(true);
+        setSingleAudioLoaded(true);
       }
     };
 
@@ -787,7 +787,7 @@ export default function PreviewModal({
 
   // Sync Single Mode audio with video playback (only on play/pause change)
   useEffect(() => {
-    if (!isSingleMode || !audioLoaded) return;
+    if (!isSingleMode || !singleAudioLoaded) return;
     const manager = singleAudioManagerRef.current;
 
     if (isSingleModeVideo) {
@@ -816,7 +816,7 @@ export default function PreviewModal({
     isSingleMode,
     isSingleModeVideo,
     singleModeIsPlaying,
-    audioLoaded,
+    singleAudioLoaded,
     sequenceState.isPlaying,
     sequenceState.isBuffering,
     sequenceSelectors,
@@ -827,7 +827,9 @@ export default function PreviewModal({
   // Apply volume to attached audio
   useEffect(() => {
     singleAudioManagerRef.current.setVolume(globalMuted ? 0 : globalVolume);
-    sequenceAudioManagerRef.current.setVolume(globalMuted ? 0 : globalVolume);
+    for (const manager of sequenceAudioManagersRef.current.values()) {
+      manager.setVolume(globalMuted ? 0 : globalVolume);
+    }
   }, [globalVolume, globalMuted]);
 
   // ===== SEQUENCE MODE LOGIC =====
@@ -1402,97 +1404,128 @@ export default function PreviewModal({
     () => new Map(previewSequenceItems.map((item, index) => [items[index]?.cut.id, item] as const).filter((entry) => !!entry[0])),
     [previewSequenceItems, items]
   );
+  const previewAudioPlan = useMemo(() => {
+    const exportCuts = items.map((item) => ({
+      ...item.cut,
+      displayTime: item.normalizedDisplayTime,
+    }));
+    const cutSceneMap = new Map<string, string>();
+    for (const item of items) {
+      cutSceneMap.set(item.cut.id, item.sceneId);
+    }
+    return buildExportAudioPlan({
+      cuts: exportCuts,
+      metadataStore: metadataStore ?? null,
+      getAssetById: getAsset,
+      resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
+    });
+  }, [items, metadataStore, getAsset]);
   const currentSequenceSpec = currentSequenceItem
     ? previewSequenceItemByCutId.get(currentSequenceItem.cut.id) || null
     : null;
-  const currentSceneAudioTrack = useMemo(() => resolvePreviewAudioTracks({
-    sceneId: currentSequenceItem?.sceneId ?? null,
-    sceneStartAbs: currentSequenceItem?.sceneStartAbs ?? 0,
-    previewOffsetSec: currentSequenceItem?.previewOffsetSec ?? 0,
-    metadataStore,
-    getAssetById: getAsset,
-  })[0] || null, [currentSequenceItem, metadataStore, getAsset]);
+  const buildSequenceAudioEventKey = useCallback((event: ExportAudioEvent, index: number) => {
+    return [
+      index,
+      event.sourceType,
+      event.assetId || '',
+      event.sceneId || '',
+      event.cutId || '',
+      event.timelineStartSec.toFixed(3),
+      event.durationSec.toFixed(3),
+      event.sourcePath,
+    ].join('|');
+  }, []);
 
-  // Load attached audio when cut changes (Sequence Mode)
+  // Sequence mode audio: consume the same event list as exportAudioPlan and render as multi-track.
   useEffect(() => {
     if (isSingleMode || items.length === 0) {
-      sequenceAudioManagerRef.current.unload();
-      setAudioLoaded(false);
-      sequenceAudioPlayingRef.current = false;
-      sequenceAudioSourceKeyRef.current = null;
-      return;
-    }
-
-    const currentItem = items[currentIndex];
-    const currentCut = currentItem?.cut;
-    if (!currentCut) {
-      sequenceAudioManagerRef.current.unload();
-      setAudioLoaded(false);
-      sequenceAudioPlayingRef.current = false;
-      sequenceAudioSourceKeyRef.current = null;
-      return;
-    }
-
-    const attachedAudio = currentSceneAudioTrack?.asset || getAttachedAudioForCut(currentCut);
-    const nextSourceKey = currentSceneAudioTrack
-      ? `scene:${currentSceneAudioTrack.assetId}:${currentSceneAudioTrack.sceneId}`
-      : `cut:${attachedAudio?.id || ''}:${currentCut.id}`;
-    const shouldReload = sequenceAudioSourceKeyRef.current !== nextSourceKey;
-
-    if (!attachedAudio?.path) {
-      sequenceAudioManagerRef.current.unload();
-      setAudioLoaded(false);
-      sequenceAudioPlayingRef.current = false;
-      sequenceAudioSourceKeyRef.current = null;
-      return;
-    }
-
-    const manager = sequenceAudioManagerRef.current;
-    if (manager.isDisposed()) return;
-
-    if (shouldReload) {
-      manager.unload();
-      setAudioLoaded(false);
-      sequenceAudioPlayingRef.current = false;
-      sequenceAudioSourceKeyRef.current = nextSourceKey;
-    } else if (manager.isLoaded()) {
-      setAudioLoaded(true);
-      return;
-    }
-
-    const loadAudio = async () => {
-      const offset = currentSceneAudioTrack ? 0 : getAudioOffsetForCut(currentCut);
-      manager.setOffset(offset);
-      const expectedLoadId = manager.getLoadId() + 1;
-      const loaded = await manager.load(attachedAudio.path);
-      if (!loaded) return;
-      if (manager.getActiveLoadId() === expectedLoadId) {
-        setAudioLoaded(true);
+      for (const manager of sequenceAudioManagersRef.current.values()) {
+        manager.pause();
+        manager.unload();
+        manager.dispose();
       }
-    };
+      sequenceAudioManagersRef.current.clear();
+      sequenceAudioLoadIdsRef.current.clear();
+      return;
+    }
 
-    loadAudio();
-  }, [isSingleMode, currentIndex, items, getAttachedAudioForCut, getAudioOffsetForCut, currentSceneAudioTrack]);
-
-  // Sync Sequence Mode audio with playback state (separate effect)
-  useEffect(() => {
-    if (isSingleMode || !audioLoaded) return;
-
-    const manager = sequenceAudioManagerRef.current;
     const absoluteTime = Math.max(0, sequenceSelectors.getAbsoluteTime());
-    const playPosition = currentSceneAudioTrack
-      ? Math.max(0, absoluteTime - currentSceneAudioTrack.startAbs + currentSceneAudioTrack.previewOffsetSec)
-      : absoluteTime;
-    if (sequenceState.isPlaying && !sequenceState.isBuffering) {
-      if (!sequenceAudioPlayingRef.current) {
-        manager.play(playPosition);
-        sequenceAudioPlayingRef.current = true;
-      }
-    } else if (sequenceAudioPlayingRef.current) {
+    const shouldPlay = sequenceState.isPlaying && !sequenceState.isBuffering;
+    const activeEntries = previewAudioPlan.events
+      .map((event, index) => ({ event, key: buildSequenceAudioEventKey(event, index) }))
+      .filter(({ event }) => {
+        const start = event.timelineStartSec;
+        const end = event.timelineStartSec + event.durationSec;
+        return absoluteTime >= start && absoluteTime < end;
+      });
+    const activeKeys = new Set(activeEntries.map((entry) => entry.key));
+
+    for (const [key, manager] of sequenceAudioManagersRef.current.entries()) {
+      if (activeKeys.has(key)) continue;
       manager.pause();
-      sequenceAudioPlayingRef.current = false;
+      manager.unload();
+      manager.dispose();
+      sequenceAudioManagersRef.current.delete(key);
+      sequenceAudioLoadIdsRef.current.delete(key);
     }
-  }, [isSingleMode, audioLoaded, sequenceState.isPlaying, sequenceState.isBuffering, sequenceSelectors, currentSceneAudioTrack]);
+
+    for (const { event, key } of activeEntries) {
+      const sourcePath = event.sourcePath;
+      if (!sourcePath) continue;
+
+      let manager = sequenceAudioManagersRef.current.get(key);
+      if (!manager || manager.isDisposed()) {
+        manager = new AudioManager();
+        sequenceAudioManagersRef.current.set(key, manager);
+        sequenceAudioLoadIdsRef.current.set(key, manager.getLoadId());
+      }
+
+      const gain = Number.isFinite(event.gain) ? Math.max(0, event.gain as number) : 1;
+      const mixedVolume = Math.max(0, Math.min(1, (globalMuted ? 0 : globalVolume) * gain));
+      manager.setVolume(mixedVolume);
+      const sourceOffsetSec = Number.isFinite(event.sourceOffsetSec) ? (event.sourceOffsetSec as number) : 0;
+      const playPosition = Math.max(0, absoluteTime - event.timelineStartSec + sourceOffsetSec);
+
+      if (!manager.isLoaded()) {
+        const startLoadId = manager.getLoadId() + 1;
+        sequenceAudioLoadIdsRef.current.set(key, startLoadId);
+        void manager.load(sourcePath).then((loaded) => {
+          const expectedLoadId = sequenceAudioLoadIdsRef.current.get(key);
+          if (!loaded || expectedLoadId !== startLoadId) return;
+          if (!sequenceAudioManagersRef.current.has(key)) return;
+          if (!shouldPlay) return;
+          manager!.play(playPosition);
+        });
+        continue;
+      }
+
+      if (!shouldPlay) {
+        if (manager.getIsPlaying()) {
+          manager.pause();
+        }
+        continue;
+      }
+
+      if (!manager.getIsPlaying()) {
+        manager.play(playPosition);
+      } else {
+        const drift = Math.abs(manager.getCurrentTime() - playPosition);
+        if (drift > 0.25) {
+          manager.seek(playPosition);
+        }
+      }
+    }
+  }, [
+    isSingleMode,
+    items,
+    sequenceSelectors,
+    sequenceState.isPlaying,
+    sequenceState.isBuffering,
+    previewAudioPlan,
+    buildSequenceAudioEventKey,
+    globalMuted,
+    globalVolume,
+  ]);
 
   // Calculate display size for resolution simulation
   useLayoutEffect(() => {
@@ -1654,7 +1687,8 @@ export default function PreviewModal({
         src: videoObjectUrl.url,
         key: videoSourceKey,
         className: 'preview-media',
-        muted: shouldMuteEmbeddedAudio(currentItem.cut),
+        // Sequence mode audio is driven by exportAudioPlan events; keep element audio muted to avoid double playback.
+        muted: true,
         refObject: videoRef,
         inPoint: clipInPoint,
         outPoint: clipOutPoint,
@@ -1688,7 +1722,6 @@ export default function PreviewModal({
     sequenceState.currentIndex,
     videoObjectUrl,
     playbackSpeed,
-    shouldMuteEmbeddedAudio,
     setSequenceSource,
     sequenceTick,
     sequenceGoToNext,
@@ -2130,12 +2163,8 @@ export default function PreviewModal({
   const handleProgressBarMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     setIsDragging(true);
     sequencePause();
-    if (!isSingleMode && audioLoaded) {
-      sequenceAudioManagerRef.current.pause();
-      sequenceAudioPlayingRef.current = false;
-    }
     handleProgressBarClick(e);
-  }, [handleProgressBarClick, sequencePause, isSingleMode, audioLoaded]);
+  }, [handleProgressBarClick, sequencePause]);
 
   const handleProgressBarMouseMove = useCallback((e: MouseEvent) => {
     if (!isDragging || !progressBarRef.current || items.length === 0) return;
@@ -2148,15 +2177,7 @@ export default function PreviewModal({
 
   const handleProgressBarMouseUp = useCallback(() => {
     setIsDragging(false);
-    if (!isSingleMode && audioLoaded && sequenceState.isPlaying) {
-      const absoluteTime = Math.max(0, sequenceSelectors.getAbsoluteTime());
-      const playPosition = currentSceneAudioTrack
-        ? Math.max(0, absoluteTime - currentSceneAudioTrack.startAbs + currentSceneAudioTrack.previewOffsetSec)
-        : absoluteTime;
-      sequenceAudioManagerRef.current.play(playPosition);
-      sequenceAudioPlayingRef.current = true;
-    }
-  }, [isSingleMode, audioLoaded, sequenceState.isPlaying, sequenceSelectors, currentSceneAudioTrack]);
+  }, []);
 
   const handleProgressBarHover = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!progressBarRef.current || items.length === 0) return;
@@ -2192,7 +2213,7 @@ export default function PreviewModal({
       const activeCut = isSingleMode
         ? (focusCutData?.cut ?? null)
         : (items[sequenceState.currentIndex]?.cut ?? null);
-      videoRef.current.muted = shouldMuteEmbeddedAudio(activeCut);
+      videoRef.current.muted = isSingleMode ? shouldMuteEmbeddedAudio(activeCut) : true;
     }
   }, [
     globalVolume,

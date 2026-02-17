@@ -1663,10 +1663,13 @@ interface SequenceItem {
 }
 
 interface ExportAudioEvent {
+  assetId?: string;
   sourcePath: string;
   sourceStartSec: number;
+  sourceOffsetSec?: number;
   timelineStartSec: number;
   durationSec: number;
+  gain?: number;
   sceneId?: string;
   cutId?: string;
   sourceType: 'video' | 'cut-attach' | 'scene-attach';
@@ -1796,7 +1799,8 @@ async function renderMixedAudioTrack(
     Number.isFinite(event.timelineStartSec) &&
     event.timelineStartSec >= 0 &&
     Number.isFinite(event.sourceStartSec) &&
-    event.sourceStartSec >= 0
+    event.sourceStartSec >= 0 &&
+    (!Number.isFinite(event.sourceOffsetSec) || event.sourceOffsetSec >= -36000)
   );
   const audioPresenceCache = new Map<string, boolean>();
   const validEvents: ExportAudioEvent[] = [];
@@ -1824,16 +1828,18 @@ async function renderMixedAudioTrack(
 
   for (let i = 0; i < validEvents.length; i++) {
     const event = validEvents[i];
-    const srcStartSec = Math.max(0, event.sourceStartSec);
+    const sourceOffsetSec = Number.isFinite(event.sourceOffsetSec) ? (event.sourceOffsetSec as number) : 0;
+    const srcStartSec = Math.max(0, event.sourceStartSec + sourceOffsetSec);
     const durationSec = Math.max(0, event.durationSec);
     const dstStartMs = Math.max(0, Math.round(event.timelineStartSec * 1000));
+    const gain = Number.isFinite(event.gain) ? Math.max(0, event.gain as number) : 1;
     filterParts.push(
       `[${i}:a]atrim=start=${formatFilterNumber(srcStartSec)}:duration=${formatFilterNumber(durationSec)},` +
-      `asetpts=PTS-STARTPTS,adelay=${dstStartMs}:all=1[a${i}]`
+      `asetpts=PTS-STARTPTS,volume=${formatFilterNumber(gain)},adelay=${dstStartMs}:all=1[a${i}]`
     );
     console.info(
       `[export][audio] event=${i} type=${event.sourceType} scene=${event.sceneId || '-'} cut=${event.cutId || '-'} ` +
-      `srcStart=${srcStartSec.toFixed(3)} dstStart=${event.timelineStartSec.toFixed(3)} dur=${durationSec.toFixed(3)}`
+      `srcStart=${srcStartSec.toFixed(3)} dstStart=${event.timelineStartSec.toFixed(3)} dur=${durationSec.toFixed(3)} gain=${gain.toFixed(3)}`
     );
   }
 

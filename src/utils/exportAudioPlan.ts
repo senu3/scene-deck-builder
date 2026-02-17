@@ -3,10 +3,13 @@ import { resolveCutAsset } from './assetResolve';
 import { computeStoryTimingsForCuts } from './storyTiming';
 
 export interface ExportAudioEvent {
+  assetId?: string;
   sourcePath: string;
   sourceStartSec: number;
+  sourceOffsetSec?: number;
   timelineStartSec: number;
   durationSec: number;
+  gain?: number;
   sceneId?: string;
   cutId?: string;
   sourceType: 'video' | 'cut-attach' | 'scene-attach';
@@ -26,7 +29,7 @@ interface BuildExportAudioPlanInput {
 
 function normalizeSeconds(value: number | undefined, fallback = 0): number {
   if (!Number.isFinite(value)) return fallback;
-  return Math.max(0, value as number);
+  return value as number;
 }
 
 export function buildExportAudioPlan(input: BuildExportAudioPlanInput): ExportAudioPlan {
@@ -46,10 +49,13 @@ export function buildExportAudioPlan(input: BuildExportAudioPlanInput): ExportAu
     const useEmbeddedAudio = cut.useEmbeddedAudio ?? true;
     if (cutAsset?.type === 'video' && cutAsset.path && useEmbeddedAudio) {
       events.push({
+        assetId: cutAsset.id,
         sourcePath: cutAsset.path,
         sourceStartSec: cut.isClip ? normalizeSeconds(cut.inPoint, 0) : 0,
+        sourceOffsetSec: 0,
         timelineStartSec: cutTiming.startSec,
         durationSec: cutTiming.durationSec,
+        gain: 1,
         sceneId: cutTiming.sceneId,
         cutId: cut.id,
         sourceType: 'video',
@@ -61,10 +67,13 @@ export function buildExportAudioPlan(input: BuildExportAudioPlanInput): ExportAu
       const audioAsset = input.getAssetById(binding.audioAssetId);
       if (!audioAsset?.path || audioAsset.type !== 'audio') continue;
       events.push({
+        assetId: audioAsset.id,
         sourcePath: audioAsset.path,
         sourceStartSec: 0,
+        sourceOffsetSec: normalizeSeconds(binding.offsetSec, 0),
         timelineStartSec: cutTiming.startSec,
         durationSec: cutTiming.durationSec,
+        gain: Number.isFinite(binding.gain) ? binding.gain : 1,
         sceneId: cutTiming.sceneId,
         cutId: cut.id,
         sourceType: 'cut-attach',
@@ -80,10 +89,13 @@ export function buildExportAudioPlan(input: BuildExportAudioPlanInput): ExportAu
     const audioAsset = input.getAssetById(binding.audioAssetId);
     if (!audioAsset?.path || audioAsset.type !== 'audio') continue;
     events.push({
+      assetId: audioAsset.id,
       sourcePath: audioAsset.path,
       sourceStartSec: 0,
+      sourceOffsetSec: 0,
       timelineStartSec: sceneTiming.startSec,
       durationSec: sceneTiming.durationSec,
+      gain: Number.isFinite(binding.gain) ? binding.gain : 1,
       sceneId,
       sourceType: 'scene-attach',
     });
