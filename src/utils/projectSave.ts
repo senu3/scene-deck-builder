@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Asset, AssetUsageRef, Scene, SourcePanelState } from '../types';
 import { getScenesAndCutsInTimelineOrder } from './timelineOrder';
 import { normalizeSceneOrder } from './sceneOrder';
-import { resolveCutAsset, resolveCutAssetId } from './assetResolve';
+import { resolveCutAssetFromAssetId, resolveCutAssetId } from './assetResolve';
 
 export interface ProjectSavePayload {
   version: number;
@@ -79,13 +79,16 @@ function prepareCutAssetSnapshot(asset: Asset): Asset {
 }
 
 // Prepare scenes for saving (convert to relative paths)
-export function prepareScenesForSave(scenes: Scene[]): Scene[] {
+export function prepareScenesForSave(
+  scenes: Scene[],
+  getAssetById: (assetId: string) => Asset | undefined
+): Scene[] {
   return scenes.map((scene) => ({
     ...scene,
     cuts: scene.cuts.map((cut) => ({
       ...cut,
       asset: (() => {
-        const resolved = resolveCutAsset(cut, () => undefined);
+        const resolved = resolveCutAssetFromAssetId(cut, getAssetById);
         return resolved ? prepareCutAssetSnapshot(prepareAssetForSave(resolved)) : undefined;
       })(),
     })),

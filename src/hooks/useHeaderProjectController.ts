@@ -171,6 +171,7 @@ export function useHeaderProjectController() {
     scenes,
     sceneOrder,
     vaultPath,
+    getAsset,
     clearProject,
     projectName,
     targetTotalDurationSec,
@@ -219,7 +220,7 @@ export function useHeaderProjectController() {
     }
 
     // Prepare scenes with relative paths for portability
-    const scenesToSave = prepareScenesForSave(normalizedScenes);
+    const scenesToSave = prepareScenesForSave(normalizedScenes, getAsset);
 
     // Get source panel state for saving
     const sourcePanelState = getSourcePanelState();
@@ -294,7 +295,7 @@ export function useHeaderProjectController() {
         await window.electronAPI.saveRecentProjects([newRecent, ...filtered.slice(0, 9)]);
       }
     }
-  }, [dialogAlert, getSourcePanelState, loadProject, metadataStore, projectName, sceneOrder, scenes, setProjectPath, targetTotalDurationSec, toast, vaultPath]);
+  }, [dialogAlert, getAsset, getSourcePanelState, loadProject, metadataStore, projectName, sceneOrder, scenes, setProjectPath, targetTotalDurationSec, toast, vaultPath]);
 
   const handleSaveProject = useCallback(async () => {
     await saveProjectInternal();

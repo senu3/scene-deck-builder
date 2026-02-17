@@ -67,7 +67,7 @@ describe('buildSequenceItemsForExport', () => {
     expect(items).toHaveLength(2);
     expect(items[0].duration).toBe(4.2);
     expect(items[1].duration).toBe(1.0);
-    expect(warnSpy).toHaveBeenCalledTimes(2);
+    expect(warnSpy).toHaveBeenCalledTimes(3);
   });
 
   it('maps cut subtitle to export item and clamps subtitle range by item duration', () => {

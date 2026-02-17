@@ -13,7 +13,8 @@
     "electron": "electron .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check:gate": "node scripts/check-gate.mjs"
+    "check:gate": "node scripts/check-gate.mjs",
+    "check:gate:strict": "node scripts/check-gate.mjs --strict"
   },
   "keywords": [
     "electron",

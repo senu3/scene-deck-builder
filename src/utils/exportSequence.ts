@@ -89,7 +89,12 @@ function buildExportSequenceItemFromCut(
 ): ExportSequenceItem | null {
   const cutAsset = resolveAssetForExport(cut, options);
   const path = cutAsset?.path || '';
-  if (!path) return null;
+  if (!path) {
+    console.warn(
+      `[export] Skipping cut ${context.cutId}${context.sceneId ? ` in scene ${context.sceneId}` : ''}: asset path is unresolved.`
+    );
+    return null;
+  }
 
   if (cutAsset?.type === 'audio') {
     console.warn(`[export] Skipping audio-only cut ${context.cutId}${context.sceneId ? ` in scene ${context.sceneId}` : ''}.`);

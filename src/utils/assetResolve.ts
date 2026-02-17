@@ -20,6 +20,11 @@ export function resolveCutAsset(cut: CutLike | null | undefined, getAsset: GetAs
   return getAsset(cut.assetId) ?? cut.asset ?? null;
 }
 
+export function resolveCutAssetFromAssetId(cut: CutLike | null | undefined, getAsset: GetAssetById): Asset | null {
+  if (!cut?.assetId) return null;
+  return getAsset(cut.assetId) ?? null;
+}
+
 export function resolveCutAssetId(cut: CutLike | null | undefined, getAsset: GetAssetById): string | null {
   if (!cut) return null;
   if (cut.assetId) return cut.assetId;
