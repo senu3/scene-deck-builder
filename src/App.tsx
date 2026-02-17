@@ -68,6 +68,7 @@ import { buildExportTimelineEntries, buildManifestJson, buildTimelineText } from
 import type { SubtitleStyleSettings } from './utils/subtitleStyleSettings';
 import { getSubtitleStyleForExport } from './features/export/subtitleStyle';
 import { buildExportAudioPlan } from './utils/exportAudioPlan';
+import { resolveCutAsset } from './utils/assetResolve';
 import { useBanner, useToast } from './ui';
 import './styles/App.css';
 
@@ -788,7 +789,7 @@ function App() {
     if (!videoPreviewCutId) return null;
     for (const scene of orderedScenes) {
       const cut = scene.cuts.find(c => c.id === videoPreviewCutId);
-      const resolvedAsset = cut ? (getAsset(cut.assetId) || cut.asset) : undefined;
+      const resolvedAsset = cut ? resolveCutAsset(cut, getAsset) : null;
       if (cut && resolvedAsset) {
         return { scene, cut, asset: resolvedAsset };
       }

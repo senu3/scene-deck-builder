@@ -7,6 +7,7 @@ import { importFileToVault } from '../utils/assetPath';
 import { extractVideoMetadata } from '../utils/videoUtils';
 import { getThumbnail } from '../utils/thumbnailCache';
 import { getCuttableMediaType } from '../utils/mediaType';
+import { resolveCutAsset } from '../utils/assetResolve';
 import { createAutosaveController, subscribeProjectChanges } from '../utils/autosave';
 import { collectAssetRefs, findDanglingAssetRefs } from '../utils/assetRefs';
 import {
@@ -108,9 +109,10 @@ async function resolveScenesAssets(scenes: Scene[], vaultPath: string): Promise<
     const resolvedCuts = await Promise.all(
       scene.cuts.map(async (cut) => {
         const cutAssetId = cut.assetId || cut.asset?.id;
-        if (cut.asset || cutAssetId) {
-          const baseAsset: Asset | undefined = cut.asset
-            ? { ...cut.asset, id: cutAssetId || cut.asset.id }
+        const resolvedCutAsset = resolveCutAsset(cut, () => undefined);
+        if (resolvedCutAsset || cutAssetId) {
+          const baseAsset: Asset | undefined = resolvedCutAsset
+            ? { ...resolvedCutAsset, id: cutAssetId || resolvedCutAsset.id }
             : (cutAssetId ? await hydrateAssetFromIndex(cutAssetId) : undefined);
 
           if (!baseAsset) return cut;
@@ -325,9 +327,10 @@ export function useHeaderProjectController() {
           finalScenes = await Promise.all(finalScenes.map(async scene => {
             if (scene.id === decision.sceneId) {
               const updatedCuts = await Promise.all(scene.cuts.map(async cut => {
-                if (cut.id === decision.cutId && cut.asset) {
+                const currentAsset = resolveCutAsset(cut, () => undefined);
+                if (cut.id === decision.cutId && currentAsset) {
                   const newPath = decision.newPath!;
-                  const newName = newPath.split(/[/\\]/).pop() || cut.asset.name;
+                  const newName = newPath.split(/[/\\]/).pop() || currentAsset.name;
                   const newType = getCuttableMediaType(newName) || 'image';
 
                   // Get new thumbnail and metadata
@@ -358,7 +361,7 @@ export function useHeaderProjectController() {
                   const importedAsset = await importFileToVault(
                     newPath,
                     project.vaultPath,
-                    cut.asset.id,
+                    cut.assetId || currentAsset.id,
                     {
                       name: newName,
                       type: newType,
@@ -380,7 +383,7 @@ export function useHeaderProjectController() {
                   // Fallback: just update the path with new info
                   return {
                     ...cut,
-                    asset: { ...cut.asset, path: newPath, name: newName, type: newType, thumbnail, duration, metadata },
+                    asset: { ...currentAsset, path: newPath, name: newName, type: newType, thumbnail, duration, metadata },
                     displayTime: newType === 'video' && duration ? duration : cut.displayTime,
                   };
                 }
@@ -399,12 +402,13 @@ export function useHeaderProjectController() {
     finalScenes = await Promise.all(finalScenes.map(async scene => {
       const updatedCuts = await Promise.all(scene.cuts.map(async cut => {
         // Only process video clips with valid IN points
-        if (cut.isClip && cut.inPoint !== undefined && cut.asset?.type === 'video' && cut.asset.path) {
-          const newThumbnail = await getThumbnail(cut.asset.path, 'video', { timeOffset: cut.inPoint });
+        const currentAsset = resolveCutAsset(cut, () => undefined);
+        if (cut.isClip && cut.inPoint !== undefined && currentAsset?.type === 'video' && currentAsset.path) {
+          const newThumbnail = await getThumbnail(currentAsset.path, 'video', { timeOffset: cut.inPoint });
           if (newThumbnail) {
             return {
               ...cut,
-              asset: { ...cut.asset, thumbnail: newThumbnail },
+              asset: { ...currentAsset, thumbnail: newThumbnail },
             };
           }
         }

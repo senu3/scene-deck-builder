@@ -108,7 +108,7 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
   const loadingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const cutRuntime = getCutRuntime(cut.id);
-  const resolvedAssetForLoading = getAsset(cut.assetId) || cut.asset;
+  const resolvedAssetForLoading = resolveCutAsset(cut, getAsset);
   const isCutLoading = (cutRuntime?.isLoading ?? false) && !resolvedAssetForLoading;
   const cutLoadingName = cutRuntime?.loadingName || resolvedAssetForLoading?.name;
 

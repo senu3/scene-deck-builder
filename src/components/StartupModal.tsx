@@ -20,6 +20,7 @@ import { importFileToVault } from '../utils/assetPath';
 import { extractVideoMetadata } from '../utils/videoUtils';
 import { getThumbnail } from '../utils/thumbnailCache';
 import { getCuttableMediaType } from '../utils/mediaType';
+import { resolveCutAsset } from '../utils/assetResolve';
 import './StartupModal.css';
 
 // Resolve asset paths from relative to absolute
@@ -58,7 +59,7 @@ async function resolveScenesAssets(scenes: Scene[], vaultPath: string): Promise<
   for (const scene of scenes) {
     const resolvedCuts = await Promise.all(
       scene.cuts.map(async (cut) => {
-        const currentAsset = cut.asset;
+        const currentAsset = resolveCutAsset(cut, () => undefined);
         if (currentAsset) {
           const resolvedAsset = await resolveAssetPath(currentAsset, vaultPath);
 
@@ -92,7 +93,7 @@ async function resolveScenesAssets(scenes: Scene[], vaultPath: string): Promise<
 
 function hasLegacyRelativeAssetPaths(scenes: Scene[]): boolean {
   return scenes.some((scene) =>
-    scene.cuts?.some((cut) => cut.asset?.path?.startsWith('assets/'))
+    scene.cuts?.some((cut) => resolveCutAsset(cut, () => undefined)?.path?.startsWith('assets/'))
   );
 }
 
@@ -340,7 +341,7 @@ export default function StartupModal() {
           finalScenes = await Promise.all(finalScenes.map(async scene => {
             if (scene.id === decision.sceneId) {
               const updatedCuts = await Promise.all(scene.cuts.map(async cut => {
-                const currentAsset = cut.asset;
+                const currentAsset = resolveCutAsset(cut, () => undefined);
                 if (cut.id === decision.cutId && currentAsset) {
                   const newPath = decision.newPath!;
                   const newName = newPath.split(/[/\\]/).pop() || currentAsset.name;
@@ -415,7 +416,7 @@ export default function StartupModal() {
     finalScenes = await Promise.all(finalScenes.map(async scene => {
       const updatedCuts = await Promise.all(scene.cuts.map(async cut => {
         // Only process video clips with valid IN points
-        const currentAsset = cut.asset;
+        const currentAsset = resolveCutAsset(cut, () => undefined);
         if (cut.isClip && cut.inPoint !== undefined && currentAsset?.type === 'video' && currentAsset.path) {
           const newThumbnail = await getThumbnail(currentAsset.path, 'video', { timeOffset: cut.inPoint });
           if (newThumbnail) {

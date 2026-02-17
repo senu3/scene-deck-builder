@@ -35,7 +35,7 @@ export function collectAssetRefs(scenes: Scene[], metadataStore: MetadataStore |
 
   for (const scene of scenes) {
     for (const cut of scene.cuts) {
-      const cutAssetId = cut.asset?.id || cut.assetId;
+      const cutAssetId = cut.assetId || cut.asset?.id;
       if (!cutAssetId) continue;
       pushRef(refs, {
         assetId: cutAssetId,

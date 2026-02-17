@@ -1,4 +1,5 @@
 import type { Asset, Cut } from '../../types';
+import { resolveCutAsset } from '../../utils/assetResolve';
 
 export interface CutContextInfo {
   sceneId: string;
@@ -41,7 +42,7 @@ export function buildExportTimelineEntries(
     current = endSec;
 
     const context = resolveContext(cut);
-    const asset = resolveAsset(cut.assetId) || cut.asset;
+    const asset = resolveCutAsset(cut, resolveAsset);
     entries.push({
       index: i,
       startSec,

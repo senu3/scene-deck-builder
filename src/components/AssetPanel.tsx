@@ -574,7 +574,7 @@ export default function AssetPanel({
         const idx = scene.cuts.findIndex((c) => c.id === selectedCutId);
         if (idx >= 0) {
           const cut = scene.cuts[idx];
-          const cutAssetId = cut.asset?.id || cut.assetId;
+          const cutAssetId = cut.assetId || cut.asset?.id;
           if (cutAssetId && idSet.has(cutAssetId)) {
             return { scene, cut, index: idx };
           }
@@ -584,7 +584,7 @@ export default function AssetPanel({
 
     for (const scene of scenes) {
       const idx = scene.cuts.findIndex((c) => {
-        const cutAssetId = c.asset?.id || c.assetId;
+        const cutAssetId = c.assetId || c.asset?.id;
         return cutAssetId ? idSet.has(cutAssetId) : false;
       });
       if (idx >= 0) {
