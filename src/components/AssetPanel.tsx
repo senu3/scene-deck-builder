@@ -879,7 +879,7 @@ export default function AssetPanel({
     }
 
     setAssets((prev) => prev.filter((a) => a.path !== asset.path));
-    removeThumbnailCache(asset.path);
+    removeThumbnailCache(asset.path, { profile: 'asset-grid' });
     toast.success('Asset moved to trash', asset.sourceName);
     setAssetContextMenu(null);
   };

@@ -149,7 +149,7 @@ export default function Sidebar() {
   };
 
   const loadThumbnail = useCallback(async (filePath: string, mediaType: 'image' | 'video' | null) => {
-    const cached = getCachedThumbnail(filePath);
+    const cached = getCachedThumbnail(filePath, { profile: 'asset-grid' });
     if (cached) return cached;
     if (!mediaType) return null;
     try {
@@ -405,14 +405,14 @@ interface FileItemComponentProps {
 function FileItemComponent({ item, depth, mediaType, loadThumbnail, thumbnailVersion, viewMode }: FileItemComponentProps) {
   const { scenes, sceneOrder, selectedSceneId, createCutFromImport } = useStore();
   const [thumbnail, setThumbnail] = useState<string | null>(
-    getCachedThumbnail(item.path) || null
+    getCachedThumbnail(item.path, { profile: 'asset-grid' }) || null
   );
   const [isLoading, setIsLoading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
 
   // Auto-load thumbnail when component mounts (if not already cached)
   useEffect(() => {
-    const cached = getCachedThumbnail(item.path);
+    const cached = getCachedThumbnail(item.path, { profile: 'asset-grid' });
     if (cached) {
       setThumbnail(cached);
       return;

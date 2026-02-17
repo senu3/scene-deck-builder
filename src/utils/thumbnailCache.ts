@@ -10,7 +10,7 @@ interface ThumbnailCacheLimits {
 interface ThumbnailRequestOptions {
   timeOffset?: number;
   key?: string;
-  profile?: 'timeline-card' | 'asset-grid' | 'sequence-preview' | 'details-panel';
+  profile: 'timeline-card' | 'asset-grid' | 'sequence-preview' | 'details-panel';
 }
 
 interface CacheEntry {
@@ -36,10 +36,13 @@ function estimateStringBytes(value: string): number {
   return value.length * 2;
 }
 
-function makeCacheKey(path: string, options?: ThumbnailRequestOptions): string {
-  if (options?.key) return options.key;
-  const timeOffset = typeof options?.timeOffset === 'number' ? options.timeOffset : 'default';
-  const profile = options?.profile ?? 'timeline-card';
+function makeCacheKey(path: string, options: ThumbnailRequestOptions): string {
+  if (!options.profile) {
+    throw new Error('Thumbnail profile is required. Use a profile-specific request option.');
+  }
+  if (options.key) return options.key;
+  const timeOffset = typeof options.timeOffset === 'number' ? options.timeOffset : 'default';
+  const profile = options.profile;
   return `${path}|t=${timeOffset}|p=${profile}`;
 }
 
@@ -72,7 +75,7 @@ export function getThumbnailCacheStats(): { items: number; bytes: number; limits
   return { items: cache.size, bytes: totalBytes, limits: { ...limits } };
 }
 
-export function getCachedThumbnail(path: string, options?: ThumbnailRequestOptions): string | null {
+export function getCachedThumbnail(path: string, options: ThumbnailRequestOptions): string | null {
   const key = makeCacheKey(path, options);
   const entry = cache.get(key);
   if (!entry) return null;
@@ -80,7 +83,7 @@ export function getCachedThumbnail(path: string, options?: ThumbnailRequestOptio
   return entry.data;
 }
 
-export function removeThumbnailCache(path: string, options?: ThumbnailRequestOptions): void {
+export function removeThumbnailCache(path: string, options: ThumbnailRequestOptions): void {
   const key = makeCacheKey(path, options);
   const entry = cache.get(key);
   if (!entry) return;
@@ -97,7 +100,7 @@ export function clearThumbnailCache(): void {
 export async function getThumbnail(
   path: string,
   type: ThumbnailMediaType,
-  options?: ThumbnailRequestOptions
+  options: ThumbnailRequestOptions
 ): Promise<string | null> {
   const key = makeCacheKey(path, options);
   const cached = cache.get(key);
@@ -114,14 +117,14 @@ export async function getThumbnail(
       let data: string | null = null;
       if (window.electronAPI?.generateThumbnail) {
         const result = await window.electronAPI.generateThumbnail(path, type, {
-          timeOffset: options?.timeOffset,
-          profile: options?.profile ?? 'timeline-card',
+          timeOffset: options.timeOffset,
+          profile: options.profile,
         });
         data = result?.success ? (result.thumbnail ?? null) : null;
       }
 
       if (!data && type === 'video') {
-        data = await generateVideoThumbnail(path, options?.timeOffset);
+        data = await generateVideoThumbnail(path, options.timeOffset);
       } else if (!data && window.electronAPI) {
         // Legacy fallback only; new flow should use generateThumbnail IPC.
         data = await window.electronAPI.readFileAsBase64(path);
