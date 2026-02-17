@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Scene, Cut, Asset } from '../../types';
 import { clearThumbnailCache } from '../../utils/thumbnailCache';
 import { normalizeSceneOrder } from '../../utils/sceneOrder';
+import { resolveCutAsset } from '../../utils/assetResolve';
 import type { SourceFolder } from '../stateTypes';
 import type { ProjectSliceContract } from '../contracts';
 import type { SliceGet, SliceSet } from './sliceTypes';
@@ -27,13 +28,14 @@ function buildAssetCacheFromScenes(scenes: Scene[]): Map<string, Asset> {
   const cache = new Map<string, Asset>();
   for (const scene of scenes) {
     for (const cut of scene.cuts) {
-      if (!cut.asset) continue;
-      const lookupId = cut.assetId || cut.asset.id;
+      const cutAsset = resolveCutAsset(cut, () => undefined);
+      if (!cutAsset) continue;
+      const lookupId = cut.assetId || cutAsset.id;
       if (lookupId) {
-        cache.set(lookupId, { ...cut.asset, id: lookupId });
+        cache.set(lookupId, { ...cutAsset, id: lookupId });
       }
-      if (cut.asset.id && cut.asset.id !== lookupId) {
-        cache.set(cut.asset.id, cut.asset);
+      if (cutAsset.id && cutAsset.id !== lookupId) {
+        cache.set(cutAsset.id, cutAsset);
       }
     }
   }

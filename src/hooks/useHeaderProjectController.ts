@@ -108,8 +108,8 @@ async function resolveScenesAssets(scenes: Scene[], vaultPath: string): Promise<
   for (const scene of scenes) {
     const resolvedCuts = await Promise.all(
       scene.cuts.map(async (cut) => {
-        const cutAssetId = cut.assetId || cut.asset?.id;
         const resolvedCutAsset = resolveCutAsset(cut, () => undefined);
+        const cutAssetId = cut.assetId || resolvedCutAsset?.id;
         if (resolvedCutAsset || cutAssetId) {
           const baseAsset: Asset | undefined = resolvedCutAsset
             ? { ...resolvedCutAsset, id: cutAssetId || resolvedCutAsset.id }

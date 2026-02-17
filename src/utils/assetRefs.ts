@@ -1,4 +1,5 @@
 import type { MetadataStore, Scene } from '../types';
+import { resolveCutAsset } from './assetResolve';
 
 export type AssetRefKind =
   | 'cut'
@@ -35,7 +36,7 @@ export function collectAssetRefs(scenes: Scene[], metadataStore: MetadataStore |
 
   for (const scene of scenes) {
     for (const cut of scene.cuts) {
-      const cutAssetId = cut.assetId || cut.asset?.id;
+      const cutAssetId = cut.assetId || resolveCutAsset(cut, () => undefined)?.id;
       if (!cutAssetId) continue;
       pushRef(refs, {
         assetId: cutAssetId,
