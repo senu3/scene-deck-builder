@@ -4,7 +4,7 @@ import { upsertSceneMetadata, removeSceneMetadata } from '../../utils/metadataSt
 import { buildAssetForCut } from '../../utils/cutImport';
 import { getScenesAndCutsInTimelineOrder } from '../../utils/timelineOrder';
 import { normalizeSceneOrder } from '../../utils/sceneOrder';
-import { resolveCutDuration } from '../../utils/assetResolve';
+import { resolveCutAsset, resolveCutDuration } from '../../utils/assetResolve';
 import type { ClipboardCut } from '../stateTypes';
 import type { CutTimelineSliceContract } from '../contracts';
 import type { SliceGet, SliceSet } from './sliceTypes';
@@ -606,7 +606,7 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
       const clipboardData = selectedCuts.reduce<ClipboardCut[]>((acc, { cut }) => {
         acc.push({
           assetId: cut.assetId,
-          asset: state.getAsset(cut.assetId) || cut.asset,
+          asset: resolveCutAsset(cut, state.getAsset) ?? undefined,
           displayTime: cut.displayTime,
           useEmbeddedAudio: cut.useEmbeddedAudio,
           audioBindings: cut.audioBindings?.map((binding) => ({ ...binding })),

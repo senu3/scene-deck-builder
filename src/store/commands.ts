@@ -10,6 +10,7 @@ import {
   type SimpleAutoClipMode,
 } from '../features/cut/simpleAutoClip';
 import { generateVideoClipThumbnail } from '../features/cut/clipThumbnail';
+import { resolveCutAsset as resolveCutAssetById } from '../utils/assetResolve';
 
 function restoreCutState(
   store: ReturnType<typeof useStore.getState>,
@@ -30,7 +31,7 @@ function restoreCutState(
 }
 
 function resolveCutAsset(store: ReturnType<typeof useStore.getState>, cut: Cut): Asset | undefined {
-  return store.getAsset(cut.assetId) || cut.asset;
+  return resolveCutAssetById(cut, store.getAsset) ?? undefined;
 }
 
 function getAssetDisplayName(asset: Asset): string {
