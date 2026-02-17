@@ -63,7 +63,6 @@
 - Gate 10 (重い処理の分離): 解析・変換・合成など重い処理は登録時/変換時へ寄せ、再生ループへ入れない。
 
 ## Known Broken Invariants
-- Gate 2 (`cut.order` 整合): `src/utils/timelineOrder.ts` が fallback ソートを許容しており、壊れたデータが実行時に温存される余地がある（`Partial`）。
 - Gate 3 (時系列定義): `displayTime` 正規化は共通化済みだが、Preview 側にはローカルな時間窓計算が残っており canonical timing API への完全統合は未完了（`Partial`）。
 - Gate 4 (`displayTime` 正規化): 共通ヘルパ (`resolveNormalizedCutDisplayTime`) を導入済み。残課題は全経路でこの入口へ統一されているかの継続監査（`Partial`）。
 - Gate 5 (Preview/Export parity): full/range export の sequence item 生成は統一済み。再生側 media item 構築は別レイヤ実装のため、framing/lipsync/audio も含めた完全 parity は未完了（`Partial`）。

@@ -181,6 +181,9 @@ rg -n "requestAnimationFrame\(|setInterval\(|analyzeAudioRms\(|read-audio-pcm|ff
 - Gate 6: `ADR -> Partial`
   - 境界定義を ADR-0003 で固定。
   - 残課題は違反検出の自動化。
+- Gate 2: `Known broken -> Resolved (for current load/runtime paths)`
+  - `safeOrder` fallback を撤去。
+  - load 正規化で `cut.order` を配列順へ再設定。
 - Gate 8: `Known broken -> Partial`
   - `cut.asset` 直接参照は `src/utils/assetResolve.ts` に局所化。
   - `assetId` 主経路 + read-time fallback の形に収束。
@@ -194,8 +197,10 @@ rg -n "requestAnimationFrame\(|setInterval\(|analyzeAudioRms\(|read-audio-pcm|ff
 - `2544ab5` `refactor: route range export through shared sequence builder`
 - `1a7ffd0` `refactor: use shared cut asset resolver in store actions`
 - `3540b67` `refactor: centralize cut asset fallback in asset resolver`
+- `24ee0a4` `chore: add warning-only gate check script`
+- `206d446` `docs: add ADR for command boundary and refresh gate status`
 
 ### Gateチェック自動化（Stage A: warning-only）
 - `npm run check:gate` を追加（`scripts/check-gate.mjs`）。
 - 現在は warning-only で運用し、`--strict` 指定時のみ non-zero exit。
-- 最新実行結果では Gate2 (`safeOrder` fallback) のみ警告。
+- 最新実行結果は warning 0。

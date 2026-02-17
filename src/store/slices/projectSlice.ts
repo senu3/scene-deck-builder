@@ -10,7 +10,7 @@ import type { SliceGet, SliceSet } from './sliceTypes';
 function normalizeScenesUseEmbeddedAudio(scenes: Scene[]): Scene[] {
   return scenes.map((scene) => ({
     ...scene,
-    cuts: scene.cuts.map((cut) => {
+    cuts: scene.cuts.map((cut, index) => {
       const {
         isLoading: _isLoading,
         loadingName: _loadingName,
@@ -18,6 +18,7 @@ function normalizeScenesUseEmbeddedAudio(scenes: Scene[]): Scene[] {
       } = cut as Cut & { isLoading?: boolean; loadingName?: string };
       return {
         ...rest,
+        order: index,
         useEmbeddedAudio: cut.useEmbeddedAudio ?? true,
       };
     }),
