@@ -1,5 +1,10 @@
 # Backward Compatibility Inventory (2026-02-18)
 
+**Status**: Implemented (archived)  
+**Implemented by**:
+- `ac68d38` `chore(v4): start backward-compatibility removal`
+- `481252d` `chore(v5): remove remaining compatibility fallbacks`
+
 **目的**: 後方互換の残存ポイントを実コードベースで棚卸しし、撤去条件・移行導線・検知方法を固定する。  
 **適用範囲**: `project.sdp` / `.metadata.json` / renderer-main IPC / `cut.asset` fallback。  
 **Must**:
