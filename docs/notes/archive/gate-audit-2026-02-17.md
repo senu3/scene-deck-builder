@@ -324,3 +324,24 @@ rg -n "requestAnimationFrame\(|setInterval\(|analyzeAudioRms\(|read-audio-pcm|ff
 ### 検証
 - `npm run check:gate`
 - `npm run check:gate:strict`
+
+---
+
+## Update 2026-02-18 (Phase2.5 Gate10 Hotpath Audit Pass)
+
+### 状態更新
+- Gate 10: `Partial` 進展
+  - 再生ホットパス（`play/seek/tick`）に監査対象を限定し、重処理混入の静的検出を追加。
+  - 監査対象:
+    - `src/components/PreviewModal.tsx` の `requestAnimationFrame(update)` ブロック
+    - `src/utils/previewPlaybackController.ts` の `tick` ブロック
+    - `src/utils/previewMedia.tsx` の `PreviewClock.tick` ブロック
+  - `check:gate:strict` で以下の再流入を fail:
+    - 同期I/O / 同期プロセスAPI
+    - process spawn
+    - heavy electron API（`readAudioPcm` / `exportSequence` / `showSaveSequenceDialog` / `generateThumbnail` / `getVideoMetadata`）
+    - `analyzeAudioRms(...)`
+
+### 検証
+- `npm run check:gate:strict`
+- `npm run build`

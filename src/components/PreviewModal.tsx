@@ -2262,6 +2262,7 @@ export default function PreviewModal({
 
     let rafId = 0;
     const update = () => {
+      // Hotpath rule (Gate 10): requestAnimationFrame loop updates UI only.
       const totalDuration = sequenceState.totalDuration;
       if (totalDuration > 0) {
         const liveTime = getSequenceLiveAbsoluteTime();

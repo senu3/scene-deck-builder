@@ -36,6 +36,30 @@ function lineOf(source, index) {
   return source.slice(0, index).split('\n').length;
 }
 
+function checkHotpathBlock({
+  warningsRef,
+  source,
+  file,
+  gate,
+  startRegex,
+  lookaheadChars,
+  forbiddenPatterns,
+}) {
+  for (const m of findAll(source, startRegex)) {
+    const block = source.slice(m.index, Math.min(source.length, m.index + lookaheadChars));
+    for (const forbidden of forbiddenPatterns) {
+      forbidden.pattern.lastIndex = 0;
+      if (!forbidden.pattern.test(block)) continue;
+      warningsRef.push({
+        gate,
+        file,
+        line: lineOf(source, m.index),
+        message: forbidden.message,
+      });
+    }
+  }
+}
+
 const files = walk(srcDir);
 const warnings = [];
 const gate6AllowedUseStoreSetStateFiles = new Set([
@@ -46,6 +70,29 @@ const gate6AllowedScenesSetFiles = new Set([
   'src/store/slices/groupSlice.ts',
   'src/store/slices/projectSlice.ts',
 ]);
+const gate10HotpathFiles = new Set([
+  'src/components/PreviewModal.tsx',
+  'src/utils/previewPlaybackController.ts',
+  'src/utils/previewMedia.tsx',
+]);
+const gate10ForbiddenInHotpathBlock = [
+  {
+    pattern: /\b(readFileSync|writeFileSync|appendFileSync|openSync|statSync|spawnSync|execSync)\b/g,
+    message: 'sync I/O/process API detected in playback hotpath block',
+  },
+  {
+    pattern: /\bwindow\.electronAPI\.(readAudioPcm|exportSequence|showSaveSequenceDialog|generateThumbnail|getVideoMetadata)\b/g,
+    message: 'electron heavy API detected in playback hotpath block',
+  },
+  {
+    pattern: /\banalyzeAudioRms\s*\(/g,
+    message: 'audio analysis detected in playback hotpath block',
+  },
+  {
+    pattern: /\bspawn\s*\(/g,
+    message: 'process spawn usage detected in playback hotpath block',
+  },
+];
 
 for (const file of files) {
   const r = rel(file);
@@ -129,6 +176,51 @@ for (const file of files) {
         message: 'set(...scenes:...) outside Gate6 allowlist',
       });
     }
+  }
+
+  // Gate 10: playback hotpath must not include heavy processing.
+  if (gate10HotpathFiles.has(r)) {
+    for (const m of findAll(src, /from\s+['"]node:|from\s+['"]fs['"]|from\s+['"]child_process['"]/g)) {
+      warnings.push({
+        gate: 'Gate10',
+        file: r,
+        line: lineOf(src, m.index),
+        message: 'node/fs/process import detected in playback hotpath file',
+      });
+    }
+  }
+  if (r === 'src/components/PreviewModal.tsx') {
+    checkHotpathBlock({
+      warningsRef: warnings,
+      source: src,
+      file: r,
+      gate: 'Gate10',
+      startRegex: /const update = \(\) => \{/g,
+      lookaheadChars: 1200,
+      forbiddenPatterns: gate10ForbiddenInHotpathBlock,
+    });
+  }
+  if (r === 'src/utils/previewPlaybackController.ts') {
+    checkHotpathBlock({
+      warningsRef: warnings,
+      source: src,
+      file: r,
+      gate: 'Gate10',
+      startRegex: /const tick = useCallback\(\(localTime: number\) => \{/g,
+      lookaheadChars: 1800,
+      forbiddenPatterns: gate10ForbiddenInHotpathBlock,
+    });
+  }
+  if (r === 'src/utils/previewMedia.tsx') {
+    checkHotpathBlock({
+      warningsRef: warnings,
+      source: src,
+      file: r,
+      gate: 'Gate10',
+      startRegex: /private tick = \(\) => \{/g,
+      lookaheadChars: 1200,
+      forbiddenPatterns: gate10ForbiddenInHotpathBlock,
+    });
   }
 }
 

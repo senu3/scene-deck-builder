@@ -106,6 +106,7 @@ class PreviewClock {
   }
 
   private tick = () => {
+    // Hotpath rule (Gate 10): time progression only, no heavy processing.
     if (!this.isPlaying) return;
 
     const nowMs = Date.now();

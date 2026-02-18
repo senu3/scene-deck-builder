@@ -267,6 +267,7 @@ export function useSequencePlaybackController(itemDurations: number[]) {
   }, [seekWithIndex]);
 
   const tick = useCallback((localTime: number) => {
+    // Hotpath rule (Gate 10): keep tick pure and lightweight (no I/O, process launch, analysis).
     const current = stateRef.current;
     if (current.itemDurations.length === 0) return;
     if (stoppedAtOutPointRef.current) return;

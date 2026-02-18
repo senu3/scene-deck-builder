@@ -224,5 +224,8 @@
 - Gate 6 は strict 検知を導入済み（`Partial` 維持）。
   - `check:gate:strict` で `useStore.setState(` と `set(...scenes:...)` を許可リスト方式で監査。
   - 新規の境界外追加は strict fail。
+- Gate 10 は再生ホットパス限定監査を実施済み（`Partial` 進展）。
+  - 対象: `PreviewModal` の `requestAnimationFrame(update)`、`previewPlaybackController.tick`、`previewMedia.PreviewClock.tick`。
+  - `check:gate:strict` に hotpath block 監査を追加し、同期I/O・process spawn・heavy electron API・解析呼び出しの再流入を fail 化。
 - Phase 2.5 の残タスク:
-  - Gate 10 再生ホットパス限定監査
+  - なし（Phase 2.5 計画タスクは完了）
