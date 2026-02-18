@@ -25,8 +25,8 @@
   マスク合成は登録時に前処理し、再生中は RMS -> フレーム切替のみを行う。
 - **base64 を metadata に永続化しない**  
   画像/マスクは Vault asset に保存し、metadata は `assetId` 参照のみ保持する。
-- **既存 LipSync との互換を維持**  
-  `compositedFrameAssetIds` が無い場合は `baseImageAssetId + variantAssetIds` にフォールバックする。
+- **v2正規化を維持**  
+  `compositedFrameAssetIds` を必須として扱い、load 時に欠損データは one-time normalize で補完する。
 
 ## Data Model
 `AssetMetadata.lipSync` に設定を格納する。
@@ -36,7 +36,7 @@ type LipSyncSettings = {
   baseImageAssetId: string;         // closed
   variantAssetIds: string[];        // [half1, half2, open]
   maskAssetId?: string;             // Optional mouth mask
-  compositedFrameAssetIds?: string[]; // Optional [closed, half1, half2, open]
+  compositedFrameAssetIds: string[]; // [closed, half1, half2, open] (runtime required)
   ownerAssetId?: string;            // LipSync owner (target assetId)
   ownedGeneratedAssetIds?: string[]; // Current generated bundle (mask/composited)
   orphanedGeneratedAssetIds?: string[]; // Old generated assets from re-register
@@ -51,9 +51,7 @@ type LipSyncSettings = {
 ## Asset Handling
 - フレーム/マスクは `importDataUrlAsset` で Vault に保存する。
 - metadata にはバイナリを持たせない。
-- 再生で使うフレーム列は `getLipSyncFrameAssetIds(settings)` で解決する。
-  - 優先: `compositedFrameAssetIds`
-  - fallback: `[baseImageAssetId, ...variantAssetIds]`
+- 再生で使うフレーム列は `getLipSyncFrameAssetIds(settings)` で `compositedFrameAssetIds` のみを解決する。
 
 ## Bundle Ownership
 - LipSync 生成物（mask/composited）は `ownerAssetId` を軸に同一バンドルとして扱う。

@@ -43,6 +43,9 @@
   - UI-02: top-level IPC (`import-asset-to-vault` / `save-asset-index` / `move-to-trash-with-meta`) を撤去し、`vaultGateway.*` に統一。
   - FB-02: `resolveCutAssetId` の `cut.asset.id` fallback を撤去。
   - DF-05: load 時の `version` 欠損を補完し、`version:3` で one-time 再保存する移行導線を追加。
+- 2026-02-18: `v5` の Step 3 を実施。
+  - FB-01: `resolveCutAsset` の `cut.asset` fallback を撤去し、`assetId` 経路のみに統一。
+  - DF-04: LipSync frame 解決の v1 fallback を撤去。`compositedFrameAssetIds` 欠損は load 正規化で補完し、runtime は v2 前提へ統一。
 
 ## 参考
 - `docs/ARCHITECTURE.md`

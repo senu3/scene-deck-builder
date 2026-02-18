@@ -87,8 +87,8 @@ export function buildLipSyncSources(
 }
 
 export function getLipSyncFrameAssetIds(settings: LipSyncSettings): string[] {
-  if (Array.isArray(settings.compositedFrameAssetIds) && settings.compositedFrameAssetIds.length > 0) {
-    return settings.compositedFrameAssetIds;
+  if (!Array.isArray(settings.compositedFrameAssetIds) || settings.compositedFrameAssetIds.length === 0) {
+    return [];
   }
-  return [settings.baseImageAssetId, ...settings.variantAssetIds];
+  return settings.compositedFrameAssetIds;
 }

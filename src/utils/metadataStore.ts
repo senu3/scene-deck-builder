@@ -7,6 +7,48 @@ import type { MetadataStore, AssetMetadata, Scene, SceneMetadata, SceneAudioBind
 const METADATA_FILE = '.metadata.json';
 const CURRENT_VERSION = 1;
 
+function normalizeLipSyncSettings(lipSync: AssetMetadata['lipSync']): { lipSync: AssetMetadata['lipSync']; changed: boolean } {
+  if (!lipSync) return { lipSync, changed: false };
+  const hasComposited = Array.isArray(lipSync.compositedFrameAssetIds) && lipSync.compositedFrameAssetIds.length > 0;
+  if (hasComposited && lipSync.version === 2) {
+    return { lipSync, changed: false };
+  }
+  const fallbackComposited = [lipSync.baseImageAssetId, ...lipSync.variantAssetIds].filter((id) => typeof id === 'string' && id.length > 0);
+  const normalized = {
+    ...lipSync,
+    compositedFrameAssetIds: hasComposited ? lipSync.compositedFrameAssetIds : fallbackComposited,
+    version: 2 as const,
+  };
+  return {
+    lipSync: normalized,
+    changed:
+      lipSync.version !== 2 ||
+      !hasComposited,
+  };
+}
+
+function normalizeLoadedMetadataStore(store: MetadataStore): MetadataStore {
+  let changed = false;
+  const nextMetadata: Record<string, AssetMetadata> = {};
+  for (const [assetId, metadata] of Object.entries(store.metadata || {})) {
+    const normalizedLipSync = normalizeLipSyncSettings(metadata?.lipSync);
+    if (normalizedLipSync.changed) {
+      changed = true;
+      nextMetadata[assetId] = {
+        ...metadata,
+        lipSync: normalizedLipSync.lipSync,
+      };
+    } else {
+      nextMetadata[assetId] = metadata;
+    }
+  }
+  if (!changed) return store;
+  return {
+    ...store,
+    metadata: nextMetadata,
+  };
+}
+
 /**
  * Load metadata store from vault
  * @param vaultPath - Path to the vault directory
@@ -31,11 +73,12 @@ export async function loadMetadataStore(vaultPath: string): Promise<MetadataStor
       const data = result.data as MetadataStore;
       // Ensure version compatibility
       if (typeof data.version === 'number' && typeof data.metadata === 'object') {
-        return {
+        const normalized = normalizeLoadedMetadataStore({
           version: data.version,
           metadata: data.metadata || {},
           sceneMetadata: data.sceneMetadata || {},
-        };
+        });
+        return normalized;
       }
     }
   } catch (error) {

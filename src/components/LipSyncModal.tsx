@@ -612,11 +612,16 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
       compositedFrameAssetIds = importedCompositedAssets.map((item) => item.id);
     }
 
+    const resolvedCompositedFrameAssetIds =
+      compositedFrameAssetIds && compositedFrameAssetIds.length > 0
+        ? compositedFrameAssetIds
+        : [baseImageAssetId, ...variantAssetIds];
+
     setLipSyncForAsset(asset.id, {
       baseImageAssetId,
       variantAssetIds,
       maskAssetId,
-      compositedFrameAssetIds,
+      compositedFrameAssetIds: resolvedCompositedFrameAssetIds,
       ownerAssetId: asset.id,
       ownedGeneratedAssetIds: [
         ...(maskAssetId ? [maskAssetId] : []),
@@ -626,7 +631,7 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
       thresholds,
       fps: 60,
       sourceVideoAssetId: isVideo ? asset.id : undefined,
-      version: compositedFrameAssetIds ? 2 : 1,
+      version: 2,
     });
 
     if (cutId) {

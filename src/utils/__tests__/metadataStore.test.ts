@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
+  loadMetadataStore,
   syncSceneMetadata,
   updateLipSyncSettings,
   removeLipSyncSettings,
@@ -130,5 +131,41 @@ describe('metadataStore', () => {
 
     const cleaned = removeAssetReferences(store as any, ['audio-1']);
     expect(cleaned.sceneMetadata?.['scene-1']?.attachAudio).toBeUndefined();
+  });
+
+  it('normalizes legacy lipSync settings to composited-frame schema on load', async () => {
+    const pathExistsMock = vi.spyOn(window.electronAPI!, 'pathExists').mockResolvedValueOnce(true);
+    const loadMock = vi.spyOn(window.electronAPI!, 'loadProjectFromPath').mockResolvedValueOnce({
+      path: 'C:/vault/.metadata.json',
+      data: {
+        version: 1,
+        metadata: {
+          'asset-1': {
+            assetId: 'asset-1',
+            lipSync: {
+              baseImageAssetId: 'img-closed',
+              variantAssetIds: ['img-half1', 'img-half2', 'img-open'],
+              rmsSourceAudioAssetId: 'audio-1',
+              thresholds: { t1: 0.1, t2: 0.2, t3: 0.3 },
+              fps: 60,
+              version: 1,
+            },
+          },
+        },
+        sceneMetadata: {},
+      },
+    });
+
+    const loaded = await loadMetadataStore('C:/vault');
+    expect(loaded.metadata['asset-1']?.lipSync?.compositedFrameAssetIds).toEqual([
+      'img-closed',
+      'img-half1',
+      'img-half2',
+      'img-open',
+    ]);
+    expect(loaded.metadata['asset-1']?.lipSync?.version).toBe(2);
+
+    pathExistsMock.mockRestore();
+    loadMock.mockRestore();
   });
 });

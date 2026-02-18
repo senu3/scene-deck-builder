@@ -16,8 +16,8 @@ export interface ResolvedCutDisplayTime {
 }
 
 export function resolveCutAsset(cut: CutLike | null | undefined, getAsset: GetAssetById): Asset | null {
-  if (!cut) return null;
-  return getAsset(cut.assetId) ?? cut.asset ?? null;
+  if (!cut?.assetId) return null;
+  return getAsset(cut.assetId) ?? null;
 }
 
 export function resolveCutAssetFromAssetId(cut: CutLike | null | undefined, getAsset: GetAssetById): Asset | null {

@@ -64,7 +64,7 @@ Command 必須操作（2026-02-12 時点）:
 - 例: Cut 削除時は `CUT_DELETED` を emit し、`applyStoreEvents` で group/selection の後処理を実施する。
 
 ### 6. Asset 参照は `assetId` を主経路にする
-- 復元・コピーなどの read 時は `getAsset(assetId)` を優先し、必要時のみ `cut.asset` を fallback とする。
+- 復元・コピーなどの read 時は `getAsset(assetId)` のみを使用する。
 - write 時に `cut.asset` を前提にした更新を増やさない。
 
 ### 7. selector 標準パターン
@@ -72,7 +72,7 @@ Command 必須操作（2026-02-12 時点）:
 - selector は「描画に必要な最小単位」で分割する。`scene` と `uiState` を同一 selector に混在させない。
 - action は state selector と分離して取得する（再レンダー連鎖を抑えるため）。
 - 配列/オブジェクトを selector で組み立てる場合は、不要な新規参照生成を避ける。
-- `asset` 参照は selector 内で `getAsset(cut.assetId)` 優先にし、`cut.asset` は fallback とする。
+- `asset` 参照は selector 内で `getAsset(cut.assetId)` を使用する。
 
 ### 8. Asset 操作入口の集約
 - `AssetPanel` からの Finalize/Reverse/Extract/Delete は `src/features/asset/actions.ts` を経由する。
@@ -115,7 +115,7 @@ const store = useStore(); // 全体購読
 - Command 経由の主要書き込み: `AddCutCommand` / `RemoveCutCommand` / `RemoveCutsCommand` / `MoveCutBetweenScenesCommand` / `MoveCutsToSceneCommand` / `ReorderCutsWithGroupSyncCommand` / `PasteCutsCommand` / `CreateGroupCommand` / `RemoveCutFromGroupCommand` / `UpdateGroupCutOrderCommand` / `UpdateClipPointsCommand` / `ClearClipPointsCommand` / `DuplicateCutWithClipCommand`。
 - domain owner は `cutTimelineSlice`（scene/cut 追加・削除・並び替え・clip 更新・clipboard 反映）。
 - cross-slice 後処理は event 経由（`CUT_DELETED` / `CUT_MOVED`、`CUT_RELINKED` は emit 済みで購読用途保留）。
-- read-time join は `assetId` 優先（`getAsset(assetId)`）、`cut.asset` は fallback。
+- read-time join は `assetId`（`getAsset(assetId)`）のみを使う。
 - Cut コンテキストメニューの Move はコンテキスト元シーンの選択 cut のみを対象とし、複数シーン混在選択は対象外とする。
 - Cut コンテキストメニューの `Remove from Group` は、複数選択時は同一グループ内の選択 cut を一括除外する。
 

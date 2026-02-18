@@ -6,8 +6,6 @@
 ## Breaking候補
 - `TODO-BREAKING-001` LipSync generated IDs の正規化を保存/読み込みに導入する（過去データ migration を含む）。
   - 関連: `docs/guides/lip-sync.md`
-- `TODO-BREAKING-002` 後方互換 shim（旧IPC / `cut.asset` fallback / legacy version 判定）の段階撤去を実施する（v4/v5）。
-  - 関連: `docs/notes/backward-compat-inventory-2026-02-18.md`
 
 ## Debt
 - `TODO-DEBT-001` Export 系フロー仕様確定後に Vault ガイドを更新する。

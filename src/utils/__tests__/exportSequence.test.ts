@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Scene } from '../../types';
+import type { Asset, Scene } from '../../types';
 import { buildSequenceItemsForCuts, buildSequenceItemsForExport, resolveFramingParams } from '../exportSequence';
 
 const imageAsset = {
@@ -43,7 +43,13 @@ describe('buildSequenceItemsForExport', () => {
       },
     ];
 
-    const items = buildSequenceItemsForExport(scenes, ['scene-1', 'scene-2']);
+    const assets = new Map<string, Asset>([
+      [imageAsset.id, imageAsset],
+      [videoAsset.id, videoAsset],
+    ]);
+    const items = buildSequenceItemsForExport(scenes, ['scene-1', 'scene-2'], {
+      resolveAssetById: (assetId) => assets.get(assetId),
+    });
     expect(items.map((item) => item.duration)).toEqual([3.0, 1.5, 2.0]);
     expect(items.every((item) => item.framingMode === 'cover' && item.framingAnchor === 'center')).toBe(true);
   });
@@ -62,7 +68,13 @@ describe('buildSequenceItemsForExport', () => {
       ],
     }];
 
-    const items = buildSequenceItemsForExport(scenes);
+    const assets = new Map<string, Asset>([
+      [imageAsset.id, imageAsset],
+      [videoAsset.id, videoAsset],
+    ]);
+    const items = buildSequenceItemsForExport(scenes, {
+      resolveAssetById: (assetId) => assets.get(assetId),
+    });
 
     expect(items).toHaveLength(2);
     expect(items[0].duration).toBe(4.2);
@@ -106,7 +118,15 @@ describe('buildSequenceItemsForExport', () => {
       },
     ];
 
-    const items = buildSequenceItemsForCuts(cuts, { framingDefaults: { mode: 'fit', anchor: 'left' } });
+    const assets = new Map<string, Asset>([
+      [imageAsset.id, imageAsset],
+      [videoAsset.id, videoAsset],
+      ['asset-audio', { id: 'asset-audio', name: 'audio.wav', path: '/tmp/audio.wav', type: 'audio' as const }],
+    ]);
+    const items = buildSequenceItemsForCuts(cuts, {
+      framingDefaults: { mode: 'fit', anchor: 'left' },
+      resolveAssetById: (assetId) => assets.get(assetId),
+    });
 
     expect(items).toHaveLength(1);
     expect(items[0].framingMode).toBe('fit');
@@ -180,36 +200,43 @@ describe('buildSequenceItemsForExport', () => {
   });
 
   it('throws when lipSync cut is missing required metadata by default (no silent fallback)', () => {
+    const lipOwner = {
+      id: 'asset-lip-owner',
+      name: 'lip.png',
+      path: '/tmp/lip.png',
+      type: 'image' as const,
+    };
     expect(() => buildSequenceItemsForCuts([{
       id: 'cut-lipsync-missing',
-      assetId: 'asset-lip-owner',
-      asset: {
-        id: 'asset-lip-owner',
-        name: 'lip.png',
-        path: '/tmp/lip.png',
-        type: 'image',
-      },
+      assetId: lipOwner.id,
+      asset: lipOwner,
       order: 0,
       displayTime: 1,
       isLipSync: true,
-    }])).toThrow(/LipSync cut cut-lipsync-missing is missing lipSync settings/);
+    }], {
+      resolveAssetById: (assetId) => (assetId === lipOwner.id ? lipOwner : undefined),
+    })).toThrow(/LipSync cut cut-lipsync-missing is missing lipSync settings/);
   });
 
   it('can opt out of strict lipSync errors', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const lipOwner = {
+      id: 'asset-lip-owner',
+      name: 'lip.png',
+      path: '/tmp/lip.png',
+      type: 'image' as const,
+    };
     const items = buildSequenceItemsForCuts([{
       id: 'cut-lipsync-missing',
-      assetId: 'asset-lip-owner',
-      asset: {
-        id: 'asset-lip-owner',
-        name: 'lip.png',
-        path: '/tmp/lip.png',
-        type: 'image',
-      },
+      assetId: lipOwner.id,
+      asset: lipOwner,
       order: 0,
       displayTime: 1,
       isLipSync: true,
-    }], { strictLipSync: false });
+    }], {
+      strictLipSync: false,
+      resolveAssetById: (assetId) => (assetId === lipOwner.id ? lipOwner : undefined),
+    });
 
     expect(items).toHaveLength(1);
     expect(items[0].lipSync).toBeUndefined();

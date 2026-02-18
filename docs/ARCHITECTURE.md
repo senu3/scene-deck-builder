@@ -58,7 +58,7 @@
 - Gate 5 (Preview/Export parity): Preview と Export で時間解決・Framing 解決の入口を分岐させない。
 - Gate 6 (Command 境界): ユーザー操作起点の timeline 構造変更は Command 経由で実施する。
 - Gate 7 (Vault 書き込み入口): Vault の index/metadata/trash 更新は `window.electronAPI.vaultGateway.*` を renderer の単一入口にする。
-- Gate 8 (`assetId` 主経路): Asset 解決は `assetId` を主経路にし、`cut.asset` は read-time fallback として扱う。
+- Gate 8 (`assetId` 主経路): Asset 解決は `assetId` を唯一の経路として扱う。
 - Gate 9 (thumbnail profile): サムネイルは用途別 profile（`asset-grid`/`details-panel`/`sequence-preview`/`timeline-card`）を混線させない。
 - Gate 10 (重い処理の分離): 解析・変換・合成など重い処理は登録時/変換時へ寄せ、再生ループへ入れない。
 
@@ -83,12 +83,12 @@
   - Preview/UI: `null` を返してプレースホルダ表示、非致命ログ（warn）まで。
   - Export: 該当cutをskipし警告。LipSync strict条件では例外で停止可。
   - Load/Recovery: index補完を試行し、未解決は missing asset フローへ送る。
-- `cut.asset` への直接依存は `src/utils/assetResolve.ts` の fallback に限定する。
+- `cut.asset` を Asset 解決経路として再導入しない。
 
 ## Known Broken Invariants
 - Gate 5 (Preview/Export parity): sequence再生の音声計画を `buildExportAudioPlan` に統一し、scene/cut attach を含むイベント列を Export と同入口化済み（`Ready`）。
 - Gate 6 (Command 境界): 例外境界は ADR-0003 で固定済み。`check:gate:strict` に境界検出を導入済み。残課題は許可リスト運用の継続監査（`Partial`）。
-- Gate 8 (`assetId` 主経路): read-time は resolver 経由に統一、write-time は `assetId` 主経路で `cut.asset` 非依存化、strict gate で新規違反検出を導入済み（`Ready`）。
+- Gate 8 (`assetId` 主経路): read/write とも `assetId` 経由に統一、strict gate で新規違反検出を導入済み（`Ready`）。
 - Gate 10 (重処理分離): 再生ホットパスの静的監査は導入済み。残課題はしきい値運用と監査範囲の微調整（`Partial`）。
 
 ## 成功指標
