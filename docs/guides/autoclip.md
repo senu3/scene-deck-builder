@@ -2,7 +2,7 @@
 
 **目的**: Simple AutoClip の挙動・モード定義・既知課題を整理し、実装変更時の判断基準を固定する。  
 **適用範囲**: `src/components/CutCard.tsx`, `src/components/context-menus/CutContextMenu.tsx`, `src/store/commands.ts`, `src/features/cut/simpleAutoClip.ts`。  
-**関連ファイル**: `docs/guides/domain/storyline.md`, `docs/guides/implementation/thumbnail-profiles.md`, `docs/guides/domain/cut-history.md`, `docs/references/MAPPING.md`。  
+**関連ファイル**: `docs/guides/storyline.md`, `docs/guides/implementation/thumbnail-profiles.md`, `docs/guides/cut-history.md`, `docs/references/MAPPING.md`。  
 **更新頻度**: 中。
 
 ## Must / Must Not

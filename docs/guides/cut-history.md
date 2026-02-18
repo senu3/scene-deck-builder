@@ -15,7 +15,7 @@
 - `docs/notes/archive/store-slice-plan-implemented-2026-02-12.md`
 - `docs/notes/archive/cut-refactor-plan-implemented-2026-02-12.md`
 - `docs/notes/archive/assetpanel-cut-ffmpeg-reorg-plan-implemented-2026-02-12.md`
-- `docs/guides/domain/storyline.md`
+- `docs/guides/storyline.md`
 
 ## 更新頻度
 - 中

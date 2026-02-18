@@ -11,7 +11,7 @@
 - `src/components/*` の `useStore` 利用箇所
 
 ## 関連ファイル
-- `docs/guides/domain/cut-history.md`
+- `docs/guides/cut-history.md`
 - `docs/notes/archive/cut-refactor-plan-implemented-2026-02-12.md`
 - `docs/notes/archive/cut-write-path-inventory-implemented-2026-02-12.md`
 - `docs/notes/archive/getasset-thumbnail-resolution-implemented-2026-02-14.md`（getAsset優先解決とClipサムネ例外の統一）
@@ -101,12 +101,12 @@
 
 進捗（2026-02-12）:
 - `commands.ts` の `confirm()` 依存を撤去済み（UI 層確認に統一）。
-- `docs/guides/domain/cut-history.md` に Command 必須操作を明示。
+- `docs/guides/cut-history.md` に Command 必須操作を明示。
 - `CutCard` / `AssetPanel` の paste・group 作成を `PasteCutsCommand` / `CreateGroupCommand` 経由へ移行。
 - clip finalize / image crop 後の group 順序同期を `UpdateGroupCutOrderCommand` 経由へ移行し、直接 action 呼び出しを削除。
 
 受け入れ条件:
-- `docs/guides/domain/cut-history.md` と実装が一致する。
+- `docs/guides/cut-history.md` と実装が一致する。
 - Undo/Redo 対象操作の境界が docs とコードで一致する。
 - Command 必須操作リスト（例: scene/cut/group の構造変更、clip point 更新）が docs 化され、主要 UI 実装が準拠している。
 
@@ -129,10 +129,10 @@
 - トランザクション単位のコマンド合成を導入し、複数更新を 1 Undo 単位で扱う。
 - `store/contracts.ts` のような境界型ファイルを設け、slice 公開面を型で固定する。
 - デバッグ用に「どの action がどの slice を更新したか」を開発時ログで可視化する。
-- `docs/guides/domain/cut-history.md` に「禁止依存（例: slice から他 slice の内部関数直参照）」を明文化する。
+- `docs/guides/cut-history.md` に「禁止依存（例: slice から他 slice の内部関数直参照）」を明文化する。
 
 ## TODO
-- selector 標準パターンを `docs/guides/domain/cut-history.md` に追記する。 (完了: 2026-02-12)
+- selector 標準パターンを `docs/guides/cut-history.md` に追記する。 (完了: 2026-02-12)
 - S0 着手前に「Cut 書き込み経路の現状一覧」を作成する。 (完了: `docs/notes/archive/cut-write-path-inventory-implemented-2026-02-12.md`)
 - `commands.ts` の `confirm()` 呼び出しを撤去し、UI 層へ移設する設計メモを追加する。 (完了: 2026-02-12)
 - `src/store/contracts.ts`（仮）を作成し、`AppState` と slice 公開型の配置を定義する。 (完了: 2026-02-12)

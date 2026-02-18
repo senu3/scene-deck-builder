@@ -10,9 +10,9 @@
 
 ## 2) ドメイン正本（L1）
 - Vault / Assets: `docs/guides/vault-assets.md`
-- Storyline: `docs/guides/domain/storyline.md`
-- SceneDurationBar: `docs/guides/domain/scene-duration-bar.md`
-- Cut/History: `docs/guides/domain/cut-history.md`
+- Storyline: `docs/guides/storyline.md`
+- SceneDurationBar: `docs/guides/scene-duration-bar.md`
+- Cut/History: `docs/guides/cut-history.md`
 - Preview: `docs/guides/preview.md`
 - Export: `docs/guides/export.md`
 - LipSync: `docs/guides/lip-sync.md`
