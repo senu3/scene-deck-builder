@@ -1792,7 +1792,7 @@ async function renderMixedAudioTrack(
     event.timelineStartSec >= 0 &&
     Number.isFinite(event.sourceStartSec) &&
     event.sourceStartSec >= 0 &&
-    (!Number.isFinite(event.sourceOffsetSec) || event.sourceOffsetSec >= -36000)
+    (event.sourceOffsetSec === undefined || !Number.isFinite(event.sourceOffsetSec) || event.sourceOffsetSec >= -36000)
   );
   const audioPresenceCache = new Map<string, boolean>();
   const validEvents: ExportAudioEvent[] = [];
