@@ -1050,16 +1050,6 @@ ipcMain.handle('generate-thumbnail', async (_, options: {
   });
 });
 
-// Backward compatible alias (existing renderer callsites)
-ipcMain.handle('generate-video-thumbnail', async (_, options: { filePath: string; timeOffset?: number }) => {
-  if (!thumbnailService) return { success: false, error: 'ffmpeg not found' };
-  return thumbnailService.generateThumbnail({
-    filePath: options.filePath,
-    type: 'video',
-    timeOffset: options.timeOffset ?? 1,
-    profile: 'timeline-card',
-  });
-});
 
 // Create vault folder structure
 ipcMain.handle('create-vault', async (_, vaultPath: string, projectName: string) => {
@@ -1158,9 +1148,6 @@ ipcMain.handle('move-to-trash', async (_, filePath: string, trashPath: string) =
   return moveToTrashInternal(filePath, trashPath, null);
 });
 
-ipcMain.handle('move-to-trash-with-meta', async (_, filePath: string, trashPath: string, meta: TrashMeta) => {
-  return moveToTrashInternal(filePath, trashPath, meta || null);
-});
 
 // Save project data
 ipcMain.handle('save-project', createSaveProjectHandler({
@@ -1333,15 +1320,6 @@ ipcMain.handle('load-asset-index', async (_, vaultPath: string) => {
   }
 });
 
-// Save asset index to vault
-ipcMain.handle('save-asset-index', async (_, vaultPath: string, index: AssetIndex) => {
-  return saveAssetIndexInternal(vaultPath, index);
-});
-
-// Import asset to vault with hash-based naming
-ipcMain.handle('import-asset-to-vault', async (_, sourcePath: string, vaultPath: string, assetId: string) => {
-  return importAssetToVaultInternal(sourcePath, vaultPath, assetId);
-});
 registerVaultGatewayHandlers(ipcMain);
 
 // Verify vault assets - check for missing files

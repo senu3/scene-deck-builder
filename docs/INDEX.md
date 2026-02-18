@@ -48,6 +48,10 @@
 
 TODO は各ガイドに散在させない。元ドキュメントには `TODO_MASTER` へのリンクのみ残す。
 
+## 7) 調査ノート（進行中）
+- `docs/notes/backward-compat-inventory-2026-02-18.md`
+  - 後方互換の棚卸し（データ形式 / UI-IPC / `cut.asset` fallback）と撤去期限。
+
 ## docs 追加/更新ルール
 - 追加した docs は本 INDEX から辿れる構造にする。
 - 1ファイルの先頭に最低限、`目的` `適用範囲` `Must / Must Not` を置く。

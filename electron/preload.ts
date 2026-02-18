@@ -343,9 +343,6 @@ const electronAPI = {
       profile: options?.profile,
     }),
 
-  generateVideoThumbnail: (filePath: string, timeOffset?: number): Promise<{ success: boolean; thumbnail?: string; error?: string } | null> =>
-    ipcRenderer.invoke('generate-video-thumbnail', { filePath, timeOffset }),
-
   // Vault operations
   selectVault: (): Promise<string | null> =>
     ipcRenderer.invoke('select-vault'),
@@ -362,9 +359,6 @@ const electronAPI = {
 
   moveToTrash: (filePath: string, trashPath: string): Promise<string | null> =>
     ipcRenderer.invoke('move-to-trash', filePath, trashPath),
-
-  moveToTrashWithMeta: (filePath: string, trashPath: string, meta: TrashMeta): Promise<string | null> =>
-    ipcRenderer.invoke('move-to-trash-with-meta', filePath, trashPath, meta),
 
   pathExists: (path: string): Promise<boolean> =>
     ipcRenderer.invoke('path-exists', path),
@@ -406,12 +400,6 @@ const electronAPI = {
 
   loadAssetIndex: (vaultPath: string): Promise<AssetIndex> =>
     ipcRenderer.invoke('load-asset-index', vaultPath),
-
-  saveAssetIndex: (vaultPath: string, index: AssetIndex): Promise<boolean> =>
-    ipcRenderer.invoke('save-asset-index', vaultPath, index),
-
-  importAssetToVault: (sourcePath: string, vaultPath: string, assetId: string): Promise<VaultImportResult> =>
-    ipcRenderer.invoke('import-asset-to-vault', sourcePath, vaultPath, assetId),
 
   verifyVaultAssets: (vaultPath: string): Promise<VaultVerifyResult> =>
     ipcRenderer.invoke('verify-vault-assets', vaultPath),

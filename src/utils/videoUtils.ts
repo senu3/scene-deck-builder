@@ -166,20 +166,6 @@ export async function generateVideoThumbnail(filePath: string, timeOffset: numbe
         console.warn('Failed to generate thumbnail:', result.error);
       }
     } catch {
-      // Fall back to legacy path
-    }
-  }
-
-  if (window.electronAPI?.generateVideoThumbnail) {
-    try {
-      const result = await window.electronAPI.generateVideoThumbnail(filePath, timeOffset);
-      if (result && 'thumbnail' in result) {
-        if (result.thumbnail) return result.thumbnail;
-        if (result.error) {
-          console.warn('Failed to generate thumbnail:', result.error);
-        }
-      }
-    } catch {
       // Fall back to renderer-side extraction
     }
   }

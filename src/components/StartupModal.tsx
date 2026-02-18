@@ -21,6 +21,12 @@ import { extractVideoMetadata } from '../utils/videoUtils';
 import { getThumbnail } from '../utils/thumbnailCache';
 import { getCuttableMediaType } from '../utils/mediaType';
 import { cutAssetPathStartsWith, resolveCutAsset, resolveCutAssetId } from '../utils/assetResolve';
+import {
+  buildProjectSavePayload,
+  serializeProjectSavePayload,
+  prepareScenesForSave,
+  ensureSceneOrder,
+} from '../utils/projectSave';
 import './StartupModal.css';
 
 // Resolve asset paths from relative to absolute
@@ -163,6 +169,16 @@ function hasLegacyRelativeAssetPaths(scenes: Scene[]): boolean {
   );
 }
 
+function normalizeLoadedProjectVersion(version: number | undefined, scenes: Scene[]): { version: number; wasMissing: boolean } {
+  if (Number.isFinite(version) && (version as number) > 0) {
+    return { version: Math.floor(version as number), wasMissing: false };
+  }
+  return {
+    version: hasLegacyRelativeAssetPaths(scenes) ? 2 : 3,
+    wasMissing: true,
+  };
+}
+
 interface RecentProject {
   name: string;
   path: string;
@@ -178,6 +194,7 @@ interface PendingProject {
   targetTotalDurationSec?: number;
   sourcePanelState?: SourcePanelState;
   projectPath: string;
+  shouldResaveVersion?: boolean;
 }
 
 export default function StartupModal() {
@@ -348,8 +365,9 @@ export default function StartupModal() {
       // Resolve asset paths (v2+ uses relative paths)
       let scenes = projectData.scenes || [];
       let foundMissingAssets: MissingAssetInfo[] = [];
+      const normalizedVersion = normalizeLoadedProjectVersion(projectData.version, scenes);
 
-      if (projectData.version === 2 || projectData.version === 3 || hasLegacyRelativeAssetPaths(scenes)) {
+      if (normalizedVersion.version >= 2 || hasLegacyRelativeAssetPaths(scenes)) {
         const resolved = await resolveScenesAssets(scenes, loadedVaultPath);
         scenes = resolved.scenes;
         foundMissingAssets = resolved.missingAssets;
@@ -364,8 +382,9 @@ export default function StartupModal() {
             scenes,
             sceneOrder: projectData.sceneOrder,
             targetTotalDurationSec: projectData.targetTotalDurationSec,
-          sourcePanelState: projectData.sourcePanel,
-          projectPath: path,
+            sourcePanelState: projectData.sourcePanel,
+            projectPath: path,
+            shouldResaveVersion: normalizedVersion.wasMissing,
         });
         setShowRecoveryDialog(true);
         return;
@@ -380,6 +399,7 @@ export default function StartupModal() {
         targetTotalDurationSec: projectData.targetTotalDurationSec,
         sourcePanelState: projectData.sourcePanel,
         projectPath: path,
+        shouldResaveVersion: normalizedVersion.wasMissing,
       });
     }
   };
@@ -526,6 +546,36 @@ export default function StartupModal() {
     setRecentProjects(updated);
     await window.electronAPI?.saveRecentProjects(updated);
 
+    if (project.shouldResaveVersion && window.electronAPI) {
+      try {
+        const assetById = new Map<string, Asset>();
+        for (const scene of finalScenes) {
+          for (const cut of scene.cuts) {
+            const asset = resolveCutAsset(cut, () => undefined);
+            if (!asset) continue;
+            const resolvedId = cut.assetId || asset.id;
+            if (!resolvedId) continue;
+            assetById.set(resolvedId, { ...asset, id: resolvedId });
+          }
+        }
+        const scenesToSave = prepareScenesForSave(finalScenes, (assetId) => assetById.get(assetId));
+        const { sceneOrder: normalizedSceneOrder } = ensureSceneOrder(project.sceneOrder, finalScenes);
+        const payload = buildProjectSavePayload({
+          version: 3,
+          name: project.name,
+          vaultPath: project.vaultPath,
+          scenes: scenesToSave,
+          sceneOrder: normalizedSceneOrder,
+          targetTotalDurationSec: project.targetTotalDurationSec,
+          sourcePanel: project.sourcePanelState,
+          savedAt: new Date().toISOString(),
+        });
+        await window.electronAPI.saveProject(serializeProjectSavePayload(payload), project.projectPath);
+      } catch (error) {
+        console.warn('[ProjectLoad] Failed to persist version migration:', error);
+      }
+    }
+
     // Clear recovery state
     setShowRecoveryDialog(false);
     setPendingProject(null);
@@ -579,8 +629,9 @@ export default function StartupModal() {
         // Resolve asset paths (v2+ uses relative paths)
         let scenes = projectData.scenes || [];
         let foundMissingAssets: MissingAssetInfo[] = [];
+        const normalizedVersion = normalizeLoadedProjectVersion(projectData.version, scenes);
 
-        if (projectData.version === 2 || projectData.version === 3 || hasLegacyRelativeAssetPaths(scenes)) {
+        if (normalizedVersion.version >= 2 || hasLegacyRelativeAssetPaths(scenes)) {
           const resolved = await resolveScenesAssets(scenes, loadedVaultPath);
           scenes = resolved.scenes;
           foundMissingAssets = resolved.missingAssets;
@@ -597,6 +648,7 @@ export default function StartupModal() {
             targetTotalDurationSec: projectData.targetTotalDurationSec,
             sourcePanelState: projectData.sourcePanel,
             projectPath: project.path,
+            shouldResaveVersion: normalizedVersion.wasMissing,
           });
           setShowRecoveryDialog(true);
           return;
@@ -611,6 +663,7 @@ export default function StartupModal() {
           targetTotalDurationSec: projectData.targetTotalDurationSec,
           sourcePanelState: projectData.sourcePanel,
           projectPath: project.path,
+          shouldResaveVersion: normalizedVersion.wasMissing,
         });
       }
     } catch (error) {

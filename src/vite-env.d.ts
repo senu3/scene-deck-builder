@@ -314,7 +314,6 @@ interface ElectronAPI {
       type: 'image' | 'video',
       options?: { timeOffset?: number; profile?: 'timeline-card' | 'asset-grid' | 'sequence-preview' | 'details-panel' }
     ) => Promise<{ success: boolean; thumbnail?: string; error?: string } | null>;
-    generateVideoThumbnail: (filePath: string, timeOffset?: number) => Promise<{ success: boolean; thumbnail?: string; error?: string } | null>;
 
   // Vault operations
   selectVault: () => Promise<string | null>;
@@ -324,7 +323,6 @@ interface ElectronAPI {
   // File operations
   moveToVault: (sourcePath: string, destFolder: string, newName?: string) => Promise<string | null>;
   moveToTrash: (filePath: string, trashPath: string) => Promise<string | null>;
-  moveToTrashWithMeta: (filePath: string, trashPath: string, meta: TrashMeta) => Promise<string | null>;
   pathExists: (path: string) => Promise<boolean>;
 
   // File dialog
@@ -347,8 +345,6 @@ interface ElectronAPI {
   calculateFileHash: (filePath: string) => Promise<string | null>;
   ensureAssetsFolder: (vaultPath: string) => Promise<string | null>;
   loadAssetIndex: (vaultPath: string) => Promise<AssetIndex>;
-  saveAssetIndex: (vaultPath: string, index: AssetIndex) => Promise<boolean>;
-  importAssetToVault: (sourcePath: string, vaultPath: string, assetId: string) => Promise<VaultImportResult>;
   verifyVaultAssets: (vaultPath: string) => Promise<VaultVerifyResult>;
   resolveVaultPath: (vaultPath: string, relativePath: string) => Promise<PathResolveResult>;
   getRelativePath: (vaultPath: string, absolutePath: string) => Promise<string | null>;

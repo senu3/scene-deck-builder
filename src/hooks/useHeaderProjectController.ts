@@ -154,6 +154,16 @@ async function resolveScenesAssets(scenes: Scene[], vaultPath: string): Promise<
   return { scenes: resolvedScenes, missingAssets };
 }
 
+function normalizeLoadedProjectVersion(version: number | undefined, scenes: Scene[]): { version: number; wasMissing: boolean } {
+  if (Number.isFinite(version) && (version as number) > 0) {
+    return { version: Math.floor(version as number), wasMissing: false };
+  }
+  return {
+    version: scenes.some((s) => s.cuts?.some((c) => cutAssetPathStartsWith(c, () => undefined, 'assets/'))) ? 2 : 3,
+    wasMissing: true,
+  };
+}
+
 // Pending project data for recovery dialog
 interface PendingProject {
   name: string;
@@ -163,6 +173,7 @@ interface PendingProject {
   targetTotalDurationSec?: number;
   sourcePanelState?: SourcePanelState;
   projectPath: string;
+  shouldResaveVersion?: boolean;
 }
 
 export function useHeaderProjectController() {
@@ -446,6 +457,36 @@ export function useHeaderProjectController() {
     const filtered = recentProjects.filter((p: any) => p.path !== project.projectPath);
     await window.electronAPI?.saveRecentProjects([newRecent, ...filtered.slice(0, 9)]);
 
+    if (project.shouldResaveVersion && window.electronAPI) {
+      try {
+        const assetById = new Map<string, Asset>();
+        for (const scene of finalScenes) {
+          for (const cut of scene.cuts) {
+            const asset = resolveCutAsset(cut, () => undefined);
+            if (!asset) continue;
+            const resolvedId = cut.assetId || asset.id;
+            if (!resolvedId) continue;
+            assetById.set(resolvedId, { ...asset, id: resolvedId });
+          }
+        }
+        const scenesToSave = prepareScenesForSave(finalScenes, (assetId) => assetById.get(assetId));
+        const { sceneOrder: normalizedSceneOrder } = ensureSceneOrder(project.sceneOrder, finalScenes);
+        const payload = buildProjectSavePayload({
+          version: 3,
+          name: project.name,
+          vaultPath: project.vaultPath,
+          scenes: scenesToSave,
+          sceneOrder: normalizedSceneOrder,
+          targetTotalDurationSec: project.targetTotalDurationSec,
+          sourcePanel: project.sourcePanelState,
+          savedAt: new Date().toISOString(),
+        });
+        await window.electronAPI.saveProject(serializeProjectSavePayload(payload), project.projectPath);
+      } catch (error) {
+        console.warn('[ProjectLoad] Failed to persist version migration:', error);
+      }
+    }
+
     // Clear recovery state
     setShowRecoveryDialog(false);
     setPendingProject(null);
@@ -492,9 +533,10 @@ export function useHeaderProjectController() {
       // Resolve asset paths (v2+ uses relative paths)
       let loadedScenes = projectData.scenes || [];
       let foundMissingAssets: MissingAssetInfo[] = [];
+      const normalizedVersion = normalizeLoadedProjectVersion(projectData.version, loadedScenes);
 
       if (
-        (projectData.version && projectData.version >= 2) ||
+        normalizedVersion.version >= 2 ||
         loadedScenes.some((s) => s.cuts?.some((c) => cutAssetPathStartsWith(c, () => undefined, 'assets/')))
       ) {
         const resolved = await resolveScenesAssets(loadedScenes, loadedVaultPath);
@@ -513,6 +555,7 @@ export function useHeaderProjectController() {
           targetTotalDurationSec: projectData.targetTotalDurationSec,
           sourcePanelState: projectData.sourcePanel,
           projectPath: path,
+          shouldResaveVersion: normalizedVersion.wasMissing,
         });
         setShowRecoveryDialog(true);
         return;
@@ -527,6 +570,7 @@ export function useHeaderProjectController() {
         targetTotalDurationSec: projectData.targetTotalDurationSec,
         sourcePanelState: projectData.sourcePanel,
         projectPath: path,
+        shouldResaveVersion: normalizedVersion.wasMissing,
       });
     }
   }, [dialogAlert, finalizeProjectLoad]);

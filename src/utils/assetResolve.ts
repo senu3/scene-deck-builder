@@ -26,9 +26,9 @@ export function resolveCutAssetFromAssetId(cut: CutLike | null | undefined, getA
 }
 
 export function resolveCutAssetId(cut: CutLike | null | undefined, getAsset: GetAssetById): string | null {
-  if (!cut) return null;
-  if (cut.assetId) return cut.assetId;
-  return resolveCutAsset(cut, getAsset)?.id ?? null;
+  void getAsset;
+  if (!cut?.assetId) return null;
+  return cut.assetId;
 }
 
 export function cutAssetPathStartsWith(
