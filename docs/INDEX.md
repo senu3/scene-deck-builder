@@ -48,6 +48,10 @@
 
 TODO は各ガイドに散在させない。元ドキュメントには `TODO_MASTER` へのリンクのみ残す。
 
+## 7) Notes（作業起点）
+- `docs/notes/test-integration-startpoint-2026-02-18.md`
+  - テスト統合の開始地点と、統合可/不可の基準。
+
 ## docs 追加/更新ルール
 - 追加した docs は本 INDEX から辿れる構造にする。
 - 1ファイルの先頭に最低限、`目的` `適用範囲` `Must / Must Not` を置く。
