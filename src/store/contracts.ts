@@ -2,7 +2,6 @@ import type {
   Asset,
   Cut,
   CutAudioBinding,
-  CutSubtitle,
   CutGroup,
   CutRuntimeState,
   FileItem,
@@ -77,7 +76,6 @@ export interface CutTimelineSliceContract {
   clearCutClipPoints: (sceneId: string, cutId: string) => void;
   updateCutAsset: (sceneId: string, cutId: string, assetUpdates: Partial<Asset>) => void;
   updateCutLipSync: (sceneId: string, cutId: string, isLipSync: boolean, frameCount?: number) => void;
-  updateCutSubtitle: (sceneId: string, cutId: string, subtitle?: CutSubtitle) => void;
   setCutAudioBindings: (sceneId: string, cutId: string, bindings: CutAudioBinding[]) => void;
   setCutUseEmbeddedAudio: (sceneId: string, cutId: string, enabled: boolean) => void;
   reorderCuts: (sceneId: string, cutId: string, newIndex: number, fromSceneId: string, oldIndex: number) => void;
@@ -105,11 +103,10 @@ export interface SelectionUiSliceContract {
   setGlobalVolume: (volume: number) => void;
   setGlobalMuted: (muted: boolean) => void;
   toggleGlobalMute: () => void;
-  openVideoPreview: (cutId: string, options?: { openSubtitleModal?: boolean }) => void;
+  openVideoPreview: (cutId: string) => void;
   closeVideoPreview: () => void;
-  openSequencePreview: (cutId: string, options?: { openSubtitleModal?: boolean }) => void;
+  openSequencePreview: (cutId: string) => void;
   closeSequencePreview: () => void;
-  clearPendingSubtitleModalCutId: () => void;
   setImportingAsset: (name: string | null) => void;
   openAssetDrawer: () => void;
   closeAssetDrawer: () => void;

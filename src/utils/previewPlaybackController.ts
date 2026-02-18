@@ -4,6 +4,7 @@ import type { MediaSource } from './previewMedia';
 export interface PlaybackState {
   isPlaying: boolean;
   currentIndex: number;
+  // UI/playback control progress only. Do not use as canonical timeline definition.
   localProgress: number;
   inPoint: number | null;
   outPoint: number | null;

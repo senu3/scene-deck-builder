@@ -96,18 +96,6 @@ export interface Cut {
   // Lip sync fields
   isLipSync?: boolean;  // True if this is a lip sync cut
   lipSyncFrameCount?: number; // Number of registered frames (e.g., 4)
-  // Cut subtitle
-  subtitle?: CutSubtitle;
-}
-
-export interface CutSubtitleRange {
-  start: number;
-  end: number;
-}
-
-export interface CutSubtitle {
-  text: string;
-  range?: CutSubtitleRange;
 }
 
 export interface CutRuntimeState {

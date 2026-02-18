@@ -1,5 +1,5 @@
-import { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo, type CSSProperties } from 'react';
-import { X, Play, Pause, SkipBack, SkipForward, Download, Loader2, Repeat, Maximize, Scissors, Camera, MessageSquare } from 'lucide-react';
+import { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo } from 'react';
+import { X, Play, Pause, SkipBack, SkipForward, Download, Loader2, Repeat, Maximize, Scissors, Camera } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import {
   selectScenes,
@@ -14,8 +14,6 @@ import {
   selectMetadataStore,
 } from '../store/selectors';
 import type { Asset, Cut } from '../types';
-import { useHistoryStore } from '../store/historyStore';
-import { UpdateCutSubtitleCommand } from '../store/commands';
 import { createVideoObjectUrl } from '../utils/videoUtils';
 import { formatTime, cyclePlaybackSpeed } from '../utils/timeUtils';
 import { resolveCutAsset, resolveCutThumbnail } from '../utils/assetResolve';
@@ -29,9 +27,6 @@ import { resolvePreviewAudioTracks } from '../utils/previewAudioTracks';
 import { DEFAULT_EXPORT_RESOLUTION } from '../constants/export';
 import { EXPORT_FRAMING_DEFAULTS } from '../constants/framing';
 import { buildPreviewViewportFramingStyle, buildPreviewViewportFramingStyleFromResolved } from '../utils/previewFraming';
-import { resolveSubtitleVisibility, normalizeSubtitleRange } from '../utils/subtitleUtils';
-import { getSubtitleStyleSettings } from '../utils/subtitleStyleSettings';
-import { getSubtitleStyleForExport } from '../features/export/subtitleStyle';
 import { buildExportAudioPlan, type ExportAudioEvent } from '../utils/exportAudioPlan';
 import { getScenesInOrder } from '../utils/sceneOrder';
 import { computeCanonicalStoryTimingsForCuts, resolveCanonicalCutDuration } from '../utils/storyTiming';
@@ -42,7 +37,6 @@ import {
 } from './shared';
 import type { FocusedMarker } from './shared';
 import { useMiniToast } from '../ui';
-import SubtitleModal from './SubtitleModal';
 import './PreviewModal.css';
 import './shared/playback-controls.css';
 
@@ -112,8 +106,6 @@ interface BasePreviewModalProps {
   sequenceContext?: { kind: 'scene'; sceneId: string; sceneName?: string };
   onRangeChange?: (range: { inPoint: number | null; outPoint: number | null }) => void;
   onExportSequence?: (cuts: Cut[], resolution: { width: number; height: number }) => Promise<void> | void;
-  openSubtitleModalOnMount?: boolean;
-  onSubtitleModalOpenHandled?: () => void;
 }
 
 // PreviewModal can be called in Single Mode (with asset) or Sequence Mode (without asset)
@@ -154,8 +146,6 @@ export default function PreviewModal({
   sequenceCuts,
   sequenceContext,
   onExportSequence,
-  openSubtitleModalOnMount,
-  onSubtitleModalOpenHandled,
   // Single Mode props
   asset,
   initialInPoint,
@@ -175,7 +165,6 @@ export default function PreviewModal({
   const setGlobalVolume = useStore(selectSetGlobalVolume);
   const toggleGlobalMute = useStore(selectToggleGlobalMute);
   const metadataStore = useStore(selectMetadataStore);
-  const { executeCommand } = useHistoryStore();
 
   // Mode detection: Single Mode if asset prop is provided
   const isSingleMode = !!asset;
@@ -210,8 +199,8 @@ export default function PreviewModal({
     exportResolution ? { ...exportResolution } : RESOLUTION_PRESETS[0]
   );
   const [isExporting, setIsExporting] = useState(false);
+  // Overlay is view-only helper UI; it must not persist state or affect export decisions.
   const [showOverlay, setShowOverlay] = useState(true);
-  const [showSubtitleModal, setShowSubtitleModal] = useState(false);
   const { show: showMiniToast, element: miniToastElement } = useMiniToast();
   const overlayTimeoutRef = useRef<number | null>(null);
   const lipSyncToastShownRef = useRef<Set<string>>(new Set());
@@ -1387,7 +1376,6 @@ export default function PreviewModal({
 
   // ===== SEQUENCE MODE ATTACHED AUDIO =====
 
-  const currentSequenceItem = items[currentIndex] ?? null;
   const previewSequenceItems = useMemo(() => {
     const exportCuts = items.map((item) => ({
       ...item.cut,
@@ -1420,9 +1408,6 @@ export default function PreviewModal({
       resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
     });
   }, [items, metadataStore, getAsset]);
-  const currentSequenceSpec = currentSequenceItem
-    ? previewSequenceItemByCutId.get(currentSequenceItem.cut.id) || null
-    : null;
   const buildSequenceAudioEventKey = useCallback((event: ExportAudioEvent, index: number) => {
     return [
       index,
@@ -2013,7 +1998,6 @@ export default function PreviewModal({
         width: exportWidth,
         height: exportHeight,
         fps: 30,
-        subtitleStyle: getSubtitleStyleForExport(),
         audioPlan,
       });
 
@@ -2123,7 +2107,6 @@ export default function PreviewModal({
         width: exportWidth,
         height: exportHeight,
         fps: 30,
-        subtitleStyle: getSubtitleStyleForExport(),
         audioPlan,
       });
 
@@ -2255,77 +2238,6 @@ export default function PreviewModal({
     }
     return buildPreviewViewportFramingStyle(targetCut?.framing, EXPORT_FRAMING_DEFAULTS);
   }, [isSingleMode, focusCutData?.cut, currentItem?.cut, previewSequenceItemByCutId]);
-  const subtitleStyle = useMemo(() => getSubtitleStyleSettings(), []);
-  const activeSubtitleTarget = useMemo(() => {
-    if (isSingleMode) {
-      if (!focusCutData?.cut) return null;
-      return {
-        sceneId: focusCutData.scene.id,
-        cut: focusCutData.cut,
-      };
-    }
-    if (!currentItem?.cut) return null;
-    return {
-      sceneId: currentItem.sceneId,
-      cut: currentItem.cut,
-    };
-  }, [isSingleMode, focusCutData, currentItem]);
-  const activeCutDisplayTime = currentSequenceSpec?.duration
-    ?? (activeSubtitleTarget ? resolveCutDisplayTimeSec(activeSubtitleTarget.cut) : 0);
-  const currentLocalTimeSec = useMemo(() => {
-    if (!activeSubtitleTarget || activeCutDisplayTime <= 0) return 0;
-
-    if (isSingleModeVideo) {
-      const base = singleModeCurrentTime;
-      const clipOffset = activeSubtitleTarget.cut.isClip && activeSubtitleTarget.cut.inPoint !== undefined
-        ? activeSubtitleTarget.cut.inPoint
-        : 0;
-      const local = base - clipOffset;
-      return Math.min(Math.max(local, 0), activeCutDisplayTime);
-    }
-
-    const localFromController = (activeCutDisplayTime * (sequenceState.localProgress ?? 0)) / 100;
-    return Math.min(Math.max(localFromController, 0), activeCutDisplayTime);
-  }, [
-    activeSubtitleTarget,
-    activeCutDisplayTime,
-    isSingleModeVideo,
-    singleModeCurrentTime,
-    sequenceState.localProgress,
-  ]);
-  const subtitleText = (currentSequenceSpec?.subtitle?.text ?? activeSubtitleTarget?.cut.subtitle?.text ?? '');
-  const subtitleVisible = useMemo(
-    () => resolveSubtitleVisibility(currentSequenceSpec?.subtitle ?? activeSubtitleTarget?.cut.subtitle, currentLocalTimeSec, activeCutDisplayTime),
-    [currentSequenceSpec, activeSubtitleTarget, currentLocalTimeSec, activeCutDisplayTime]
-  );
-  const hasSubtitle = !!subtitleText.trim();
-
-  const handleSaveSubtitle = useCallback(
-    (subtitle?: Cut['subtitle']) => {
-      if (!activeSubtitleTarget) return;
-      const normalizedRange = subtitle?.range
-        ? normalizeSubtitleRange(subtitle.range, activeCutDisplayTime)
-        : undefined;
-      const normalizedSubtitle = subtitle
-        ? {
-            text: subtitle.text,
-            range: normalizedRange,
-          }
-        : undefined;
-      executeCommand(
-        new UpdateCutSubtitleCommand(activeSubtitleTarget.sceneId, activeSubtitleTarget.cut.id, normalizedSubtitle)
-      ).catch((error) => {
-        console.error('Failed to update subtitle:', error);
-      });
-    },
-    [activeSubtitleTarget, activeCutDisplayTime, executeCommand]
-  );
-
-  useEffect(() => {
-    if (!openSubtitleModalOnMount || !activeSubtitleTarget) return;
-    setShowSubtitleModal(true);
-    onSubtitleModalOpenHandled?.();
-  }, [openSubtitleModalOnMount, onSubtitleModalOpenHandled, activeSubtitleTarget]);
 
   // _hasRange kept for future range export UI implementation
   const _hasRange = inPoint !== null && outPoint !== null;
@@ -2496,30 +2408,9 @@ export default function PreviewModal({
               </div>
             )}
 
-            {subtitleVisible && (
-              <div
-                className={`preview-subtitle-overlay preview-subtitle-overlay--${subtitleStyle.position}`}
-                style={
-                  {
-                    fontSize: `${subtitleStyle.fontSizePx}px`,
-                    color: subtitleStyle.fontColor,
-                    '--subtitle-bg-opacity': `${subtitleStyle.backgroundOpacity}`,
-                  } as CSSProperties
-                }
-              >
-                <div
-                  className={`preview-subtitle-text ${subtitleStyle.backgroundEnabled ? 'with-bg' : ''} ${subtitleStyle.outlineEnabled ? 'with-outline' : ''} ${subtitleStyle.shadowEnabled ? 'with-shadow' : ''}`}
-                >
-                  {subtitleText.split('\n').map((line, index) => (
-                    <span key={`${index}-${line}`} className="preview-subtitle-line">
-                      {line}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* Overlay controls */}
+            {/* Overlay is visual-only assist for preview interaction.
+                It must not persist, mutate project state, or affect export decisions. */}
             <div
               className={`preview-overlay ${showOverlay ? 'is-visible' : ''}`}
               onMouseEnter={showOverlayNow}
@@ -2650,14 +2541,6 @@ export default function PreviewModal({
                   >
                     <Repeat size={16} />
                   </button>
-                  <button
-                    className={`preview-ctrl-btn ${hasSubtitle ? 'is-active' : ''}`}
-                    onClick={() => setShowSubtitleModal(true)}
-                    disabled={!activeSubtitleTarget}
-                    title="Edit subtitle"
-                  >
-                    <MessageSquare size={16} />
-                  </button>
                   <VolumeControl
                     volume={globalVolume}
                     isMuted={globalMuted}
@@ -2686,14 +2569,6 @@ export default function PreviewModal({
             </div>
           </div>
         </div>
-        <SubtitleModal
-          open={showSubtitleModal}
-          subtitle={activeSubtitleTarget?.cut.subtitle}
-          cutDurationSec={activeCutDisplayTime}
-          currentLocalTimeSec={currentLocalTimeSec}
-          onClose={() => setShowSubtitleModal(false)}
-          onSave={handleSaveSubtitle}
-        />
       </div>
     );
   }
@@ -2747,7 +2622,7 @@ export default function PreviewModal({
             <div className="preview-header-left">
               <span className="preview-badge">{currentIndex + 1}/{items.length}</span>
               <span className="preview-title">{currentItem?.sceneName}</span>
-              <span className="preview-subtitle">Cut {(currentItem?.cutIndex || 0) + 1}</span>
+              <span className="preview-cut-label">Cut {(currentItem?.cutIndex || 0) + 1}</span>
             </div>
             <div className="preview-header-right">
               <button className="preview-close-btn" onClick={onClose} title="Close (Esc)">
@@ -2812,29 +2687,6 @@ export default function PreviewModal({
               </>
             );
           })()}
-
-          {subtitleVisible && (
-            <div
-              className={`preview-subtitle-overlay preview-subtitle-overlay--${subtitleStyle.position}`}
-              style={
-                {
-                  fontSize: `${subtitleStyle.fontSizePx}px`,
-                  color: subtitleStyle.fontColor,
-                  '--subtitle-bg-opacity': `${subtitleStyle.backgroundOpacity}`,
-                } as CSSProperties
-              }
-            >
-              <div
-                className={`preview-subtitle-text ${subtitleStyle.backgroundEnabled ? 'with-bg' : ''} ${subtitleStyle.outlineEnabled ? 'with-outline' : ''} ${subtitleStyle.shadowEnabled ? 'with-shadow' : ''}`}
-              >
-                {subtitleText.split('\n').map((line, index) => (
-                  <span key={`${index}-${line}`} className="preview-subtitle-line">
-                    {line}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Overlay controls */}
           <div
@@ -2968,14 +2820,6 @@ export default function PreviewModal({
                 >
                   <Repeat size={16} />
                 </button>
-                <button
-                  className={`preview-ctrl-btn ${hasSubtitle ? 'is-active' : ''}`}
-                  onClick={() => setShowSubtitleModal(true)}
-                  disabled={!activeSubtitleTarget}
-                  title="Edit subtitle"
-                >
-                  <MessageSquare size={16} />
-                </button>
                 <VolumeControl
                   volume={globalVolume}
                   isMuted={globalMuted}
@@ -2994,14 +2838,6 @@ export default function PreviewModal({
             </div>
           </div>
         </div>
-        <SubtitleModal
-          open={showSubtitleModal}
-          subtitle={activeSubtitleTarget?.cut.subtitle}
-          cutDurationSec={activeCutDisplayTime}
-          currentLocalTimeSec={currentLocalTimeSec}
-          onClose={() => setShowSubtitleModal(false)}
-          onSave={handleSaveSubtitle}
-        />
       </div>
     </div>
   );

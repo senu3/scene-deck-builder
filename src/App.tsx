@@ -16,8 +16,6 @@ import {
   selectCloseVideoPreview,
   selectSequencePreviewCutId,
   selectCloseSequencePreview,
-  selectPendingSubtitleModalCutId,
-  selectClearPendingSubtitleModalCutId,
   selectCacheAssetAction,
   selectUpdateCutAssetAction,
   selectCreateCutFromImport,
@@ -65,8 +63,6 @@ import type { ResolutionInput } from './features/export/plan';
 import type { ExportSettings } from './features/export/types';
 import { buildSceneScopedExportPath } from './features/export/sceneScope';
 import { buildExportTimelineEntries, buildManifestJson, buildTimelineText } from './features/export/manifest';
-import type { SubtitleStyleSettings } from './utils/subtitleStyleSettings';
-import { getSubtitleStyleForExport } from './features/export/subtitleStyle';
 import { buildExportAudioPlan } from './utils/exportAudioPlan';
 import { resolveCutAsset } from './utils/assetResolve';
 import { useBanner, useToast } from './ui';
@@ -102,8 +98,6 @@ function App() {
   const closeVideoPreview = useStore(selectCloseVideoPreview);
   const sequencePreviewCutId = useStore(selectSequencePreviewCutId);
   const closeSequencePreview = useStore(selectCloseSequencePreview);
-  const pendingSubtitleModalCutId = useStore(selectPendingSubtitleModalCutId);
-  const clearPendingSubtitleModalCutId = useStore(selectClearPendingSubtitleModalCutId);
   const cacheAsset = useStore(selectCacheAssetAction);
   const updateCutAsset = useStore(selectUpdateCutAssetAction);
   const createCutFromImport = useStore(selectCreateCutFromImport);
@@ -524,7 +518,7 @@ function App() {
 
   const exportMp4Sequence = useCallback(async (
     cuts: Cut[],
-    config: ResolutionInput & { fps: number; outputFilePath?: string; outputDir?: string; subtitleStyle: SubtitleStyleSettings }
+    config: ResolutionInput & { fps: number; outputFilePath?: string; outputDir?: string }
   ) => {
     if (!window.electronAPI || isExporting) return;
 
@@ -590,7 +584,6 @@ function App() {
         width,
         height,
         fps: config.fps,
-        subtitleStyle: config.subtitleStyle,
         audioPlan,
       });
 
@@ -675,7 +668,6 @@ function App() {
         mp4: { quality: 'medium' },
       },
       resolution: exportResolution,
-      subtitleStyle: getSubtitleStyleForExport(),
       exportScope: { kind: 'scene', sceneId: scope.sceneId },
     });
 
@@ -687,7 +679,6 @@ function App() {
       fps: plan.fps,
       outputFilePath: scopedPath.outputFilePath,
       outputDir: scopedPath.outputDir,
-      subtitleStyle: plan.subtitleStyle,
     });
   }, [isExporting, toast, scenes, sceneOrder, vaultPath, projectName, exportResolution, exportMp4Sequence]);
 
@@ -722,7 +713,6 @@ function App() {
       const plan = resolveExportPlan({
         settings,
         resolution: exportResolution,
-        subtitleStyle: getSubtitleStyleForExport(),
       });
 
       if (plan.format === 'aviutl') {
@@ -748,7 +738,6 @@ function App() {
         fps: plan.fps,
         outputFilePath: plan.outputFilePath,
         outputDir: plan.outputDir,
-        subtitleStyle: plan.subtitleStyle,
       });
     } catch (error) {
       toast.error('Export error', String(error));
@@ -771,16 +760,14 @@ function App() {
         mp4: { quality: 'medium' },
       },
       resolution,
-      subtitleStyle: getSubtitleStyleForExport(),
     });
     if (mp4Plan.format !== 'mp4') {
       return;
     }
-    await exportMp4Sequence(cuts, {
+      await exportMp4Sequence(cuts, {
         width: mp4Plan.width,
         height: mp4Plan.height,
         fps: mp4Plan.fps,
-        subtitleStyle: mp4Plan.subtitleStyle,
       });
   }, [exportMp4Sequence]);
 
@@ -948,8 +935,6 @@ function App() {
               asset={previewData.asset}
               focusCutId={previewData.cut.id}
               onClose={closeVideoPreview}
-              openSubtitleModalOnMount={pendingSubtitleModalCutId === previewData.cut.id}
-              onSubtitleModalOpenHandled={clearPendingSubtitleModalCutId}
               initialInPoint={previewData.cut.inPoint}
               initialOutPoint={previewData.cut.outPoint}
               onClipSave={handleVideoPreviewClipSave}
@@ -963,8 +948,6 @@ function App() {
             <PreviewModal
               onClose={closeSequencePreview}
               focusCutId={sequencePreviewCutId}
-              openSubtitleModalOnMount={pendingSubtitleModalCutId === sequencePreviewCutId}
-              onSubtitleModalOpenHandled={clearPendingSubtitleModalCutId}
               exportResolution={exportResolution}
               onResolutionChange={setExportResolution}
               onExportSequence={handlePreviewExport}

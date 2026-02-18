@@ -213,10 +213,6 @@ interface SequenceItem {
     thresholds: { t1: number; t2: number; t3: number };
     audioOffsetSec: number;
   };
-  subtitle?: {
-    text: string;
-    range?: { start: number; end: number };
-  };
 }
 
 interface ExportAudioEvent {
@@ -237,23 +233,12 @@ interface ExportAudioPlan {
   events: ExportAudioEvent[];
 }
 
-interface ExportSubtitleStyle {
-  fontSizePx: number;
-  fontColor: string;
-  backgroundEnabled: boolean;
-  backgroundOpacity: number;
-  position: 'bottom' | 'center';
-  outlineEnabled: boolean;
-  shadowEnabled: boolean;
-}
-
 interface ExportSequenceOptions {
   items: SequenceItem[];
   outputPath: string;
   width: number;
   height: number;
   fps: number;
-  subtitleStyle?: ExportSubtitleStyle;
   audioPlan?: ExportAudioPlan;
 }
 

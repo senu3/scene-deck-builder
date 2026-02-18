@@ -220,7 +220,7 @@ rg -n "requestAnimationFrame\(|setInterval\(|analyzeAudioRms\(|read-audio-pcm|ff
 - Gate 4: `Partial` 継続
   - `resolveCanonicalCutDuration` を追加し、`displayTime` 正規化入口を `storyTiming` 側へ集約した。
 - Gate 5: `Partial` 進展
-  - Preview sequence 再生で `buildSequenceItemsForCuts` 由来の framing/lipsync/subtitle を消費するよう変更。
+  - Preview sequence 再生で `buildSequenceItemsForCuts` 由来の framing/lipsync を消費するよう変更。
   - 残課題は audio 計画の完全同一化（scene attach / cut attach の同入口化）。
 - Gate 8: `Partial` 進展
   - `resolveCutAssetId` / `cutAssetPathStartsWith` を追加し、`cut.assetId || resolve...` の散在を縮小。

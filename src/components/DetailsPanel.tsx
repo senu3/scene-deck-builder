@@ -20,7 +20,6 @@ import {
   ChevronDown,
   ChevronRight,
   Edit2,
-  MessageSquare,
 } from "lucide-react";
 import { useStore } from "../store/useStore";
 import {
@@ -47,8 +46,6 @@ import {
   selectUpdateCutAudioOffset,
   selectSetCutUseEmbeddedAudio,
   selectRelinkCutAsset,
-  selectOpenVideoPreview,
-  selectOpenSequencePreview,
 } from "../store/selectors";
 import { useHistoryStore } from "../store/historyStore";
 import {
@@ -63,7 +60,6 @@ import {
   DeleteGroupCommand,
   RenameGroupCommand,
   SetSceneAttachAudioCommand,
-  UpdateCutSubtitleCommand,
 } from "../store/commands";
 import { getThumbnail } from "../utils/thumbnailCache";
 import { generateVideoClipThumbnail } from '../features/cut/clipThumbnail';
@@ -79,14 +75,6 @@ import type { ImageMetadata, Asset } from "../types";
 import { v4 as uuidv4 } from "uuid";
 import { Toggle, useDialog } from "../ui";
 import "./DetailsPanel.css";
-
-const SUBTITLE_SUMMARY_MAX = 15;
-
-function summarizeSubtitleText(text: string): string {
-  const normalized = text.replace(/\s+/g, " ").trim();
-  if (normalized.length <= SUBTITLE_SUMMARY_MAX) return normalized;
-  return `${normalized.slice(0, SUBTITLE_SUMMARY_MAX)}...`;
-}
 
 export default function DetailsPanel() {
   const scenes = useStore(selectScenes);
@@ -112,8 +100,6 @@ export default function DetailsPanel() {
   const updateCutAudioOffset = useStore(selectUpdateCutAudioOffset);
   const setCutUseEmbeddedAudio = useStore(selectSetCutUseEmbeddedAudio);
   const relinkCutAsset = useStore(selectRelinkCutAsset);
-  const openVideoPreview = useStore(selectOpenVideoPreview);
-  const openSequencePreview = useStore(selectOpenSequencePreview);
 
   const { executeCommand } = useHistoryStore();
   const { confirm } = useDialog();
@@ -168,7 +154,6 @@ export default function DetailsPanel() {
   const showLipSyncDetails = isLipSyncCut && !!lipSyncSettings;
   const sceneAudioBinding = selectedScene ? metadataStore?.sceneMetadata?.[selectedScene.id]?.attachAudio : undefined;
   const attachedSceneAudio = selectedScene ? getAttachedAudioForScene(selectedScene.id) : undefined;
-  const subtitleSummary = cut?.subtitle?.text ? summarizeSubtitleText(cut.subtitle.text) : "";
 
   // Check for multi-selection
   const isMultiSelection = selectedCutIds.size > 1;
@@ -472,20 +457,6 @@ export default function DetailsPanel() {
       return;
     }
     setShowLipSyncModal(true);
-  };
-
-  const handleEditSubtitle = () => {
-    if (!cut || !asset) return;
-    if (asset.type === "video") {
-      openVideoPreview(cut.id, { openSubtitleModal: true });
-      return;
-    }
-    openSequencePreview(cut.id, { openSubtitleModal: true });
-  };
-
-  const handleClearSubtitle = async () => {
-    if (!cutScene || !cut?.subtitle) return;
-    await executeCommand(new UpdateCutSubtitleCommand(cutScene.id, cut.id, undefined));
   };
 
   // Handle audio selection from AssetModal
@@ -1247,33 +1218,6 @@ export default function DetailsPanel() {
               </div>
             )}
           </div>
-
-          {cut.subtitle?.text && (
-          <div className="subtitle-section">
-              <div className="subtitle-header">
-              <MessageSquare size={14} />
-              <span>Subtitle</span>
-            </div>
-            <div className="subtitle-preview-text">
-              {subtitleSummary}
-            </div>
-            <div className="subtitle-actions">
-              <button
-                className="audio-btn subtitle-edit"
-                onClick={handleEditSubtitle}
-              >
-                Edit
-              </button>
-              <button
-                className="audio-btn remove"
-                onClick={handleClearSubtitle}
-                disabled={!cut.subtitle}
-              >
-                Clear
-              </button>
-            </div>
-          </div>
-          )}
 
           {/* Clip Info Section (for video clips) */}
           {isVideo &&

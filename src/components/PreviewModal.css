@@ -78,7 +78,7 @@
   color: #fff;
 }
 
-.preview-subtitle {
+.preview-cut-label {
   font-size: 12px;
   color: rgba(226, 232, 240, 0.7);
 }
@@ -166,57 +166,6 @@
 
 .preview-display--expanded {
   overflow: visible;
-}
-
-.preview-subtitle-overlay {
-  position: absolute;
-  left: 5%;
-  right: 5%;
-  z-index: 12;
-  pointer-events: none;
-  display: flex;
-  justify-content: center;
-}
-
-.preview-subtitle-overlay--bottom {
-  bottom: 96px;
-}
-
-.preview-subtitle-overlay--center {
-  top: 50%;
-  transform: translateY(-50%);
-}
-
-.preview-subtitle-text {
-  max-width: 100%;
-  text-align: center;
-  font-weight: 700;
-  line-height: 1.3;
-  padding: 0 10px;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.preview-subtitle-text.with-bg {
-  background: rgba(0, 0, 0, var(--subtitle-bg-opacity, 0.5));
-  border-radius: 8px;
-  padding: 6px 12px;
-}
-
-.preview-subtitle-text.with-outline {
-  text-shadow:
-    -1px -1px 0 rgba(0, 0, 0, 0.9),
-    1px -1px 0 rgba(0, 0, 0, 0.9),
-    -1px 1px 0 rgba(0, 0, 0, 0.9),
-    1px 1px 0 rgba(0, 0, 0, 0.9);
-}
-
-.preview-subtitle-text.with-shadow {
-  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.85));
-}
-
-.preview-subtitle-line {
-  display: block;
 }
 
 /* Free mode - contain within display */

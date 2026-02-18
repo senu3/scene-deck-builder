@@ -15,7 +15,6 @@
 
 ## 対象範囲
 - MP4 export（LipSync / VideoClip / Framing）
-- MP4 export（Cut subtitle burn-in）
 - MP4 export（分離音声ミックス: FLAC）
 - Export実行計画と出力シーケンス生成
 - Preview/Export の見た目整合
@@ -32,10 +31,6 @@
 - Framing は `resolveFramingParams` を単一入口として Preview/Export で同一解決。
 - LipSync export は strict 検証を通過しない場合に失敗（silent fallback なし）。
 - LipSync concat から動画セグメント化する経路は ffmpeg 6系互換のため CFR 固定（`-fps_mode cfr` + `-r <fps>`）を使用する。
-- Cut subtitle export は `cut.subtitle` を `ExportSequenceItem.subtitle` に転写し、MP4セグメント生成時に `drawtext` で焼き込む（itemローカル秒 `between(t,start,end)`）。
-- 字幕スタイルは `Mp4ExportPlan.subtitleStyle` で正規化し、IPC payload 経由で main に渡して適用する。
-- drawtext 文字列エスケープは `electron/subtitleExport.ts` の `escapeDrawtext` に集約する。
-- 日本語等のグリフ欠落対策として、main 側で `fontfile` を OS別候補から自動解決する。
 - 成果物は `export/<folder>/video.mp4` + sidecar `manifest.json` / `timeline.txt`。
 - 分離音声は `*.audio.flac` を同時出力（詳細は `docs/guides/implementation/export-audio-mix.md`）。
 - エクスポート進行中は Banner（progress/info）を表示し、完了時に削除。
@@ -63,15 +58,12 @@
 2. Framing変更時は Preview (`object-fit/object-position`) と Export filter の parity を確認する。
 3. LipSync変更時は payload検証と strict failure を維持する。
 4. LipSync concat出力で可変フレームレートを導入する場合は、`-r` との同時指定禁止（`-vsync/-fps_mode` の整合を必ず確認）。
-5. 字幕仕様変更時は Preview の時間基準（cutローカル秒）と Export の `between(t,...)` の基準を一致させる。
-6. drawtext エスケープ変更時は `electron/__tests__/subtitleExport.test.ts` を更新し、特殊文字回帰を防ぐ。
-7. timeline順序変更時は `timelineOrder` と export生成系テストを更新する。
-8. sidecar仕様を変える場合は `manifest.json` と `timeline.txt` の整合を同時更新する。
+5. timeline順序変更時は `timelineOrder` と export生成系テストを更新する。
+6. sidecar仕様を変える場合は `manifest.json` と `timeline.txt` の整合を同時更新する。
 
 ## テスト観点（最小）
 - `src/features/export/__tests__/plan.test.ts`
 - `src/utils/__tests__/exportSequence.test.ts`
-- `electron/__tests__/subtitleExport.test.ts`
 - `src/utils/__tests__/lipSyncExport.test.ts`
 - `src/store/__tests__/timelineIntegrityCommands.test.ts`
 

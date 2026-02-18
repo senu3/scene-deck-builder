@@ -37,3 +37,7 @@
   - 関連: `docs/guides/domain/cut-history.md`
 - `TODO-INVEST-004` `media-handling.md` の肥大化を監視し、`protocol` / `ffmpeg-queue` / `audio-pcm` 分割の実施条件を確定する。
   - 関連: `docs/guides/media-handling.md`
+- `TODO-INVEST-005` Preview Debug Overlay HUD（表示専用）を設計する。
+  - 表示候補: `sceneId/cutId/sceneIndex/cutIndex`、`cut.displayTime`（正本値）、再生状態、`sequenceState.localProgress`（参考値）。
+  - ルール: HUD は state を変更しない / Export に影響させない / 永続化しない。
+  - 関連: `docs/guides/preview.md`

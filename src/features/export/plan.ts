@@ -1,7 +1,5 @@
 import type { ExportSettings, EncodingQuality, ExportRange, RoundingMode } from './types';
 import { DEFAULT_EXPORT_RESOLUTION } from '../../constants/export';
-import type { SubtitleStyleSettings } from '../../utils/subtitleStyleSettings';
-import { getSubtitleStyleForExport } from './subtitleStyle';
 import type { SceneExportScope } from './sceneScope';
 
 export const DEFAULT_EXPORT_FPS = 30;
@@ -20,7 +18,6 @@ export interface Mp4ExportPlan {
   fps: number;
   quality: EncodingQuality;
   range: ExportRange;
-  subtitleStyle: SubtitleStyleSettings;
   exportScope?: SceneExportScope;
 }
 
@@ -57,7 +54,6 @@ export function resolveExportResolution(input: ResolutionInput): { width: number
 export function resolveExportPlan(input: {
   settings: ExportSettings;
   resolution: ResolutionInput;
-  subtitleStyle?: Partial<SubtitleStyleSettings> | null;
   exportScope?: SceneExportScope;
 }): ExportPlan {
   const outputRootPath = (input.settings.outputRootPath || '').trim();
@@ -89,7 +85,6 @@ export function resolveExportPlan(input: {
     fps,
     quality: input.settings.mp4.quality,
     range: input.settings.range,
-    subtitleStyle: getSubtitleStyleForExport({ subtitleStyle: input.subtitleStyle }),
     ...(input.exportScope ? { exportScope: input.exportScope } : {}),
   };
 }

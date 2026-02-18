@@ -1,6 +1,6 @@
 import { Command } from './historyStore';
 import { useStore } from './useStore';
-import type { Asset, Cut, Scene, CutGroup, SceneAudioBinding, CutSubtitle, AudioAnalysis } from '../types';
+import type { Asset, Cut, Scene, CutGroup, SceneAudioBinding, AudioAnalysis } from '../types';
 import { syncSceneMetadata } from '../utils/metadataStore';
 import { v4 as uuidv4 } from 'uuid';
 import { analyzeAudioRms } from '../utils/audioUtils';
@@ -25,7 +25,6 @@ function restoreCutState(
   }
 
   store.updateCutLipSync(sceneId, cutId, !!sourceCut.isLipSync, sourceCut.lipSyncFrameCount);
-  store.updateCutSubtitle(sceneId, cutId, sourceCut.subtitle);
   store.setCutAudioBindings(sceneId, cutId, sourceCut.audioBindings || []);
   store.setCutUseEmbeddedAudio(sceneId, cutId, sourceCut.useEmbeddedAudio ?? true);
 }
@@ -57,14 +56,6 @@ function addCutFromReference(
 function cloneCut(cut: Cut): Cut {
   return {
     ...cut,
-    subtitle: cut.subtitle
-      ? {
-          text: cut.subtitle.text,
-          range: cut.subtitle.range
-            ? { start: cut.subtitle.range.start, end: cut.subtitle.range.end }
-            : undefined,
-        }
-      : undefined,
     audioBindings: cut.audioBindings?.map((binding) => ({ ...binding })) || [],
   };
 }
@@ -249,49 +240,6 @@ export class ReorderCutsCommand implements Command {
 
     const store = useStore.getState();
     store.reorderCuts(this.sceneId, this.cutId, this.oldIndex, this.sceneId, this.newIndex);
-  }
-}
-
-/**
- * 字幕更新コマンド
- */
-export class UpdateCutSubtitleCommand implements Command {
-  type = 'UPDATE_CUT_SUBTITLE';
-  description: string;
-
-  private sceneId: string;
-  private cutId: string;
-  private nextSubtitle?: CutSubtitle;
-  private previousSubtitle?: CutSubtitle;
-
-  constructor(sceneId: string, cutId: string, subtitle?: CutSubtitle) {
-    this.sceneId = sceneId;
-    this.cutId = cutId;
-    this.nextSubtitle = subtitle
-      ? {
-          text: subtitle.text,
-          range: subtitle.range ? { start: subtitle.range.start, end: subtitle.range.end } : undefined,
-        }
-      : undefined;
-    this.description = subtitle?.text?.trim() ? 'Update cut subtitle' : 'Clear cut subtitle';
-  }
-
-  async execute(): Promise<void> {
-    const store = useStore.getState();
-    const scene = store.scenes.find((s) => s.id === this.sceneId);
-    const cut = scene?.cuts.find((c) => c.id === this.cutId);
-    this.previousSubtitle = cut?.subtitle
-      ? {
-          text: cut.subtitle.text,
-          range: cut.subtitle.range ? { start: cut.subtitle.range.start, end: cut.subtitle.range.end } : undefined,
-        }
-      : undefined;
-    store.updateCutSubtitle(this.sceneId, this.cutId, this.nextSubtitle);
-  }
-
-  async undo(): Promise<void> {
-    const store = useStore.getState();
-    store.updateCutSubtitle(this.sceneId, this.cutId, this.previousSubtitle);
   }
 }
 
@@ -737,7 +685,6 @@ export class DuplicateCutWithClipCommand implements Command {
 
     const sourceSnapshot: Cut = {
       ...sourceCut,
-      subtitle: sourceCut.subtitle ? { ...sourceCut.subtitle } : undefined,
       audioBindings: sourceCut.audioBindings ? sourceCut.audioBindings.map((binding) => ({ ...binding })) : [],
     };
 
@@ -937,7 +884,6 @@ export class AutoClipSimpleCommand implements Command {
       isClip: true,
       isLipSync: false,
       lipSyncFrameCount: undefined,
-      subtitle: undefined,
     }));
 
     if (sourceAsset.path) {

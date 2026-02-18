@@ -86,7 +86,6 @@ export function createProjectSlice(set: SliceSet, get: SliceGet): ProjectSliceCo
         lastSelectedCutId: null,
         selectionType: null,
         detailsPanelOpen: false,
-        pendingSubtitleModalCutId: null,
       });
     },
 
@@ -113,7 +112,6 @@ export function createProjectSlice(set: SliceSet, get: SliceGet): ProjectSliceCo
         assetCache: new Map(),
         selectedGroupId: null,
         detailsPanelOpen: false,
-        pendingSubtitleModalCutId: null,
       });
     },
 

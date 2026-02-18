@@ -31,15 +31,6 @@ describe('export plan', () => {
       expect(plan.outputDir).toBe('C:/vault/export/video_20260211_120000');
       expect(plan.outputFilePath).toBe('C:/vault/export/video_20260211_120000/video.mp4');
       expect(plan.range).toBe('all');
-      expect(plan.subtitleStyle).toEqual({
-        fontSizePx: 36,
-        fontColor: '#ffffff',
-        backgroundEnabled: true,
-        backgroundOpacity: 0.5,
-        position: 'bottom',
-        outlineEnabled: true,
-        shadowEnabled: true,
-      });
     }
   });
 

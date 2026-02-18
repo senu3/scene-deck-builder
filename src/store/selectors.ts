@@ -22,7 +22,6 @@ export const selectSidebarOpen = (s: AppState) => s.sidebarOpen;
 
 export const selectVideoPreviewCutId = (s: AppState) => s.videoPreviewCutId;
 export const selectSequencePreviewCutId = (s: AppState) => s.sequencePreviewCutId;
-export const selectPendingSubtitleModalCutId = (s: AppState) => s.pendingSubtitleModalCutId;
 
 export const selectSelectScene = (s: AppState) => s.selectScene;
 export const selectSelectCut = (s: AppState) => s.selectCut;
@@ -68,7 +67,6 @@ export const selectToggleGlobalMute = (s: AppState) => s.toggleGlobalMute;
 
 export const selectCloseVideoPreview = (s: AppState) => s.closeVideoPreview;
 export const selectCloseSequencePreview = (s: AppState) => s.closeSequencePreview;
-export const selectClearPendingSubtitleModalCutId = (s: AppState) => s.clearPendingSubtitleModalCutId;
 export const selectCacheAssetAction = selectCacheAsset;
 export const selectUpdateCutAssetAction = selectUpdateCutAsset;
 export const selectToggleAssetDrawer = (s: AppState) => s.toggleAssetDrawer;

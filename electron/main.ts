@@ -10,12 +10,6 @@ import { createFfmpegController } from './services/ffmpegController';
 import { createThumbnailService } from './services/thumbnailService';
 import { buildFramingVideoFilter } from './framing';
 import { createLipSyncConcatList, validateLipSyncExportPayload } from './lipSyncExport';
-import {
-  buildSubtitleDrawtextFilter,
-  sanitizeExportSubtitleStyle,
-  type ExportSubtitlePayload,
-  type ExportSubtitleStyle,
-} from './subtitleExport';
 const IPC_TOGGLE_SIDEBAR = 'toggle-sidebar';
 const IPC_AUTOSAVE_FLUSH_REQUEST = 'autosave-flush-request';
 const IPC_AUTOSAVE_FLUSH_COMPLETE = 'autosave-flush-complete';
@@ -1659,7 +1653,6 @@ interface SequenceItem {
     thresholds: { t1: number; t2: number; t3: number };
     audioOffsetSec: number;
   };
-  subtitle?: ExportSubtitlePayload;
 }
 
 interface ExportAudioEvent {
@@ -1686,7 +1679,6 @@ interface ExportSequenceOptions {
   width: number;
   height: number;
   fps: number;
-  subtitleStyle?: Partial<ExportSubtitleStyle> | null;
   audioPlan?: ExportAudioPlan;
 }
 
@@ -1879,7 +1871,6 @@ async function renderMixedAudioTrack(
 // Export sequence to MP4 using ffmpeg
 ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Promise<ExportSequenceResult> => {
   const { items, outputPath, fps } = options;
-  const subtitleStyle = sanitizeExportSubtitleStyle(options.subtitleStyle);
   const width = Number.isFinite(options.width) && options.width > 0 ? Math.floor(options.width) : DEFAULT_EXPORT_WIDTH;
   const height = Number.isFinite(options.height) && options.height > 0 ? Math.floor(options.height) : DEFAULT_EXPORT_HEIGHT;
 
@@ -1910,8 +1901,6 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
         mode: item.framingMode,
         anchor: item.framingAnchor,
       });
-      const subtitleFilter = buildSubtitleDrawtextFilter(item.subtitle, item.duration, subtitleStyle);
-      const filterWithSubtitle = subtitleFilter ? `${filter},${subtitleFilter}` : filter;
 
       console.info(
         `[export][framing] segment=${i} mode=${item.framingMode ?? 'cover'} anchor=${item.framingAnchor ?? 'center'}`
@@ -1933,7 +1922,7 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
           '-safe', '0',
           '-i', listFile,
           '-fps_mode', 'cfr',
-          '-vf', filterWithSubtitle,
+          '-vf', filter,
           '-r', fps.toString(),
           '-c:v', 'libx264',
           '-preset', 'fast',
@@ -1951,7 +1940,7 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
           '-loop', '1',
           '-i', item.path,
           '-t', item.duration.toString(),
-          '-vf', filterWithSubtitle,
+          '-vf', filter,
           '-r', fps.toString(),
           '-c:v', 'libx264',
           '-preset', 'fast',
@@ -1973,7 +1962,7 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
           '-ss', inPoint.toString(),
           '-i', item.path,
           '-t', duration.toString(),
-          '-vf', filterWithSubtitle,
+          '-vf', filter,
           '-r', fps.toString(),
           '-c:v', 'libx264',
           '-preset', 'fast',

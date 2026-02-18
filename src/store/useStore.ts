@@ -47,7 +47,6 @@ export const useStore = create<AppState>((set, get) => ({
 
   videoPreviewCutId: null,
   sequencePreviewCutId: null,
-  pendingSubtitleModalCutId: null,
 
   isImportingAsset: null,
 
