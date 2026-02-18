@@ -86,8 +86,9 @@
 
 ## Known Broken Invariants
 - Gate 5 (Preview/Export parity): sequence再生の音声計画を `buildExportAudioPlan` に統一し、scene/cut attach を含むイベント列を Export と同入口化済み（`Ready`）。
-- Gate 6 (Command 境界): 例外境界は ADR-0003 で固定済み。残課題は境界違反の検出自動化（`Partial`）。
+- Gate 6 (Command 境界): 例外境界は ADR-0003 で固定済み。`check:gate:strict` に境界検出を導入済み。残課題は CI への移植と運用定着（`Partial`）。
 - Gate 8 (`assetId` 主経路): read-time は resolver 経由に統一、write-time は `assetId` 主経路で `cut.asset` 非依存化、strict gate で新規違反検出を導入済み（`Ready`）。
+- Gate 10 (重処理分離): 再生ホットパスの静的監査は導入済み。残課題は CI での継続監視としきい値運用（`Partial`）。
 
 ## 成功指標
 - Preview/Export parity: 同一入力で視覚・時間・音が一致する。

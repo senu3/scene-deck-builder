@@ -26,6 +26,7 @@
 - `docs/guides/implementation/export-audio-mix.md`
 - `docs/guides/implementation/buffer-memory.md`
 - `docs/guides/implementation/autosave-snapshots.md`
+- `docs/guides/implementation/gate-checks.md`
 - `docs/guides/implementation/ui-components.md`
 - `docs/guides/implementation/color-system.md`
 
