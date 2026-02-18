@@ -62,14 +62,16 @@ function checkHotpathBlock({
 
 const files = walk(srcDir);
 const warnings = [];
-const gate6AllowedUseStoreSetStateFiles = new Set([
-  'src/store/commands.ts',
-]);
-const gate6AllowedScenesSetFiles = new Set([
-  'src/store/slices/cutTimelineSlice.ts',
-  'src/store/slices/groupSlice.ts',
-  'src/store/slices/projectSlice.ts',
-]);
+const gate6AllowedUseStoreSetStateRules = [
+  { path: 'src/store/commands.ts', reason: 'command undo/restore path (ADR-0003 boundary)' },
+];
+const gate6AllowedScenesSetRules = [
+  { path: 'src/store/slices/cutTimelineSlice.ts', reason: 'core timeline slice mutation boundary' },
+  { path: 'src/store/slices/groupSlice.ts', reason: 'group operations on timeline structure' },
+  { path: 'src/store/slices/projectSlice.ts', reason: 'project load/restore normalization path (ADR-0003 exception)' },
+];
+const gate6AllowedUseStoreSetStateFiles = new Set(gate6AllowedUseStoreSetStateRules.map((rule) => rule.path));
+const gate6AllowedScenesSetFiles = new Set(gate6AllowedScenesSetRules.map((rule) => rule.path));
 const gate10HotpathFiles = new Set([
   'src/components/PreviewModal.tsx',
   'src/utils/previewPlaybackController.ts',
@@ -91,6 +93,10 @@ const gate10ForbiddenInHotpathBlock = [
   {
     pattern: /\bspawn\s*\(/g,
     message: 'process spawn usage detected in playback hotpath block',
+  },
+  {
+    pattern: /\bawait\b|\.then\s*\(/g,
+    message: 'async wait chain detected in playback hotpath block',
   },
 ];
 
