@@ -218,7 +218,9 @@
   - `computeCanonicalStoryTimingsForCuts` の戻り値を拡張し、canonical duration の cut 単位参照を map 化。
   - Preview の `normalizedDisplayTime` を canonical 派生型に固定。
   - `check:gate:strict` に PreviewModal の `displayTime` 手計算再流入検知（直接参照 / `reduce(...displayTime...)`）を追加。
+- Gate 5 回帰テスト 1 本を追加済み。
+  - `src/utils/__tests__/gate5AudioParity.test.ts` で `timing -> items -> audioPlan` の同一入力連結を固定。
+  - `useEmbeddedAudio=false` を含むケースで audio event の `start/duration` parity を検証。
 - Phase 2.5 の残タスク:
-  - Gate 5 回帰テスト 1 本追加
   - Gate 6 境界違反検知の strict 化
   - Gate 10 再生ホットパス限定監査

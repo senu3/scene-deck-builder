@@ -1,0 +1,111 @@
+import { describe, expect, it } from 'vitest';
+import type { Asset, Cut, MetadataStore } from '../../types';
+import { buildExportAudioPlan } from '../exportAudioPlan';
+import { buildSequenceItemsForCuts } from '../exportSequence';
+import { computeCanonicalStoryTimingsForCuts } from '../storyTiming';
+
+describe('gate5 audio parity', () => {
+  it('keeps timing->items->audioPlan aligned with embedded-audio off/on semantics', () => {
+    const rawCuts: Cut[] = [
+      {
+        id: 'cut-1',
+        assetId: 'vid-1',
+        displayTime: Number.NaN,
+        order: 0,
+        useEmbeddedAudio: false,
+        audioBindings: [
+          { id: 'bind-1', audioAssetId: 'aud-cut', offsetSec: 0.5, gain: 0.7, enabled: true, kind: 'voice.other' },
+        ],
+      },
+      {
+        id: 'cut-2',
+        assetId: 'img-1',
+        displayTime: 2,
+        order: 1,
+      },
+      {
+        id: 'cut-3',
+        assetId: 'vid-2',
+        displayTime: 3,
+        order: 2,
+        useEmbeddedAudio: true,
+      },
+    ];
+
+    const assets = new Map<string, Asset>([
+      ['vid-1', { id: 'vid-1', name: 'v1.mp4', path: '/vault/v1.mp4', type: 'video', duration: 4 }],
+      ['img-1', { id: 'img-1', name: 'i1.png', path: '/vault/i1.png', type: 'image' }],
+      ['vid-2', { id: 'vid-2', name: 'v2.mp4', path: '/vault/v2.mp4', type: 'video' }],
+      ['aud-cut', { id: 'aud-cut', name: 'cut.wav', path: '/vault/cut.wav', type: 'audio' }],
+      ['aud-scene', { id: 'aud-scene', name: 'scene.wav', path: '/vault/scene.wav', type: 'audio' }],
+    ]);
+
+    const metadataStore: MetadataStore = {
+      version: 1,
+      metadata: {},
+      sceneMetadata: {
+        'scene-1': {
+          id: 'scene-1',
+          name: 'S1',
+          notes: [],
+          updatedAt: 't',
+          attachAudio: { id: 'sa-1', audioAssetId: 'aud-scene', enabled: true, kind: 'scene' },
+        },
+      },
+    };
+
+    const cutSceneMap = new Map<string, string>([
+      ['cut-1', 'scene-1'],
+      ['cut-2', 'scene-1'],
+      ['cut-3', 'scene-2'],
+    ]);
+
+    const canonical = computeCanonicalStoryTimingsForCuts(
+      rawCuts.map((cut) => ({ cut, sceneId: cutSceneMap.get(cut.id) || 'unknown' })),
+      (assetId) => assets.get(assetId),
+      { fallbackDurationSec: 1.0, preferAssetDuration: true }
+    );
+    const normalizedCuts = rawCuts.map((cut) => ({
+      ...cut,
+      displayTime: canonical.normalizedDurationByCutId.get(cut.id) ?? 1,
+    }));
+
+    const sequenceItems = buildSequenceItemsForCuts(normalizedCuts, {
+      resolveAssetById: (assetId) => assets.get(assetId),
+    });
+    const audioPlan = buildExportAudioPlan({
+      cuts: normalizedCuts,
+      metadataStore,
+      getAssetById: (assetId) => assets.get(assetId),
+      resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
+    });
+
+    expect(sequenceItems.map((item) => item.duration)).toEqual([4, 2, 3]);
+
+    const cut1Timing = canonical.cutTimings.get('cut-1');
+    const cut3Timing = canonical.cutTimings.get('cut-3');
+    expect(cut1Timing?.startSec).toBe(0);
+    expect(cut1Timing?.durationSec).toBe(4);
+    expect(cut3Timing?.startSec).toBe(6);
+    expect(cut3Timing?.durationSec).toBe(3);
+
+    expect(audioPlan.events.some((event) => event.sourceType === 'video' && event.cutId === 'cut-1')).toBe(false);
+
+    const cutAttach = audioPlan.events.find((event) => event.sourceType === 'cut-attach' && event.cutId === 'cut-1');
+    expect(cutAttach).toBeTruthy();
+    expect(cutAttach?.timelineStartSec).toBe(0);
+    expect(cutAttach?.durationSec).toBe(4);
+    expect(cutAttach?.sourceOffsetSec).toBe(0.5);
+    expect(cutAttach?.gain).toBe(0.7);
+
+    const embeddedVideo = audioPlan.events.find((event) => event.sourceType === 'video' && event.cutId === 'cut-3');
+    expect(embeddedVideo).toBeTruthy();
+    expect(embeddedVideo?.timelineStartSec).toBe(6);
+    expect(embeddedVideo?.durationSec).toBe(3);
+
+    const sceneAttach = audioPlan.events.find((event) => event.sourceType === 'scene-attach' && event.sceneId === 'scene-1');
+    expect(sceneAttach).toBeTruthy();
+    expect(sceneAttach?.timelineStartSec).toBe(0);
+    expect(sceneAttach?.durationSec).toBe(6);
+  });
+});

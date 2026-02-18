@@ -295,3 +295,18 @@ rg -n "requestAnimationFrame\(|setInterval\(|analyzeAudioRms\(|read-audio-pcm|ff
 - `npm run check:gate:strict`（warning 0）
 - `npm test -- src/utils/__tests__/storyTiming.test.ts src/utils/__tests__/exportSequence.test.ts`
 - `npm run build`
+
+---
+
+## Update 2026-02-18 (Phase2.5 Gate5 Regression Test Pass)
+
+### 状態更新
+- Gate 5: `Ready` 維持
+  - parity 崩れの再発防止として、`timing -> items -> audioPlan` を同一入力で結合する回帰テストを追加。
+  - `useEmbeddedAudio=false` を含むケースで、video/cut-attach/scene-attach のイベント時刻と duration の整合を固定。
+
+### 追加テスト
+- `src/utils/__tests__/gate5AudioParity.test.ts`
+
+### 検証
+- `npm test -- src/utils/__tests__/gate5AudioParity.test.ts src/utils/__tests__/exportAudioPlan.test.ts src/utils/__tests__/exportSequence.test.ts`
