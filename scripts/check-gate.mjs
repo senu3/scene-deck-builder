@@ -38,6 +38,14 @@ function lineOf(source, index) {
 
 const files = walk(srcDir);
 const warnings = [];
+const gate6AllowedUseStoreSetStateFiles = new Set([
+  'src/store/commands.ts',
+]);
+const gate6AllowedScenesSetFiles = new Set([
+  'src/store/slices/cutTimelineSlice.ts',
+  'src/store/slices/groupSlice.ts',
+  'src/store/slices/projectSlice.ts',
+]);
 
 for (const file of files) {
   const r = rel(file);
@@ -90,6 +98,35 @@ for (const file of files) {
         file: r,
         line: lineOf(src, m.index),
         message: 'reduce(...displayTime...) in PreviewModal (use canonical timing helpers)',
+      });
+    }
+  }
+
+  // Gate 6: state boundary checks (ADR-0003)
+  // 1) useStore.setState is allowed only in boundary-approved files.
+  for (const m of findAll(src, /\buseStore\.setState\s*\(/g)) {
+    if (gate6AllowedUseStoreSetStateFiles.has(r)) continue;
+    warnings.push({
+      gate: 'Gate6',
+      file: r,
+      line: lineOf(src, m.index),
+      message: 'useStore.setState outside Gate6 allowlist',
+    });
+  }
+
+  // 2) Direct scenes mutation via set((state)=>({ scenes: ... })) is allowed only in core timeline slices.
+  const scenesSetPatterns = [
+    /\bset\s*\(\s*\(\s*(?:state|currentState)\s*\)\s*=>[\s\S]{0,500}?scenes\s*:/g,
+    /\bset\s*\(\s*(?:state|currentState)\s*=>[\s\S]{0,500}?scenes\s*:/g,
+  ];
+  for (const pattern of scenesSetPatterns) {
+    for (const m of findAll(src, pattern)) {
+      if (gate6AllowedScenesSetFiles.has(r)) continue;
+      warnings.push({
+        gate: 'Gate6',
+        file: r,
+        line: lineOf(src, m.index),
+        message: 'set(...scenes:...) outside Gate6 allowlist',
       });
     }
   }

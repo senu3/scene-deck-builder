@@ -310,3 +310,17 @@ rg -n "requestAnimationFrame\(|setInterval\(|analyzeAudioRms\(|read-audio-pcm|ff
 
 ### 検証
 - `npm test -- src/utils/__tests__/gate5AudioParity.test.ts src/utils/__tests__/exportAudioPlan.test.ts src/utils/__tests__/exportSequence.test.ts`
+
+---
+
+## Update 2026-02-18 (Phase2.5 Gate6 Strict Detection Pass)
+
+### 状態更新
+- Gate 6: `Partial` 進展
+  - `check:gate:strict` に境界検出を追加。
+  - `useStore.setState(` は許可リスト（現状 `src/store/commands.ts`）外を fail。
+  - `set(...scenes:...)` は許可リスト（core timeline slices）外を fail。
+
+### 検証
+- `npm run check:gate`
+- `npm run check:gate:strict`

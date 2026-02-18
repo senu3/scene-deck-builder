@@ -221,6 +221,8 @@
 - Gate 5 回帰テスト 1 本を追加済み。
   - `src/utils/__tests__/gate5AudioParity.test.ts` で `timing -> items -> audioPlan` の同一入力連結を固定。
   - `useEmbeddedAudio=false` を含むケースで audio event の `start/duration` parity を検証。
+- Gate 6 は strict 検知を導入済み（`Partial` 維持）。
+  - `check:gate:strict` で `useStore.setState(` と `set(...scenes:...)` を許可リスト方式で監査。
+  - 新規の境界外追加は strict fail。
 - Phase 2.5 の残タスク:
-  - Gate 6 境界違反検知の strict 化
   - Gate 10 再生ホットパス限定監査
