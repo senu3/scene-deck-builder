@@ -63,4 +63,4 @@
   - warning 出力。ローカル監査向け。
 - `npm run check:gate:strict`
   - baseline との差分で fail。PR/CI 向け。
-- CI 移植時は `check:gate:strict` を必須ジョブにする。
+- CI では `check:gate:strict` を必須ジョブとして運用する。

@@ -65,10 +65,11 @@
 ## Gate Enforcement
 - Gate 2 fallback 許容は 2026-02-17 で終了。`safeOrder` のような順序fallbackを再導入しない。
 - Gate 2 fail 化条件は固定する:
-  - `npm run check:gate --strict` が CI に接続されていること。
+  - `npm run check:gate:strict` が CI に接続されていること。
   - `src/utils/timelineOrder.ts` に順序fallbackが存在しないこと。
   - ロード時に `cut.order` 正規化（配列順再採番）が有効であること。
-- CI 未接続期間は `npm run check:gate`（warning-only）をローカル/PRで実行し、警告ゼロを維持する。
+- CI では `npm run check:gate:strict` を必須チェックにする。
+- ローカルでは `npm run check:gate` と `npm run check:gate:strict` を PR 前に実行する。
 
 ## Canonical APIs (Gate 3/4/5)
 - 正規化入口（Gate 4）: `resolveCanonicalCutDuration`（`src/utils/storyTiming.ts`）を `displayTime` 解決の正本にする。
@@ -86,9 +87,9 @@
 
 ## Known Broken Invariants
 - Gate 5 (Preview/Export parity): sequence再生の音声計画を `buildExportAudioPlan` に統一し、scene/cut attach を含むイベント列を Export と同入口化済み（`Ready`）。
-- Gate 6 (Command 境界): 例外境界は ADR-0003 で固定済み。`check:gate:strict` に境界検出を導入済み。残課題は CI への移植と運用定着（`Partial`）。
+- Gate 6 (Command 境界): 例外境界は ADR-0003 で固定済み。`check:gate:strict` に境界検出を導入済み。残課題は許可リスト運用の継続監査（`Partial`）。
 - Gate 8 (`assetId` 主経路): read-time は resolver 経由に統一、write-time は `assetId` 主経路で `cut.asset` 非依存化、strict gate で新規違反検出を導入済み（`Ready`）。
-- Gate 10 (重処理分離): 再生ホットパスの静的監査は導入済み。残課題は CI での継続監視としきい値運用（`Partial`）。
+- Gate 10 (重処理分離): 再生ホットパスの静的監査は導入済み。残課題はしきい値運用と監査範囲の微調整（`Partial`）。
 
 ## 成功指標
 - Preview/Export parity: 同一入力で視覚・時間・音が一致する。
