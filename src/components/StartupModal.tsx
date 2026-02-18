@@ -169,6 +169,30 @@ function hasLegacyRelativeAssetPaths(scenes: Scene[]): boolean {
   );
 }
 
+function getVaultPathFromProjectFile(projectPath: string): string {
+  return projectPath
+    .replace(/[/\\]project\.sdp$/, '')
+    .replace(/[/\\][^/\\]+\.sdp$/, '');
+}
+
+function normalizePathForCompare(p: string): string {
+  return p.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+}
+
+function resolveLoadedVaultPath(projectVaultPath: string | undefined, projectPath: string): string {
+  const fromProjectFile = getVaultPathFromProjectFile(projectPath);
+  if (!projectVaultPath) return fromProjectFile;
+  if (normalizePathForCompare(projectVaultPath) !== normalizePathForCompare(fromProjectFile)) {
+    console.warn('[ProjectLoad] vaultPath mismatch. Using project file directory.', {
+      embeddedVaultPath: projectVaultPath,
+      projectFileDir: fromProjectFile,
+      projectPath,
+    });
+    return fromProjectFile;
+  }
+  return projectVaultPath;
+}
+
 function normalizeLoadedProjectVersion(version: number | undefined, scenes: Scene[]): { version: number; wasMissing: boolean } {
   if (Number.isFinite(version) && (version as number) > 0) {
     return { version: Math.floor(version as number), wasMissing: false };
@@ -360,7 +384,7 @@ export default function StartupModal() {
       };
 
       // Determine vault path
-      const loadedVaultPath = projectData.vaultPath || path.replace(/[/\\]project\.sdp$/, '').replace(/[/\\][^/\\]+\.sdp$/, '');
+      const loadedVaultPath = resolveLoadedVaultPath(projectData.vaultPath, path);
 
       // Resolve asset paths (v2+ uses relative paths)
       let scenes = projectData.scenes || [];
@@ -624,7 +648,7 @@ export default function StartupModal() {
         };
 
         // Determine vault path
-        const loadedVaultPath = projectData.vaultPath || project.path.replace(/[/\\]project\.sdp$/, '').replace(/[/\\][^/\\]+\.sdp$/, '');
+        const loadedVaultPath = resolveLoadedVaultPath(projectData.vaultPath, project.path);
 
         // Resolve asset paths (v2+ uses relative paths)
         let scenes = projectData.scenes || [];

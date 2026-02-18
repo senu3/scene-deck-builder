@@ -84,6 +84,8 @@
   - Export: 該当cutをskipし警告。LipSync strict条件では例外で停止可。
   - Load/Recovery: index補完を試行し、未解決は missing asset フローへ送る。
 - `cut.asset` を Asset 解決経路として再導入しない。
+- v5 以降、ロード直後の `assetCache` 初期化は `resolveCutAsset` に依存せず、保存済み `cut.asset` snapshot を seed として再構築する。
+- `project.sdp` の `vaultPath` が実ファイル配置と不一致の場合は、開いた `project.sdp` の親ディレクトリを正として扱う。
 
 ## Known Broken Invariants
 - Gate 5 (Preview/Export parity): sequence再生の音声計画を `buildExportAudioPlan` に統一し、scene/cut attach を含むイベント列を Export と同入口化済み（`Ready`）。

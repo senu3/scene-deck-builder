@@ -147,6 +147,8 @@ Renderer code must call `window.electronAPI.vaultGateway.*` for:
 - Save-time cut asset snapshots keep minimal fields and should include `vaultRelativePath` when available.
 - Load flow must treat `.index.json` as fallback source of truth for file path hydration (`assetId -> filename`) when `cut.asset.path` is empty.
 - This fallback is required to prevent Sequence video preview from stalling at LoadingVideo after project reload.
+- `project.sdp` load 時は、埋め込み `vaultPath` より「実際に開いた project ファイルのディレクトリ」を優先し、不一致時は file-directory を採用する。
+- v5 で `resolveCutAsset` が `assetId` 専用になったため、初期 `assetCache` は `cut.asset` snapshot から再構築する（resolver に依存して空キャッシュ化しない）。
 
 ## Related Docs
 - `docs/references/DOMAIN.md`

@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Scene, Cut, Asset } from '../../types';
 import { clearThumbnailCache } from '../../utils/thumbnailCache';
 import { normalizeSceneOrder } from '../../utils/sceneOrder';
-import { resolveCutAsset, resolveCutAssetId } from '../../utils/assetResolve';
+import { resolveCutAssetId } from '../../utils/assetResolve';
 import type { SourceFolder } from '../stateTypes';
 import type { ProjectSliceContract } from '../contracts';
 import type { SliceGet, SliceSet } from './sliceTypes';
@@ -29,14 +29,13 @@ function buildAssetCacheFromScenes(scenes: Scene[]): Map<string, Asset> {
   const cache = new Map<string, Asset>();
   for (const scene of scenes) {
     for (const cut of scene.cuts) {
-      const cutAsset = resolveCutAsset(cut, () => undefined);
-      if (!cutAsset) continue;
-      const lookupId = resolveCutAssetId(cut, () => undefined) || cutAsset.id;
-      if (lookupId) {
-        cache.set(lookupId, { ...cutAsset, id: lookupId });
-      }
-      if (cutAsset.id && cutAsset.id !== lookupId) {
-        cache.set(cutAsset.id, cutAsset);
+      const snapshot = cut['asset'];
+      if (!snapshot) continue;
+      const lookupId = resolveCutAssetId(cut, () => undefined) || snapshot.id;
+      if (!lookupId) continue;
+      cache.set(lookupId, { ...snapshot, id: lookupId });
+      if (snapshot.id && snapshot.id !== lookupId) {
+        cache.set(snapshot.id, snapshot);
       }
     }
   }
@@ -65,6 +64,7 @@ export function createProjectSlice(set: SliceSet, get: SliceGet): ProjectSliceCo
       ];
       const nextScenes = normalizeScenesUseEmbeddedAudio(project.scenes || defaultScenes);
       const nextSceneOrder = normalizeSceneOrder(project.sceneOrder, nextScenes);
+      const nextAssetCache = buildAssetCacheFromScenes(nextScenes);
 
       set({
         projectLoaded: true,
@@ -78,7 +78,7 @@ export function createProjectSlice(set: SliceSet, get: SliceGet): ProjectSliceCo
             : undefined,
         scenes: nextScenes,
         sceneOrder: nextSceneOrder,
-        assetCache: buildAssetCacheFromScenes(nextScenes),
+        assetCache: nextAssetCache,
         cutRuntimeById: {},
         selectedSceneId: null,
         selectedCutId: null,
