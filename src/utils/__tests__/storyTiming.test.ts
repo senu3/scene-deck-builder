@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { Scene } from '../../types';
-import { computeStoryTimings, computeStoryTimingsForCuts } from '../storyTiming';
+import type { Asset, Cut, Scene } from '../../types';
+import { computeCanonicalStoryTimingsForCuts, computeStoryTimings, computeStoryTimingsForCuts } from '../storyTiming';
 
 describe('storyTiming', () => {
   it('computes scene/cut starts from sceneOrder + displayTime', () => {
@@ -46,5 +46,31 @@ describe('storyTiming', () => {
     expect(timings.sceneTimings.get('s2')).toEqual({ startSec: 4, durationSec: 4 });
     expect(timings.cutTimings.get('c2')?.startSec).toBe(1.5);
     expect(timings.totalDurationSec).toBe(8);
+  });
+
+  it('exposes canonical duration maps derived from normalized timings', () => {
+    const cuts: Cut[] = [
+      { id: 'c1', assetId: 'a1', displayTime: Number.NaN, order: 0 },
+      { id: 'c2', assetId: 'a2', displayTime: 0, order: 1 },
+      { id: 'c3', assetId: 'a3', displayTime: 2.5, order: 2 },
+    ];
+    const assets = new Map<string, Asset>([
+      ['a1', { id: 'a1', name: 'video-1', type: 'video', path: '/tmp/1.mp4', duration: 4 }],
+      ['a2', { id: 'a2', name: 'img-2', type: 'image', path: '/tmp/2.png' }],
+      ['a3', { id: 'a3', name: 'img-3', type: 'image', path: '/tmp/3.png' }],
+    ]);
+
+    const timings = computeCanonicalStoryTimingsForCuts(
+      cuts.map((cut) => ({ cut, sceneId: 's1' })),
+      (assetId) => assets.get(assetId),
+      { fallbackDurationSec: 1.0, preferAssetDuration: true }
+    );
+
+    expect(timings.normalizedDurationByCutId.get('c1')).toBe(4);
+    expect(timings.normalizedDurationByCutId.get('c2')).toBe(1);
+    expect(timings.normalizedCutByCutId.get('c1')?.adjusted).toBe(true);
+    expect(timings.normalizedCutByCutId.get('c3')?.adjusted).toBe(false);
+    expect(timings.cutTimings.get('c3')?.startSec).toBe(5);
+    expect(timings.totalDurationSec).toBe(7.5);
   });
 });

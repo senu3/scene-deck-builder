@@ -212,3 +212,13 @@
   - Gate 3/4/5: 時系列・`displayTime` は canonical API へ移行。加えて Gate 5 は Preview sequence 音声計画を `buildExportAudioPlan` に統一し、scene/cut attach を含む同一イベント列へ収束（`Ready`）。
   - Gate 8: `assetId` join helper 導入に加えて、save/load の `assetId` 主経路化、write-time の `cut.asset` 非依存化、strict gate で新規違反検出まで反映（`Ready`）。
   - Gate 9: thumbnail profile は型/ラッパで省略禁止を強制。
+
+## 進捗メモ（2026-02-18 / Phase 2.5）
+- Gate 3/4 は再発防止まで実装完了（`Ready`）。
+  - `computeCanonicalStoryTimingsForCuts` の戻り値を拡張し、canonical duration の cut 単位参照を map 化。
+  - Preview の `normalizedDisplayTime` を canonical 派生型に固定。
+  - `check:gate:strict` に PreviewModal の `displayTime` 手計算再流入検知（直接参照 / `reduce(...displayTime...)`）を追加。
+- Phase 2.5 の残タスク:
+  - Gate 5 回帰テスト 1 本追加
+  - Gate 6 境界違反検知の strict 化
+  - Gate 10 再生ホットパス限定監査

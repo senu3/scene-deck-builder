@@ -29,7 +29,12 @@ import { EXPORT_FRAMING_DEFAULTS } from '../constants/framing';
 import { buildPreviewViewportFramingStyle, buildPreviewViewportFramingStyleFromResolved } from '../utils/previewFraming';
 import { buildExportAudioPlan, type ExportAudioEvent } from '../utils/exportAudioPlan';
 import { getScenesInOrder } from '../utils/sceneOrder';
-import { computeCanonicalStoryTimingsForCuts, resolveCanonicalCutDuration } from '../utils/storyTiming';
+import {
+  asCanonicalDurationSec,
+  computeCanonicalStoryTimingsForCuts,
+  resolveCanonicalCutDuration,
+  type CanonicalDurationSec,
+} from '../utils/storyTiming';
 import {
   PlaybackRangeMarkers,
   VolumeControl,
@@ -45,6 +50,7 @@ const PLAY_SAFE_AHEAD = 2.0; // seconds - minimum buffer required for playback
 const PRELOAD_AHEAD = 30.0; // seconds - preload this much ahead for smoother playback
 const INITIAL_PRELOAD_ITEMS = 5; // number of items to preload initially
 const FRAME_DURATION = 1 / 30;
+const FALLBACK_CANONICAL_DURATION_SEC = asCanonicalDurationSec(1.0);
 
 function clampToDuration(time: number, duration: number): number {
   return Math.max(0, Math.min(duration, time));
@@ -119,7 +125,8 @@ interface PreviewItem {
   cutIndex: number;
   sceneStartAbs: number;
   previewOffsetSec: number;
-  normalizedDisplayTime: number;
+  // Derived only from canonical story timings. Do not source from raw cut duration fields directly.
+  normalizedDisplayTime: CanonicalDurationSec;
   thumbnail: string | null;
 }
 
@@ -221,11 +228,12 @@ export default function PreviewModal({
   const [singleModeInPoint, setSingleModeInPoint] = useState<number | null>(initialInPoint ?? null);
   const [singleModeOutPoint, setSingleModeOutPoint] = useState<number | null>(initialOutPoint ?? null);
 
-  const resolveCutDisplayTimeSec = useCallback((cut: Cut | null | undefined): number => {
-    return resolveCanonicalCutDuration(cut, getAsset, {
+  const resolveCutDisplayTimeSec = useCallback((cut: Cut | null | undefined): CanonicalDurationSec => {
+    const resolved = resolveCanonicalCutDuration(cut, getAsset, {
       fallbackDurationSec: 1.0,
       preferAssetDuration: true,
-    }).durationSec;
+    });
+    return asCanonicalDurationSec(resolved.durationSec);
   }, [getAsset]);
 
   const sequenceDurations = useMemo(() => items.map(item => item.normalizedDisplayTime), [items]);
@@ -986,8 +994,6 @@ export default function PreviewModal({
           getAsset,
           { fallbackDurationSec: 1.0, preferAssetDuration: true }
         );
-        const normalizedByCutId = new Map(scopedTimings.normalizedCuts.map((entry) => [entry.cutId, entry.durationSec]));
-
         for (let cIdx = 0; cIdx < sequenceCuts.length; cIdx++) {
           const cut = sequenceCuts[cIdx];
           const cutAsset = resolveAssetForCut(cut);
@@ -1041,7 +1047,7 @@ export default function PreviewModal({
             cutIndex: cIdx,
             sceneStartAbs: 0,
             previewOffsetSec: 0,
-            normalizedDisplayTime: normalizedByCutId.get(cut.id) ?? 1.0,
+            normalizedDisplayTime: scopedTimings.normalizedDurationByCutId.get(cut.id) ?? FALLBACK_CANONICAL_DURATION_SEC,
             thumbnail,
           });
         }
@@ -1066,7 +1072,7 @@ export default function PreviewModal({
         );
         const sceneStartAbs = focusTimings.sceneTimings.get(scene.id)?.startSec ?? 0;
         const previewOffsetSec = Math.max(0, (focusTimings.cutTimings.get(cut.id)?.startSec ?? 0) - sceneStartAbs);
-        const normalizedDisplayTime = focusTimings.normalizedCuts.find((item) => item.cutId === cut.id)?.durationSec ?? 1.0;
+        const normalizedDisplayTime = focusTimings.normalizedDurationByCutId.get(cut.id) ?? FALLBACK_CANONICAL_DURATION_SEC;
         const cutAsset = resolveAssetForCut(cut);
         if (!cutAsset) {
           setItems([]);
@@ -1148,8 +1154,6 @@ export default function PreviewModal({
         getAsset,
         { fallbackDurationSec: 1.0, preferAssetDuration: true }
       );
-      const normalizedByCutId = new Map(timings.normalizedCuts.map((entry) => [entry.cutId, entry.durationSec]));
-
       for (let sIdx = 0; sIdx < scenesToPreview.length; sIdx++) {
         const scene = scenesToPreview[sIdx];
         const sceneStartAbs = timings.sceneTimings.get(scene.id)?.startSec ?? 0;
@@ -1206,7 +1210,7 @@ export default function PreviewModal({
             cutIndex: cIdx,
             sceneStartAbs,
             previewOffsetSec: 0,
-            normalizedDisplayTime: normalizedByCutId.get(cut.id) ?? 1.0,
+            normalizedDisplayTime: timings.normalizedDurationByCutId.get(cut.id) ?? FALLBACK_CANONICAL_DURATION_SEC,
             thumbnail,
           });
         }

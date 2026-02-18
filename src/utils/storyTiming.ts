@@ -2,6 +2,12 @@ import type { Asset, Cut, Scene } from '../types';
 import { getScenesAndCutsInTimelineOrder } from './timelineOrder';
 import { resolveNormalizedCutDisplayTime, type ResolveCutDisplayTimeOptions, type ResolvedCutDisplayTime } from './assetResolve';
 
+declare const canonicalDurationSecBrand: unique symbol;
+declare const canonicalTimeSecBrand: unique symbol;
+
+export type CanonicalDurationSec = number & { readonly [canonicalDurationSecBrand]: true };
+export type CanonicalTimeSec = number & { readonly [canonicalTimeSecBrand]: true };
+
 export interface SceneTiming {
   startSec: number;
   durationSec: number;
@@ -33,18 +39,43 @@ export interface CanonicalStoryTimingCutInput {
 export interface CanonicalStoryTimingCut {
   cutId: string;
   sceneId: string;
-  durationSec: number;
+  durationSec: CanonicalDurationSec;
   adjusted: boolean;
   source: ResolvedCutDisplayTime['source'];
 }
 
-export interface CanonicalStoryTimings extends StoryTimings {
+export interface CanonicalSceneTiming {
+  startSec: CanonicalTimeSec;
+  durationSec: CanonicalDurationSec;
+}
+
+export interface CanonicalCutTiming {
+  startSec: CanonicalTimeSec;
+  durationSec: CanonicalDurationSec;
+  sceneId: string;
+}
+
+export interface CanonicalStoryTimings {
+  sceneTimings: Map<string, CanonicalSceneTiming>;
+  cutTimings: Map<string, CanonicalCutTiming>;
+  totalDurationSec: CanonicalDurationSec;
   normalizedCuts: CanonicalStoryTimingCut[];
+  normalizedCutByCutId: ReadonlyMap<string, CanonicalStoryTimingCut>;
+  normalizedDurationByCutId: ReadonlyMap<string, CanonicalDurationSec>;
 }
 
 function normalizeDurationSec(value: number): number {
   if (!Number.isFinite(value) || value <= 0) return 0;
   return value;
+}
+
+export function asCanonicalDurationSec(value: number): CanonicalDurationSec {
+  return normalizeDurationSec(value) as CanonicalDurationSec;
+}
+
+export function asCanonicalTimeSec(value: number): CanonicalTimeSec {
+  if (!Number.isFinite(value) || value < 0) return 0 as CanonicalTimeSec;
+  return value as CanonicalTimeSec;
 }
 
 export function computeStoryTimings(scenes: Scene[], sceneOrder?: string[]): StoryTimings {
@@ -120,11 +151,13 @@ export function computeCanonicalStoryTimingsForCuts(
     return {
       cutId: cut.id,
       sceneId,
-      durationSec: resolved.durationSec,
+      durationSec: asCanonicalDurationSec(resolved.durationSec),
       adjusted: resolved.adjusted,
       source: resolved.source,
     };
   });
+  const normalizedDurationByCutId = new Map(normalizedCuts.map((entry) => [entry.cutId, entry.durationSec] as const));
+  const normalizedCutByCutId = new Map(normalizedCuts.map((entry) => [entry.cutId, entry] as const));
 
   const timings = computeStoryTimingsForCuts(
     normalizedCuts.map((cut) => ({
@@ -135,7 +168,28 @@ export function computeCanonicalStoryTimingsForCuts(
   );
 
   return {
-    ...timings,
+    sceneTimings: new Map(
+      Array.from(timings.sceneTimings.entries(), ([sceneId, sceneTiming]) => [
+        sceneId,
+        {
+          startSec: asCanonicalTimeSec(sceneTiming.startSec),
+          durationSec: asCanonicalDurationSec(sceneTiming.durationSec),
+        },
+      ])
+    ),
+    cutTimings: new Map(
+      Array.from(timings.cutTimings.entries(), ([cutId, cutTiming]) => [
+        cutId,
+        {
+          startSec: asCanonicalTimeSec(cutTiming.startSec),
+          durationSec: asCanonicalDurationSec(cutTiming.durationSec),
+          sceneId: cutTiming.sceneId,
+        },
+      ])
+    ),
+    totalDurationSec: asCanonicalDurationSec(timings.totalDurationSec),
     normalizedCuts,
+    normalizedCutByCutId,
+    normalizedDurationByCutId,
   };
 }

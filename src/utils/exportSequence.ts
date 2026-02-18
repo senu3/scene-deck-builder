@@ -204,10 +204,10 @@ export function buildSequenceItemsForCuts(
     (assetId) => options.resolveAssetById?.(assetId),
     { fallbackDurationSec: 1.0, preferAssetDuration: true }
   );
-  const durationByCutId = new Map(timings.normalizedCuts.map((entry) => [entry.cutId, entry]));
 
   for (const cut of cuts) {
-    const durationInfo = durationByCutId.get(cut.id) ?? { durationSec: 1.0, adjusted: true };
+    const normalizedCut = timings.normalizedCutByCutId.get(cut.id);
+    const durationInfo = normalizedCut ?? { durationSec: 1.0, adjusted: true };
     const item = buildExportSequenceItemFromCut(
       cut,
       options,
@@ -236,11 +236,11 @@ export function buildSequenceItemsForExport(
     (assetId) => options.resolveAssetById?.(assetId),
     { fallbackDurationSec: 1.0, preferAssetDuration: true }
   );
-  const durationByCutId = new Map(timings.normalizedCuts.map((entry) => [entry.cutId, entry]));
 
   for (const scene of orderedScenes) {
     for (const cut of scene.cuts) {
-      const durationInfo = durationByCutId.get(cut.id) ?? { durationSec: 1.0, adjusted: true };
+      const normalizedCut = timings.normalizedCutByCutId.get(cut.id);
+      const durationInfo = normalizedCut ?? { durationSec: 1.0, adjusted: true };
       const item = buildExportSequenceItemFromCut(
         cut,
         options,

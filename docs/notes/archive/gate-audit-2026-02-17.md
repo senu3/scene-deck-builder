@@ -278,3 +278,20 @@ rg -n "requestAnimationFrame\(|setInterval\(|analyzeAudioRms\(|read-audio-pcm|ff
 
 ### フェーズ判定
 - Phase 2 対象（Gate 5 / Gate 8 / Gate 9）は完了。
+
+---
+
+## Update 2026-02-18 (Phase2.5 Gate3/4 Recurrence Prevention Pass)
+
+### 状態更新
+- Gate 3: `Partial -> Ready`
+  - `computeCanonicalStoryTimingsForCuts` の戻り値を拡張し、下流が cut 単位で canonical duration を直接参照できる map（`normalizedDurationByCutId` / `normalizedCutByCutId`）を追加。
+  - Preview の `normalizedDisplayTime` は canonical timing 派生値（`CanonicalDurationSec`）として型で固定。
+- Gate 4: `Partial -> Ready`
+  - Preview 側の `normalizedDisplayTime` 解決を canonical map 参照に統一し、局所的な二重補正を縮退。
+  - `check:gate:strict` に PreviewModal 向けガードを追加し、`displayTime` 手計算パターンの新規流入を fail 化。
+
+### 検証
+- `npm run check:gate:strict`（warning 0）
+- `npm test -- src/utils/__tests__/storyTiming.test.ts src/utils/__tests__/exportSequence.test.ts`
+- `npm run build`

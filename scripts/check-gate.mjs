@@ -70,6 +70,29 @@ for (const file of files) {
       });
     }
   }
+
+  // Gate 3/4: PreviewModal must not reintroduce direct displayTime hand-calculation paths.
+  if (r === 'src/components/PreviewModal.tsx') {
+    for (const m of findAll(src, /\b(?:\w+\.)?cut\.displayTime\b/g)) {
+      warnings.push({
+        gate: 'Gate3',
+        file: r,
+        line: lineOf(src, m.index),
+        message: 'direct cut.displayTime reference in PreviewModal (use canonical timings)',
+      });
+    }
+
+    for (const m of findAll(src, /reduce\s*\(/g)) {
+      const tail = src.slice(m.index, Math.min(src.length, m.index + 240));
+      if (!tail.includes('displayTime')) continue;
+      warnings.push({
+        gate: 'Gate4',
+        file: r,
+        line: lineOf(src, m.index),
+        message: 'reduce(...displayTime...) in PreviewModal (use canonical timing helpers)',
+      });
+    }
+  }
 }
 
 // Gate 2: safeOrder fallback should be tracked until removed.

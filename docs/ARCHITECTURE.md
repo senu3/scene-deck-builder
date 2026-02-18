@@ -75,6 +75,7 @@
 - 時系列入口（Gate 3）: `computeCanonicalStoryTimingsForCuts` を開始秒・合計尺計算の正本にする。
 - 出力item入口（Gate 5）: `buildSequenceItemsForCuts` を export sequence item 生成の正本にする。
 - Preview 実装は上記正本APIで得た値を消費する側とし、同等ロジックの再実装を増やさない。
+- `check:gate:strict` で Preview 側の `displayTime` 手計算再流入（直接参照 / `reduce(...displayTime...)`）を新規 fail にする。
 
 ## Asset Resolve Failure Policy (Gate 8)
 - 詳細は ADR-0005 に従う。`assetId` 解決失敗時の扱いは用途別に固定する:
@@ -84,8 +85,6 @@
 - `cut.asset` への直接依存は `src/utils/assetResolve.ts` の fallback に限定する。
 
 ## Known Broken Invariants
-- Gate 3 (時系列定義): canonical API は ADR-0004 で固定済み。Preview 側のローカル時間窓計算を正本API消費へさらに寄せる余地がある（`Partial`）。
-- Gate 4 (`displayTime` 正規化): canonical API は ADR-0004 で固定済み。残課題は全経路での統一使用を継続監査すること（`Partial`）。
 - Gate 5 (Preview/Export parity): sequence再生の音声計画を `buildExportAudioPlan` に統一し、scene/cut attach を含むイベント列を Export と同入口化済み（`Ready`）。
 - Gate 6 (Command 境界): 例外境界は ADR-0003 で固定済み。残課題は境界違反の検出自動化（`Partial`）。
 - Gate 8 (`assetId` 主経路): read-time は resolver 経由に統一、write-time は `assetId` 主経路で `cut.asset` 非依存化、strict gate で新規違反検出を導入済み（`Ready`）。
