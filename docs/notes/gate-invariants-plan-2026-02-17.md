@@ -146,6 +146,30 @@
   - `cut.asset` 直接参照を `resolveCutAsset` 経由へ置換
   - `getThumbnail` 呼び出しに profile を明記（UI面ごと）
 
+### Phase 2.5: 追加是正（再発防止と運用固定）
+- 優先順位
+  1. Gate 3 再発防止（最優先）
+  2. Gate 4 を Gate 3 に統合して閉じる
+  3. Gate 5 回帰防止テスト追加
+  4. Gate 6 違反検出 strict 化
+  5. Gate 10 ホットパス限定監査
+- 具体作業
+  - Gate 3:
+    - `computeCanonicalStoryTimingsForCuts(...)` の戻り値型を強化し、下流の時系列参照を timing 正本へ寄せる。
+    - `items[].normalizedDisplayTime` を timing 由来の派生値として明示する（型優先、必要最小限コメント補足）。
+    - `PreviewModal.tsx` の `displayTime` / `cut.displayTime` 直接参照を段階削減し、最終的に 0 を目標とする。
+    - strict（新規違反のみ fail）で `PreviewModal.tsx` の `displayTime` 直接参照追加と `reduce(...displayTime...)` 等の累積手計算追加を禁止する。
+  - Gate 4:
+    - `rg -n "normalizedDisplayTime|displayTime.*Math\\.(max|min)|clamp.*displayTime|Infinity|NaN" src` で補正ロジックを監査する。
+    - duration補正を `storyTiming.ts`（または timing -> items 生成の単一箇所）へ集約し、他箇所の補正を削除または移管する。
+  - Gate 5:
+    - `computeCanonicalStoryTimingsForCuts` + `buildSequenceItemsForCuts` + `buildExportAudioPlan` を同一入力で接続する回帰ユニットテストを 1 本追加する。
+    - `useEmbeddedAudio=false` を含め、audio event の `start/duration` parity を固定する。
+  - Gate 6:
+    - `check:gate:strict` に許可リスト方式を追加し、`useStore.setState(` と `set((state)=>({scenes:` の境界逸脱を新規 fail 化する。
+  - Gate 10:
+    - Preview の `play/seek/tick` 起点で関数ツリーを列挙し、ツリー内の `ffmpeg/spawn/fs/解析` 同期実行可能性のみを抽出して是正する。
+
 ### Phase 3: Gate運用強化（CI移植）
 - 前提: `.github/workflows` を追加
 - 段階導入
@@ -188,5 +212,3 @@
   - Gate 3/4/5: 時系列・`displayTime` は canonical API へ移行。加えて Gate 5 は Preview sequence 音声計画を `buildExportAudioPlan` に統一し、scene/cut attach を含む同一イベント列へ収束（`Ready`）。
   - Gate 8: `assetId` join helper 導入に加えて、save/load の `assetId` 主経路化、write-time の `cut.asset` 非依存化、strict gate で新規違反検出まで反映（`Ready`）。
   - Gate 9: thumbnail profile は型/ラッパで省略禁止を強制。
-- Phase 2 残タスク:
-  - なし（Phase 2 の対象Gateは実装完了。以降は運用監査とドキュメント保守フェーズ）。
