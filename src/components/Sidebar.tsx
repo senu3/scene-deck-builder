@@ -17,7 +17,7 @@ import {
 import { useStore } from '../store/useStore';
 import type { FileItem, Asset } from '../types';
 import { v4 as uuidv4 } from 'uuid';
-import { getCachedThumbnail, getThumbnail } from '../utils/thumbnailCache';
+import { getAssetThumbnail, getCachedAssetThumbnail } from '../features/thumbnails/api';
 import { getCuttableMediaType } from '../utils/mediaType';
 import { getFirstSceneId } from '../utils/sceneOrder';
 import './Sidebar.css';
@@ -149,11 +149,14 @@ export default function Sidebar() {
   };
 
   const loadThumbnail = useCallback(async (filePath: string, mediaType: 'image' | 'video' | null) => {
-    const cached = getCachedThumbnail(filePath, { profile: 'asset-grid' });
+    const cached = getCachedAssetThumbnail('asset-grid', { path: filePath });
     if (cached) return cached;
     if (!mediaType) return null;
     try {
-      const thumbnail = await getThumbnail(filePath, mediaType, { profile: 'asset-grid' });
+      const thumbnail = await getAssetThumbnail('asset-grid', {
+        path: filePath,
+        type: mediaType,
+      });
       if (thumbnail) {
         setThumbnailVersion((v) => v + 1);
         return thumbnail;
@@ -405,14 +408,14 @@ interface FileItemComponentProps {
 function FileItemComponent({ item, depth, mediaType, loadThumbnail, thumbnailVersion, viewMode }: FileItemComponentProps) {
   const { scenes, sceneOrder, selectedSceneId, createCutFromImport } = useStore();
   const [thumbnail, setThumbnail] = useState<string | null>(
-    getCachedThumbnail(item.path, { profile: 'asset-grid' }) || null
+    getCachedAssetThumbnail('asset-grid', { path: item.path }) || null
   );
   const [isLoading, setIsLoading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
 
   // Auto-load thumbnail when component mounts (if not already cached)
   useEffect(() => {
-    const cached = getCachedThumbnail(item.path, { profile: 'asset-grid' });
+    const cached = getCachedAssetThumbnail('asset-grid', { path: item.path });
     if (cached) {
       setThumbnail(cached);
       return;

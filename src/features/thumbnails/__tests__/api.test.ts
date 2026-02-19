@@ -1,21 +1,28 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getThumbnail } from '../../../utils/thumbnailCache';
+import { getCachedThumbnail, getThumbnail, removeThumbnailCache } from '../../../utils/thumbnailCache';
 import {
   buildAssetThumbnailKey,
   buildCutClipFingerprint,
   buildCutDerivedThumbnailKey,
+  getCachedAssetThumbnail,
   getAssetThumbnail,
   getCutClipThumbnail,
   getCutDerivedThumbnail,
+  removeAssetThumbnail,
 } from '../api';
 
 vi.mock('../../../utils/thumbnailCache', () => ({
+  getCachedThumbnail: vi.fn(),
   getThumbnail: vi.fn(),
+  removeThumbnailCache: vi.fn(),
 }));
 
 describe('thumbnails api key strategy', () => {
   beforeEach(() => {
+    vi.mocked(getCachedThumbnail).mockReset();
     vi.mocked(getThumbnail).mockReset();
+    vi.mocked(removeThumbnailCache).mockReset();
+    vi.mocked(getCachedThumbnail).mockReturnValue('cached-thumb');
     vi.mocked(getThumbnail).mockResolvedValue('thumb');
   });
 
@@ -133,5 +140,26 @@ describe('thumbnails api key strategy', () => {
     const firstOptions = calls[0][2];
     const secondOptions = calls[1][2];
     expect(firstOptions.key).toBe(secondOptions.key);
+  });
+
+  it('resolves cached asset thumbnail through facade key strategy', () => {
+    const cached = getCachedAssetThumbnail('asset-grid', {
+      assetId: 'asset-1',
+      path: '/vault/assets/a.png',
+      timeOffset: 0,
+    });
+    expect(cached).toBe('cached-thumb');
+    const [, options] = vi.mocked(getCachedThumbnail).mock.calls[0];
+    expect(options.key).toBe('asset:asset-1:asset-grid:0');
+  });
+
+  it('removes cached asset thumbnail through facade key strategy', () => {
+    removeAssetThumbnail('asset-grid', {
+      assetId: 'asset-1',
+      path: '/vault/assets/a.png',
+      timeOffset: 0,
+    });
+    const [, options] = vi.mocked(removeThumbnailCache).mock.calls[0];
+    expect(options.key).toBe('asset:asset-1:asset-grid:0');
   });
 });

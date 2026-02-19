@@ -76,6 +76,9 @@ export function getThumbnailCacheStats(): { items: number; bytes: number; limits
   return { items: cache.size, bytes: totalBytes, limits: { ...limits } };
 }
 
+/**
+ * @deprecated Use `src/features/thumbnails/api.ts` (`getCachedAssetThumbnail` / cut-derived APIs) from feature/UI code.
+ */
 export function getCachedThumbnail(path: string, options: ThumbnailRequestOptions): string | null {
   const key = makeCacheKey(path, options);
   const entry = cache.get(key);
@@ -84,6 +87,9 @@ export function getCachedThumbnail(path: string, options: ThumbnailRequestOption
   return entry.data;
 }
 
+/**
+ * @deprecated Use `src/features/thumbnails/api.ts` (`removeAssetThumbnail`) from feature/UI code.
+ */
 export function removeThumbnailCache(path: string, options: ThumbnailRequestOptions): void {
   const key = makeCacheKey(path, options);
   const entry = cache.get(key);
@@ -98,6 +104,9 @@ export function clearThumbnailCache(): void {
   totalBytes = 0;
 }
 
+/**
+ * @deprecated Use `src/features/thumbnails/api.ts` (`getAssetThumbnail` / `getCutDerivedThumbnail`) from feature/UI code.
+ */
 export async function getThumbnail(
   path: string,
   type: ThumbnailMediaType,

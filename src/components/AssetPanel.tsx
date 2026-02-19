@@ -32,7 +32,11 @@ import {
 } from '../store/selectors';
 import type { Asset, AssetIndexEntry } from '../types';
 import { v4 as uuidv4 } from 'uuid';
-import { getCachedThumbnail, getThumbnail, removeThumbnailCache } from '../utils/thumbnailCache';
+import {
+  getAssetThumbnail,
+  getCachedAssetThumbnail,
+  removeAssetThumbnail,
+} from '../features/thumbnails/api';
 import { getMediaType as getAnyMediaType } from '../utils/mediaType';
 import { collectAssetRefs, type AssetRefMap } from '../utils/assetRefs';
 import { getFirstSceneId } from '../utils/sceneOrder';
@@ -490,7 +494,7 @@ export default function AssetPanel({
 
   // Load thumbnail for an asset (uses shared cache)
   const loadThumbnail = useCallback(async (asset: AssetInfo) => {
-    if (getCachedThumbnail(asset.path, { profile: 'asset-grid' })) return;
+    if (getCachedAssetThumbnail('asset-grid', { assetId: asset.id, path: asset.path })) return;
     if (asset.type === 'audio') return; // Audio has placeholder
 
     try {
@@ -500,7 +504,11 @@ export default function AssetPanel({
       }
 
       if (asset.type === 'image' || asset.type === 'video') {
-        const thumbnail = await getThumbnail(asset.path, asset.type, { profile: 'asset-grid' });
+        const thumbnail = await getAssetThumbnail('asset-grid', {
+          assetId: asset.id,
+          path: asset.path,
+          type: asset.type,
+        });
         if (thumbnail) setThumbnailCacheVersion((v) => v + 1);
       }
     } catch (error) {
@@ -879,7 +887,7 @@ export default function AssetPanel({
     }
 
     setAssets((prev) => prev.filter((a) => a.path !== asset.path));
-    removeThumbnailCache(asset.path, { profile: 'asset-grid' });
+    removeAssetThumbnail('asset-grid', { assetId: asset.id, path: asset.path });
     toast.success('Asset moved to trash', asset.sourceName);
     setAssetContextMenu(null);
   };
@@ -895,7 +903,7 @@ export default function AssetPanel({
       name: asset.sourceName, // Use source name
       path: asset.path,
       type: asset.type,
-      thumbnail: getCachedThumbnail(asset.path, { profile: 'asset-grid' }) || asset.thumbnail,
+      thumbnail: getCachedAssetThumbnail('asset-grid', { assetId: asset.id, path: asset.path }) || asset.thumbnail,
       originalPath: asset.path,
     };
     e.dataTransfer.setData('application/json', JSON.stringify(dragAsset));
@@ -932,7 +940,7 @@ export default function AssetPanel({
         name: asset.sourceName, // Use source name
         sourcePath: asset.path,
         type: asset.type,
-        preferredThumbnail: getCachedThumbnail(asset.path, { profile: 'asset-grid' }) || asset.thumbnail,
+        preferredThumbnail: getCachedAssetThumbnail('asset-grid', { assetId: asset.id, path: asset.path }) || asset.thumbnail,
       });
     } catch (error) {
       console.error('Failed to add asset to timeline:', error);
@@ -1101,7 +1109,7 @@ export default function AssetPanel({
               <AssetCard
                 key={asset.path}
                 asset={asset}
-                thumbnail={getCachedThumbnail(asset.path, { profile: 'asset-grid' }) || asset.thumbnail}
+                thumbnail={getCachedAssetThumbnail('asset-grid', { assetId: asset.id, path: asset.path }) || asset.thumbnail}
                 isSelected={selectedAsset?.id === asset.id}
                 onLoadThumbnail={() => loadThumbnail(asset)}
                 onDragStart={effectiveEnableDragDrop ? (e) => handleDragStart(e, asset) : undefined}

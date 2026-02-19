@@ -1,4 +1,10 @@
-import { getThumbnail, type ThumbnailMediaType, type ThumbnailProfile } from '../../utils/thumbnailCache';
+import {
+  getCachedThumbnail,
+  getThumbnail,
+  removeThumbnailCache,
+  type ThumbnailMediaType,
+  type ThumbnailProfile,
+} from '../../utils/thumbnailCache';
 
 export type CutDerivedThumbnailKind = 'clip' | (string & {});
 
@@ -80,6 +86,42 @@ export async function getAssetThumbnail(
     timeOffset: normalizedOffset,
   });
   return getThumbnail(params.path, params.type, {
+    profile,
+    timeOffset: normalizedOffset,
+    key,
+  });
+}
+
+export function getCachedAssetThumbnail(
+  profile: ThumbnailProfile,
+  params: Pick<AssetThumbnailParams, 'assetId' | 'path' | 'timeOffset' | 'key'>
+): string | null {
+  const normalizedOffset = normalizeTimeOffset(params.timeOffset);
+  const key = params.key ?? buildAssetThumbnailKey({
+    assetId: params.assetId,
+    path: params.path,
+    profile,
+    timeOffset: normalizedOffset,
+  });
+  return getCachedThumbnail(params.path, {
+    profile,
+    timeOffset: normalizedOffset,
+    key,
+  });
+}
+
+export function removeAssetThumbnail(
+  profile: ThumbnailProfile,
+  params: Pick<AssetThumbnailParams, 'assetId' | 'path' | 'timeOffset' | 'key'>
+): void {
+  const normalizedOffset = normalizeTimeOffset(params.timeOffset);
+  const key = params.key ?? buildAssetThumbnailKey({
+    assetId: params.assetId,
+    path: params.path,
+    profile,
+    timeOffset: normalizedOffset,
+  });
+  removeThumbnailCache(params.path, {
     profile,
     timeOffset: normalizedOffset,
     key,
