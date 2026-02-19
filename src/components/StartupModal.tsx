@@ -51,6 +51,20 @@ interface PendingProject {
   shouldResaveVersion?: boolean;
 }
 
+interface LoadedProjectData {
+  name?: string;
+  vaultPath?: string;
+  scenes?: Scene[];
+  sceneOrder?: string[];
+  version?: number;
+  targetTotalDurationSec?: number;
+  sourcePanel?: SourcePanelState;
+}
+
+type ProjectLoadOutcome =
+  | { kind: 'pending'; payload: PendingProject; missingAssets: MissingAssetInfo[] }
+  | { kind: 'ready'; payload: PendingProject };
+
 export default function StartupModal() {
   const { initializeProject, setRootFolder, initializeSourcePanel, loadMetadata, setProjectPath } = useStore();
   const [step, setStep] = useState<'choice' | 'new-project'>('choice');
@@ -201,61 +215,9 @@ export default function StartupModal() {
     }
 
     const result = await window.electronAPI.loadProject();
-    if (result) {
-      const { data, path } = result;
-      const projectData = data as {
-        name?: string;
-        vaultPath?: string;
-        scenes?: Scene[];
-        sceneOrder?: string[];
-        version?: number;
-        targetTotalDurationSec?: number;
-        sourcePanel?: SourcePanelState;
-      };
-
-      // Determine vault path
-      const loadedVaultPath = resolveLoadedVaultPath(projectData.vaultPath, path);
-
-      // Resolve asset paths (v2+ uses relative paths)
-      let scenes = projectData.scenes || [];
-      let foundMissingAssets: MissingAssetInfo[] = [];
-      const normalizedVersion = normalizeLoadedProjectVersion(projectData.version, scenes);
-
-      if (normalizedVersion.version >= 2 || hasLegacyRelativeAssetPaths(scenes)) {
-        const resolved = await resolveScenesAssets(scenes, loadedVaultPath);
-        scenes = resolved.scenes;
-        foundMissingAssets = resolved.missingAssets;
-      }
-
-      // If there are missing assets, show recovery dialog
-      if (foundMissingAssets.length > 0) {
-        setMissingAssets(foundMissingAssets);
-          setPendingProject({
-            name: projectData.name || 'Loaded Project',
-            vaultPath: loadedVaultPath,
-            scenes,
-            sceneOrder: projectData.sceneOrder,
-            targetTotalDurationSec: projectData.targetTotalDurationSec,
-            sourcePanelState: projectData.sourcePanel,
-            projectPath: path,
-            shouldResaveVersion: normalizedVersion.wasMissing,
-        });
-        setShowRecoveryDialog(true);
-        return;
-      }
-
-      // No missing assets, proceed directly
-      await finalizeProjectLoad({
-        name: projectData.name || 'Loaded Project',
-        vaultPath: loadedVaultPath,
-        scenes,
-        sceneOrder: projectData.sceneOrder,
-        targetTotalDurationSec: projectData.targetTotalDurationSec,
-        sourcePanelState: projectData.sourcePanel,
-        projectPath: path,
-        shouldResaveVersion: normalizedVersion.wasMissing,
-      });
-    }
+    if (!result) return;
+    const outcome = await loadProjectCore(dataAsLoadedProject(result.data), result.path, 'Loaded Project');
+    await applyProjectLoadOutcome(outcome);
   };
 
   // Finalize project loading after recovery decisions (if any)
@@ -329,6 +291,74 @@ export default function StartupModal() {
     setMissingAssets([]);
   };
 
+  const shouldResolveProjectAssets = (version: number | undefined, scenes: Scene[]) => {
+    const normalizedVersion = normalizeLoadedProjectVersion(version, scenes);
+    return {
+      normalizedVersion,
+      shouldResolve: normalizedVersion.version >= 2 || hasLegacyRelativeAssetPaths(scenes),
+    };
+  };
+
+  const buildPendingProject = (
+    projectData: LoadedProjectData,
+    projectPath: string,
+    loadedVaultPath: string,
+    scenes: Scene[],
+    shouldResaveVersion: boolean,
+    fallbackName: string
+  ): PendingProject => ({
+    name: projectData.name || fallbackName,
+    vaultPath: loadedVaultPath,
+    scenes,
+    sceneOrder: projectData.sceneOrder,
+    targetTotalDurationSec: projectData.targetTotalDurationSec,
+    sourcePanelState: projectData.sourcePanel,
+    projectPath,
+    shouldResaveVersion,
+  });
+
+  const loadProjectCore = async (
+    projectData: LoadedProjectData,
+    projectPath: string,
+    fallbackName: string
+  ): Promise<ProjectLoadOutcome> => {
+    const loadedVaultPath = resolveLoadedVaultPath(projectData.vaultPath, projectPath);
+    let scenes = projectData.scenes || [];
+    let foundMissingAssets: MissingAssetInfo[] = [];
+    const { normalizedVersion, shouldResolve } = shouldResolveProjectAssets(projectData.version, scenes);
+
+    if (shouldResolve) {
+      const resolved = await resolveScenesAssets(scenes, loadedVaultPath);
+      scenes = resolved.scenes;
+      foundMissingAssets = resolved.missingAssets;
+    }
+
+    const payload = buildPendingProject(
+      projectData,
+      projectPath,
+      loadedVaultPath,
+      scenes,
+      normalizedVersion.wasMissing,
+      fallbackName
+    );
+    if (foundMissingAssets.length > 0) {
+      return { kind: 'pending', payload, missingAssets: foundMissingAssets };
+    }
+    return { kind: 'ready', payload };
+  };
+
+  const applyProjectLoadOutcome = async (outcome: ProjectLoadOutcome) => {
+    if (outcome.kind === 'pending') {
+      setMissingAssets(outcome.missingAssets);
+      setPendingProject(outcome.payload);
+      setShowRecoveryDialog(true);
+      return;
+    }
+    await finalizeProjectLoad(outcome.payload);
+  };
+
+  const dataAsLoadedProject = (data: unknown): LoadedProjectData => data as LoadedProjectData;
+
   // Handle recovery dialog completion
   const handleRecoveryComplete = async (decisions: RecoveryDecision[]) => {
     if (!pendingProject) return;
@@ -358,61 +388,9 @@ export default function StartupModal() {
     // Load the project file directly from the specified path
     try {
       const result = await window.electronAPI.loadProjectFromPath(project.path);
-      if (result) {
-        const { data } = result;
-        const projectData = data as {
-          name?: string;
-          vaultPath?: string;
-          scenes?: Scene[];
-          sceneOrder?: string[];
-          version?: number;
-          targetTotalDurationSec?: number;
-          sourcePanel?: SourcePanelState;
-        };
-
-        // Determine vault path
-        const loadedVaultPath = resolveLoadedVaultPath(projectData.vaultPath, project.path);
-
-        // Resolve asset paths (v2+ uses relative paths)
-        let scenes = projectData.scenes || [];
-        let foundMissingAssets: MissingAssetInfo[] = [];
-        const normalizedVersion = normalizeLoadedProjectVersion(projectData.version, scenes);
-
-        if (normalizedVersion.version >= 2 || hasLegacyRelativeAssetPaths(scenes)) {
-          const resolved = await resolveScenesAssets(scenes, loadedVaultPath);
-          scenes = resolved.scenes;
-          foundMissingAssets = resolved.missingAssets;
-        }
-
-        // If there are missing assets, show recovery dialog
-        if (foundMissingAssets.length > 0) {
-          setMissingAssets(foundMissingAssets);
-          setPendingProject({
-            name: projectData.name || project.name,
-            vaultPath: loadedVaultPath,
-            scenes,
-            sceneOrder: projectData.sceneOrder,
-            targetTotalDurationSec: projectData.targetTotalDurationSec,
-            sourcePanelState: projectData.sourcePanel,
-            projectPath: project.path,
-            shouldResaveVersion: normalizedVersion.wasMissing,
-          });
-          setShowRecoveryDialog(true);
-          return;
-        }
-
-        // No missing assets, proceed directly
-        await finalizeProjectLoad({
-          name: projectData.name || project.name,
-          vaultPath: loadedVaultPath,
-          scenes,
-          sceneOrder: projectData.sceneOrder,
-          targetTotalDurationSec: projectData.targetTotalDurationSec,
-          sourcePanelState: projectData.sourcePanel,
-          projectPath: project.path,
-          shouldResaveVersion: normalizedVersion.wasMissing,
-        });
-      }
+      if (!result) return;
+      const outcome = await loadProjectCore(dataAsLoadedProject(result.data), project.path, project.name);
+      await applyProjectLoadOutcome(outcome);
     } catch (error) {
       console.error('Failed to load project:', error);
       alert('Failed to load project');

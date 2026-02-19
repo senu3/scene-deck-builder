@@ -37,6 +37,15 @@
 - 関連コミット:
   - `a01a3e5`
 
+4. 補記修正: `DetailsPanel` と `StartupModal` の入口統一
+- `DetailsPanel` の clip サムネ再生成を `generateVideoClipThumbnail` 直呼びから `getCutClipThumbnail`（cut-derived API）へ移行。
+- `StartupModal` の `loadProject` / `loadProjectFromPath` で重複していた
+  `project読み込み -> vault解決 -> asset解決 -> missing判定 -> pending/finalize`
+  フローを `loadProjectCore` / `applyProjectLoadOutcome` で単一入口化。
+- Gate: Gate7/Gate9
+- 関連コミット:
+  - `6c04bcc`
+
 ## 今回は後回し（TODO扱い）
 1. utils層の `electronAPI` 直呼び整理
 - 対象例:
@@ -97,5 +106,5 @@
 - 対象: I/O境界（`electronAPI` / hydration / recovery / metadata / thumbnails）の簡易棚卸し。
 - TODO移管済み・許容範囲は除外して確認。
 - 追加で見えた点:
-  - `DetailsPanel` の clipサムネ再生成が `generateVideoClipThumbnail` 直呼びだったため、`getCutClipThumbnail`（cut-derived API）に寄せて単一入口化。
-  - `StartupModal` の `loadProject` / `loadProjectFromPath` 周辺の組み立てフローに同型部分が残る（共有関数に寄せる余地あり、現時点は簡易チェック記録のみ）。
+  - `DetailsPanel` の clipサムネ再生成が `generateVideoClipThumbnail` 直呼びだったため、`getCutClipThumbnail`（cut-derived API）に寄せて単一入口化。✅ 完了
+  - `StartupModal` の `loadProject` / `loadProjectFromPath` 周辺の同型フローを `loadProjectCore` / `applyProjectLoadOutcome` へ集約。✅ 完了
