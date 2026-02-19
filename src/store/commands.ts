@@ -888,7 +888,9 @@ export class AutoClipSimpleCommand implements Command {
 
     if (sourceAsset.path) {
       const thumbnails = await Promise.all(
-        createdCuts.map((cut) => generateVideoClipThumbnail(sourceAsset.path, cut.inPoint))
+        createdCuts.map((cut) =>
+          generateVideoClipThumbnail(cut.id, sourceAsset.path, cut.inPoint, cut.outPoint)
+        )
       );
       for (let i = 0; i < createdCuts.length; i++) {
         const thumbnail = thumbnails[i];

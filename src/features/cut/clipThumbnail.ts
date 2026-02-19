@@ -1,21 +1,20 @@
-import { getThumbnail } from '../../utils/thumbnailCache';
-
-function normalizeTimeOffset(timeOffset: number | undefined): number {
-  if (!Number.isFinite(timeOffset)) return 0;
-  return Math.max(0, timeOffset ?? 0);
-}
+import { getCutClipThumbnail } from '../thumbnails/api';
 
 export async function generateVideoClipThumbnail(
+  cutId: string | undefined,
   assetPath: string | undefined,
-  timeOffset: number | undefined
+  timeOffset: number | undefined,
+  outPoint?: number
 ): Promise<string | null> {
-  if (!assetPath) return null;
+  if (!cutId || !assetPath) return null;
   if (!window.electronAPI?.generateThumbnail) return null;
 
   try {
-    return await getThumbnail(assetPath, 'video', {
-      timeOffset: normalizeTimeOffset(timeOffset),
-      profile: 'timeline-card',
+    return await getCutClipThumbnail('timeline-card', {
+      cutId,
+      path: assetPath,
+      inPointSec: timeOffset ?? 0,
+      outPointSec: outPoint,
     });
   } catch {
     return null;

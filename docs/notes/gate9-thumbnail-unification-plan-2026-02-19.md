@@ -22,6 +22,18 @@
 - `PreviewModal.tsx` でサムネ解決分岐が重複（scene scoped / focused / all）。
 - `options.key` は実装済みだが利用方針が未固定。
 
+## Step1 棚卸し結果（2026-02-19）
+- `CUT_DERIVED`（clip）
+  - `src/components/DetailsPanel.tsx`
+  - `src/App.tsx`
+  - `src/components/StartupModal.tsx`
+  - `src/store/commands.ts`
+- `ASSET`
+  - `src/components/AssetPanel.tsx`
+  - `src/components/Sidebar.tsx`
+  - `src/components/CutCard.tsx`
+  - `src/components/PreviewModal.tsx`
+
 ## 実行順（Gate9）
 1. 入口棚卸しを固定（`CUT_DERIVED` / `ASSET` タグ付け）。
 2. `src/features/thumbnails/api.ts` を追加（薄いFacade）。

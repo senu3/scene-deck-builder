@@ -410,7 +410,7 @@ export default function DetailsPanel() {
 
       // Regenerate thumbnail at IN point
       if (asset.path && asset.type === "video") {
-        const newThumbnail = await generateVideoClipThumbnail(asset.path, inPoint);
+        const newThumbnail = await generateVideoClipThumbnail(targetCutId, asset.path, inPoint, outPoint);
         if (newThumbnail) {
           // Clip thumbnail is cut-specific; do not mutate shared asset cache thumbnail.
           updateCutAsset(cutScene.id, targetCutId, { thumbnail: newThumbnail });
@@ -426,7 +426,7 @@ export default function DetailsPanel() {
 
       // Regenerate thumbnail at time 0
       if (asset.path && asset.type === "video") {
-        const newThumbnail = await generateVideoClipThumbnail(asset.path, 0);
+        const newThumbnail = await generateVideoClipThumbnail(cut.id, asset.path, 0);
         if (newThumbnail) {
           // Clip clear thumbnail is cut-specific; do not mutate shared asset cache thumbnail.
           updateCutAsset(cutScene.id, cut.id, { thumbnail: newThumbnail });

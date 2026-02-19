@@ -1,16 +1,17 @@
 import { generateVideoThumbnail } from './videoUtils';
 
 export type ThumbnailMediaType = 'image' | 'video';
+export type ThumbnailProfile = 'timeline-card' | 'asset-grid' | 'sequence-preview' | 'details-panel';
 
 interface ThumbnailCacheLimits {
   maxBytes: number;
   maxItems: number;
 }
 
-interface ThumbnailRequestOptions {
+export interface ThumbnailRequestOptions {
   timeOffset?: number;
   key?: string;
-  profile: 'timeline-card' | 'asset-grid' | 'sequence-preview' | 'details-panel';
+  profile: ThumbnailProfile;
 }
 
 interface CacheEntry {
