@@ -50,7 +50,7 @@
 
 ## 優先修正順（次回）
 1. `clipThumbnail` の early return見直し（provider fallbackを殺さない） ✅ 完了
-2. `StartupModal` / `useHeaderProjectController` の同型ロジックを最小差分で集約
+2. `StartupModal` / `useHeaderProjectController` の同型ロジックを最小差分で集約 ✅ 完了
 3. utils層の provider/gateway 抽出（段階実施）
 4. metadata / video metadata 直呼びの横断整理
 
@@ -70,3 +70,16 @@
   - `npm test -- src/features/cut/__tests__/actions.test.ts src/store/__tests__/timelineIntegrityCommands.test.ts`
   - `npm run build`
   - `npm run check:gate:strict`
+
+## Update（2026-02-20）
+- 項目2を実施（Gate7）:
+  - `StartupModal` / `useHeaderProjectController` の project-load/recovery 同型ロジックを `src/features/projectLoad/shared.ts` に集約。
+  - 集約対象:
+    - `resolveScenesAssets`
+    - `normalizeLoadedProjectVersion`
+    - `resolveLoadedVaultPath`
+    - recovery decision 適用
+    - cut clip サムネ再生成
+- 検証:
+  - `npm test -- src/features/cut/__tests__/actions.test.ts src/store/__tests__/timelineIntegrityCommands.test.ts`
+  - `npm run build`
