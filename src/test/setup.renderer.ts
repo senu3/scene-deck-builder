@@ -21,6 +21,11 @@ const electronAPIMock = {
     const idx = normalized.indexOf('/assets/');
     return idx >= 0 ? normalized.slice(idx + 1) : null;
   }),
+  generateThumbnail: vi.fn(async () => ({
+    success: true,
+    thumbnail: 'data:image/jpeg;base64,mock-thumb',
+  })),
+  readFileAsBase64: vi.fn(async () => 'data:image/png;base64,mock-base64'),
   calculateFileHash: vi.fn(async () => 'abc'),
   getFileInfo: vi.fn(async () => ({ size: 1234 })),
   loadAssetIndex: vi.fn(async () => ({ version: 1, assets: [] })),

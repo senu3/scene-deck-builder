@@ -49,7 +49,7 @@
   - 見直し時は「store action が I/O副作用境界を持つ」前提を明示して設計する。
 
 ## 優先修正順（次回）
-1. `clipThumbnail` の early return見直し（provider fallbackを殺さない）
+1. `clipThumbnail` の early return見直し（provider fallbackを殺さない） ✅ 完了
 2. `StartupModal` / `useHeaderProjectController` の同型ロジックを最小差分で集約
 3. utils層の provider/gateway 抽出（段階実施）
 4. metadata / video metadata 直呼びの横断整理
@@ -61,3 +61,12 @@
 - Gate10:
   - 現時点の監査対象は再生ホットパス中心。
   - 今回のメモは「副作用境界（I/O配置）」の補助監査として扱う。
+
+## Update（2026-02-19）
+- 項目1を実施:
+  - `src/features/cut/clipThumbnail.ts` の early return を削除し、provider fallback が有効な経路に修正。
+  - テスト環境で fallback 経路が安定するよう `src/test/setup.renderer.ts` に `generateThumbnail` / `readFileAsBase64` モックを追加。
+- 検証:
+  - `npm test -- src/features/cut/__tests__/actions.test.ts src/store/__tests__/timelineIntegrityCommands.test.ts`
+  - `npm run build`
+  - `npm run check:gate:strict`

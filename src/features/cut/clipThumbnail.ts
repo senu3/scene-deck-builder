@@ -7,7 +7,6 @@ export async function generateVideoClipThumbnail(
   outPoint?: number
 ): Promise<string | null> {
   if (!cutId || !assetPath) return null;
-  if (!window.electronAPI?.generateThumbnail) return null;
 
   try {
     return await getCutClipThumbnail('timeline-card', {
