@@ -44,7 +44,9 @@
   - `useStore.setState(` の許可リスト外検出
   - `set(...scenes:...)` の許可リスト外検出
 - Gate 8: `cut.asset` の `assetResolve.ts` 外参照検出
-- Gate 9: `getThumbnail(...)` の profile 未指定検出
+- Gate 9:
+  - `getThumbnail(...)` の profile 未指定検出
+  - `thumbnailCache` 低レベルAPI（`getThumbnail/getCachedThumbnail/removeThumbnailCache`）のFacade外import検出
 - Gate 10:
   - ホットパスファイルでの node/fs/process import 検出
   - `tick`/`update` ブロック内の重処理API検出

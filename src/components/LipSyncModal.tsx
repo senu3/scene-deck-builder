@@ -16,7 +16,7 @@ import { useToast } from "../ui";
 import { generateAssetId } from "../utils/assetPath";
 import { getLipSyncFrameAssetIds, importDataUrlAssetToVault } from "../utils/lipSyncUtils";
 import { getMediaUrl } from "../utils/videoUtils";
-import { getThumbnail } from "../utils/thumbnailCache";
+import { getAssetThumbnail } from "../features/thumbnails/api";
 import { useLipSyncPreview } from "../hooks/useLipSyncPreview";
 import AssetModal from "./AssetModal";
 import "./LipSyncModal.css";
@@ -78,7 +78,11 @@ async function resolveAssetPreviewSource(asset: Asset): Promise<string | null> {
   if (asset.thumbnail) return asset.thumbnail;
   if (!asset.path) return null;
   try {
-    return await getThumbnail(asset.path, "image", { profile: 'sequence-preview' });
+    return await getAssetThumbnail('sequence-preview', {
+      assetId: asset.id,
+      path: asset.path,
+      type: 'image',
+    });
   } catch {
     return null;
   }
@@ -262,7 +266,11 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
           src = frameAsset.thumbnail;
         } else if (frameAsset?.path) {
           try {
-            const thumb = await getThumbnail(frameAsset.path, 'image', { profile: 'sequence-preview' });
+            const thumb = await getAssetThumbnail('sequence-preview', {
+              assetId: frameAsset.id,
+              path: frameAsset.path,
+              type: 'image',
+            });
             if (thumb) src = thumb;
           } catch {
             // ignore
@@ -683,7 +691,11 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
     setFrameAssetIds((prev) => ({ ...prev, [pendingFrameSlot]: assetToUse.id }));
     if (!assetToUse.thumbnail && assetToUse.path) {
       try {
-        const thumb = await getThumbnail(assetToUse.path, 'image', { profile: 'sequence-preview' });
+        const thumb = await getAssetThumbnail('sequence-preview', {
+          assetId: assetToUse.id,
+          path: assetToUse.path,
+          type: 'image',
+        });
         if (thumb) {
           setFramePreviews((prev) => ({ ...prev, [pendingFrameSlot]: thumb }));
         }

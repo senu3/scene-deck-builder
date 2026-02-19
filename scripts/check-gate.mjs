@@ -99,6 +99,15 @@ const gate10ForbiddenInHotpathBlock = [
     message: 'async wait chain detected in playback hotpath block',
   },
 ];
+const gate9AllowedLowLevelThumbnailImportFiles = new Set([
+  'src/features/thumbnails/api.ts',
+  'src/utils/thumbnailCache.ts',
+]);
+const gate9LowLevelThumbnailApis = new Set([
+  'getThumbnail',
+  'getCachedThumbnail',
+  'removeThumbnailCache',
+]);
 
 for (const file of files) {
   const r = rel(file);
@@ -128,6 +137,24 @@ for (const file of files) {
         file: r,
         line: lineOf(src, m.index),
         message: 'getThumbnail call without explicit profile',
+      });
+    }
+  }
+
+  // Gate 9: low-level thumbnailCache API should stay behind thumbnails facade.
+  if (!gate9AllowedLowLevelThumbnailImportFiles.has(r)) {
+    for (const m of findAll(src, /import\s*\{([^}]*)\}\s*from\s*['"][^'"]*thumbnailCache['"]/g)) {
+      const imported = (m.text.match(/\{([^}]*)\}/)?.[1] || '')
+        .split(',')
+        .map((token) => token.trim().split(/\s+as\s+/i)[0]?.trim())
+        .filter(Boolean);
+      const hasLowLevelApi = imported.some((name) => gate9LowLevelThumbnailApis.has(name));
+      if (!hasLowLevelApi) continue;
+      warnings.push({
+        gate: 'Gate9',
+        file: r,
+        line: lineOf(src, m.index),
+        message: 'low-level thumbnailCache API import outside thumbnails facade',
       });
     }
   }

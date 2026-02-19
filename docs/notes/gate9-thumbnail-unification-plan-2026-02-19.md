@@ -77,5 +77,4 @@
   - Step 1-5: 入口棚卸し、`features/thumbnails/api.ts` 追加、`cut-derived` + key一般化、keyテスト追加。
   - Step 6-7: `PreviewModal` と cut-facing UI（`CutCard` / `DetailsPanel` / `App` / `StartupModal`）をFacade経由へ置換。
   - Step 8-9: `AssetPanel` / `Sidebar` の直接 `thumbnailCache` 操作をFacade経由へ置換し、低レベルAPIへ `@deprecated` を付与。
-- 未完:
-  - Step 10: gate-check に「Facade経由以外の新規入口」検知を追加。
+  - Step 10: gate-check に「Facade経由以外の新規入口」検知を追加（`thumbnailCache` 低レベルAPI直importの検出）。
