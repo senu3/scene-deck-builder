@@ -2,7 +2,7 @@
 
 **目的**: サムネイル生成プロファイルの責務と使い分けを固定し、画質/サイズの混線を防ぐ。  
 **適用範囲**: Electron thumbnail service と renderer の thumbnail 利用箇所。  
-**関連ファイル**: `electron/services/thumbnailService.ts`, `src/utils/thumbnailCache.ts`, `src/features/cut/clipThumbnail.ts`, `src/components/PreviewModal.tsx`, `src/components/DetailsPanel.tsx`, `src/components/AssetGrid.tsx`, `src/components/CutCard.tsx`。  
+**関連ファイル**: `electron/services/thumbnailService.ts`, `src/utils/thumbnailCache.ts`, `src/features/cut/clipThumbnail.ts`, `src/components/PreviewModal.tsx`, `src/components/DetailsPanel.tsx`, `src/components/AssetPanel.tsx`, `src/components/CutCard.tsx`。  
 **更新頻度**: 中。
 
 ## Must / Must Not
@@ -17,7 +17,7 @@
   - 代表呼び出し: `src/components/CutCard.tsx`
 - `asset-grid`
   - 用途: Assets Panel（asset-grid 専用）
-  - 代表呼び出し: `src/components/AssetGrid.tsx`
+  - 代表呼び出し: `src/components/AssetPanel.tsx`, `src/components/Sidebar.tsx`
 - `sequence-preview`
   - 用途: Sequence Mode / Single-Image Preview の表示画像（`<img>`）
   - 代表呼び出し: `src/components/PreviewModal.tsx`
@@ -32,9 +32,18 @@
 - 新しい表示面を追加する場合、既存プロファイルを流用せず専用プロファイルを追加してから使う。
 
 ## キャッシュ方針
-- キャッシュキーは `path + size + mtime + type + timeOffset + profile`。
+- renderer LRU（`src/utils/thumbnailCache.ts`）:
+  - `options.key` 指定時はその値を優先使用する。
+  - `options.key` 未指定時は `path|t={timeOffset}|p={profile}` を使用する。
+- main tmp cache（`electron/services/thumbnailService.ts`）:
+  - `path + size + mtime + type + timeOffset + profile` をハッシュ化したキーを使う。
 - 同一ファイルでも profile が異なれば別キャッシュとして扱う。
-- profile を変えた変更時は `src/utils/thumbnailCache.ts` と `electron/services/thumbnailService.ts` を同時更新する。
+- profile 追加/変更時は `src/utils/thumbnailCache.ts` と `electron/services/thumbnailService.ts` の両方を確認する。
+
+## Gate9 運用（2026-02-19）
+- 入口統一の計画は `docs/notes/gate9-thumbnail-unification-plan-2026-02-19.md` を正本とする。
+- 目標: 呼び出し面から `thumbnailCache` / IPC を直接触らず、`features/thumbnails` のFacade経由へ統一する。
+- 目標: Asset と Cut派生（`cut:${kind}:...`）の key namespace を分離する。
 
 ## 変更時チェックリスト
 - `PreviewModal` が `sequence-preview` を使っていること。

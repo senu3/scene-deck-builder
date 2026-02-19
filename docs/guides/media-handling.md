@@ -37,7 +37,6 @@
 - Generated in the main process via ffmpeg (`generate-thumbnail` IPC).
 - Both image/video thumbnails use the same ffmpeg path and profile-based resizing (`timeline-card`, `asset-grid`, `sequence-preview`, `details-panel`).
 - Returned to renderer as small JPEG base64 data URLs.
-- `generate-video-thumbnail` remains as a backward-compatible alias for video-only callers.
 - Renderer falls back to shared `<video>` + canvas only when the new IPC path is unavailable.
 - Caching
 - Preview caches video URLs by assetId and releases old entries as the preview window moves.
