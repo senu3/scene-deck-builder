@@ -2,7 +2,7 @@
 
 **目的**: media://, ffmpeg, PCM, thumbnail, queue の概要をまとめる。
 **適用範囲**: main/renderer のメディア I/O と preview 再生。
-**関連ファイル**: `electron/main.ts`, `electron/preload.ts`, `electron/services/ffmpegController.ts`, `electron/services/thumbnailService.ts`, `src/components/PreviewModal.tsx`, `src/utils/videoUtils.ts`, `src/utils/thumbnailCache.ts`, `src/utils/audioUtils.ts`。
+**関連ファイル**: `electron/main.ts`, `electron/preload.ts`, `electron/services/ffmpegController.ts`, `electron/services/thumbnailService.ts`, `src/components/PreviewModal.tsx`, `src/features/thumbnails/provider.ts`, `src/utils/videoUtils.ts`, `src/utils/thumbnailCache.ts`, `src/utils/audioUtils.ts`。
 **更新頻度**: 中。
 
 ## Must / Must Not
@@ -37,7 +37,8 @@
 - Generated in the main process via ffmpeg (`generate-thumbnail` IPC).
 - Both image/video thumbnails use the same ffmpeg path and profile-based resizing (`timeline-card`, `asset-grid`, `sequence-preview`, `details-panel`).
 - Returned to renderer as small JPEG base64 data URLs.
-- Renderer falls back to shared `<video>` + canvas only when the new IPC path is unavailable.
+- Renderer-side provider (`features/thumbnails/provider.ts`) decides IPC usage and fallback.
+- Fallback uses renderer-only helpers (`videoUtils`) to avoid direct `electronAPI` dependency in utility layers.
 - Caching
 - Preview caches video URLs by assetId and releases old entries as the preview window moves.
 - Sequence buffer checks use a play safe ahead window to avoid cut-boundary stalls.

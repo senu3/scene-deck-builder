@@ -111,22 +111,6 @@ export async function createVideoObjectUrl(filePath: string): Promise<string | n
  * Extract video metadata (duration, dimensions) by loading it in a video element
  */
 export async function extractVideoMetadata(filePath: string): Promise<VideoMetadata | null> {
-  if (window.electronAPI?.getVideoMetadata) {
-    try {
-      const meta = await window.electronAPI.getVideoMetadata(filePath);
-      if (meta?.duration !== undefined && meta?.width !== undefined && meta?.height !== undefined) {
-        return {
-          duration: meta.duration,
-          width: meta.width,
-          height: meta.height,
-        };
-      }
-    } catch {
-      // Fall back to renderer-side extraction
-    }
-  }
-
-  // Fallback: renderer-side extraction using shared video element
   const objectUrl = await createVideoObjectUrl(filePath);
   if (!objectUrl) {
     return null;
@@ -150,27 +134,9 @@ export async function extractVideoMetadata(filePath: string): Promise<VideoMetad
 }
 
 /**
- * Generate a thumbnail for a video file
+ * Generate a thumbnail for a video file using renderer-only processing.
  */
 export async function generateVideoThumbnail(filePath: string, timeOffset: number = 1): Promise<string | null> {
-  if (window.electronAPI?.generateThumbnail) {
-    try {
-      const result = await window.electronAPI.generateThumbnail(filePath, 'video', {
-        timeOffset,
-        profile: 'timeline-card',
-      });
-      if (result?.success && result.thumbnail) {
-        return result.thumbnail;
-      }
-      if (result?.error) {
-        console.warn('Failed to generate thumbnail:', result.error);
-      }
-    } catch {
-      // Fall back to renderer-side extraction
-    }
-  }
-
-  // Fallback: renderer-side extraction using shared video element
   const objectUrl = await createVideoObjectUrl(filePath);
   if (!objectUrl) {
     return null;

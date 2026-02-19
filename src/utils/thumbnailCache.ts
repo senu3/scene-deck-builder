@@ -1,4 +1,4 @@
-import { generateVideoThumbnail } from './videoUtils';
+import { resolveThumbnailData } from '../features/thumbnails/provider';
 
 export type ThumbnailMediaType = 'image' | 'video';
 export type ThumbnailProfile = 'timeline-card' | 'asset-grid' | 'sequence-preview' | 'details-panel';
@@ -124,21 +124,10 @@ export async function getThumbnail(
 
   const promise = (async () => {
     try {
-      let data: string | null = null;
-      if (window.electronAPI?.generateThumbnail) {
-        const result = await window.electronAPI.generateThumbnail(path, type, {
-          timeOffset: options.timeOffset,
-          profile: options.profile,
-        });
-        data = result?.success ? (result.thumbnail ?? null) : null;
-      }
-
-      if (!data && type === 'video') {
-        data = await generateVideoThumbnail(path, options.timeOffset);
-      } else if (!data && window.electronAPI) {
-        // Legacy fallback only; new flow should use generateThumbnail IPC.
-        data = await window.electronAPI.readFileAsBase64(path);
-      }
+      const data = await resolveThumbnailData(path, type, {
+        timeOffset: options.timeOffset,
+        profile: options.profile,
+      });
 
       if (!data) return null;
 

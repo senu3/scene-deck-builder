@@ -2,7 +2,7 @@
 
 **目的**: サムネイル生成プロファイルの責務と使い分けを固定し、画質/サイズの混線を防ぐ。  
 **適用範囲**: Electron thumbnail service と renderer の thumbnail 利用箇所。  
-**関連ファイル**: `electron/services/thumbnailService.ts`, `src/utils/thumbnailCache.ts`, `src/features/cut/clipThumbnail.ts`, `src/components/PreviewModal.tsx`, `src/components/DetailsPanel.tsx`, `src/components/AssetPanel.tsx`, `src/components/CutCard.tsx`。  
+**関連ファイル**: `electron/services/thumbnailService.ts`, `src/features/thumbnails/provider.ts`, `src/utils/thumbnailCache.ts`, `src/features/cut/clipThumbnail.ts`, `src/components/PreviewModal.tsx`, `src/components/DetailsPanel.tsx`, `src/components/AssetPanel.tsx`, `src/components/CutCard.tsx`。  
 **更新頻度**: 中。
 
 ## Must / Must Not
@@ -37,6 +37,9 @@
   - `options.key` 未指定時は `path|t={timeOffset}|p={profile}` を使用する。
 - main tmp cache（`electron/services/thumbnailService.ts`）:
   - `path + size + mtime + type + timeOffset + profile` をハッシュ化したキーを使う。
+- provider 境界（`src/features/thumbnails/provider.ts`）:
+  - `window.electronAPI.generateThumbnail` 依存と fallback 制御を集約する。
+  - `src/utils/videoUtils.ts` は renderer変換ユーティリティとして扱い、IPC依存を持たない。
 - 同一ファイルでも profile が異なれば別キャッシュとして扱う。
 - profile 追加/変更時は `src/utils/thumbnailCache.ts` と `electron/services/thumbnailService.ts` の両方を確認する。
 
