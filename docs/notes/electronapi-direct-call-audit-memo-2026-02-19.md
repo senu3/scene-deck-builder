@@ -92,3 +92,10 @@
 ## Update（2026-02-20）
 - 項目2を `今回対応したもの` へ反映（Gate7）。
 - 未対応の項目3/4は `TODO_MASTER` へ移管し、本メモの実装対応は一時停止に更新。
+
+## Update（2026-02-20 / Gate7 簡易Dupチェック）
+- 対象: I/O境界（`electronAPI` / hydration / recovery / metadata / thumbnails）の簡易棚卸し。
+- TODO移管済み・許容範囲は除外して確認。
+- 追加で見えた点:
+  - `DetailsPanel` の clipサムネ再生成が `generateVideoClipThumbnail` 直呼びだったため、`getCutClipThumbnail`（cut-derived API）に寄せて単一入口化。
+  - `StartupModal` の `loadProject` / `loadProjectFromPath` 周辺の組み立てフローに同型部分が残る（共有関数に寄せる余地あり、現時点は簡易チェック記録のみ）。

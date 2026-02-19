@@ -61,8 +61,7 @@ import {
   RenameGroupCommand,
   SetSceneAttachAudioCommand,
 } from "../store/commands";
-import { getAssetThumbnail } from "../features/thumbnails/api";
-import { generateVideoClipThumbnail } from '../features/cut/clipThumbnail';
+import { getAssetThumbnail, getCutClipThumbnail } from "../features/thumbnails/api";
 import { resolveCutAsset, resolveCutThumbnail } from "../utils/assetResolve";
 import { extractVideoMetadata } from "../utils/videoUtils";
 import { getLipSyncFrameAssetIds } from "../utils/lipSyncUtils";
@@ -426,7 +425,12 @@ export default function DetailsPanel() {
 
       // Regenerate thumbnail at IN point
       if (asset.path && asset.type === "video") {
-        const newThumbnail = await generateVideoClipThumbnail(targetCutId, asset.path, inPoint, outPoint);
+        const newThumbnail = await getCutClipThumbnail('details-panel', {
+          cutId: targetCutId,
+          path: asset.path,
+          inPointSec: inPoint,
+          outPointSec: outPoint,
+        });
         if (newThumbnail) {
           // Clip thumbnail is cut-specific; do not mutate shared asset cache thumbnail.
           updateCutAsset(cutScene.id, targetCutId, { thumbnail: newThumbnail });
@@ -442,7 +446,11 @@ export default function DetailsPanel() {
 
       // Regenerate thumbnail at time 0
       if (asset.path && asset.type === "video") {
-        const newThumbnail = await generateVideoClipThumbnail(cut.id, asset.path, 0);
+        const newThumbnail = await getCutClipThumbnail('details-panel', {
+          cutId: cut.id,
+          path: asset.path,
+          inPointSec: 0,
+        });
         if (newThumbnail) {
           // Clip clear thumbnail is cut-specific; do not mutate shared asset cache thumbnail.
           updateCutAsset(cutScene.id, cut.id, { thumbnail: newThumbnail });
