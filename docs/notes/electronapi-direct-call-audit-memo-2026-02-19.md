@@ -1,0 +1,63 @@
+# electronAPI 直呼び 監査メモ + 修正順（2026-02-19）
+
+## 目的
+- Gate9 整備中に見えた `window.electronAPI` 直呼びの分布を残す。
+- 「今回直すもの」と「後回しにするもの」を明確化する。
+
+## 監査スコープ
+- renderer / utils / store の `window.electronAPI` 直呼び（簡易棚卸し）。
+- サムネイル周辺を優先確認。
+
+## 今回対応したもの（Gate9）
+1. サムネ入口統一（Facade化）
+- `features/thumbnails/api.ts` を新設し、UI側の `thumbnailCache` 直接操作を縮退。
+- 関連コミット:
+  - `afa8a5b` (step1-5)
+  - `65beb0f` (step6-7)
+  - `ace3a07` (step8 + docs amend)
+  - `0d0c6ee` (step10 gate-check追加)
+
+2. `videoUtils` の electronAPI依存除去
+- `videoUtils` は renderer処理ユーティリティに限定。
+- IPC呼び分け/fallbackは `features/thumbnails/provider.ts` に移動。
+- 関連コミット:
+  - `e3c9012`
+
+## 今回は後回し（TODO扱い）
+1. utils層の `electronAPI` 直呼び整理
+- 対象例:
+  - `src/utils/assetPath.ts`
+  - `src/utils/metadataStore.ts`
+  - `src/utils/audioUtils.ts`
+  - `src/utils/lipSyncUtils.ts`
+- 理由:
+  - 既存機能の境界が広く、段階的な provider/gateway 化が必要。
+
+2. metadata / video metadata 呼び出しの整理
+- 対象例:
+  - `src/components/AssetPanel.tsx`（`getVideoMetadata`）
+  - metadata系呼び出し全般（横断で再設計予定）
+- 理由:
+  - 単発修正より、関連呼び出しをまとめて整理した方が差分が小さくなる。
+
+3. store内 I/O 直実行の見直し
+- 対象例:
+  - `src/store/slices/projectSlice.ts`
+  - `src/store/slices/metadataSlice.ts`
+- 現方針:
+  - 現在は許容（仕様として保持）。
+  - 見直し時は「store action が I/O副作用境界を持つ」前提を明示して設計する。
+
+## 優先修正順（次回）
+1. `clipThumbnail` の early return見直し（provider fallbackを殺さない）
+2. `StartupModal` / `useHeaderProjectController` の同型ロジックを最小差分で集約
+3. utils層の provider/gateway 抽出（段階実施）
+4. metadata / video metadata 直呼びの横断整理
+
+## Gate 関連
+- Gate9:
+  - サムネ入口統一、低レベルAPIのFacade外import検知を導入済み。
+  - `npm run check:gate:strict` は warning 0。
+- Gate10:
+  - 現時点の監査対象は再生ホットパス中心。
+  - 今回のメモは「副作用境界（I/O配置）」の補助監査として扱う。

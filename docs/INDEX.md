@@ -51,6 +51,8 @@ TODO は各ガイドに散在させない。元ドキュメントには `TODO_MA
 ## 7) Notes（作業起点）
 - `docs/notes/test-integration-startpoint-2026-02-18.md`
   - テスト統合の開始地点と、統合可/不可の基準。
+- `docs/notes/electronapi-direct-call-audit-memo-2026-02-19.md`
+  - electronAPI 直呼びの監査メモと、次回の修正順。
 
 ## docs 追加/更新ルール
 - 追加した docs は本 INDEX から辿れる構造にする。
