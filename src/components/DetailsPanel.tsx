@@ -61,7 +61,7 @@ import {
   RenameGroupCommand,
   SetSceneAttachAudioCommand,
 } from "../store/commands";
-import { getThumbnail } from "../utils/thumbnailCache";
+import { getAssetThumbnail } from "../features/thumbnails/api";
 import { generateVideoClipThumbnail } from '../features/cut/clipThumbnail';
 import { resolveCutAsset, resolveCutThumbnail } from "../utils/assetResolve";
 import { extractVideoMetadata } from "../utils/videoUtils";
@@ -185,7 +185,11 @@ export default function DetailsPanel() {
 
       if (firstAsset?.path && (firstAsset.type === "image" || firstAsset.type === "video")) {
         try {
-          const cached = await getThumbnail(firstAsset.path, firstAsset.type, { profile: 'details-panel' });
+          const cached = await getAssetThumbnail('details-panel', {
+            assetId: firstAsset.id,
+            path: firstAsset.path,
+            type: firstAsset.type,
+          });
           if (isActive && cached) {
             setGroupThumbnail(cached);
           }
@@ -247,7 +251,11 @@ export default function DetailsPanel() {
       // Keep Details preview in thumbnail flow; use larger profile for readability.
       if (!preferredThumbnail && asset.type === 'image' && asset.path) {
         try {
-          const cached = await getThumbnail(asset.path, 'image', { profile: 'details-panel' });
+          const cached = await getAssetThumbnail('details-panel', {
+            assetId: asset.id,
+            path: asset.path,
+            type: 'image',
+          });
           if (cached) {
             setThumbnail(cached);
           }
@@ -256,7 +264,11 @@ export default function DetailsPanel() {
         }
       } else if (!preferredThumbnail && asset.type === 'video' && asset.path) {
         try {
-          const cached = await getThumbnail(asset.path, asset.type, { profile: 'details-panel' });
+          const cached = await getAssetThumbnail('details-panel', {
+            assetId: asset.id,
+            path: asset.path,
+            type: asset.type,
+          });
           if (cached) {
             setThumbnail(cached);
           }
@@ -302,7 +314,11 @@ export default function DetailsPanel() {
           src = frameAsset.thumbnail;
         } else if (frameAsset?.path) {
           try {
-            const cached = await getThumbnail(frameAsset.path, "image", { profile: 'details-panel' });
+            const cached = await getAssetThumbnail('details-panel', {
+              assetId: frameAsset.id,
+              path: frameAsset.path,
+              type: 'image',
+            });
             if (cached) src = cached;
           } catch {
             // ignore
@@ -591,7 +607,11 @@ export default function DetailsPanel() {
       };
 
       // Load thumbnail for images or generate for videos
-      const thumbnail = await getThumbnail(importResult.vaultPath!, isVideo ? 'video' : 'image', { profile: 'timeline-card' });
+      const thumbnail = await getAssetThumbnail('timeline-card', {
+        assetId: newAssetId,
+        path: importResult.vaultPath!,
+        type: isVideo ? 'video' : 'image',
+      });
       if (thumbnail) {
         newAsset.thumbnail = thumbnail;
       }
@@ -663,7 +683,10 @@ export default function DetailsPanel() {
       }
 
       // Read the captured image as base64 for thumbnail
-      const thumbnailBase64 = await getThumbnail(outputPath, 'image', { profile: 'timeline-card' });
+      const thumbnailBase64 = await getAssetThumbnail('timeline-card', {
+        path: outputPath,
+        type: 'image',
+      });
 
       // Load image metadata if available
       let imageMetadata: ImageMetadata | undefined;

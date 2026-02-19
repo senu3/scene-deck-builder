@@ -6,7 +6,7 @@ import { useStore } from '../store/useStore';
 import type { CutGroup, Cut } from '../types';
 import CutCard from './CutCard';
 import './CutGroupCard.css';
-import { getThumbnail } from '../utils/thumbnailCache';
+import { getAssetThumbnail } from '../features/thumbnails/api';
 
 interface CutGroupCardProps {
   group: CutGroup;
@@ -70,7 +70,11 @@ export default function CutGroupCard({ group, cuts, sceneId, index, isDragging, 
 
       if (firstAsset?.path && (firstAsset.type === 'image' || firstAsset.type === 'video')) {
         try {
-          const thumbnail = await getThumbnail(firstAsset.path, firstAsset.type, { profile: 'timeline-card' });
+          const thumbnail = await getAssetThumbnail('timeline-card', {
+            assetId: firstAsset.id,
+            path: firstAsset.path,
+            type: firstAsset.type,
+          });
           if (thumbnail) {
             setThumbnail(thumbnail);
           }

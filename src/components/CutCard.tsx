@@ -26,7 +26,7 @@ import { getScenesInOrder } from '../utils/sceneOrder';
 import { useHistoryStore } from '../store/historyStore';
 import type { Asset, CutAudioBinding } from '../types';
 import './CutCard.css';
-import { getThumbnail } from '../utils/thumbnailCache';
+import { getAssetThumbnail } from '../features/thumbnails/api';
 import { resolveCutAsset, resolveCutThumbnail } from '../utils/assetResolve';
 import { CutContextMenu } from './context-menus';
 import ImageCropModal, { type ImageCropConfig } from './ImageCropModal';
@@ -185,7 +185,11 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
 
       if (asset?.path && (asset.type === 'image' || asset.type === 'video')) {
         try {
-          const thumbnail = await getThumbnail(asset.path, asset.type, { profile: 'timeline-card' });
+          const thumbnail = await getAssetThumbnail('timeline-card', {
+            assetId: asset.id,
+            path: asset.path,
+            type: asset.type,
+          });
           if (!cancelled && thumbnail) {
             setThumbnail(thumbnail);
           }

@@ -21,7 +21,7 @@ import { AudioManager } from '../utils/audioUtils';
 import { createImageMediaSource, createLipSyncImageMediaSource, createVideoMediaSource } from '../utils/previewMedia';
 import { getLipSyncFrameAssetIds } from '../utils/lipSyncUtils';
 import { useSequencePlaybackController } from '../utils/previewPlaybackController';
-import { getThumbnail } from '../utils/thumbnailCache';
+import { getAssetThumbnail } from '../features/thumbnails/api';
 import { buildSequenceItemsForCuts } from '../utils/exportSequence';
 import { resolvePreviewAudioTracks } from '../utils/previewAudioTracks';
 import { DEFAULT_EXPORT_RESOLUTION } from '../constants/export';
@@ -414,7 +414,11 @@ export default function PreviewModal({
       } else if (asset.type === 'image') {
         if (asset.path) {
           try {
-            const previewImage = await getThumbnail(asset.path, 'image', { profile: 'sequence-preview' });
+            const previewImage = await getAssetThumbnail('sequence-preview', {
+              assetId: asset.id,
+              path: asset.path,
+              type: 'image',
+            });
             if (isMounted && previewImage) {
               setSingleModeImageData(previewImage);
             }
@@ -1005,7 +1009,11 @@ export default function PreviewModal({
 
           if (cutAsset?.type === 'image' && cutAsset.path) {
             try {
-              const cached = await getThumbnail(cutAsset.path, 'image', { profile: 'sequence-preview' });
+              const cached = await getAssetThumbnail('sequence-preview', {
+                assetId: cutAsset.id,
+                path: cutAsset.path,
+                type: 'image',
+              });
               if (cached) thumbnail = cached;
             } catch {
               // ignore
@@ -1019,7 +1027,11 @@ export default function PreviewModal({
               thumbnail = baseAsset.thumbnail;
             } else if (baseAsset?.path) {
               try {
-                const cached = await getThumbnail(baseAsset.path, 'image', { profile: 'sequence-preview' });
+                const cached = await getAssetThumbnail('sequence-preview', {
+                  assetId: baseAsset.id,
+                  path: baseAsset.path,
+                  type: 'image',
+                });
                 if (cached) thumbnail = cached;
               } catch {
                 // ignore
@@ -1030,9 +1042,17 @@ export default function PreviewModal({
           if (!thumbnail && cutAsset?.path) {
             try {
               if (cutAsset.type === 'video') {
-                thumbnail = await getThumbnail(cutAsset.path, 'video', { profile: 'sequence-preview' });
+                thumbnail = await getAssetThumbnail('sequence-preview', {
+                  assetId: cutAsset.id,
+                  path: cutAsset.path,
+                  type: 'video',
+                });
               } else {
-                thumbnail = await getThumbnail(cutAsset.path, 'image', { profile: 'sequence-preview' });
+                thumbnail = await getAssetThumbnail('sequence-preview', {
+                  assetId: cutAsset.id,
+                  path: cutAsset.path,
+                  type: 'image',
+                });
               }
             } catch {
               // Failed to load
@@ -1087,7 +1107,11 @@ export default function PreviewModal({
 
         if (cutAsset.type === 'image' && cutAsset.path) {
           try {
-            const cached = await getThumbnail(cutAsset.path, 'image', { profile: 'sequence-preview' });
+            const cached = await getAssetThumbnail('sequence-preview', {
+              assetId: cutAsset.id,
+              path: cutAsset.path,
+              type: 'image',
+            });
             if (cached) thumbnail = cached;
           } catch {
             // ignore
@@ -1101,7 +1125,11 @@ export default function PreviewModal({
             thumbnail = baseAsset.thumbnail;
           } else if (baseAsset?.path) {
             try {
-              const cached = await getThumbnail(baseAsset.path, 'image', { profile: 'sequence-preview' });
+              const cached = await getAssetThumbnail('sequence-preview', {
+                assetId: baseAsset.id,
+                path: baseAsset.path,
+                type: 'image',
+              });
               if (cached) thumbnail = cached;
             } catch {
               // ignore
@@ -1112,9 +1140,17 @@ export default function PreviewModal({
         if (!thumbnail && cutAsset.path) {
           try {
             if (cutAsset.type === 'video') {
-              thumbnail = await getThumbnail(cutAsset.path, 'video', { profile: 'sequence-preview' });
+              thumbnail = await getAssetThumbnail('sequence-preview', {
+                assetId: cutAsset.id,
+                path: cutAsset.path,
+                type: 'video',
+              });
             } else {
-              thumbnail = await getThumbnail(cutAsset.path, 'image', { profile: 'sequence-preview' });
+              thumbnail = await getAssetThumbnail('sequence-preview', {
+                assetId: cutAsset.id,
+                path: cutAsset.path,
+                type: 'image',
+              });
             }
           } catch {
             // Failed to load
@@ -1168,7 +1204,11 @@ export default function PreviewModal({
 
           if (cutAsset?.type === 'image' && cutAsset.path) {
             try {
-              const cached = await getThumbnail(cutAsset.path, 'image', { profile: 'sequence-preview' });
+              const cached = await getAssetThumbnail('sequence-preview', {
+                assetId: cutAsset.id,
+                path: cutAsset.path,
+                type: 'image',
+              });
               if (cached) thumbnail = cached;
             } catch {
               // ignore
@@ -1182,7 +1222,11 @@ export default function PreviewModal({
               thumbnail = baseAsset.thumbnail;
             } else if (baseAsset?.path) {
               try {
-                const cached = await getThumbnail(baseAsset.path, 'image', { profile: 'sequence-preview' });
+                const cached = await getAssetThumbnail('sequence-preview', {
+                  assetId: baseAsset.id,
+                  path: baseAsset.path,
+                  type: 'image',
+                });
                 if (cached) thumbnail = cached;
               } catch {
                 // ignore
@@ -1193,9 +1237,17 @@ export default function PreviewModal({
           if (!thumbnail && cutAsset?.path) {
             try {
               if (cutAsset.type === 'video') {
-                thumbnail = await getThumbnail(cutAsset.path, 'video', { profile: 'sequence-preview' });
+                thumbnail = await getAssetThumbnail('sequence-preview', {
+                  assetId: cutAsset.id,
+                  path: cutAsset.path,
+                  type: 'video',
+                });
               } else {
-                thumbnail = await getThumbnail(cutAsset.path, 'image', { profile: 'sequence-preview' });
+                thumbnail = await getAssetThumbnail('sequence-preview', {
+                  assetId: cutAsset.id,
+                  path: cutAsset.path,
+                  type: 'image',
+                });
               }
             } catch {
               // Failed to load
@@ -1601,7 +1653,10 @@ export default function PreviewModal({
         for (const framePath of currentSpec.lipSync!.framePaths) {
           let src = '';
           try {
-            const thumb = await getThumbnail(framePath, 'image', { profile: 'sequence-preview' });
+            const thumb = await getAssetThumbnail('sequence-preview', {
+              path: framePath,
+              type: 'image',
+            });
             if (thumb) src = thumb;
           } catch {
             // ignore

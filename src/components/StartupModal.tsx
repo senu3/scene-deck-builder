@@ -18,7 +18,8 @@ import type { Scene, Asset, AssetIndexEntry, SourcePanelState } from '../types';
 import MissingAssetRecoveryModal, { MissingAssetInfo, RecoveryDecision } from './MissingAssetRecoveryModal';
 import { importFileToVault } from '../utils/assetPath';
 import { extractVideoMetadata } from '../utils/videoUtils';
-import { getThumbnail } from '../utils/thumbnailCache';
+import { getAssetThumbnail } from '../features/thumbnails/api';
+import { generateVideoClipThumbnail } from '../features/cut/clipThumbnail';
 import { getCuttableMediaType } from '../utils/mediaType';
 import { cutAssetPathStartsWith, resolveCutAsset, resolveCutAssetId } from '../utils/assetResolve';
 import {
@@ -469,13 +470,20 @@ export default function StartupModal() {
                       duration = videoMeta.duration;
                       metadata = { width: videoMeta.width, height: videoMeta.height };
                     }
-                    const thumb = await getThumbnail(newPath, 'video', { timeOffset: 0, profile: 'timeline-card' });
+                    const thumb = await getAssetThumbnail('timeline-card', {
+                      path: newPath,
+                      type: 'video',
+                      timeOffset: 0,
+                    });
                     if (thumb) {
                       thumbnail = thumb;
                     }
                   } else {
                     // Load image as base64 for thumbnail
-                    const base64 = await getThumbnail(newPath, 'image', { profile: 'timeline-card' });
+                    const base64 = await getAssetThumbnail('timeline-card', {
+                      path: newPath,
+                      type: 'image',
+                    });
                     if (base64) {
                       thumbnail = base64;
                     }
@@ -528,10 +536,12 @@ export default function StartupModal() {
         // Only process video clips with valid IN points
         const currentAsset = resolveCutAsset(cut, () => undefined);
         if (cut.isClip && cut.inPoint !== undefined && currentAsset?.type === 'video' && currentAsset.path) {
-          const newThumbnail = await getThumbnail(currentAsset.path, 'video', {
-            timeOffset: cut.inPoint,
-            profile: 'timeline-card',
-          });
+          const newThumbnail = await generateVideoClipThumbnail(
+            cut.id,
+            currentAsset.path,
+            cut.inPoint,
+            cut.outPoint
+          );
           if (newThumbnail) {
             return {
               ...cut,

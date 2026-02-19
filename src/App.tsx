@@ -49,7 +49,8 @@ import Storyline from './components/Storyline';
 import Header from './components/Header';
 import { v4 as uuidv4 } from 'uuid';
 import type { Asset, Cut } from './types';
-import { getThumbnail } from './utils/thumbnailCache';
+import { getAssetThumbnail } from './features/thumbnails/api';
+import { generateVideoClipThumbnail } from './features/cut/clipThumbnail';
 import { importFileToVault } from './utils/assetPath';
 import { getDragKind, queueExternalFilesToScene } from './utils/dragDrop';
 import { buildSequenceItemsForCuts } from './utils/exportSequence';
@@ -804,7 +805,7 @@ function App() {
 
     // Regenerate thumbnail at IN point
     if (asset.path) {
-      const newThumbnail = await getThumbnail(asset.path, 'video', { timeOffset: inPoint, profile: 'timeline-card' });
+      const newThumbnail = await generateVideoClipThumbnail(targetCutId, asset.path, inPoint, outPoint);
       if (newThumbnail) {
         // Clip thumbnail is cut-specific; do not mutate shared asset cache thumbnail.
         updateCutAsset(scene.id, targetCutId, { thumbnail: newThumbnail });
@@ -846,7 +847,10 @@ function App() {
         throw new Error(`Failed to capture frame: ${result.error}`);
       }
 
-      const thumbnailBase64 = await getThumbnail(outputPath, 'image', { profile: 'timeline-card' });
+      const thumbnailBase64 = await getAssetThumbnail('timeline-card', {
+        path: outputPath,
+        type: 'image',
+      });
 
       const newAssetId = uuidv4();
       const baseAsset: Asset = {
