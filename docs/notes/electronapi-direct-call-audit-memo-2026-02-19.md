@@ -8,9 +8,10 @@
 - renderer / utils / store の `window.electronAPI` 直呼び（簡易棚卸し）。
 - サムネイル周辺を優先確認。
 
-## 今回対応したもの（Gate9）
+## 今回対応したもの（完了）
 1. サムネ入口統一（Facade化）
 - `features/thumbnails/api.ts` を新設し、UI側の `thumbnailCache` 直接操作を縮退。
+- Gate: Gate9
 - 関連コミット:
   - `afa8a5b` (step1-5)
   - `65beb0f` (step6-7)
@@ -20,8 +21,21 @@
 2. `videoUtils` の electronAPI依存除去
 - `videoUtils` は renderer処理ユーティリティに限定。
 - IPC呼び分け/fallbackは `features/thumbnails/provider.ts` に移動。
+- Gate: Gate9
 - 関連コミット:
   - `e3c9012`
+
+3. `StartupModal` / `useHeaderProjectController` の同型ロジック集約
+- project-load/recovery の重複を `src/features/projectLoad/shared.ts` に集約。
+- 集約対象:
+  - `resolveScenesAssets`
+  - `normalizeLoadedProjectVersion`
+  - `resolveLoadedVaultPath`
+  - recovery decision 適用
+  - cut clip サムネ再生成
+- Gate: Gate7（責務の単一化）
+- 関連コミット:
+  - `a01a3e5`
 
 ## 今回は後回し（TODO扱い）
 1. utils層の `electronAPI` 直呼び整理
@@ -48,11 +62,15 @@
   - 現在は許容（仕様として保持）。
   - 見直し時は「store action が I/O副作用境界を持つ」前提を明示して設計する。
 
-## 優先修正順（次回）
+## 優先修正順（更新）
 1. `clipThumbnail` の early return見直し（provider fallbackを殺さない） ✅ 完了
 2. `StartupModal` / `useHeaderProjectController` の同型ロジックを最小差分で集約 ✅ 完了
-3. utils層の provider/gateway 抽出（段階実施）
-4. metadata / video metadata 直呼びの横断整理
+3. utils層の provider/gateway 抽出（段階実施） ⏸ `TODO-DEBT-006` へ移管
+4. metadata / video metadata 直呼びの横断整理 ⏸ `TODO-DEBT-007` へ移管
+
+## 現在ステータス
+- 本メモの追加実装対応は一時停止。
+- 未対応項目は `docs/TODO_MASTER.md` で継続管理する。
 
 ## Gate 関連
 - Gate9:
@@ -72,14 +90,5 @@
   - `npm run check:gate:strict`
 
 ## Update（2026-02-20）
-- 項目2を実施（Gate7）:
-  - `StartupModal` / `useHeaderProjectController` の project-load/recovery 同型ロジックを `src/features/projectLoad/shared.ts` に集約。
-  - 集約対象:
-    - `resolveScenesAssets`
-    - `normalizeLoadedProjectVersion`
-    - `resolveLoadedVaultPath`
-    - recovery decision 適用
-    - cut clip サムネ再生成
-- 検証:
-  - `npm test -- src/features/cut/__tests__/actions.test.ts src/store/__tests__/timelineIntegrityCommands.test.ts`
-  - `npm run build`
+- 項目2を `今回対応したもの` へ反映（Gate7）。
+- 未対応の項目3/4は `TODO_MASTER` へ移管し、本メモの実装対応は一時停止に更新。

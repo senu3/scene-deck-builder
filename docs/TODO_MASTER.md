@@ -20,6 +20,12 @@
   - 関連: `src/store/slices/metadataSlice.ts`
   - 関連: `src/store/slices/projectSlice.ts`
   - 関連: `src/utils/previewAudioTracks.ts`
+- `TODO-DEBT-006` utils層の `window.electronAPI` 直呼びを provider/gateway 経由へ段階移行する。
+  - 関連: `docs/notes/electronapi-direct-call-audit-memo-2026-02-19.md`
+  - 対象例: `src/utils/assetPath.ts`, `src/utils/metadataStore.ts`, `src/utils/audioUtils.ts`, `src/utils/lipSyncUtils.ts`
+- `TODO-DEBT-007` metadata / video metadata 呼び出しを横断整理し、UI直呼びの責務を縮小する。
+  - 関連: `docs/notes/electronapi-direct-call-audit-memo-2026-02-19.md`
+  - 対象例: `src/components/AssetPanel.tsx` の `getVideoMetadata` と metadata 系呼び出し
 
 ## Nice-to-have
 - `TODO-NICE-001` Autosave 設定 UI の interval/保存先連動を実装へ接続する。
