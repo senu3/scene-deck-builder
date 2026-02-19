@@ -41,9 +41,13 @@
 - profile 追加/変更時は `src/utils/thumbnailCache.ts` と `electron/services/thumbnailService.ts` の両方を確認する。
 
 ## Gate9 運用（2026-02-19）
-- 入口統一の計画は `docs/notes/gate9-thumbnail-unification-plan-2026-02-19.md` を正本とする。
+- 入口統一の実装記録は `docs/notes/archive/gate9-thumbnail-unification-plan-implemented-2026-02-19.md` を参照する。
 - 目標: 呼び出し面から `thumbnailCache` / IPC を直接触らず、`features/thumbnails` のFacade経由へ統一する。
 - 目標: Asset と Cut派生（`cut:${kind}:...`）の key namespace を分離する。
+- Cut派生キャッシュ規約:
+  - Key は `cut:${kind}:${cutId}:${fingerprint}:${profile}` を使う。
+  - `kind=clip` の fingerprint は `inMs-outMs`（ミリ秒丸め）を使う。
+  - 将来 `kind` を増やす場合は、同一 `cutId` 内で衝突しない fingerprint 定義を必ず先に決める。
 
 ## 変更時チェックリスト
 - `PreviewModal` が `sequence-preview` を使っていること。
