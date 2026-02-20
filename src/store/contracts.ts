@@ -146,14 +146,22 @@ export interface MetadataSliceContract {
 }
 
 export interface GroupSliceContract {
-  createGroup: (sceneId: string, cutIds: string[], name?: string) => string;
+  createGroup: (
+    sceneId: string,
+    cutIds: string[],
+    name?: string,
+    options?: Partial<CutGroup> & { id?: string }
+  ) => string;
   deleteGroup: (sceneId: string, groupId: string) => CutGroup | null;
   toggleGroupCollapsed: (sceneId: string, groupId: string) => void;
   getCutGroup: (sceneId: string, cutId: string) => CutGroup | undefined;
   selectGroup: (groupId: string | null) => void;
   renameGroup: (sceneId: string, groupId: string, name: string) => void;
   addCutsToGroup: (sceneId: string, groupId: string, cutIds: string[]) => void;
+  removeCutsFromGroup: (sceneId: string, groupId: string, cutIds: string[]) => void;
   removeCutFromGroup: (sceneId: string, groupId: string, cutId: string) => void;
   updateGroupCutOrder: (sceneId: string, groupId: string, cutIds: string[]) => void;
+  splitGroup: (sceneId: string, groupId: string, pivotCutId: string) => string | null;
+  mergeGroups: (sceneId: string, survivorGroupId: string, mergedGroupId: string) => boolean;
   getSelectedGroup: () => { scene: Scene; group: CutGroup } | null;
 }

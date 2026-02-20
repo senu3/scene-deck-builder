@@ -831,7 +831,7 @@ export default function DetailsPanel() {
               <span
                 className="selected-value editable"
                 onClick={() => {
-                  setGroupNameInput(group.name);
+                  setGroupNameInput(group.name || '');
                   setEditingGroupName(true);
                 }}
               >

@@ -53,7 +53,26 @@ Command 必須操作（2026-02-12 時点）:
 
 ### 3. Group 追随は共通ロジックを使う
 - group `cutIds` の整合更新は `commands` と `cutGroupOps` からのみ行う。
-- DnD 後処理で group を触る際は command を優先する。
+- DnD 後処理で group を更新する場合は、必ず Command を経由して timeline 更新と同一操作で同期する。
+- GroupCUT の所属参照モデルは A方式: `group.cutIds` を所属の正本とし、`cut.groupId` は逆参照インデックスとして同期する。
+- Group は timeline の正本（`sceneOrder` / `cut.order` / canonical timing）を置き換えてはならない。
+- 1つの cut は同時に複数 group へ所属してはならない（重なり/ネスト禁止）。
+- empty group は残さず削除する（`remove` / `normalize` 共通ルール）。
+- group の時間範囲は永続化しない。`groupStartAbs/groupEndAbs/groupDurationAbs` は cut の canonical timing から導出する（時間の正本は timeline）。
+
+### 3.1 GroupCUT operations（Command contract）
+- `createGroup(sceneId, cutIds)`:
+  入力空は reject。既存 group 所属 cut を含む場合も reject。
+- `addCutsToGroup(sceneId, groupId, cutIds)`:
+  他 group 所属 cut を含む場合は reject。追加後の `cutIds` は timeline 順に正規化。
+- `removeCutsFromGroup(sceneId, groupId, cutIds)`:
+  除外後に空になった group は削除。
+- `deleteGroup(sceneId, groupId)`:
+  `cut.groupId` の逆参照も同時解除。
+- `splitGroup(sceneId, groupId, pivotCutId)`:
+  pivot で2分割し、新規 group を採番。
+- `mergeGroups(sceneId, survivorGroupId, mergedGroupId)`:
+  survivor を残し、merged 側を削除。`cutIds` は timeline 順に統合正規化。
 
 ### 4. Command 層に UI 依存を持ち込まない
 - `commands.ts` で `confirm()` やモーダル表示を呼ばない。
@@ -102,6 +121,7 @@ const store = useStore(); // 全体購読
 - `CUT_MOVED`: 実装済み。Cut 移動時の group 後処理に利用。
 - `CUT_RELINKED`: emit のみ実装済み。UI 側の購読・表示用途は保留。
 - 展開グループ内の並び替え同期は event 追加ではなく `ReorderCutsWithGroupSyncCommand` で一操作に集約する。
+- `applyStoreEvents` 後には Group 正規化を1回通し、`group.cutIds` と `cut.groupId` の整合を復元する。
 
 補足:
 - `CUT_RELINKED` の購読側仕様は `docs/TODO_MASTER.md`（`TODO-INVEST-003`）で管理する。

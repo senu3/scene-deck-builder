@@ -86,6 +86,7 @@ export interface Cut {
   asset?: Asset;
   displayTime: number;
   order: number;
+  groupId?: string;
   framing?: CutFraming;
   useEmbeddedAudio?: boolean;
   audioBindings?: CutAudioBinding[];
@@ -160,13 +161,18 @@ export interface SceneNote {
   createdAt: string;
 }
 
-// Cut group for visual grouping on timeline
-export interface CutGroup {
+// Group for visual grouping on timeline (A-mode canonical source: cutIds)
+export interface Group {
   id: string;
-  name: string;
+  name?: string;
+  color?: string;
+  locked?: boolean;
+  attachments?: Record<string, unknown>;
   cutIds: string[];      // Ordered list of cut IDs in this group
   isCollapsed: boolean;  // Whether the group is collapsed (stacked view)
 }
+
+export type CutGroup = Group;
 
 export interface Scene {
   id: string;

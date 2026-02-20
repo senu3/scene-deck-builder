@@ -178,7 +178,7 @@ describe('timeline integrity commands', () => {
     expect(useStore.getState().scenes[0]?.groups?.[0]?.cutIds).toEqual(['cut-a1', 'cut-a2', 'cut-a3']);
   });
 
-  it('restores previous group order on undo', async () => {
+  it('normalizes group order to timeline order on update', async () => {
     useStore.getState().initializeProject({
       name: 'Group Order Undo Test',
       vaultPath: 'C:/vault',
@@ -199,7 +199,7 @@ describe('timeline integrity commands', () => {
 
     const command = new UpdateGroupCutOrderCommand('scene-a', 'group-a', ['cut-a2', 'cut-a1']);
     await command.execute();
-    expect(useStore.getState().scenes[0]?.groups?.[0]?.cutIds).toEqual(['cut-a2', 'cut-a1']);
+    expect(useStore.getState().scenes[0]?.groups?.[0]?.cutIds).toEqual(['cut-a1', 'cut-a2']);
 
     await command.undo();
     expect(useStore.getState().scenes[0]?.groups?.[0]?.cutIds).toEqual(['cut-a1', 'cut-a2']);

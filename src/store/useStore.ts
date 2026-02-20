@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Scene, Cut } from '../types';
 import type { AppState } from './stateTypes';
 import { getScenesInOrder } from '../utils/sceneOrder';
+import { normalizeGroupsInScenes } from '../utils/cutGroupOps';
 import { createProjectSlice } from './slices/projectSlice';
 import { createCutTimelineSlice } from './slices/cutTimelineSlice';
 import { createSelectionUiSlice } from './slices/selectionUiSlice';
@@ -127,6 +128,8 @@ export const useStore = create<AppState>((set, get) => ({
           });
         }
       }
+
+      scenes = normalizeGroupsInScenes(scenes);
 
       if (selectedGroupId) {
         const exists = scenes.some((scene) => scene.groups?.some((group) => group.id === selectedGroupId));

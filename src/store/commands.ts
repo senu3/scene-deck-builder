@@ -11,6 +11,7 @@ import {
 } from '../features/cut/simpleAutoClip';
 import { generateVideoClipThumbnail } from '../features/cut/clipThumbnail';
 import { resolveCutAsset as resolveCutAssetById } from '../utils/assetResolve';
+import { normalizeGroupsInScenes } from '../utils/cutGroupOps';
 
 function restoreCutState(
   store: ReturnType<typeof useStore.getState>,
@@ -294,7 +295,7 @@ export class ReorderCutsWithGroupSyncCommand implements Command {
     }
 
     useStore.setState((state) => ({
-      scenes: state.scenes.map((s) =>
+      scenes: normalizeGroupsInScenes(state.scenes.map((s) =>
         s.id === this.sceneId
           ? {
               ...s,
@@ -305,7 +306,7 @@ export class ReorderCutsWithGroupSyncCommand implements Command {
                   : s.groups,
             }
           : s
-      ),
+      )),
     }));
   }
 
@@ -313,7 +314,7 @@ export class ReorderCutsWithGroupSyncCommand implements Command {
     if (!this.previousSceneCuts) return;
 
     useStore.setState((state) => ({
-      scenes: state.scenes.map((s) =>
+      scenes: normalizeGroupsInScenes(state.scenes.map((s) =>
         s.id === this.sceneId
           ? {
               ...s,
@@ -326,7 +327,7 @@ export class ReorderCutsWithGroupSyncCommand implements Command {
                   : s.groups,
             }
           : s
-      ),
+      )),
     }));
   }
 }
@@ -1091,7 +1092,11 @@ export class CreateGroupCommand implements Command {
 
   async execute(): Promise<void> {
     const store = useStore.getState();
-    this.groupId = store.createGroup(this.sceneId, this.cutIds, this.groupName);
+    const createdGroupId = store.createGroup(this.sceneId, this.cutIds, this.groupName);
+    if (!createdGroupId) {
+      throw new Error('Failed to create group: cuts are empty or already grouped.');
+    }
+    this.groupId = createdGroupId;
   }
 
   async undo(): Promise<void> {
@@ -1128,8 +1133,7 @@ export class DeleteGroupCommand implements Command {
     if (!this.deletedGroup) return;
 
     const store = useStore.getState();
-    // Recreate group with same ID and properties
-    store.createGroup(this.sceneId, this.deletedGroup.cutIds, this.deletedGroup.name);
+    store.createGroup(this.sceneId, this.deletedGroup.cutIds, this.deletedGroup.name, this.deletedGroup);
   }
 }
 
@@ -1169,6 +1173,77 @@ export class RenameGroupCommand implements Command {
 
     const store = useStore.getState();
     store.renameGroup(this.sceneId, this.groupId, this.oldName);
+  }
+}
+
+/**
+ * グループ分割コマンド
+ */
+export class SplitGroupCommand implements Command {
+  type = 'SPLIT_GROUP';
+  description = 'Split group';
+
+  private sceneId: string;
+  private groupId: string;
+  private pivotCutId: string;
+  private createdGroupId: string | null = null;
+
+  constructor(sceneId: string, groupId: string, pivotCutId: string) {
+    this.sceneId = sceneId;
+    this.groupId = groupId;
+    this.pivotCutId = pivotCutId;
+  }
+
+  async execute(): Promise<void> {
+    const store = useStore.getState();
+    this.createdGroupId = store.splitGroup(this.sceneId, this.groupId, this.pivotCutId);
+  }
+
+  async undo(): Promise<void> {
+    if (!this.createdGroupId) return;
+    const store = useStore.getState();
+    store.mergeGroups(this.sceneId, this.groupId, this.createdGroupId);
+  }
+}
+
+/**
+ * グループ結合コマンド
+ */
+export class MergeGroupsCommand implements Command {
+  type = 'MERGE_GROUPS';
+  description = 'Merge groups';
+
+  private sceneId: string;
+  private survivorGroupId: string;
+  private mergedGroupId: string;
+  private mergedGroupSnapshot?: CutGroup;
+  private survivorPrevCutIds?: string[];
+
+  constructor(sceneId: string, survivorGroupId: string, mergedGroupId: string) {
+    this.sceneId = sceneId;
+    this.survivorGroupId = survivorGroupId;
+    this.mergedGroupId = mergedGroupId;
+  }
+
+  async execute(): Promise<void> {
+    const store = useStore.getState();
+    const scene = store.scenes.find((s) => s.id === this.sceneId);
+    this.mergedGroupSnapshot = scene?.groups?.find((g) => g.id === this.mergedGroupId);
+    this.survivorPrevCutIds = scene?.groups?.find((g) => g.id === this.survivorGroupId)?.cutIds.slice();
+    store.mergeGroups(this.sceneId, this.survivorGroupId, this.mergedGroupId);
+  }
+
+  async undo(): Promise<void> {
+    if (!this.mergedGroupSnapshot || !this.survivorPrevCutIds) return;
+
+    const store = useStore.getState();
+    store.updateGroupCutOrder(this.sceneId, this.survivorGroupId, this.survivorPrevCutIds);
+    store.createGroup(
+      this.sceneId,
+      this.mergedGroupSnapshot.cutIds,
+      this.mergedGroupSnapshot.name,
+      this.mergedGroupSnapshot
+    );
   }
 }
 
@@ -1324,24 +1399,10 @@ export class RemoveCutFromGroupCommand implements Command {
       const restoredOrder = this.originalGroupCutIds && this.originalGroupCutIds.length > 0
         ? [...this.originalGroupCutIds]
         : [this.cutId];
-      useStore.setState((state) => ({
-        scenes: state.scenes.map((s) =>
-          s.id === this.sceneId
-            ? {
-                ...s,
-                groups: [
-                  ...(s.groups || []),
-                  {
-                    id: this.groupId,
-                    name: this.originalGroupName || `Group ${Date.now()}`,
-                    cutIds: restoredOrder,
-                    isCollapsed: this.originalGroupCollapsed ?? true,
-                  },
-                ],
-              }
-            : s
-        ),
-      }));
+      store.createGroup(this.sceneId, restoredOrder, this.originalGroupName, {
+        id: this.groupId,
+        isCollapsed: this.originalGroupCollapsed ?? true,
+      });
       return;
     }
 

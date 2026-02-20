@@ -3,12 +3,13 @@ import type { Scene, Cut, Asset } from '../../types';
 import { clearThumbnailCache } from '../../utils/thumbnailCache';
 import { normalizeSceneOrder } from '../../utils/sceneOrder';
 import { resolveCutAssetId } from '../../utils/assetResolve';
+import { normalizeGroupsInScenes } from '../../utils/cutGroupOps';
 import type { SourceFolder } from '../stateTypes';
 import type { ProjectSliceContract } from '../contracts';
 import type { SliceGet, SliceSet } from './sliceTypes';
 
 function normalizeScenesUseEmbeddedAudio(scenes: Scene[]): Scene[] {
-  return scenes.map((scene) => ({
+  const normalized = scenes.map((scene) => ({
     ...scene,
     cuts: scene.cuts.map((cut, index) => {
       const {
@@ -23,6 +24,7 @@ function normalizeScenesUseEmbeddedAudio(scenes: Scene[]): Scene[] {
       };
     }),
   }));
+  return normalizeGroupsInScenes(normalized);
 }
 
 function buildAssetCacheFromScenes(scenes: Scene[]): Map<string, Asset> {
