@@ -17,7 +17,7 @@
 - 編集: `StoryTimeline`
 - 再生: `SequenceClock` / `useSequencePlaybackController`
 - 出力:
-  - 実行計画: `ExportPlan` / `Mp4ExportPlan` / `AviUtlExportPlan`
+  - 実行計画: `ExportPlan` / `Mp4ExportPlan`
   - 計画解決: `resolveExportPlan`
   - 出力シーケンス: `ExportSequenceItem` / `buildSequenceItemsForExport`
   - 実行境界(IPC): `window.electronAPI.exportSequence`

@@ -22,7 +22,7 @@
 - 命名ガバナンス（Export関連）
 
 ## 現在の実装到達点
-- ExportModal は MP4 実運用、AviUtl は Coming Soon。
+- ExportModal は MP4 実運用を基準とする。
 - Export設定は `resolveExportPlan` で正規化し、UIと実行境界を分離。
 - 出力シーケンスは `buildSequenceItemsForExport` / `buildSequenceItemsForCuts` で生成。
 - Scene more menu 起点の Scene export は `startExportForCuts(scene.cuts, scope)` の専用入口で実行する。
@@ -39,7 +39,7 @@
 - 編集軸: `StoryTimeline`
 - 再生軸: `SequenceClock` / `useSequencePlaybackController`
 - 出力軸:
-  - 実行計画: `ExportPlan` / `Mp4ExportPlan` / `AviUtlExportPlan`
+  - 実行計画: `ExportPlan` / `Mp4ExportPlan`
   - 計画解決: `resolveExportPlan`
   - 出力シーケンス: `ExportSequenceItem` / `buildSequenceItemsForExport`
   - 実行境界(IPC): `window.electronAPI.exportSequence`

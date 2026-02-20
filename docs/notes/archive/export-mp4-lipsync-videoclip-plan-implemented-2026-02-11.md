@@ -21,7 +21,7 @@
 - PreviewModal の export 操作は App 側 export 実行へ委譲し、実行経路を一本化。
 - Framing 既定値（`cover + center`）は `projectDefaults` として定数化し、Preview/Export 双方の解決入口へ供給。
 - Export 設定の正規化/実行計画を `resolveExportPlan` へ分離し、モーダルUI仕様変更前の非UI実装境界を確立。
-- ExportModal は既存デザインを維持したまま MP4 実運用へ切替（AviUtl は Coming Soon）。
+- ExportModal は既存デザインを維持したまま MP4 実運用へ切替。
 - MP4 export 成果物を `export/<folder>/` に出力し、`video.mp4 + manifest.json + timeline.txt` を生成。
 - `exportSequence` テストに統合回帰ケース（順序/clip/lipsync/framing）を追加済み。
 - `framingParity` テストで Preview (`object-fit/object-position`) と Export (ffmpeg filter) の一致を自動検証。

@@ -10,20 +10,7 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
 - `BlockedBy`: 前提タスクや判断待ち
 - `DoneWhen`: 完了判定条件
 
-## 現在の進行順
-1. TODO整理（本更新）
-2. `TODO-DEBT-005` 対応
-3. `docs/guides/vault-assets.md` 確認
-4. 条件を満たせば `TODO-DEBT-001` 完了
-
 ## Gate-Work Track
-- `TODO-DEBT-001` Vault ガイド更新の最終確認
-  - Track: `Gate-Work`
-  - Status: `ready`
-  - StartWhen: `TODO-DEBT-005` の修正方針と結果が確定した後
-  - BlockedBy: `docs/guides/vault-assets.md` の最終確認
-  - DoneWhen: 現行実装との差分がないことを確認し、必要ならガイド更新、不要ならクローズ理由を記録
-  - 関連: `docs/guides/vault-assets.md`
 - `TODO-DEBT-006` utils層の `window.electronAPI` 直呼びを provider/gateway 経由へ段階移行する
   - Track: `Gate-Work`
   - Status: `backlog`
@@ -79,15 +66,7 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
   - 関連: `docs/guides/scene-duration-bar.md`
 
 ## Bug Track
-- `TODO-DEBT-005` SceneAudio を保存したプロジェクト再ロード時に、`metadataStore.sceneMetadata.attachAudio` は復元されても `assetCache` に音声Assetが戻らず再生/表示に反映されない不具合を修正する
-  - Track: `Bug`
-  - Status: `done`
-  - StartWhen: 着手済み
-  - BlockedBy: なし
-  - DoneWhen: 再ロード後も scene attachAudio が `assetCache` で解決され、Preview/表示に反映される回帰テストが通る（`metadataLoadSceneAudioHydration.test.ts` 追加）
-  - 関連: `src/store/slices/metadataSlice.ts`
-  - 関連: `src/store/slices/projectSlice.ts`
-  - 関連: `src/utils/previewAudioTracks.ts`
+- （active item なし）
 
 ## Breaking Track
 - `TODO-BREAKING-001` LipSync generated IDs の正規化を保存/読み込みに導入する（過去データ migration を含む）
@@ -160,3 +139,7 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
   - BlockedBy: なし
   - DoneWhen: 監視方針（計測点/しきい値/運用）が docs で確定
   - 関連: `docs/guides/implementation/gate-checks.md`
+
+## Done (archive)
+- 2026-02-20 | `TODO-DEBT-001` Vaultガイド更新を完了し、Export/Vault仕様を固定 | `docs/notes/archive/todo-done-2026-02.md#todo-debt-001`
+- 2026-02-20 | `TODO-DEBT-005` scene attach audio 再ロード復元不具合を修正 | `docs/notes/archive/todo-done-2026-02.md#todo-debt-005`

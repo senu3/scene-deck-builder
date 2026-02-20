@@ -9,6 +9,7 @@
 - `docs/notes/archive/export-mp4-lipsync-videoclip-plan-implemented-2026-02-11.md`
 - `docs/notes/archive/export-naming-plan-implemented-2026-02-11.md`
 - `docs/notes/archive/export-timeline-integrity-plan-implemented-2026-02-11.md`
+- `docs/notes/archive/todo-done-2026-02.md`
 - `docs/notes/archive/cut-refactor-plan-implemented-2026-02-12.md`
 - `docs/notes/archive/store-slice-plan-implemented-2026-02-12.md`
 - `docs/notes/archive/store-type-boundary-plan-implemented-2026-02-12.md`
@@ -19,7 +20,6 @@
 - `docs/notes/archive/lip-sync-requirements.md`
 - `docs/notes/archive/preview-sequence-same-source-clip-buffering-todo-2026-02-14.md`
 - `docs/notes/archive/autosave-toast-notes.md`
-- `docs/notes/archive/aviutl-exo-export-research.md`
 - `docs/notes/archive/backward-compat-inventory-implemented-2026-02-18.md`
 
 ## ルール

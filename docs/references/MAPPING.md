@@ -33,7 +33,7 @@
 | プレビュー | `PreviewMode`（scene/all）。 | `setPreviewMode`。 | `PreviewModal` |
 | プレビュー制御 | `PlaybackState`。 | public: `useSequencePlaybackController` / internal concept: `SequenceClock`。 | `PreviewModal` |
 | プレビューメディアソース | `MediaSource`（Preview専用 abstraction）。 | `createVideoMediaSource` / `createImageMediaSource`。 | `PreviewModal` |
-| エクスポート実行計画 | `ExportPlan` / `Mp4ExportPlan` / `AviUtlExportPlan`。 | `resolveExportPlan`。 | `ExportModal`、`App` |
+| エクスポート実行計画 | `ExportPlan` / `Mp4ExportPlan`。 | `resolveExportPlan`。 | `ExportModal`、`App` |
 | エクスポート出力シーケンス | `ExportSequenceItem`。 | `buildSequenceItemsForCuts` / `buildSequenceItemsForExport`。 | `PreviewModal`、`App` |
 | エクスポート音声計画 | `ExportAudioPlan` / `ExportAudioEvent`。 | `buildExportAudioPlan`（`useEmbeddedAudio` を含む）。 | `App`、`PreviewModal` |
 | エクスポート実行境界 | `ExportSequenceOptions` / `ExportSequenceResult`（IPC payload, `audioPlan` 含む）。 | `window.electronAPI.exportSequence`。 | `App`、`PreviewModal` |

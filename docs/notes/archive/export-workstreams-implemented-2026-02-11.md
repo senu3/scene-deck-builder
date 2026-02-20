@@ -24,7 +24,7 @@
   - LipSync payload の厳密検証と silent fallback 禁止
   - Export実行経路の App 側一本化
   - `resolveExportPlan` による設定正規化レイヤー追加
-  - ExportModal の MP4 実運用切替（AviUtl は Coming Soon）
+  - ExportModal の MP4 実運用切替
   - 成果物 `video.mp4 + manifest.json + timeline.txt` 出力
   - parity/統合回帰テスト追加
   - Export進行中 Banner 表示と完了時自動削除
