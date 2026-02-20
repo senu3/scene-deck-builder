@@ -16,8 +16,9 @@
 - Gate に触れる `feat`/`fix`/`refactor` は `scope=gateN` を使う。
 - `scope=gateN` のときは docs を最低 1 つ更新する。
 - 見た目のみの変更はコミット本文フッターに `UI-Only: true` を付与する。
-- Electron 更新は `build(electron)` を使う。
-- 依存更新は `chore(deps)` を使う。
+- Electron は特別扱いの依存とする。バージョン更新およびそれに伴う軽微な追随修正（例: 非推奨APIの置換、型調整、import修正など）は `chore(electron)` を使う。
+- `build(electron)` は配布・ビルド・パッケージングに関わる変更に限定する。
+- Electron 以外の依存更新は `chore(deps)` を使う。
 - baseline 更新（`scripts/check-gate-baseline.json` など）は専用コミットに分離する。
 
 ## Must Not
@@ -33,7 +34,8 @@
   - `refactor(store): cutGroupOps を commands 経由に統一`
   - `fix(ui): contentEditable 中のショートカットを抑止`
   - `chore(deps): bump zustand to vX`
-  - `build(electron): upgrade electron to vXX`
+  - `chore(electron): bump electron to vXX`
+  - `build(electron): switch packaging flow to forge`
 
 ## Gate 変更時ルール
 - 対象: Gate 不変条件、`check:gate`、strict 運用、baseline、監査ロジックへの変更。
@@ -70,6 +72,6 @@
   2. 各コミットの `type/scope/subject` が規約に準拠していることを確認する。
   3. `scope=gateN` がある場合、docs を更新したことを確認する（例外時は PR に理由記載）。
   4. UI 見た目のみ変更コミットに `UI-Only: true` があることを確認する。
-  5. Electron 更新が `build(electron)`、依存更新が `chore(deps)` になっていることを確認する。
+  5. Electron 更新は `chore(electron)`、配布/ビルド変更は `build(electron)`、Electron 以外の依存更新は `chore(deps)` になっていることを確認する。
 - PR 作成前:
   - commit 一覧を再確認し、規約違反がないことを確認してから提出する。
