@@ -1,6 +1,11 @@
 import type { Asset, Cut, MetadataStore } from '../types';
 import { resolveCutAsset } from './assetResolve';
-import { computeStoryTimingsForCuts } from './storyTiming';
+import {
+  asCanonicalDurationSec,
+  computeStoryTimingsForCuts,
+  resolveCanonicalCutDuration,
+  type CanonicalDurationSec,
+} from './storyTiming';
 
 export interface ExportAudioEvent {
   assetId?: string;
@@ -20,11 +25,21 @@ export interface ExportAudioPlan {
   events: ExportAudioEvent[];
 }
 
+export type ExportAudioPlanCut = Omit<Cut, 'displayTime'> & {
+  displayTime: CanonicalDurationSec;
+};
+
+export interface CanonicalizedAudioPlanCuts {
+  cuts: ExportAudioPlanCut[];
+  adjustedCutIds: string[];
+}
+
 interface BuildExportAudioPlanInput {
-  cuts: Cut[];
+  cuts: ExportAudioPlanCut[];
   metadataStore: MetadataStore | null;
   getAssetById: (assetId: string) => Asset | undefined;
   resolveSceneIdByCutId: (cutId: string) => string | undefined;
+  canonicalGuard?: 'warn' | 'throw' | 'none';
 }
 
 function normalizeSeconds(value: number | undefined, fallback = 0): number {
@@ -32,11 +47,62 @@ function normalizeSeconds(value: number | undefined, fallback = 0): number {
   return value as number;
 }
 
+function isCanonicalDurationEqual(left: number, right: number): boolean {
+  return Math.abs(left - right) <= 1e-6;
+}
+
+export function canonicalizeCutsForExportAudioPlan(
+  cuts: Cut[],
+  getAssetById: (assetId: string) => Asset | undefined
+): CanonicalizedAudioPlanCuts {
+  const adjustedCutIds: string[] = [];
+  const normalizedCuts: ExportAudioPlanCut[] = cuts.map((cut) => {
+    const resolved = resolveCanonicalCutDuration(cut, getAssetById, {
+      fallbackDurationSec: 1.0,
+      preferAssetDuration: true,
+    });
+    if (resolved.adjusted || !isCanonicalDurationEqual(cut.displayTime, resolved.durationSec)) {
+      adjustedCutIds.push(cut.id);
+    }
+    return {
+      ...cut,
+      displayTime: asCanonicalDurationSec(resolved.durationSec),
+    };
+  });
+  return {
+    cuts: normalizedCuts,
+    adjustedCutIds,
+  };
+}
+
 export function buildExportAudioPlan(input: BuildExportAudioPlanInput): ExportAudioPlan {
+  const guard = input.canonicalGuard ?? 'warn';
+  const nonCanonicalCutIds: string[] = [];
+  const canonicalDurationByCutId = new Map<string, number>();
+  for (const cut of input.cuts) {
+    const resolved = resolveCanonicalCutDuration(cut, input.getAssetById, {
+      fallbackDurationSec: 1.0,
+      preferAssetDuration: true,
+    });
+    canonicalDurationByCutId.set(cut.id, resolved.durationSec);
+    if (!isCanonicalDurationEqual(cut.displayTime, resolved.durationSec)) {
+      nonCanonicalCutIds.push(cut.id);
+    }
+  }
+  if (nonCanonicalCutIds.length > 0 && guard !== 'none') {
+    const message =
+      `[export-audio] buildExportAudioPlan received non-canonical cuts: ${nonCanonicalCutIds.join(', ')}. ` +
+      'Canonicalize with canonicalizeCutsForExportAudioPlan(...) before building audio plan.';
+    if (guard === 'throw') {
+      throw new Error(message);
+    }
+    console.warn(message);
+  }
+
   const cutTimingInputs = input.cuts.map((cut) => ({
     cutId: cut.id,
     sceneId: input.resolveSceneIdByCutId(cut.id) || `unknown-${cut.id}`,
-    displayTime: cut.displayTime,
+    displayTime: canonicalDurationByCutId.get(cut.id) ?? cut.displayTime,
   }));
   const timings = computeStoryTimingsForCuts(cutTimingInputs);
   const events: ExportAudioEvent[] = [];

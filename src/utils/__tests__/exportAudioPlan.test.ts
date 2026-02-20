@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Asset, Cut, MetadataStore } from '../../types';
-import { buildExportAudioPlan } from '../exportAudioPlan';
+import { buildExportAudioPlan, canonicalizeCutsForExportAudioPlan, type ExportAudioPlanCut } from '../exportAudioPlan';
 
 describe('buildExportAudioPlan', () => {
   it('builds mixed events for video + cut attach + scene attach', () => {
@@ -50,7 +50,7 @@ describe('buildExportAudioPlan', () => {
     };
 
     const plan = buildExportAudioPlan({
-      cuts,
+      cuts: canonicalizeCutsForExportAudioPlan(cuts, (assetId) => assets.get(assetId)).cuts,
       metadataStore,
       getAssetById: (assetId) => assets.get(assetId),
       resolveSceneIdByCutId: () => 'scene-1',
@@ -84,7 +84,7 @@ describe('buildExportAudioPlan', () => {
     ]);
 
     const plan = buildExportAudioPlan({
-      cuts,
+      cuts: canonicalizeCutsForExportAudioPlan(cuts, (assetId) => assets.get(assetId)).cuts,
       metadataStore: null,
       getAssetById: (assetId) => assets.get(assetId),
       resolveSceneIdByCutId: () => 'scene-1',
@@ -112,7 +112,7 @@ describe('buildExportAudioPlan', () => {
     ]);
 
     const plan = buildExportAudioPlan({
-      cuts,
+      cuts: canonicalizeCutsForExportAudioPlan(cuts, (assetId) => assets.get(assetId)).cuts,
       metadataStore: null,
       getAssetById: (assetId) => assets.get(assetId),
       resolveSceneIdByCutId: () => 'scene-1',
@@ -164,7 +164,7 @@ describe('buildExportAudioPlan', () => {
     };
 
     const plan = buildExportAudioPlan({
-      cuts,
+      cuts: canonicalizeCutsForExportAudioPlan(cuts, (assetId) => assets.get(assetId)).cuts,
       metadataStore,
       getAssetById: (assetId) => assets.get(assetId),
       resolveSceneIdByCutId: () => 'scene-1',
@@ -174,5 +174,33 @@ describe('buildExportAudioPlan', () => {
     expect(cutAttachEvents).toHaveLength(1);
     expect(cutAttachEvents[0]?.assetId).toBe('aud-on');
     expect(plan.events.some((event) => event.sourceType === 'scene-attach')).toBe(false);
+  });
+
+  it('warns when non-canonical cuts are passed directly', () => {
+    const cuts: Cut[] = [
+      {
+        id: 'cut-1',
+        assetId: 'vid-1',
+        displayTime: Number.NaN,
+        order: 0,
+      },
+    ];
+    const assets = new Map<string, Asset>([
+      ['vid-1', { id: 'vid-1', name: 'v.mp4', path: '/vault/v.mp4', type: 'video', duration: 4 }],
+    ]);
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const plan = buildExportAudioPlan({
+      cuts: cuts as unknown as ExportAudioPlanCut[],
+      metadataStore: null,
+      getAssetById: (assetId) => assets.get(assetId),
+      resolveSceneIdByCutId: () => 'scene-1',
+      canonicalGuard: 'warn',
+    });
+
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy.mock.calls[0]?.[0]).toContain('non-canonical cuts');
+    expect(plan.totalDurationSec).toBe(4);
+    warnSpy.mockRestore();
   });
 });

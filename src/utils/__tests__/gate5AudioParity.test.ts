@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Asset, Cut, MetadataStore } from '../../types';
-import { buildExportAudioPlan } from '../exportAudioPlan';
+import { buildExportAudioPlan, canonicalizeCutsForExportAudioPlan } from '../exportAudioPlan';
 import { buildSequenceItemsForCuts } from '../exportSequence';
 import { computeCanonicalStoryTimingsForCuts } from '../storyTiming';
 
@@ -74,7 +74,7 @@ describe('gate5 audio parity', () => {
       resolveAssetById: (assetId) => assets.get(assetId),
     });
     const audioPlan = buildExportAudioPlan({
-      cuts: normalizedCuts,
+      cuts: canonicalizeCutsForExportAudioPlan(normalizedCuts, (assetId) => assets.get(assetId)).cuts,
       metadataStore,
       getAssetById: (assetId) => assets.get(assetId),
       resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),

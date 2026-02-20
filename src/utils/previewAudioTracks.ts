@@ -1,5 +1,5 @@
 import type { Asset, Cut, MetadataStore, SceneAudioBinding } from '../types';
-import { buildExportAudioPlan } from './exportAudioPlan';
+import { buildExportAudioPlan, canonicalizeCutsForExportAudioPlan } from './exportAudioPlan';
 
 export interface PreviewAudioTrack {
   source: 'scene';
@@ -24,9 +24,10 @@ export interface ResolvePreviewAudioTracksInput {
 export function resolvePreviewAudioTracks(input: ResolvePreviewAudioTracksInput): PreviewAudioTrack[] {
   const { sceneId, cuts, sceneStartAbs, previewOffsetSec = 0, metadataStore, getAssetById } = input;
   if (!sceneId || cuts.length === 0) return [];
+  const canonicalized = canonicalizeCutsForExportAudioPlan(cuts, getAssetById);
 
   const plan = buildExportAudioPlan({
-    cuts,
+    cuts: canonicalized.cuts,
     metadataStore,
     getAssetById,
     resolveSceneIdByCutId: () => sceneId,

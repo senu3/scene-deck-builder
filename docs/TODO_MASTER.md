@@ -31,9 +31,6 @@
   - 補足: 方針は「完全廃止（段階実施）」。現状の load seed 用 snapshot / fallback を計画的に削減する。
 - `TODO-DEBT-009` Gate 9 の provider統一を段階実施し、`asset.thumbnail` 直参照を新規コード禁止ルールとして運用する。
   - 関連: `docs/guides/implementation/thumbnail-profiles.md`
-- `TODO-DEBT-010` `buildExportAudioPlan` 入力の canonical duration 正規化を全export入口で強制し、Preview/Export の音声尺ズレ余地を解消する（致命優先）。
-  - 関連: `docs/guides/implementation/export-audio-mix.md`
-  - 補足: docs 更新を先行し、次ステップで実装修正する。
 
 ## Nice-to-have
 - `TODO-NICE-001` Autosave 設定 UI の interval/保存先連動を実装へ接続する。

@@ -60,9 +60,10 @@
 3. 分離音声の総尺が export 対象の totalDuration と一致すること。
 4. 旧 `wav` セグメント連結経路を再導入しないこと。
 
-## Critical Follow-up
-- `buildExportAudioPlan` は入力 `cut.displayTime` をそのまま使うため、呼び出し側が canonical duration を渡さない経路では parity 崩れを起こし得る。
-- 本件は致命優先で扱い、docs先行で方針固定済み。次ステップで export 入口の入力正規化を実装する（`TODO-DEBT-010`）。
+## Canonical Guard
+- `buildExportAudioPlan` の入口は canonical cut（`ExportAudioPlanCut`）を前提とする。
+- `canonicalizeCutsForExportAudioPlan(...)` を通して `displayTime` を canonical duration に正規化してから渡す。
+- 非canonical入力が混入した場合、`buildExportAudioPlan` は guard 設定に従って `warn/throw` し、回帰検知を行う。
 
 ## 関連
 - `docs/guides/export.md`

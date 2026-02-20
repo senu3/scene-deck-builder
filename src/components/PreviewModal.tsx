@@ -27,7 +27,7 @@ import { resolvePreviewAudioTracks } from '../utils/previewAudioTracks';
 import { DEFAULT_EXPORT_RESOLUTION } from '../constants/export';
 import { EXPORT_FRAMING_DEFAULTS } from '../constants/framing';
 import { buildPreviewViewportFramingStyle, buildPreviewViewportFramingStyleFromResolved } from '../utils/previewFraming';
-import { buildExportAudioPlan, type ExportAudioEvent } from '../utils/exportAudioPlan';
+import { buildExportAudioPlan, canonicalizeCutsForExportAudioPlan, type ExportAudioEvent } from '../utils/exportAudioPlan';
 import { getScenesInOrder } from '../utils/sceneOrder';
 import {
   asCanonicalDurationSec,
@@ -1458,7 +1458,7 @@ export default function PreviewModal({
       cutSceneMap.set(item.cut.id, item.sceneId);
     }
     return buildExportAudioPlan({
-      cuts: exportCuts,
+      cuts: canonicalizeCutsForExportAudioPlan(exportCuts, getAsset).cuts,
       metadataStore: metadataStore ?? null,
       getAssetById: getAsset,
       resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
@@ -2045,7 +2045,7 @@ export default function PreviewModal({
         cutSceneMap.set(item.cut.id, item.sceneId);
       }
       const audioPlan = buildExportAudioPlan({
-        cuts: exportCuts,
+        cuts: canonicalizeCutsForExportAudioPlan(exportCuts, getAsset).cuts,
         metadataStore: metadataStore ?? null,
         getAssetById: getAsset,
         resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
@@ -2154,7 +2154,7 @@ export default function PreviewModal({
         cutSceneMap.set(item.cut.id, item.sceneId);
       }
       const audioPlan = buildExportAudioPlan({
-        cuts: rangeCuts,
+        cuts: canonicalizeCutsForExportAudioPlan(rangeCuts, getAsset).cuts,
         metadataStore: metadataStore ?? null,
         getAssetById: getAsset,
         resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),

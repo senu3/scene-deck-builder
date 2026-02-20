@@ -64,7 +64,7 @@ import type { ResolutionInput } from './features/export/plan';
 import type { ExportSettings } from './features/export/types';
 import { buildSceneScopedExportPath } from './features/export/sceneScope';
 import { buildExportTimelineEntries, buildManifestJson, buildTimelineText } from './features/export/manifest';
-import { buildExportAudioPlan } from './utils/exportAudioPlan';
+import { buildExportAudioPlan, canonicalizeCutsForExportAudioPlan } from './utils/exportAudioPlan';
 import { resolveCutAsset } from './utils/assetResolve';
 import { useBanner, useToast } from './ui';
 import './styles/App.css';
@@ -546,7 +546,7 @@ function App() {
         }
       }
       const audioPlan = buildExportAudioPlan({
-        cuts,
+        cuts: canonicalizeCutsForExportAudioPlan(cuts, getAsset).cuts,
         metadataStore: metadataStore ?? null,
         getAssetById: getAsset,
         resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
