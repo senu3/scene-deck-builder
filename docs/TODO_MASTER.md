@@ -1,56 +1,162 @@
 # TODO Master
 
 このファイルが docs の TODO 単一入口。
-各ガイドには詳細を置かず、ここへのリンクのみ残す。
+ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `Track/Status/StartWhen/BlockedBy/DoneWhen` で管理する。
 
-## Breaking候補
-- `TODO-BREAKING-001` LipSync generated IDs の正規化を保存/読み込みに導入する（過去データ migration を含む）。
-  - 関連: `docs/guides/lip-sync.md`
+## 運用ルール
+- `Track`: `Gate-Work` / `UI-Spec-Pending` / `Bug` / `Investigation` / `Nice-to-have` / `Breaking`
+- `Status`: `backlog` / `ready` / `in-progress` / `blocked` / `done`
+- `StartWhen`: 着手条件（開始トリガ）
+- `BlockedBy`: 前提タスクや判断待ち
+- `DoneWhen`: 完了判定条件
 
-## Debt
-- `TODO-DEBT-001` Export 系フロー仕様確定後に Vault ガイドを更新する。
+## 現在の進行順
+1. TODO整理（本更新）
+2. `TODO-DEBT-005` 対応
+3. `docs/guides/vault-assets.md` 確認
+4. 条件を満たせば `TODO-DEBT-001` 完了
+
+## Gate-Work Track
+- `TODO-DEBT-001` Vault ガイド更新の最終確認
+  - Track: `Gate-Work`
+  - Status: `ready`
+  - StartWhen: `TODO-DEBT-005` の修正方針と結果が確定した後
+  - BlockedBy: `docs/guides/vault-assets.md` の最終確認
+  - DoneWhen: 現行実装との差分がないことを確認し、必要ならガイド更新、不要ならクローズ理由を記録
   - 関連: `docs/guides/vault-assets.md`
-- `TODO-DEBT-002` Preview ガイドの UI 文言を現行実装に合わせて更新する。
-  - 関連: `docs/guides/preview.md`
-- `TODO-DEBT-003` SceneDurationBar ガイドの表現を UI 設計確定後に更新する。
-  - 関連: `docs/guides/scene-duration-bar.md`
-- `TODO-DEBT-004` Buffer/Memory ガイドを最新実装検索結果で再棚卸しする。
+- `TODO-DEBT-006` utils層の `window.electronAPI` 直呼びを provider/gateway 経由へ段階移行する
+  - Track: `Gate-Work`
+  - Status: `backlog`
+  - StartWhen: Gate 7 の移行バッチを切るとき
+  - BlockedBy: なし
+  - DoneWhen: 対象 utils の直呼びを段階置換し、移行ルールを docs へ反映
+  - 関連: `docs/notes/electronapi-direct-call-audit-memo-2026-02-19.md`
+  - 対象例: `src/utils/assetPath.ts`, `src/utils/metadataStore.ts`, `src/utils/audioUtils.ts`, `src/utils/lipSyncUtils.ts`
+- `TODO-DEBT-007` metadata / video metadata 呼び出しを横断整理し、UI直呼びの責務を縮小する
+  - Track: `Gate-Work`
+  - Status: `backlog`
+  - StartWhen: `TODO-DEBT-006` の方針確定後
+  - BlockedBy: なし
+  - DoneWhen: UI 層の metadata/video metadata 直呼びを整理し、責務境界を docs に固定
+  - 関連: `docs/notes/electronapi-direct-call-audit-memo-2026-02-19.md`
+  - 対象例: `src/components/AssetPanel.tsx` の `getVideoMetadata` と metadata 系呼び出し
+- `TODO-DEBT-008` Gate 8 の最終到達点（`cut.asset` snapshot seed の縮小/廃止条件）を ADR で固定する
+  - Track: `Gate-Work`
+  - Status: `backlog`
+  - StartWhen: Gate 8 廃止移行の実装計画を切るとき
+  - BlockedBy: なし
+  - DoneWhen: `cut.asset` snapshot seed/fallback 廃止のマイルストーンと完了条件が ADR で確定
+  - 関連: `docs/DECISIONS/ADR-0005-asset-resolve-failure-policy.md`
+- `TODO-DEBT-009` Gate 9 の provider統一を段階実施し、`asset.thumbnail` 直参照を新規コード禁止ルールとして運用する
+  - Track: `Gate-Work`
+  - Status: `backlog`
+  - StartWhen: Gate 9 の移行バッチを切るとき
+  - BlockedBy: なし
+  - DoneWhen: 主要経路の provider統一完了 + 新規直参照禁止ルールの監査運用が定着
+  - 関連: `docs/guides/implementation/thumbnail-profiles.md`
+- `TODO-DEBT-004` Buffer/Memory ガイドを最新実装検索結果で再棚卸しする
+  - Track: `Gate-Work`
+  - Status: `backlog`
+  - StartWhen: Gate 10 運用の見直し時
+  - BlockedBy: `TODO-INVEST-007`
+  - DoneWhen: 実装とガイドの乖離を解消し、監査対象外の重処理ポリシーを反映
   - 関連: `docs/guides/implementation/buffer-memory.md`
-- `TODO-DEBT-005` SceneAudio を保存したプロジェクト再ロード時に、`metadataStore.sceneMetadata.attachAudio` は復元されても `assetCache` に音声Assetが戻らず再生/表示に反映されない不具合を修正する。
+
+## UI-Spec-Pending Track
+- `TODO-DEBT-002` Preview ガイドの UI 文言を現行実装に合わせて更新する
+  - Track: `UI-Spec-Pending`
+  - Status: `blocked`
+  - StartWhen: Preview UI 文言・表示仕様が凍結したとき
+  - BlockedBy: UI 文言の確定
+  - DoneWhen: `docs/guides/preview.md` の UI 文言差分が解消
+  - 関連: `docs/guides/preview.md`
+- `TODO-DEBT-003` SceneDurationBar ガイドの表現を UI 設計確定後に更新する
+  - Track: `UI-Spec-Pending`
+  - Status: `blocked`
+  - StartWhen: Header / SceneDurationBar の最終 UI 仕様が確定したとき
+  - BlockedBy: UI 設計確定
+  - DoneWhen: `docs/guides/scene-duration-bar.md` の文言と実装が一致
+  - 関連: `docs/guides/scene-duration-bar.md`
+
+## Bug Track
+- `TODO-DEBT-005` SceneAudio を保存したプロジェクト再ロード時に、`metadataStore.sceneMetadata.attachAudio` は復元されても `assetCache` に音声Assetが戻らず再生/表示に反映されない不具合を修正する
+  - Track: `Bug`
+  - Status: `ready`
+  - StartWhen: 今すぐ着手可
+  - BlockedBy: なし
+  - DoneWhen: 再ロード後も scene attachAudio が `assetCache` で解決され、Preview/表示に反映される回帰テストが通る
   - 関連: `src/store/slices/metadataSlice.ts`
   - 関連: `src/store/slices/projectSlice.ts`
   - 関連: `src/utils/previewAudioTracks.ts`
-- `TODO-DEBT-006` utils層の `window.electronAPI` 直呼びを provider/gateway 経由へ段階移行する。
-  - 関連: `docs/notes/electronapi-direct-call-audit-memo-2026-02-19.md`
-  - 対象例: `src/utils/assetPath.ts`, `src/utils/metadataStore.ts`, `src/utils/audioUtils.ts`, `src/utils/lipSyncUtils.ts`
-- `TODO-DEBT-007` metadata / video metadata 呼び出しを横断整理し、UI直呼びの責務を縮小する。
-  - 関連: `docs/notes/electronapi-direct-call-audit-memo-2026-02-19.md`
-  - 対象例: `src/components/AssetPanel.tsx` の `getVideoMetadata` と metadata 系呼び出し
-- `TODO-DEBT-008` Gate 8 の最終到達点（`cut.asset` snapshot seed の縮小/廃止条件）を ADR で固定する。
-  - 関連: `docs/DECISIONS/ADR-0005-asset-resolve-failure-policy.md`
-  - 補足: 方針は「完全廃止（段階実施）」。現状の load seed 用 snapshot / fallback を計画的に削減する。
-- `TODO-DEBT-009` Gate 9 の provider統一を段階実施し、`asset.thumbnail` 直参照を新規コード禁止ルールとして運用する。
-  - 関連: `docs/guides/implementation/thumbnail-profiles.md`
 
-## Nice-to-have
-- `TODO-NICE-001` Autosave 設定 UI の interval/保存先連動を実装へ接続する。
+## Breaking Track
+- `TODO-BREAKING-001` LipSync generated IDs の正規化を保存/読み込みに導入する（過去データ migration を含む）
+  - Track: `Breaking`
+  - Status: `backlog`
+  - StartWhen: LipSync ID migration の作業枠を切るとき
+  - BlockedBy: なし
+  - DoneWhen: migration + 後方互換 + docs 更新が完了
+  - 関連: `docs/guides/lip-sync.md`
+
+## Nice-to-have Track
+- `TODO-NICE-001` Autosave 設定 UI の interval/保存先連動を実装へ接続する
+  - Track: `Nice-to-have`
+  - Status: `backlog`
+  - StartWhen: Autosave UI 改修の着手時
+  - BlockedBy: なし
+  - DoneWhen: UI設定が実動作へ反映される
   - 関連: `docs/guides/implementation/autosave-snapshots.md`
-- `TODO-NICE-002` Export の AttachAudio ON/OFF UI を `audioBindings[].enabled` で最小導入する。
+- `TODO-NICE-002` Export の AttachAudio ON/OFF UI を `audioBindings[].enabled` で最小導入する
+  - Track: `Nice-to-have`
+  - Status: `backlog`
+  - StartWhen: Export UI 改修の着手時
+  - BlockedBy: なし
+  - DoneWhen: AttachAudio ON/OFF が export 経路に反映される
   - 関連: `docs/guides/export.md`
 
-## Investigations
-- `TODO-INVEST-001` Sequence preview で同一ソース連続 clip 切替時の一瞬の buffering を低減する。
+## Investigation Track
+- `TODO-INVEST-001` Sequence preview で同一ソース連続 clip 切替時の一瞬の buffering を低減する
+  - Track: `Investigation`
+  - Status: `backlog`
+  - StartWhen: Preview 再生最適化の検討時
+  - BlockedBy: なし
+  - DoneWhen: 再現条件と改善案を確定し、必要なら実装チケット化
   - 関連: `docs/guides/preview.md`
   - 補足: `docs/notes/archive/preview-sequence-same-source-clip-buffering-todo-2026-02-14.md`
-- `TODO-INVEST-002` Snapshot 永続化（保存形式/保持数/復元 UX）を設計する。
+- `TODO-INVEST-002` Snapshot 永続化（保存形式/保持数/復元 UX）を設計する
+  - Track: `Investigation`
+  - Status: `backlog`
+  - StartWhen: Snapshot 機能設計の着手時
+  - BlockedBy: なし
+  - DoneWhen: 保存形式/保持数/復元UXの仕様が確定
   - 関連: `docs/guides/implementation/autosave-snapshots.md`
-- `TODO-INVEST-003` `CUT_RELINKED` の購読側（通知/表示/同期）仕様を確定する。
+- `TODO-INVEST-003` `CUT_RELINKED` の購読側（通知/表示/同期）仕様を確定する
+  - Track: `Investigation`
+  - Status: `backlog`
+  - StartWhen: relink通知の利用箇所拡張時
+  - BlockedBy: なし
+  - DoneWhen: 購読仕様と表示仕様が docs で確定
   - 関連: `docs/guides/cut-history.md`
-- `TODO-INVEST-004` `media-handling.md` の肥大化を監視し、`protocol` / `ffmpeg-queue` / `audio-pcm` 分割の実施条件を確定する。
+- `TODO-INVEST-004` `media-handling.md` の肥大化を監視し、`protocol` / `ffmpeg-queue` / `audio-pcm` 分割の実施条件を確定する
+  - Track: `Investigation`
+  - Status: `backlog`
+  - StartWhen: media-handling 追記が続くとき
+  - BlockedBy: なし
+  - DoneWhen: 分割条件が定義され、必要に応じて docs 分割
   - 関連: `docs/guides/media-handling.md`
-- `TODO-INVEST-005` Preview Debug Overlay HUD（表示専用）を設計する。
-  - 表示候補: `sceneId/cutId/sceneIndex/cutIndex`、`cut.displayTime`（正本値）、再生状態、`sequenceState.localProgress`（参考値）。
-  - ルール: HUD は state を変更しない / Export に影響させない / 永続化しない。
+- `TODO-INVEST-005` Preview Debug Overlay HUD（表示専用）を設計する
+  - Track: `Investigation`
+  - Status: `backlog`
+  - StartWhen: デバッグ可視化改善の着手時
+  - BlockedBy: なし
+  - DoneWhen: HUD 仕様が確定し、state/export 非干渉ルールが明文化
+  - 表示候補: `sceneId/cutId/sceneIndex/cutIndex`、`cut.displayTime`（正本値）、再生状態、`sequenceState.localProgress`（参考値）
+  - ルール: HUD は state を変更しない / Export に影響させない / 永続化しない
   - 関連: `docs/guides/preview.md`
-- `TODO-INVEST-007` Gate 10 の「再生ループ外の重処理」監視方針（計測点・しきい値）を定義する。
+- `TODO-INVEST-007` Gate 10 の「再生ループ外の重処理」監視方針（計測点・しきい値）を定義する
+  - Track: `Investigation`
+  - Status: `backlog`
+  - StartWhen: Gate 10 運用見直し時
+  - BlockedBy: なし
+  - DoneWhen: 監視方針（計測点/しきい値/運用）が docs で確定
   - 関連: `docs/guides/implementation/gate-checks.md`
