@@ -8,8 +8,10 @@
 ## Must / Must Not
 - Must: 表示面ごとに profile を明示し、対応を固定する。
 - Must: profile 追加時は main/renderer の型と map を同時更新する。
+- Must: サムネイル取得入口は `src/features/thumbnails/api.ts`（Facade / provider）へ段階的に統一する。
 - Must Not: `asset-grid` / `sequence-preview` / `details-panel` を相互流用しない。
 - Must Not: profile 変更時に cache key の `profile` 要素を外さない。
+- Must Not: 新規コードで `asset.thumbnail` をサムネイル解決の主経路として直参照しない（provider経由で解決する）。
 
 ## プロファイル一覧（固定）
 - `timeline-card`
@@ -51,6 +53,9 @@
   - Key は `cut:${kind}:${cutId}:${fingerprint}:${profile}` を使う。
   - `kind=clip` の fingerprint は `inMs-outMs`（ミリ秒丸め）を使う。
   - 将来 `kind` を増やす場合は、同一 `cutId` 内で衝突しない fingerprint 定義を必ず先に決める。
+- 段階移行方針:
+  - 既存の `asset.thumbnail` fallback は段階置換の対象とし、新規実装では導入しない。
+  - 置換完了後は provider外の fallback を廃止し、profile指定を必須にする。
 
 ## 変更時チェックリスト
 - `PreviewModal` が `sequence-preview` を使っていること。

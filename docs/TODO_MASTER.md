@@ -26,6 +26,14 @@
 - `TODO-DEBT-007` metadata / video metadata 呼び出しを横断整理し、UI直呼びの責務を縮小する。
   - 関連: `docs/notes/electronapi-direct-call-audit-memo-2026-02-19.md`
   - 対象例: `src/components/AssetPanel.tsx` の `getVideoMetadata` と metadata 系呼び出し
+- `TODO-DEBT-008` Gate 8 の最終到達点（`cut.asset` snapshot seed の縮小/廃止条件）を ADR で固定する。
+  - 関連: `docs/DECISIONS/ADR-0005-asset-resolve-failure-policy.md`
+  - 補足: 方針は「完全廃止（段階実施）」。現状の load seed 用 snapshot / fallback を計画的に削減する。
+- `TODO-DEBT-009` Gate 9 の provider統一を段階実施し、`asset.thumbnail` 直参照を新規コード禁止ルールとして運用する。
+  - 関連: `docs/guides/implementation/thumbnail-profiles.md`
+- `TODO-DEBT-010` `buildExportAudioPlan` 入力の canonical duration 正規化を全export入口で強制し、Preview/Export の音声尺ズレ余地を解消する（致命優先）。
+  - 関連: `docs/guides/implementation/export-audio-mix.md`
+  - 補足: docs 更新を先行し、次ステップで実装修正する。
 
 ## Nice-to-have
 - `TODO-NICE-001` Autosave 設定 UI の interval/保存先連動を実装へ接続する。
@@ -47,3 +55,5 @@
   - 表示候補: `sceneId/cutId/sceneIndex/cutIndex`、`cut.displayTime`（正本値）、再生状態、`sequenceState.localProgress`（参考値）。
   - ルール: HUD は state を変更しない / Export に影響させない / 永続化しない。
   - 関連: `docs/guides/preview.md`
+- `TODO-INVEST-007` Gate 10 の「再生ループ外の重処理」監視方針（計測点・しきい値）を定義する。
+  - 関連: `docs/guides/implementation/gate-checks.md`

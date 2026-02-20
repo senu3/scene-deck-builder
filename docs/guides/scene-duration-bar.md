@@ -10,6 +10,7 @@
 - Must: Scene 選択イベントのみを emit し、スクロール実制御は `Storyline` が担う。
 - Must: target モード時は `Remaining/Over` の表示条件を固定ルールで扱う。
 - Must Not: 再生時間軸 UI として扱わない。
+- Must Not: Header の `Target Gauge` と同一の意味（再生進捗バー）として説明しない。
 - Must Not: Header 層から DOM 直接スクロール制御を行わない。
 
 > TODO は `docs/TODO_MASTER.md`（`TODO-DEBT-003`）を参照。
@@ -101,6 +102,8 @@ The Header displays project statistics alongside the action buttons.
 | Time | `Clock` | Selected cut position / total duration |
 | Target Gauge | (custom) | `Total / Target` progress (battery-style) |
 
+`Target Gauge` はプロジェクト全体の目標尺サマリであり、`SceneDurationBar` の scene segment（編集軸要約）とは責務が異なる。
+
 **Time Display Rules**
 - Current position: cyan (`--accent-primary`), monospace, bold — shows timeline start time of the selected cut.
 - Total duration: secondary text (`--text-secondary`), monospace.
@@ -123,6 +126,7 @@ The Header displays project statistics alongside the action buttons.
 - `SceneChipBar` was removed.
 - `Header` renders `DurationTargetGauge` in `.header-stats`.
 - Project target duration input (`min`) is available in Header more-menu (`0` = clear).
+- `SceneDurationBar` と `DurationTargetGauge` は表示場所が近いが、前者は scene選択UI、後者は総尺サマリであり、再生位置表示には使わない。
 
 ## Known Constraints
 - Header must not use `document.querySelector` to scroll Storyline.

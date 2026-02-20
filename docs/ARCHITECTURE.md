@@ -82,6 +82,7 @@
 - 正規化入口（Gate 4）: `resolveCanonicalCutDuration`（`src/utils/storyTiming.ts`）を `displayTime` 解決の正本にする。
 - 時系列入口（Gate 3）: `computeCanonicalStoryTimingsForCuts` を開始秒・合計尺計算の正本にする。
 - 出力item入口（Gate 5）: `buildSequenceItemsForCuts` を export sequence item 生成の正本にする。
+- 補助API（`resolveNormalizedCutDisplayTime` / `computeStoryTimingsForCuts`）は lower-level helper であり、Gate 3/4 の公開正本としては扱わない。
 - Preview 実装は上記正本APIで得た値を消費する側とし、同等ロジックの再実装を増やさない。
 - `check:gate:strict` で Preview 側の `displayTime` 手計算再流入（直接参照 / `reduce(...displayTime...)`）を新規 fail にする。
 
@@ -92,13 +93,23 @@
   - Load/Recovery: index補完を試行し、未解決は missing asset フローへ送る。
 - `cut.asset` を Asset 解決経路として再導入しない。
 - v5 以降、ロード直後の `assetCache` 初期化は `resolveCutAsset` に依存せず、保存済み `cut.asset` snapshot を seed として再構築する。
+- 方針: `cut.asset` snapshot seed は段階的に完全廃止する（互換期間終了後は `assetId` のみを正本にする）。
 - `project.sdp` の `vaultPath` が実ファイル配置と不一致の場合は、開いた `project.sdp` の親ディレクトリを正として扱う。
 
 ## Known Broken Invariants
-- Gate 5 (Preview/Export parity): sequence再生の音声計画を `buildExportAudioPlan` に統一し、scene/cut attach を含むイベント列を Export と同入口化済み（`Ready`）。
+- Status定義:
+  - `Ready`: 主要経路が統一済みで、回帰を防ぐ監査（script/test）を導入済み。
+  - `Partial`: 設計方針は固定済みだが、監査範囲や例外運用に手動レビュー依存が残る。
+- Gate 5 (Preview/Export parity): Sequence系は `buildSequenceItemsForCuts` + `resolveFramingParams` + `buildExportAudioPlan` の同入口化を実装済み（`Ready`）。ただし strict gate は parity 全体を直接証明せず、Preview 側の `displayTime` 手計算再流入検出が中心。
+- Gate 5 `Ready` 根拠: 設計上の入口が統一され、現状の `npm run check:gate` / `npm run check:gate:strict` は合格している。
 - Gate 6 (Command 境界): 例外境界は ADR-0003 で固定済み。`check:gate:strict` に境界検出を導入済み。残課題は許可リスト運用の継続監査（`Partial`）。
-- Gate 8 (`assetId` 主経路): read/write とも `assetId` 経由に統一、strict gate で新規違反検出を導入済み（`Ready`）。
+- Gate 7 (Vault 書き込み入口): `vaultGateway` は導入済みだが、utils/UI の `window.electronAPI` 直呼びが残存（`Partial`）。現状の監査起点は `TODO-DEBT-006` / `TODO-DEBT-007`。
+- Gate 8 (`assetId` 主経路): read/write とも `assetId` 経由に統一、strict gate で新規違反検出を導入済み（`Ready`）。`cut.asset` は load seed snapshot / fallback 用に限定。
 - Gate 10 (重処理分離): 再生ホットパスの静的監査は導入済み。残課題はしきい値運用と監査範囲の微調整（`Partial`）。
+- `Partial -> Ready` の完了条件:
+  - Gate 6: 許可リスト外違反が 0 で安定し、例外経路（load/migration/init）の整合テストが揃うこと。
+  - Gate 7: renderer 側の Vault index/metadata/trash 更新経路が `vaultGateway` へ統一され、監査ルールで新規直呼びを fail 化すること。
+  - Gate 10: ホットパス監査に加え、ループ外重処理の運用ルール（計測点/しきい値）を定義し、回帰検出を運用に組み込むこと。
 
 ## 成功指標
 - Preview/Export parity: 同一入力で視覚・時間・音が一致する。

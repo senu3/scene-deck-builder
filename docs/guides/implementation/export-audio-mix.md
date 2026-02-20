@@ -7,6 +7,7 @@
 
 ## Must / Must Not
 - Must: 開始時刻算出は `sceneOrder` + `cut.displayTime` の累積定義を使う。
+- Must: Gate 5 parity を維持する経路では、`buildExportAudioPlan` へ渡す cut 列を canonical duration（`resolveCanonicalCutDuration` 系）で正規化済みにする。
 - Must: 分離音声は `filter_complex` 1回レンダーで生成する。
 - Must: `useEmbeddedAudio=false` は映像由来音声のみを無効化する。
 - Must Not: 旧セグメント連結経路（wav concat）を再導入しない。
@@ -26,13 +27,14 @@
 
 ## タイミング定義
 - 開始時刻は `sceneOrder` と `cut.displayTime` の累積のみで算出する。
-- 共有 util は `src/utils/storyTiming.ts`（`computeStoryTimings` / `computeStoryTimingsForCuts`）。
+- `buildExportAudioPlan` 自体は `computeStoryTimingsForCuts` を使用し、受け取った `cut.displayTime` をそのまま時間軸へ反映する。
+- parity 経路（Preview sequence / export sequence）では、呼び出し側で canonical timing API（`computeCanonicalStoryTimingsForCuts`）を通した displayTime を入力に使う。
 - Preview / Export / UI の開始秒は同一定義を使う。
 
 ## イベント生成ルール
 - 定義実装: `src/utils/exportAudioPlan.ts`。
 - VideoAudioEvent:
-  - `cut.asset.type === 'video'` かつ `cut.useEmbeddedAudio !== false` のときのみ生成。
+  - `resolveCutAsset(cut, getAssetById)?.type === 'video'` かつ `cut.useEmbeddedAudio !== false` のときのみ生成。
   - `sourceStartSec` は clip の `inPoint`（なければ 0）。
   - `durationSec` は cut の `displayTime`。
 - Cut attachAudio:
@@ -57,6 +59,10 @@
 2. attachAudio（cut/scene）は `useEmbeddedAudio` に関係なく混ざること。
 3. 分離音声の総尺が export 対象の totalDuration と一致すること。
 4. 旧 `wav` セグメント連結経路を再導入しないこと。
+
+## Critical Follow-up
+- `buildExportAudioPlan` は入力 `cut.displayTime` をそのまま使うため、呼び出し側が canonical duration を渡さない経路では parity 崩れを起こし得る。
+- 本件は致命優先で扱い、docs先行で方針固定済み。次ステップで export 入口の入力正規化を実装する（`TODO-DEBT-010`）。
 
 ## 関連
 - `docs/guides/export.md`

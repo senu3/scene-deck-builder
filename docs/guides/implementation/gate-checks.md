@@ -17,12 +17,15 @@
 - `check:gate:strict` は「新規違反 fail」の原則を維持する。
 - Gate 6 の許可リストは ADR-0003 の境界に合わせる。
 - Gate 10 のホットパス監査は再生ループ付近（`tick` / `requestAnimationFrame`）に限定する。
+- Gate 監査の「検出できること / できないこと」を本書で明示し、`Ready` 判定を script 検出だけに過大解釈しない。
+- Gate 6 例外は `load` / `migrate` / `init` / `normalize` の4カテゴリに固定し、それ以外を例外として追加しない。
 - baseline 更新は専用コミット（または PR 内の専用コミット）に分離する。
 
 ## Must Not
 - 既存違反を silent ignore するために検出ルールを緩めない。
 - Gate 10 監査を全体 grep に広げてノイズを増やさない。
 - 許可リストを目的不明で拡張しない。
+- Gate 6 例外カテゴリ（`load` / `migrate` / `init` / `normalize`）以外を新設しない。
 - 「直すのが面倒」を理由に baseline を更新しない。
 
 ## baseline 更新ルール
@@ -52,6 +55,21 @@
   - `tick`/`update` ブロック内の重処理API検出
   - `tick`/`update` ブロック内の `await` / `.then(...)` 連鎖検出
 
+## 監査対象外（手動レビュー必須）
+- Gate 5:
+  - Preview/Export parity 全体の同値性は static grep では直接検証していない。
+  - 監査は `PreviewModal` の `displayTime` 手計算再流入検出（Gate 3/4 proxy）中心。
+- Gate 6:
+  - `useStore.setState` / `set(...scenes:...)` 以外の間接更新（helper経由やslice内派生更新）は静的に取りこぼす可能性がある。
+- Gate 7:
+  - `vaultGateway` 以外の electronAPI 直呼びの全量検出ルールは未導入。
+  - `TODO-DEBT-006` / `TODO-DEBT-007` の監査メモを作業起点にする。
+- Gate 9:
+  - profile指定と low-level import は検出するが、`asset.thumbnail` snapshot 利用など provider外 fallback の妥当性は手動確認が必要。
+- Gate 10:
+  - 再生ループ外の重処理（`useEffect` やイベント連鎖）は strict 監査対象外。
+  - 監査は「tick/updateホットパスを汚さない」ことに限定する。
+
 ## GroupCUT 監査メモ
 - GroupCUT の no-overlap / reverse-index 整合 / empty group 不許可 / 範囲導出は、現時点では store 正規化とテストで担保している。
 - `check:gate` / `check:gate:strict` に GroupCUT の静的検出を追加した場合のみ、この docs の「現在の監査対象」へ検出項目を追記する。
@@ -63,7 +81,14 @@
 - `set(...scenes:...)`
   - `src/store/slices/cutTimelineSlice.ts`: timeline 構造の正規更新経路
   - `src/store/slices/groupSlice.ts`: group 構造更新経路
-  - `src/store/slices/projectSlice.ts`: load/restore 正規化（ADR-0003 例外）
+  - `src/store/slices/projectSlice.ts`: load/restore/migration/initialization 正規化（ADR-0003 例外）
+
+## Gate 6 例外カテゴリ（固定）
+- `load`: プロジェクト読込・復元時の再構築。
+- `migrate`: バージョン差分吸収の構造移行。
+- `init`: 初期プロジェクト作成・クリア・fixture 初期化。
+- `normalize`: `sceneOrder` / `cut.order` など整合修復。
+- 実装メモ: 例外入口には `// GATE6-EXCEPTION(<category>)` タグコメントを付与し、grep監査を可能にする。
 
 ## 運用メモ
 - `npm run check:gate`

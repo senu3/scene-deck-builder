@@ -25,6 +25,7 @@ Accepted (2026-02-17)
 - 暗黙に別assetへ置換しない。
 
 - `cut.asset` 直接参照は `src/utils/assetResolve.ts` の fallback に限定し、それ以外の層で増やさない。
+- `cut.asset` snapshot seed / fallback は互換期間の暫定扱いとし、段階的に完全廃止する。
 
 ## Consequences
 - 失敗時挙動が機能面ごとに一貫する。

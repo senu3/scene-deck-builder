@@ -9,6 +9,7 @@ import type { ProjectSliceContract } from '../contracts';
 import type { SliceGet, SliceSet } from './sliceTypes';
 
 function normalizeScenesUseEmbeddedAudio(scenes: Scene[]): Scene[] {
+  // GATE6-EXCEPTION(normalize): load/init path structural normalization helper.
   const normalized = scenes.map((scene) => ({
     ...scene,
     cuts: scene.cuts.map((cut, index) => {
@@ -68,6 +69,7 @@ export function createProjectSlice(set: SliceSet, get: SliceGet): ProjectSliceCo
       const nextSceneOrder = normalizeSceneOrder(project.sceneOrder, nextScenes);
       const nextAssetCache = buildAssetCacheFromScenes(nextScenes);
 
+      // GATE6-EXCEPTION(init)
       set({
         projectLoaded: true,
         projectPath: project.vaultPath ? `${project.vaultPath}/project.sdp` : null,
@@ -93,6 +95,7 @@ export function createProjectSlice(set: SliceSet, get: SliceGet): ProjectSliceCo
 
     clearProject: () => {
       clearThumbnailCache();
+      // GATE6-EXCEPTION(init)
       set({
         projectLoaded: false,
         projectPath: null,
@@ -119,6 +122,7 @@ export function createProjectSlice(set: SliceSet, get: SliceGet): ProjectSliceCo
 
     loadProject: (scenes, sceneOrder) => {
       const nextScenes = normalizeScenesUseEmbeddedAudio(scenes);
+      // GATE6-EXCEPTION(load)
       set({
         scenes: nextScenes,
         sceneOrder: normalizeSceneOrder(sceneOrder, nextScenes),
