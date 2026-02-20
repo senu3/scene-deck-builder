@@ -81,10 +81,10 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
 ## Bug Track
 - `TODO-DEBT-005` SceneAudio を保存したプロジェクト再ロード時に、`metadataStore.sceneMetadata.attachAudio` は復元されても `assetCache` に音声Assetが戻らず再生/表示に反映されない不具合を修正する
   - Track: `Bug`
-  - Status: `ready`
-  - StartWhen: 今すぐ着手可
+  - Status: `done`
+  - StartWhen: 着手済み
   - BlockedBy: なし
-  - DoneWhen: 再ロード後も scene attachAudio が `assetCache` で解決され、Preview/表示に反映される回帰テストが通る
+  - DoneWhen: 再ロード後も scene attachAudio が `assetCache` で解決され、Preview/表示に反映される回帰テストが通る（`metadataLoadSceneAudioHydration.test.ts` 追加）
   - 関連: `src/store/slices/metadataSlice.ts`
   - 関連: `src/store/slices/projectSlice.ts`
   - 関連: `src/utils/previewAudioTracks.ts`

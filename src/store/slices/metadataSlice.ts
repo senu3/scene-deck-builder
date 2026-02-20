@@ -12,6 +12,7 @@ import {
 } from '../../utils/metadataStore';
 import { analyzeAudioRms } from '../../utils/audioUtils';
 import { collectAssetRefs, getBlockingRefsForAssetIds } from '../../utils/assetRefs';
+import type { Asset, AssetIndexEntry, MetadataStore } from '../../types';
 import type { MetadataSliceContract } from '../contracts';
 import type { SliceGet, SliceSet } from './sliceTypes';
 
@@ -21,6 +22,30 @@ function getAssetDisplayName(audioAsset: { name: string; originalPath?: string }
     if (originalName) return originalName;
   }
   return audioAsset.name;
+}
+
+function collectSceneAttachAudioIds(store: MetadataStore | null): string[] {
+  if (!store?.sceneMetadata) return [];
+  const ids = new Set<string>();
+  for (const sceneMetadata of Object.values(store.sceneMetadata)) {
+    const assetId = sceneMetadata?.attachAudio?.audioAssetId;
+    if (assetId) ids.add(assetId);
+  }
+  return Array.from(ids);
+}
+
+function toAssetFromIndexEntry(vaultPath: string, entry: AssetIndexEntry, absolutePath?: string): Asset {
+  const vaultRelativePath = `assets/${entry.filename}`.replace(/\\/g, '/');
+  return {
+    id: entry.id,
+    name: entry.originalName || entry.filename || entry.id,
+    path: absolutePath || `${vaultPath}/${vaultRelativePath}`.replace(/\\/g, '/'),
+    type: entry.type,
+    vaultRelativePath,
+    originalPath: entry.originalPath,
+    hash: entry.hash,
+    fileSize: entry.fileSize,
+  };
 }
 
 export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSliceContract {
@@ -36,6 +61,53 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
 
     loadMetadata: async (vaultPath) => {
       const store = await loadMetadataStore(vaultPath);
+      const attachAudioIds = collectSceneAttachAudioIds(store);
+      if (attachAudioIds.length > 0 && window.electronAPI?.loadAssetIndex) {
+        const state = get();
+        const missingIds = attachAudioIds.filter((assetId) => !state.assetCache.has(assetId));
+        if (missingIds.length > 0) {
+          try {
+            const index = await window.electronAPI.loadAssetIndex(vaultPath);
+            const entryById = new Map((index.assets || []).map((entry) => [entry.id, entry] as const));
+            const hydratedAssets: Asset[] = [];
+
+            for (const assetId of missingIds) {
+              const entry = entryById.get(assetId);
+              if (!entry) continue;
+
+              let absolutePath: string | undefined;
+              if (window.electronAPI.resolveVaultPath) {
+                try {
+                  const resolved = await window.electronAPI.resolveVaultPath(vaultPath, `assets/${entry.filename}`);
+                  if (resolved?.exists && resolved.absolutePath) {
+                    absolutePath = resolved.absolutePath;
+                  }
+                } catch {
+                  // Keep best-effort fallback path below.
+                }
+              }
+              hydratedAssets.push(toAssetFromIndexEntry(vaultPath, entry, absolutePath));
+            }
+
+            if (hydratedAssets.length > 0) {
+              set((currentState) => {
+                const nextCache = new Map(currentState.assetCache);
+                for (const asset of hydratedAssets) {
+                  nextCache.set(asset.id, asset);
+                }
+                return {
+                  metadataStore: store,
+                  assetCache: nextCache,
+                };
+              });
+              return;
+            }
+          } catch (error) {
+            console.warn('[metadata] Failed to hydrate scene attach audio assets from index:', error);
+          }
+        }
+      }
+
       set({ metadataStore: store });
     },
 
