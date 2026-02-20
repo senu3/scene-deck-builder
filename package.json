@@ -14,7 +14,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check:gate": "node scripts/check-gate.mjs",
-    "check:gate:strict": "node scripts/check-gate.mjs --strict"
+    "check:gate:strict": "node scripts/check-gate.mjs --strict",
+    "commitlint": "commitlint",
+    "check:commit-policy": "node scripts/check-commit-policy.mjs"
   },
   "keywords": [
     "electron",
@@ -28,6 +30,8 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "@commitlint/cli": "^20.4.2",
+    "@commitlint/config-conventional": "^20.4.2",
     "@types/node": "^20.10.0",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
