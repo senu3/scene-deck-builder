@@ -52,6 +52,11 @@
   - `tick`/`update` ブロック内の重処理API検出
   - `tick`/`update` ブロック内の `await` / `.then(...)` 連鎖検出
 
+## GroupCUT 監査メモ
+- GroupCUT の no-overlap / reverse-index 整合 / empty group 不許可 / 範囲導出は、現時点では store 正規化とテストで担保している。
+- `check:gate` / `check:gate:strict` に GroupCUT の静的検出を追加した場合のみ、この docs の「現在の監査対象」へ検出項目を追記する。
+- テスト追加のみで `scripts/check-gate.mjs` を変更していない場合、baseline 更新は不要。
+
 ## Gate 6 許可リスト（理由付き）
 - `useStore.setState`
   - `src/store/commands.ts`: command undo/restore path（ADR-0003）

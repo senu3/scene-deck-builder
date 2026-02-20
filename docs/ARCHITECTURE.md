@@ -52,15 +52,22 @@
 
 ## Invariant Checklist (Gate)
 - Gate 1 (`sceneOrder` 正本): Scene 順序の正本は `sceneOrder` のみで、`scenes` 配列順を順序根拠にしない。
-- Gate 2 (`cut.order` 整合): 各 Scene の cut は配列順と `cut.order` が一致し、編集操作後も連番を維持する。
+- Gate 2 (`cut.order` 整合): 各 Scene の cut は配列順と `cut.order` が一致し、編集操作後も連番を維持する。GroupCUT 導入時は `group.cutIds` も `cut.order` に従って正規化し、DnD/並び替え後に同一 Command 内で timeline と group の整合更新を完了させる。
 - Gate 3 (時系列定義): 開始秒・合計尺は `sceneOrder` と `displayTime` 累積に基づく canonical な計算入口へ集約する。
 - Gate 4 (`displayTime` 正規化): `displayTime` は Preview/Export の両方で有限正数へ正規化し、NaN/Infinity/0以下を通さない。
 - Gate 5 (Preview/Export parity): Preview と Export で時間解決・Framing 解決の入口を分岐させない。
-- Gate 6 (Command 境界): ユーザー操作起点の timeline 構造変更は Command 経由で実施する。
+- Gate 6 (Command 境界): ユーザー操作起点の timeline 構造変更は Command 経由で実施する。group の作成/追加/除外/削除/分割/結合などの構造変更も Command 経由のみで行う。
 - Gate 7 (Vault 書き込み入口): Vault の index/metadata/trash 更新は `window.electronAPI.vaultGateway.*` を renderer の単一入口にする。
 - Gate 8 (`assetId` 主経路): Asset 解決は `assetId` を唯一の経路として扱う。
 - Gate 9 (thumbnail profile): サムネイルは用途別 profile（`asset-grid`/`details-panel`/`sequence-preview`/`timeline-card`）を混線させない。
 - Gate 10 (重い処理の分離): 解析・変換・合成など重い処理は登録時/変換時へ寄せ、再生ループへ入れない。
+
+## GroupCUT Invariants
+- 参照モデル（A方式）: group は `cutIds` を正本として保持し、`cut.groupId` は逆参照インデックスとして同期する。
+- 重なり禁止: 1つの cut は高々1つの group にのみ所属できる（no overlap / no nesting）。
+- 空グループ禁止: `remove` / `normalize` の共通ルールとして empty group は削除する。
+- 範囲は導出: `groupStartAbs/groupEndAbs/groupDurationAbs` は永続化せず、cut の canonical timing から導出する。
+- 注: timeline の正本（`sceneOrder`, `cut.order`, canonical timing）を group が置き換えてはならない。group の `cutIds` は「所属の正本」であり、「順序/時間の正本」ではない。
 
 ## Gate Enforcement
 - Gate 2 fallback 許容は 2026-02-17 で終了。`safeOrder` のような順序fallbackを再導入しない。
