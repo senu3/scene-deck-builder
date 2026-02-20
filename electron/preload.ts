@@ -3,6 +3,7 @@ const IPC_TOGGLE_SIDEBAR = 'toggle-sidebar';
 const IPC_AUTOSAVE_FLUSH_REQUEST = 'autosave-flush-request';
 const IPC_AUTOSAVE_FLUSH_COMPLETE = 'autosave-flush-complete';
 const IPC_AUTOSAVE_ENABLED = 'autosave-enabled';
+const IPC_RENDERER_ERROR_REPORT = 'renderer-error-report';
 
 export interface FileItem {
   name: string;
@@ -314,6 +315,9 @@ const electronAPI = {
   readAudioPcm: (filePath: string): Promise<{ success: boolean; pcm?: Uint8Array; sampleRate?: number; channels?: number; error?: string } | null> =>
     ipcRenderer.invoke('read-audio-pcm', filePath),
 
+  getRuntimeLogPath: (): Promise<string> =>
+    ipcRenderer.invoke('get-runtime-log-path'),
+
   getFfmpegLimits: (): Promise<FfmpegLimits> =>
     ipcRenderer.invoke('get-ffmpeg-limits'),
 
@@ -475,6 +479,9 @@ const electronAPI = {
   },
   setAutosaveEnabled: (enabled: boolean): Promise<boolean> =>
     ipcRenderer.invoke(IPC_AUTOSAVE_ENABLED, enabled),
+  reportRendererError: (payload: Record<string, unknown>): void => {
+    ipcRenderer.send(IPC_RENDERER_ERROR_REPORT, payload);
+  },
 };
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);

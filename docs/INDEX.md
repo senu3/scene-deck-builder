@@ -30,6 +30,7 @@
 - `docs/guides/implementation/commit-rules.md`
 - `docs/guides/implementation/ui-components.md`
 - `docs/guides/implementation/color-system.md`
+- `docs/guides/implementation/electron40-smoke-observability.md`
 
 ここには思想ではなく、実装上の判断基準・制約を記載する。
 

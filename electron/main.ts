@@ -14,12 +14,14 @@ const IPC_TOGGLE_SIDEBAR = 'toggle-sidebar';
 const IPC_AUTOSAVE_FLUSH_REQUEST = 'autosave-flush-request';
 const IPC_AUTOSAVE_FLUSH_COMPLETE = 'autosave-flush-complete';
 const IPC_AUTOSAVE_ENABLED = 'autosave-enabled';
+const IPC_RENDERER_ERROR_REPORT = 'renderer-error-report';
 
 let mainWindow: BrowserWindow | null = null;
 let isQuitting = false;
 let autosaveEnabled = false;
 let autosaveFlushInProgress = false;
 let autosaveFlushTimer: NodeJS.Timeout | null = null;
+let runtimeLogPathCache: string | null = null;
 
 const isDev = process.env.NODE_ENV !== 'production' || !app.isPackaged;
 
@@ -59,6 +61,60 @@ const mimeTypes: Record<string, string> = {
   '.aac': 'audio/aac',
   '.flac': 'audio/flac',
 };
+
+type LogLevel = 'INFO' | 'WARN' | 'ERROR';
+
+function serializeError(error: unknown) {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+    };
+  }
+  return { message: String(error) };
+}
+
+function safeJsonStringify(value: unknown): string {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return JSON.stringify({ message: String(value) });
+  }
+}
+
+function getRuntimeLogPath(): string {
+  if (runtimeLogPathCache) return runtimeLogPathCache;
+  let baseDir: string;
+  try {
+    baseDir = app.getPath('userData');
+  } catch {
+    baseDir = path.join(process.cwd(), '.electron-fallback');
+  }
+  const logsDir = path.join(baseDir, 'logs');
+  fs.mkdirSync(logsDir, { recursive: true });
+  runtimeLogPathCache = path.join(logsDir, 'runtime.log');
+  return runtimeLogPathCache;
+}
+
+function writeRuntimeLog(level: LogLevel, event: string, payload: Record<string, unknown> = {}) {
+  const entry = {
+    ts: new Date().toISOString(),
+    level,
+    event,
+    payload,
+  };
+  try {
+    fs.appendFileSync(getRuntimeLogPath(), `${safeJsonStringify(entry)}\n`, 'utf-8');
+  } catch (error) {
+    const fallback = `[${entry.ts}] [${level}] ${event} ${safeJsonStringify(payload)}\n`;
+    try {
+      process.stderr.write(fallback);
+    } catch {
+      console.error('[log] failed to write runtime log', error);
+    }
+  }
+}
 
 function createReadableBodyFromNodeStream(stream: fs.ReadStream): ReadableStream<Uint8Array> {
   return new ReadableStream<Uint8Array>({
@@ -426,6 +482,11 @@ function probeMediaHasAudio(ffmpegBinary: string, filePath: string): Promise<boo
 }
 
 function createWindow() {
+  writeRuntimeLog('INFO', 'window-create-start', {
+    isDev,
+    platform: process.platform,
+    appVersion: app.getVersion(),
+  });
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -453,10 +514,12 @@ function createWindow() {
 
   mainWindow.webContents.on('render-process-gone', (_event, details) => {
     console.error('[Crash] WebContents render process gone:', details);
+    writeRuntimeLog('ERROR', 'webcontents-render-process-gone', { details: details as unknown as Record<string, unknown> });
   });
 
   mainWindow.webContents.on('unresponsive', () => {
     console.error('[Crash] WebContents unresponsive');
+    writeRuntimeLog('ERROR', 'webcontents-unresponsive');
   });
 
   mainWindow.on('close', (event) => {
@@ -486,11 +549,13 @@ function createWindow() {
 
     autosaveFlushTimer = setTimeout(() => {
       console.warn('[Autosave] Flush timed out, closing anyway.');
+      writeRuntimeLog('WARN', 'autosave-flush-timeout');
       finalizeClose();
     }, 5000);
   });
 
   mainWindow.on('closed', () => {
+    writeRuntimeLog('INFO', 'window-closed');
     mainWindow = null;
   });
 }
@@ -573,6 +638,9 @@ function createAppMenu() {
 }
 
 app.whenReady().then(() => {
+  writeRuntimeLog('INFO', 'app-ready', {
+    versions: process.versions,
+  });
   // Register custom protocol before creating window
   registerMediaProtocol();
   createWindow();
@@ -581,31 +649,53 @@ app.whenReady().then(() => {
 
 app.on('render-process-gone', (_event, details) => {
   console.error('[Crash] Render process gone:', details);
+  writeRuntimeLog('ERROR', 'app-render-process-gone', { details: details as unknown as Record<string, unknown> });
 });
 
 app.on('child-process-gone', (_event, details) => {
   console.error('[Crash] Child process gone:', details);
+  writeRuntimeLog('ERROR', 'app-child-process-gone', { details: details as unknown as Record<string, unknown> });
 });
 
 app.on('before-quit', () => {
+  writeRuntimeLog('INFO', 'app-before-quit');
   isQuitting = true;
 });
 
 app.on('window-all-closed', () => {
+  writeRuntimeLog('INFO', 'app-window-all-closed');
   if (process.platform !== 'darwin') {
     app.quit();
   }
 });
 
 app.on('activate', () => {
+  writeRuntimeLog('INFO', 'app-activate', { hasMainWindow: mainWindow !== null });
   if (mainWindow === null) {
     createWindow();
   }
 });
 
+process.on('uncaughtException', (error) => {
+  writeRuntimeLog('ERROR', 'process-uncaught-exception', {
+    error: serializeError(error),
+  });
+});
+
+process.on('unhandledRejection', (reason) => {
+  writeRuntimeLog('ERROR', 'process-unhandled-rejection', {
+    reason: serializeError(reason),
+  });
+});
+
 ipcMain.handle(IPC_AUTOSAVE_ENABLED, async (_, enabled: boolean) => {
   autosaveEnabled = Boolean(enabled);
+  writeRuntimeLog('INFO', 'autosave-enabled-updated', { enabled: autosaveEnabled });
   return autosaveEnabled;
+});
+
+ipcMain.on(IPC_RENDERER_ERROR_REPORT, (_event, payload: Record<string, unknown>) => {
+  writeRuntimeLog('ERROR', 'renderer-error-report', payload || {});
 });
 
 // IPC Handlers for file system operations
@@ -870,6 +960,7 @@ ipcMain.handle('read-audio-file', async (_, filePath: string) => {
 });
 
 ipcMain.handle('get-ffmpeg-limits', () => ({ ...ffmpegLimits }));
+ipcMain.handle('get-runtime-log-path', () => getRuntimeLogPath());
 ipcMain.handle('get-ffmpeg-queue-stats', () => ({
   light: ffmpegLightQueue.stats(),
   heavy: ffmpegHeavyQueue.stats(),
@@ -1158,38 +1249,58 @@ ipcMain.handle('save-project', createSaveProjectHandler({
 
 // Load project data
 ipcMain.handle('load-project', async () => {
+  writeRuntimeLog('INFO', 'load-project-dialog-open');
   const result = await dialog.showOpenDialog(mainWindow!, {
     filters: [{ name: 'Scene Deck Project', extensions: ['sdp'] }],
     properties: ['openFile'],
   });
 
   if (result.canceled || result.filePaths.length === 0) {
+    writeRuntimeLog('INFO', 'load-project-canceled');
     return null;
   }
 
   try {
     const data = fs.readFileSync(result.filePaths[0], 'utf-8');
+    writeRuntimeLog('INFO', 'load-project-success', {
+      projectPath: result.filePaths[0],
+      bytes: Buffer.byteLength(data, 'utf-8'),
+    });
     return {
       data: JSON.parse(data),
       path: result.filePaths[0],
     };
-  } catch {
+  } catch (error) {
+    writeRuntimeLog('ERROR', 'load-project-failed', {
+      projectPath: result.filePaths[0],
+      error: serializeError(error),
+    });
     return null;
   }
 });
 
 // Load project from specific path (for recent projects)
 ipcMain.handle('load-project-from-path', async (_, projectPath: string) => {
+  writeRuntimeLog('INFO', 'load-project-from-path-start', { projectPath });
   try {
     if (!fs.existsSync(projectPath)) {
+      writeRuntimeLog('WARN', 'load-project-from-path-not-found', { projectPath });
       return null;
     }
     const data = fs.readFileSync(projectPath, 'utf-8');
+    writeRuntimeLog('INFO', 'load-project-from-path-success', {
+      projectPath,
+      bytes: Buffer.byteLength(data, 'utf-8'),
+    });
     return {
       data: JSON.parse(data),
       path: projectPath,
     };
-  } catch {
+  } catch (error) {
+    writeRuntimeLog('ERROR', 'load-project-from-path-failed', {
+      projectPath,
+      error: serializeError(error),
+    });
     return null;
   }
 });
@@ -1851,9 +1962,19 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
   const { items, outputPath, fps } = options;
   const width = Number.isFinite(options.width) && options.width > 0 ? Math.floor(options.width) : DEFAULT_EXPORT_WIDTH;
   const height = Number.isFinite(options.height) && options.height > 0 ? Math.floor(options.height) : DEFAULT_EXPORT_HEIGHT;
+  writeRuntimeLog('INFO', 'export-sequence-start', {
+    outputPath,
+    fps,
+    width,
+    height,
+    itemCount: Array.isArray(items) ? items.length : 0,
+    hasAudioPlan: Boolean(options.audioPlan),
+    audioEventCount: options.audioPlan?.events?.length ?? 0,
+  });
 
   const ffmpegBinary = ffmpegPath as string | null;
   if (!ffmpegBinary) {
+    writeRuntimeLog('ERROR', 'export-sequence-ffmpeg-missing', { outputPath });
     return { success: false, error: 'ffmpeg not found' };
   }
 
@@ -1981,6 +2102,10 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
       logStderr: true,
     });
     if (!concatResult.success) {
+      writeRuntimeLog('ERROR', 'export-sequence-concat-failed', {
+        outputPath,
+        error: concatResult.error ?? 'concat failed',
+      });
       cleanupTempFiles(tempFiles);
       return concatResult;
     }
@@ -1994,6 +2119,10 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
       const nextAudioOutputPath = path.join(outputDirForAudio, `${outputBase}.audio.flac`);
       const mixedAudioResult = await renderMixedAudioTrack(ffmpegBinary, options.audioPlan, nextAudioOutputPath);
       if (!mixedAudioResult.success) {
+        writeRuntimeLog('ERROR', 'export-sequence-audio-mix-failed', {
+          outputPath,
+          error: mixedAudioResult.error ?? 'audio mix failed',
+        });
         cleanupTempFiles(tempFiles);
         return mixedAudioResult;
       }
@@ -2002,6 +2131,12 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
     }
 
     cleanupTempFiles(tempFiles);
+    writeRuntimeLog('INFO', 'export-sequence-success', {
+      outputPath,
+      fileSize: concatResult.fileSize,
+      audioOutputPath,
+      audioFileSize,
+    });
     return {
       ...concatResult,
       audioOutputPath,
@@ -2009,6 +2144,10 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
     };
   } catch (error) {
     cleanupTempFiles(tempFiles);
+    writeRuntimeLog('ERROR', 'export-sequence-failed', {
+      outputPath,
+      error: serializeError(error),
+    });
 
     return {
       success: false,

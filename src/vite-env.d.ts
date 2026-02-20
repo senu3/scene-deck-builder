@@ -300,6 +300,7 @@ interface ElectronAPI {
   // Audio file (returns raw ArrayBuffer for Web Audio API)
   readAudioFile: (filePath: string) => Promise<ArrayBuffer | Uint8Array | null>;
   readAudioPcm: (filePath: string) => Promise<{ success: boolean; pcm?: Uint8Array; sampleRate?: number; channels?: number; error?: string } | null>;
+  getRuntimeLogPath: () => Promise<string>;
   getFfmpegLimits: () => Promise<FfmpegLimits>;
   setFfmpegLimits: (limits: Partial<FfmpegLimits>) => Promise<FfmpegLimits>;
   getFfmpegQueueStats: () => Promise<FfmpegQueueOverview>;
@@ -371,6 +372,7 @@ interface ElectronAPI {
   onAutosaveFlushRequest: (callback: () => void | Promise<void>) => () => void;
   notifyAutosaveFlushed: () => void;
   setAutosaveEnabled: (enabled: boolean) => Promise<boolean>;
+  reportRendererError?: (payload: Record<string, unknown>) => void;
 }
 
 declare global {
