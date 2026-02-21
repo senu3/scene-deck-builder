@@ -7,7 +7,7 @@
 - `docs/ARCHITECTURE.md`
   - 目的 / 不変条件（Must・Must Not）/ 非スコープ / 意思決定ルール。
   - 破壊的変更や大規模改修の前に必ず確認する。
-- `docs/L0_USER_MODEL.md`（Phase 2）
+- `docs/L0_USER_MODEL.md`
   - ユーザー視点の概念・画面責務・UI操作とドメイン変更対応を確認する入口。
 
 ## 2) ドメイン正本（L1）
