@@ -33,6 +33,7 @@
 - `build(electron)` は配布・ビルド・パッケージングに関わる変更に限定する。
 - Electron 以外の依存更新は `chore(deps)` を使う。
 - baseline 更新（`scripts/check-gate-baseline.json` など）は専用コミットに分離する。
+- notes の archive 化（`docs/notes/*` -> `docs/notes/archive/*` への移動）は専用コミットに分離する。
 - 機械的変更（フォーマット変更・一括置換・生成物更新）は専用コミットに分離する。
 
 ## Must Not
@@ -71,6 +72,7 @@
 ## docs 更新ルール
 - 原則：コード変更と docs 更新は別コミット。
 - 例外：用語統一・名称変更に伴う docs 修正は同時マージ可（同一タイミングで反映）。
+- `docs/notes/archive` への移動・INDEX更新は、通常の仕様更新コミットと分離して `docs(notes)` 系の専用コミットで行う。
 
 ## baseline 更新ルール
 - Gate baseline 更新は専用コミットに分離する。
