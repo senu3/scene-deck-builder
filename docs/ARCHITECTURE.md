@@ -21,17 +21,17 @@
 - 目的を持たないメタ情報の増殖。
 
 ## 軸の命名
-- 編集軸: `StoryTimeline`（UI: `Storyline`）。
-- 再生軸: `SequenceClock` / `useSequencePlaybackController`。
-- 出力軸: `ExportPlan` / `ExportSequenceItem` / `resolveExportPlan`。
-- Vault軸: `vault/assets` + `.index.json` + `.metadata.json` + `.trash/.trash.json`。
+- 編集軸: `StoryTimeline`（UI呼称: `Storyline`）。
+- 再生軸: `SequenceClock`。
+- 出力軸: `ExportPlan`。
+- Vault軸: `Vault Assets`（index/metadata/trash を含む）。
 
 ## Must
 - `sceneOrder` を Scene 順序の唯一の正本として扱う。
 - `cut.order` と実配列順を一致させる。
 - Preview/Export は共通の時系列解決ロジックを使う。
 - Timeline 構造変更は Command 経由で行う。
-- Vault 書き込みは `window.electronAPI.vaultGateway.*` を単一入口にする。
+- Vault 書き込みは単一 gateway 入口に統一する。
 - サムネイルは用途別 profile を混線させない。
 - TODO は `docs/TODO_MASTER.md` に集約する。
 
@@ -52,12 +52,12 @@
 
 ## Invariant Checklist (Gate)
 - Gate 1 (`sceneOrder` 正本): Scene 順序の正本は `sceneOrder` のみで、`scenes` 配列順を順序根拠にしない。
-- Gate 2 (`cut.order` 整合): 各 Scene の cut は配列順と `cut.order` が一致し、編集操作後も連番を維持する。GroupCUT 導入時は `group.cutIds` も `cut.order` に従って正規化し、DnD/並び替え後に同一 Command 内で timeline と group の整合更新を完了させる。
+- Gate 2 (`cut.order` 整合): 各 Scene の cut は配列順と `cut.order` が一致し、編集操作後も連番を維持する。GroupCUT では `group.cutIds` も同順序に整合させる。
 - Gate 3 (時系列定義): 開始秒・合計尺は `sceneOrder` と `displayTime` 累積に基づく canonical な計算入口へ集約する。
 - Gate 4 (`displayTime` 正規化): `displayTime` は Preview/Export の両方で有限正数へ正規化し、NaN/Infinity/0以下を通さない。
 - Gate 5 (Preview/Export parity): Preview と Export で時間解決・Framing 解決の入口を分岐させない。
-- Gate 6 (Command 境界): ユーザー操作起点の timeline 構造変更は Command 経由で実施する。group の作成/追加/除外/削除/分割/結合などの構造変更も Command 経由のみで行う。
-- Gate 7 (Vault 書き込み入口): Vault の index/metadata/trash 更新は `window.electronAPI.vaultGateway.*` を renderer の単一入口にする。
+- Gate 6 (Command 境界): ユーザー操作起点の timeline 構造変更は Command 経由で実施する。group の構造変更も Command 経由のみで行う。
+- Gate 7 (Vault 書き込み入口): Vault の index/metadata/trash 更新は renderer の単一 gateway 入口にする。
 - Gate 8 (`assetId` 主経路): Asset 解決は `assetId` を唯一の経路として扱う。
 - Gate 9 (thumbnail profile): サムネイルは用途別 profile（`asset-grid`/`details-panel`/`sequence-preview`/`timeline-card`）を混線させない。
 - Gate 10 (重い処理の分離): 解析・変換・合成など重い処理は登録時/変換時へ寄せ、再生ループへ入れない。
@@ -69,47 +69,10 @@
 - 範囲は導出: `groupStartAbs/groupEndAbs/groupDurationAbs` は永続化せず、cut の canonical timing から導出する。
 - 注: timeline の正本（`sceneOrder`, `cut.order`, canonical timing）を group が置き換えてはならない。group の `cutIds` は「所属の正本」であり、「順序/時間の正本」ではない。
 
-## Gate Enforcement
-- Gate 2 fallback 許容は 2026-02-17 で終了。`safeOrder` のような順序fallbackを再導入しない。
-- Gate 2 fail 化条件は固定する:
-  - `npm run check:gate:strict` が CI に接続されていること。
-  - `src/utils/timelineOrder.ts` に順序fallbackが存在しないこと。
-  - ロード時に `cut.order` 正規化（配列順再採番）が有効であること。
-- CI では `npm run check:gate:strict` を必須チェックにする。
-- ローカルでは `npm run check:gate` と `npm run check:gate:strict` を PR 前に実行する。
-
-## Canonical APIs (Gate 3/4/5)
-- 正規化入口（Gate 4）: `resolveCanonicalCutDuration`（`src/utils/storyTiming.ts`）を `displayTime` 解決の正本にする。
-- 時系列入口（Gate 3）: `computeCanonicalStoryTimingsForCuts` を開始秒・合計尺計算の正本にする。
-- 出力item入口（Gate 5）: `buildSequenceItemsForCuts` を export sequence item 生成の正本にする。
-- 補助API（`resolveNormalizedCutDisplayTime` / `computeStoryTimingsForCuts`）は lower-level helper であり、Gate 3/4 の公開正本としては扱わない。
-- Preview 実装は上記正本APIで得た値を消費する側とし、同等ロジックの再実装を増やさない。
-- `check:gate:strict` で Preview 側の `displayTime` 手計算再流入（直接参照 / `reduce(...displayTime...)`）を新規 fail にする。
-
-## Asset Resolve Failure Policy (Gate 8)
-- 詳細は ADR-0005 に従う。`assetId` 解決失敗時の扱いは用途別に固定する:
-  - Preview/UI: `null` を返してプレースホルダ表示、非致命ログ（warn）まで。
-  - Export: 該当cutをskipし警告。LipSync strict条件では例外で停止可。
-  - Load/Recovery: index補完を試行し、未解決は missing asset フローへ送る。
-- `cut.asset` を Asset 解決経路として再導入しない。
-- v5 以降、ロード直後の `assetCache` 初期化は `resolveCutAsset` に依存せず、保存済み `cut.asset` snapshot を seed として再構築する。
-- 方針: `cut.asset` snapshot seed は段階的に完全廃止する（互換期間終了後は `assetId` のみを正本にする）。
-- `project.sdp` の `vaultPath` が実ファイル配置と不一致の場合は、開いた `project.sdp` の親ディレクトリを正として扱う。
-
-## Known Broken Invariants
-- Status定義:
-  - `Ready`: 主要経路が統一済みで、回帰を防ぐ監査（script/test）を導入済み。
-  - `Partial`: 設計方針は固定済みだが、監査範囲や例外運用に手動レビュー依存が残る。
-- Gate 5 (Preview/Export parity): Sequence系は `buildSequenceItemsForCuts` + `resolveFramingParams` + `buildExportAudioPlan` の同入口化を実装済み（`Ready`）。ただし strict gate は parity 全体を直接証明せず、Preview 側の `displayTime` 手計算再流入検出が中心。
-- Gate 5 `Ready` 根拠: 設計上の入口が統一され、現状の `npm run check:gate` / `npm run check:gate:strict` は合格している。
-- Gate 6 (Command 境界): 例外境界は ADR-0003 で固定済み。`check:gate:strict` に境界検出を導入済み。残課題は許可リスト運用の継続監査（`Partial`）。
-- Gate 7 (Vault 書き込み入口): `vaultGateway` は導入済みだが、utils/UI の `window.electronAPI` 直呼びが残存（`Partial`）。現状の監査起点は `TODO-DEBT-006` / `TODO-DEBT-007`。
-- Gate 8 (`assetId` 主経路): read/write とも `assetId` 経由に統一、strict gate で新規違反検出を導入済み（`Ready`）。`cut.asset` は load seed snapshot / fallback 用に限定。
-- Gate 10 (重処理分離): 再生ホットパスの静的監査は導入済み。残課題はしきい値運用と監査範囲の微調整（`Partial`）。
-- `Partial -> Ready` の完了条件:
-  - Gate 6: 許可リスト外違反が 0 で安定し、例外経路（load/migration/init）の整合テストが揃うこと。
-  - Gate 7: renderer 側の Vault index/metadata/trash 更新経路が `vaultGateway` へ統一され、監査ルールで新規直呼びを fail 化すること。
-  - Gate 10: ホットパス監査に加え、ループ外重処理の運用ルール（計測点/しきい値）を定義し、回帰検出を運用に組み込むこと。
+## 運用詳細の参照先
+- Gate 監査の検出ルール・baseline 運用・CI/ローカル実行ルールは `docs/guides/implementation/gate-checks.md` を正本とする。
+- `assetId` 解決失敗時の用途別ポリシーは `docs/DECISIONS/ADR-0005-asset-resolve-failure-policy.md` を正本とする。
+- Command 境界の例外カテゴリは `docs/DECISIONS/ADR-0003-command-boundary.md` を正本とする。
 
 ## 成功指標
 - Preview/Export parity: 同一入力で視覚・時間・音が一致する。

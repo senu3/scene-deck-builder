@@ -19,6 +19,7 @@
 - Gate 10 のホットパス監査は再生ループ付近（`tick` / `requestAnimationFrame`）に限定する。
 - Gate 監査の「検出できること / できないこと」を本書で明示し、`Ready` 判定を script 検出だけに過大解釈しない。
 - Gate 6 例外は `load` / `migrate` / `init` / `normalize` の4カテゴリに固定し、それ以外を例外として追加しない。
+- Gate 2 では `safeOrder` のような順序 fallback を再導入しない。
 - baseline 更新は専用コミット（または PR 内の専用コミット）に分離する。
 
 ## Must Not
@@ -54,6 +55,12 @@
   - ホットパスファイルでの node/fs/process import 検出
   - `tick`/`update` ブロック内の重処理API検出
   - `tick`/`update` ブロック内の `await` / `.then(...)` 連鎖検出
+
+## Canonical API 方針（Gate 3/4/5）
+- Gate 4（`displayTime` 正規化）の正本入口は `resolveCanonicalCutDuration` に固定する。
+- Gate 3（開始秒・合計尺計算）の正本入口は `computeCanonicalStoryTimingsForCuts` に固定する。
+- Gate 5（export sequence item 生成）の正本入口は `buildSequenceItemsForCuts` に固定する。
+- `resolveNormalizedCutDisplayTime` / `computeStoryTimingsForCuts` は lower-level helper として扱い、公開正本APIとして運用しない。
 
 ## 監査対象外（手動レビュー必須）
 - Gate 5:

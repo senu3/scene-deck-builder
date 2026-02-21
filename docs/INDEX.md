@@ -7,6 +7,8 @@
 - `docs/ARCHITECTURE.md`
   - 目的 / 不変条件（Must・Must Not）/ 非スコープ / 意思決定ルール。
   - 破壊的変更や大規模改修の前に必ず確認する。
+- `docs/L0_USER_MODEL.md`（Phase 2）
+  - ユーザー視点の概念・画面責務・UI操作とドメイン変更対応を確認する入口。
 
 ## 2) ドメイン正本（L1）
 - Vault / Assets: `docs/guides/vault-assets.md`
@@ -20,6 +22,7 @@
 - Media Handling: `docs/guides/media-handling.md`
 
 機能追加・仕様変更時は、該当ガイドの更新を必須とする。
+ここには運用ルールを記載する。
 
 ## 3) 実装ルール（L2）
 - `docs/guides/implementation/thumbnail-profiles.md`
@@ -50,20 +53,18 @@
 
 TODO は各ガイドに散在させない。元ドキュメントには `TODO_MASTER` へのリンクのみ残す。
 
-## 7) Notes（作業起点）
-- `docs/notes/test-integration-startpoint-2026-02-18.md`
-  - テスト統合の開始地点と、統合可/不可の基準。
-- `docs/notes/electronapi-direct-call-audit-memo-2026-02-19.md`
-  - electronAPI 直呼びの監査メモと、次回の修正順。
-
 ## docs 追加/更新ルール
 - 追加した docs は本 INDEX から辿れる構造にする。
-- 1ファイルの先頭に最低限、`目的` `適用範囲` `Must / Must Not` を置く。
-- 仕様・実装・調査ログは混在させず、必要なら `guides` / `implementation` / `notes/archive` に分離する。
+- 1ファイルの先頭に最低限、`TL;DR 目的` `適用範囲` `Must / Must Not` を置く。
+- `ARCHITECTURE.md` は不変条件・設計原則が変わる場合のみ更新する。実装関数名・ファイルパス・CLIコマンド・日付付き運用情報は書かない。
+- `L0_USER_MODEL.md` はユーザー視点の正本とし、実装詳細・原則説明を記載しない。
+- 仕様・実装・調査ログは混在させず、`guides` / `implementation` / `notes` に分離する。
+- 一時的な検討メモは `notes` を作成し、 docs へ統合しない。
 - 未解決課題は `TODO_MASTER.md` へ記録し、重複TODOを作らない。
+- 解決済みの仕様・実装・調査ログやTODOは `notes/archive` に移動する。
 
 ## 開発時のチェック順
 1. `ARCHITECTURE.md` に反していないか。
-2. 変更対象のドメイン正本（L1）を更新したか。
-3. 実装ルール（L2）に違反していないか。
-4. TODO を増やす場合に `TODO_MASTER.md` を更新したか。
+2. 関連するドメイン正本（L1）、実装ルール（L2）に違反していないか。
+3. TODO を増やす場合に `TODO_MASTER.md` を更新したか。
+4. コミットメッセージが `docs/guides/implementation/commit-rules.md`に違反していないか。
