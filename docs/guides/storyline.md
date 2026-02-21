@@ -1,89 +1,68 @@
 # Storyline Guide
 
 ## TL;DR
-対象：Storyline編集操作とD&D境界
-正本：sceneOrder と Command境界
-原則：
-- 構造変更はCommand経由
-- Scene操作はsceneId直指定
-- Preview/Export軸へ責務越境しない
-詳細：関連挙動は preview / autoclip を参照
+対象: Storyline編集操作と境界責務
+正本: `sceneOrder` / Command実行境界 / Scene選択イベント境界
+原則:
+- 構造変更はCommand経由でのみ行う
+- 並び順の正本は `sceneOrder` と `cut.order` に固定する
+- UIは選択イベントをemitし、構造データを直書きしない
+詳細: Preview/Export/AutoClip は各ガイドを参照
 
-**目的**: `Storyline` と `useStorylineDragController` の仕様と運用ルールを整理する。
-**適用範囲**: `src/components/Storyline.tsx`, `src/hooks/useStorylineDragController.ts`, `src/components/CutCard.tsx`, `src/components/SceneDurationBar.tsx`。
-**関連ファイル**: `docs/references/DOMAIN.md`, `docs/references/MAPPING.md`, `docs/guides/preview.md`, `docs/guides/autoclip.md`, `docs/guides/implementation/scene-duration-bar-ui.md`。
+**目的**: Storyline の編集責務、Command/Event 境界、禁止事項を固定する。  
+**適用範囲**: `src/components/Storyline.tsx`, `src/hooks/useStorylineDragController.ts`, `src/components/SceneDurationBar.tsx`。  
+**関連ファイル**: `docs/guides/preview.md`, `docs/guides/export.md`, `docs/guides/autoclip.md`, `docs/guides/implementation/scene-duration-bar-ui.md`, `docs/references/DOMAIN.md`, `docs/references/MAPPING.md`。  
 **更新頻度**: 中。
 
 ## Must / Must Not
 - Must: Timeline 構造変更は Command 経由で行う。
-- Must: Scene の時系列順序は `sceneOrder` を正本とする。
-- Must: Scene more menu の Scene 解決は `sceneId` 直指定で行う。
-- Must Not: `selectedSceneId` 依存で Scene preview/export を解決しない。
-- Must Not: Storyline から Preview/Export 軸の命名を上書きしない。
+- Must: Scene/Cut の順序正本は `sceneOrder` / `cut.order` とする。
+- Must: Scene系操作は `sceneId` 直指定で解決する。
+- Must: Storyline は D&D の主受け口として scene-targeted drop を処理する。
+- Must: `SceneDurationBar` は scene選択イベント通知に限定する。
+- Must: 外部D&Dは image/video のみを受理し、audio は受理しない。
+- Must Not: 配列の現在並び（描画順）を正本として扱わない。
+- Must Not: UI から scene/cut 構造を直書き変更しない。
+- Must Not: `selectedSceneId` 依存で scene preview/export 対象を解決しない。
+- Must Not: Header から Storyline DOM を直接スクロール制御しない。
 
-## Naming Boundaries (Must Follow)
+## Naming Boundary
 - `Storyline`: 編集UI。
 - `StoryTimeline`: 編集軸の概念名（UI名ではない）。
-- `SceneDurationBar`: `StoryTimeline` を要約表示するHeader UI。
-- `Preview`: 再生機能ドメイン。
-- `PreviewModal`: 再生UIコンポーネント。
-- `PreviewMode`: 再生状態値（`scene` / `all`）。
-- 再生制御の命名は public `useSequencePlaybackController` / internal `SequenceClock` を使う。
+- `SceneDurationBar`: `StoryTimeline` 要約のHeader UI（再生タイムラインではない）。
 
-## Core Responsibilities
-- Handles drag-and-drop interactions for cuts and external file drops.
-- Manages placeholder state for cross-scene moves and external drops.
-- Creates new cuts for external assets using `createCutFromImport`.
-- `Storyline` is the primary inbound drop handler for scene-targeted drops.
-- `App` keeps a workspace-level fallback drop handler for drops outside scene columns (imports to selected/first scene).
+## Command Boundary
+- 対象:
+  - scene 追加/削除/リネーム
+  - cut 移動/並べ替え/複数移動
+  - group 同期を伴う reorder
+- ルール:
+  - 書き換えは command 実行経路に統一する。
+  - undo/redo 一貫性を壊す直接更新を禁止する。
 
-## Preview Routing Rules
-- Storyline cut double-click uses media type routing.
-- Video cuts open Single Mode preview via `openVideoPreview(cut.id)`.
-- Non-video cuts (image/lipsync) open Sequence Mode preview via `openSequencePreview(cut.id)`.
-- Scene more menu has `Preview this Scene` entry.
-- Scene more menu preview must pass `sceneId` directly (must not depend on selected scene state).
+## Event Boundary
+- `SceneDurationBar`:
+  - scene 選択イベントを emit するのみ。
+  - Storyline の DOM 制御責務は持たない。
+- `Storyline`:
+  - `selectedSceneId` に追従して scroll 実行を所有する。
+  - scene-targeted drop を主処理し、`App` はワークスペース fallback を担う。
 
-## AutoClip Entry
-- Video cut context menu provides `AutoClip (Simple)` actions.
-- AutoClip mode profiles and generation rules are defined in `docs/guides/autoclip.md`.
+## Ordering Canonical Rules
+- scene chronology source: `sceneOrder: sceneId[]`
+- cut chronology source: `cut.order`
+- multi-select move/reorder は timeline 順へ正規化してから実行する。
+- export chronology でも同じ順序正規化を再利用する。
+- expanded group 内 reorder は scene順と `group.cutIds` を同時同期する。
 
-## Scene More Menu Actions
-- Scene more menu has `Export this Scene` entry.
-- Both entries (`Preview this Scene` / `Export this Scene`) are guarded when `scene.cuts.length === 0` (disabled and runtime early return).
-- Scene resolution should use `resolveSceneById(sceneId)` and not `selectedSceneId`.
+## Disallowed Patterns
+- 配列の偶然の順序を仕様として前提にする実装。
+- UI 層での scene/cut 配列の直接再構成。
+- Scene preview/export 解決を `selectedSceneId` だけに依存させる実装。
+- Header 層の DOM query で Storyline scroll を起動する実装。
 
-## External D&D Rules
-- StoryTimeline/Storyline drop targets accept image/video assets.
-- Audio files are excluded from StoryTimeline/Storyline external D&D targets.
-- Unsupported external payloads do not create cuts.
-
-## Storyline UI Boundary
-- `Storyline` owns drag-and-drop execution, scene selection, and scene scroll execution.
-- `SceneDurationBar` is a Header-side summary UI of `StoryTimeline` and only emits scene selection events.
-- Header must not directly query Storyline DOM for scrolling (`document.querySelector` based scroll control is prohibited).
-- External file drop flow is scene-targeted in `Storyline`; workspace-level fallback drop handling remains in `App`.
-- Timeline structure mutation in this boundary must stay on command execution paths (`executeCommand`).
-
-## Interaction Performance Notes
-- During native drag, `closeDetailsPanel()` is triggered once on drag-enter (not every drag-over event) to avoid repeated store updates and re-renders.
-- External file drops are queued sequentially in `queueExternalFilesToScene` so multi-file imports do not burst heavy work at once.
-- Each queued import yields back to the event loop between items (`setTimeout(..., 0)`) to preserve drag/scroll responsiveness.
-- Drop handlers prioritize immediate UI return; long-running import/thumbnail/vault work continues asynchronously via loading cuts.
-
-## Scroll Ownership
-- `Storyline` owns scene scrolling and follows `selectedSceneId`.
-- `SceneDurationBar` only emits scene selection events; it does not control Storyline DOM directly.
-
-## Disambiguation Notes
-- `Scene` is a data unit; `Storyline` is the editing UI that renders scenes.
-- `SceneDurationBar` is not a playback timeline. It summarizes edit-axis duration only.
-- Preview route switching (`openVideoPreview` / `openSequencePreview`) is playback behavior and must not rename editing-axis concepts.
-
-## Timeline Integrity Rules
-- Multi-select drag (`MoveCutsToSceneCommand`) must normalize selected cut IDs by timeline order before move.
-- `moveCutsToScene` must preserve timeline order even if caller passes IDs in arbitrary order.
-- Scene chronology source is `sceneOrder: sceneId[]`; cut chronology source is `cut.order`.
-- Export chronology must reuse the same normalization helpers (`src/utils/timelineOrder.ts`).
-- Reorder inside an expanded group must update both scene cut order and group `cutIds` order in one command (`ReorderCutsWithGroupSyncCommand`).
-- The same expanded-group reorder rule applies to both single-drag and multi-select drag.
+## Related Docs
+- Preview routing: `docs/guides/preview.md`
+- Export scope: `docs/guides/export.md`
+- AutoClip entry: `docs/guides/autoclip.md`
+- SceneDurationBar UI仕様: `docs/guides/implementation/scene-duration-bar-ui.md`

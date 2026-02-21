@@ -46,3 +46,9 @@
   - 修正内容: L1 は `storyline.md` の `Storyline UI Boundary` へ統合し、UI仕様は `docs/guides/implementation/scene-duration-bar-ui.md` と `docs/guides/implementation/header-ui.md` へ分離。旧 `scene-duration-bar.md` は削除。
 - Wave 4（完了）:
   - `export.md` をL1責務へ圧縮し、Preview と時間概念を統一。
+- Wave 5（追補・2026-02-21）:
+  - `media-handling.md` をL1境界中心へ再圧縮。
+  - 重点反映: `assetId -> index -> filename` 解決順、read-path / write-path 禁止事項、missing時の停止原則（暗黙補完しない）。
+  - `storyline.md` を他ガイド導線を維持したまま再圧縮。
+  - 重点反映: Command/Event 境界、順序正本（`sceneOrder` / `cut.order`）、禁止事項（配列順正本化禁止・UI直書き禁止）。
+  - `autoclip.md` は保留（次Wave対象）。
