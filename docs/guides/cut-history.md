@@ -1,158 +1,54 @@
 # Cut & History Guidelines
 
+## TL;DR
+対象：Cut/Group編集と履歴境界
+正本：sceneOrder / cut.order / group.cutIds
+原則：
+- 構造変更はCommand経由
+- Groupは時間/順序の正本を持たない
+- 副作用連携はstore event経由
+詳細：監査運用は gate-checks を参照
+
 ## 目的
-- Cut/Group 操作の実装ルールを固定し、Undo/Redo 境界のぶれを防ぐ。
-- AssetPanel の Cut オプション廃止方針を運用ガイドとして明文化する。
+- Cut/Group 操作のルールを固定し、履歴境界のぶれを防ぐ。
+- UI操作とドメイン更新の責務を分離し、回帰を減らす。
 
 ## 適用範囲
-- `src/components/CutCard.tsx`
-- `src/components/AssetPanel.tsx`
-- `src/App.tsx`（DnD）
-- `src/store/commands.ts`
-- `src/store/useStore.ts`
-
-## 関連ファイル
-- `docs/notes/archive/store-slice-plan-implemented-2026-02-12.md`
-- `docs/notes/archive/cut-refactor-plan-implemented-2026-02-12.md`
-- `docs/notes/archive/assetpanel-cut-ffmpeg-reorg-plan-implemented-2026-02-12.md`
-- `docs/guides/storyline.md`
-
-## 更新頻度
-- 中
+- Timeline 上の Scene/Cut/Group 構造変更
+- Undo/Redo 対象の編集操作
+- Asset 参照と Cut 参照の整合
 
 ## Must / Must Not
 - Must: scene/cut/group の構造変更は Command 経由で扱う。
 - Must: `sceneOrder` を Scene 順序の正本として維持する。
+- Must: `cut.order` と配列順を整合させる。
+- Must: Group 所属の正本は `group.cutIds` とする。
 - Must: cross-slice 後処理は store event 経由で接続する。
 - Must Not: Command 層から UI API（confirm/alert/modal）を直接呼ばない。
 - Must Not: asset action から timeline 配列を直接書き換えない。
+- Must Not: Group が timeline の順序・時間正本を置き換えない。
 
-## 実装ガイドライン
+## 編集境界
+- Command 必須:
+  - 追加・削除・移動・並び替え・グループ編集などの構造変更
+- Command 非対象:
+  - 一時的な runtime 状態（loading等）
+  - キャッシュ・進捗表示などの非永続UI状態
 
-### 1. Timeline 構造変更は Command 経由
-- 対象: cut/scene/group の追加・削除・移動・順序変更・グループ除外/並び更新。
-- 直接 `useStore` 更新を行う場合は、Undo/Redo 非対象である理由をコードコメントで明示する。
-- Scene 並び順は `sceneOrder: sceneId[]` を正とし、Command/slice では `scene.order` を更新しない。
+## Group ルール
+- no overlap / no nesting を維持する（1 cut は高々1 group）。
+- empty group を残さない。
+- group時間範囲は永続化せず、timeline から導出する。
 
-Command 必須操作（2026-02-12 時点）:
-- Cut 貼り付け: `PasteCutsCommand`
-- Cut 削除: `RemoveCutCommand`
-- 複数 Cut 削除: `RemoveCutsCommand`
-- Cut 移動: `MoveCutBetweenScenesCommand` / `MoveCutsToSceneCommand`
-- 同一シーン並び替え（必要時 group 同期）: `ReorderCutsWithGroupSyncCommand`
-- Group 作成: `CreateGroupCommand`
-- Group から Cut 除外: `RemoveCutFromGroupCommand`
-- Group 内 Cut 順更新: `UpdateGroupCutOrderCommand`
-- clip point 更新: `UpdateClipPointsCommand` / `ClearClipPointsCommand`
-- 初回 clip 保存（非clip cut を複製して clip 適用）: `DuplicateCutWithClipCommand`
-- Scene attachAudio 更新（一括 cut 音声整理を含む）: `SetSceneAttachAudioCommand`
+## イベント連携
+- Cut削除/移動などの副作用は store event で連携する。
+- 直接他sliceの内部実装へ依存しない。
 
-### 2. Runtime 状態は永続モデルに混ぜない
-- loading などの一時状態は `CutRuntimeState` で扱う。
-- `Cut` 型には runtime 専用フィールドを戻さない。
+## Asset参照ルール
+- Cut の read-path 参照は `assetId` を主経路にする。
+- write-path で `cut.asset` 前提の更新を増やさない。
 
-### 3. Group 追随は共通ロジックを使う
-- group `cutIds` の整合更新は `commands` と `cutGroupOps` からのみ行う。
-- DnD 後処理で group を更新する場合は、必ず Command を経由して timeline 更新と同一操作で同期する。
-- GroupCUT の所属参照モデルは A方式: `group.cutIds` を所属の正本とし、`cut.groupId` は逆参照インデックスとして同期する。
-- Group は timeline の正本（`sceneOrder` / `cut.order` / canonical timing）を置き換えてはならない。
-- 1つの cut は同時に複数 group へ所属してはならない（重なり/ネスト禁止）。
-- empty group は残さず削除する（`remove` / `normalize` 共通ルール）。
-- group の時間範囲は永続化しない。`groupStartAbs/groupEndAbs/groupDurationAbs` は cut の canonical timing から導出する（時間の正本は timeline）。
-
-### 3.1 GroupCUT operations（Command contract）
-- `createGroup(sceneId, cutIds)`:
-  入力空は reject。既存 group 所属 cut を含む場合も reject。
-- `addCutsToGroup(sceneId, groupId, cutIds)`:
-  他 group 所属 cut を含む場合は reject。追加後の `cutIds` は timeline 順に正規化。
-- `removeCutsFromGroup(sceneId, groupId, cutIds)`:
-  除外後に空になった group は削除。
-- `deleteGroup(sceneId, groupId)`:
-  `cut.groupId` の逆参照も同時解除。
-- `splitGroup(sceneId, groupId, pivotCutId)`:
-  pivot で2分割し、新規 group を採番。
-- `mergeGroups(sceneId, survivorGroupId, mergedGroupId)`:
-  survivor を残し、merged 側を削除。`cutIds` は timeline 順に統合正規化。
-
-### 4. Command 層に UI 依存を持ち込まない
-- `commands.ts` で `confirm()` やモーダル表示を呼ばない。
-- 確認ダイアログは UI 層（例: `Header`）で行い、確定後に `undo/redo` や `executeCommand` を呼ぶ。
-
-### 5. cross-slice 連携は store event 経由
-- 直接他 slice の内部更新ロジックを呼ばない。
-- 例: Cut 削除時は `CUT_DELETED` を emit し、`applyStoreEvents` で group/selection の後処理を実施する。
-
-### 6. Asset 参照は `assetId` を主経路にする
-- 復元・コピーなどの read 時は `getAsset(assetId)` のみを使用する。
-- write 時に `cut.asset` を前提にした更新を増やさない。
-
-### 7. selector 標準パターン
-- コンポーネントでは `useStore()` の全体購読を避け、必要な state/action のみを selector で取得する。
-- selector は「描画に必要な最小単位」で分割する。`scene` と `uiState` を同一 selector に混在させない。
-- action は state selector と分離して取得する（再レンダー連鎖を抑えるため）。
-- 配列/オブジェクトを selector で組み立てる場合は、不要な新規参照生成を避ける。
-- `asset` 参照は selector 内で `getAsset(cut.assetId)` を使用する。
-
-### 8. Asset 操作入口の集約
-- `AssetPanel` からの Finalize/Reverse/Extract/Delete は `src/features/asset/actions.ts` を経由する。
-- action は UI イベント (`MouseEvent` など) を受け取らず、assetId/path/range/vaultPath などドメイン引数だけを扱う。
-- confirm/dialog/toast は UI 層に残し、action 層へ混在させない。
-
-標準例:
-```ts
-const selectedCutId = useStore((s) => s.selectedCutId);
-const selectedSceneId = useStore((s) => s.selectedSceneId);
-const updateCutDisplayTime = useStore((s) => s.updateCutDisplayTime);
-```
-
-避ける例:
-```ts
-const store = useStore(); // 全体購読
-```
-
-## 禁止依存（S0）
-- `commands.ts` -> ブラウザ UI API 直接呼び出し（`confirm`, `alert`, modal）。
-- slice -> 他 slice の private helper 直接 import。
-- Asset 系 action -> Cut 配列の直接書き換え（まず Cut action 経由を検討）。
-- Asset action -> UI コンポーネント import（`components/*` 依存を禁止）。
-
-## CUT Event メモ
-- `CUT_DELETED`: 実装済み。Cut 削除時の group/selection 後処理に利用。
-- `CUT_MOVED`: 実装済み。Cut 移動時の group 後処理に利用。
-- `CUT_RELINKED`: emit のみ実装済み。UI 側の購読・表示用途は保留。
-- 展開グループ内の並び替え同期は event 追加ではなく `ReorderCutsWithGroupSyncCommand` で一操作に集約する。
-- `applyStoreEvents` 後には Group 正規化を1回通し、`group.cutIds` と `cut.groupId` の整合を復元する。
-
-補足:
-- `CUT_RELINKED` の購読側仕様は `docs/TODO_MASTER.md`（`TODO-INVEST-003`）で管理する。
-
-## Undo/Redo 対象（運用）
-- 対象: scene/cut/group の構造変更、clip point 更新。
-- 非対象: runtime loading 状態、サムネイルキャッシュ、Export 進捗 UI。
-- Scene attachAudio 設定時の「同一シーン動画cutの attachAudio 解除 + `useEmbeddedAudio=false`」は `SetSceneAttachAudioCommand` 1手で扱う。
-
-## Cut Write Path 要点（2026-02-12）
-- Command 経由の主要書き込み: `AddCutCommand` / `RemoveCutCommand` / `RemoveCutsCommand` / `MoveCutBetweenScenesCommand` / `MoveCutsToSceneCommand` / `ReorderCutsWithGroupSyncCommand` / `PasteCutsCommand` / `CreateGroupCommand` / `RemoveCutFromGroupCommand` / `UpdateGroupCutOrderCommand` / `UpdateClipPointsCommand` / `ClearClipPointsCommand` / `DuplicateCutWithClipCommand`。
-- domain owner は `cutTimelineSlice`（scene/cut 追加・削除・並び替え・clip 更新・clipboard 反映）。
-- cross-slice 後処理は event 経由（`CUT_DELETED` / `CUT_MOVED`、`CUT_RELINKED` は emit 済みで購読用途保留）。
-- read-time join は `assetId`（`getAsset(assetId)`）のみを使う。
-- Cut コンテキストメニューの Move はコンテキスト元シーンの選択 cut のみを対象とし、複数シーン混在選択は対象外とする。
-- Cut コンテキストメニューの `Remove from Group` は、複数選択時は同一グループ内の選択 cut を一括除外する。
-
-## AssetPanel Cut オプション廃止方針
-- 方針: AssetPanel は段階的に「Asset 操作専用」に移行する。
-- 現状（2026-02-12）: AssetPanel の Cut コンテキストメニューは撤去済み。右クリックは Asset options に統一。
-- 現状（2026-02-12）: AssetPanel の Finalize/Reverse は `asset-only`（Cut非追加）導線へ接続済み。
-- 現状（2026-02-12）: 音声抽出は `CutCard` の Cut options / AssetPanel の Asset options から実行可能（いずれも Cut非追加）。
-- 現状（2026-02-14）: AssetPanel の Asset 操作は `assetActions` に集約済み。
-- 置換先: Cut 操作は `CutCard` / `DetailsPanel` / ショートカット（history command 経由）へ寄せる。
-- 実装計画アーカイブ: `docs/notes/archive/assetpanel-cut-ffmpeg-reorg-plan-implemented-2026-02-12.md`。
-- 完了条件:
-  - AssetPanel から Cut コンテキストメニューを撤去しても運用導線が維持される。
-  - 上記撤去後も Undo/Redo 対象操作の網羅性が維持される。
-
-## チェックリスト
-- 変更が timeline 構造を変えるか?
-- Command を追加/再利用できるか?
-- Undo/Redo で前状態へ戻るか?
-- docs（本ファイル/plan）と実装が一致しているか?
+## 関連ガイド
+- Storyline責務: `docs/guides/storyline.md`
+- Command境界の監査運用: `docs/guides/implementation/gate-checks.md`
+- 経緯・実装メモ: `docs/notes/`
