@@ -35,6 +35,7 @@
 - `docs/guides/implementation/electron40-smoke-observability.md`
 - `docs/guides/implementation/scene-duration-bar-ui.md`
 - `docs/guides/implementation/header-ui.md`
+- `docs/guides/implementation/autoclip-simple.md`
 
 ここには思想ではなく、実装上の判断基準・制約を記載する。
 
