@@ -42,3 +42,5 @@
   - `cut-history.md` をL1責務へ圧縮（Command列挙・日付運用節を削除）。
 - Wave 3（完了）:
   - `scene-duration-bar.md` / `lip-sync.md` / `preview.md` のUI・実装詳細を圧縮。
+- Wave 4（完了）:
+  - `export.md` をL1責務へ圧縮し、Preview と時間概念を統一。
