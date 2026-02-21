@@ -20,13 +20,17 @@
 
 ## Must / Must Not
 - Must: scene/cut/group の構造変更は Command 経由で扱う。
+- Must: 1 Command = 1 履歴単位を維持する。
+- Must: Command 内部の副作用は同一履歴境界に含める。
 - Must: `sceneOrder` を Scene 順序の正本として維持する。
 - Must: `cut.order` と配列順を整合させる。
 - Must: Group 所属の正本は `group.cutIds` とする。
 - Must: cross-slice 後処理は store event 経由で接続する。
+- Must: 構造変更後は正規化を必ず通す。
 - Must Not: Command 層から UI API（confirm/alert/modal）を直接呼ばない。
 - Must Not: asset action から timeline 配列を直接書き換えない。
 - Must Not: Group が timeline の順序・時間正本を置き換えない。
+- Must Not: event でドメイン状態を書き換えない。
 
 ## 編集境界
 - Command 必須:
@@ -43,6 +47,7 @@
 ## イベント連携
 - Cut削除/移動などの副作用は store event で連携する。
 - 直接他sliceの内部実装へ依存しない。
+- event は派生状態の更新のみを行う。
 
 ## Asset参照ルール
 - Cut の read-path 参照は `assetId` を主経路にする。
