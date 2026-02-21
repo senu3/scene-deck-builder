@@ -62,8 +62,8 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
   - Status: `blocked`
   - StartWhen: Header / SceneDurationBar の最終 UI 仕様が確定したとき
   - BlockedBy: UI 設計確定
-  - DoneWhen: `docs/guides/scene-duration-bar.md` の文言と実装が一致
-  - 関連: `docs/guides/scene-duration-bar.md`
+  - DoneWhen: `docs/guides/implementation/scene-duration-bar-ui.md` と `docs/guides/implementation/header-ui.md` の文言と実装が一致
+  - 関連: `docs/guides/implementation/scene-duration-bar-ui.md`, `docs/guides/implementation/header-ui.md`, `docs/guides/storyline.md`
 
 ## Bug Track
 - （active item なし）

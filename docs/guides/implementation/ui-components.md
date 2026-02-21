@@ -11,7 +11,7 @@
 - Must Not: ドメインUI仕様（Storyline/SceneDurationBar など）をここへ混在させない。
 - Must Not: 色仕様をこのファイルで定義しない（色は color-system を参照）。
 
-ドメインUIは `docs/guides/scene-duration-bar.md` を参照。
+ドメインUIは `docs/guides/storyline.md`, `docs/guides/implementation/scene-duration-bar-ui.md`, `docs/guides/implementation/header-ui.md` を参照。
 
 ## Structure
 

@@ -12,8 +12,7 @@
 
 ## 2) ドメイン正本（L1）
 - Vault / Assets: `docs/guides/vault-assets.md`
-- Storyline: `docs/guides/storyline.md`
-- SceneDurationBar: `docs/guides/scene-duration-bar.md`
+- Storyline（SceneDurationBar 境界を含む）: `docs/guides/storyline.md`
 - Cut/History: `docs/guides/cut-history.md`
 - Preview: `docs/guides/preview.md`
 - Export: `docs/guides/export.md`
@@ -34,6 +33,8 @@
 - `docs/guides/implementation/ui-components.md`
 - `docs/guides/implementation/color-system.md`
 - `docs/guides/implementation/electron40-smoke-observability.md`
+- `docs/guides/implementation/scene-duration-bar-ui.md`
+- `docs/guides/implementation/header-ui.md`
 
 ここには思想ではなく、実装上の判断基準・制約を記載する。
 

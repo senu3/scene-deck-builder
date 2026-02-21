@@ -11,7 +11,7 @@
 
 **目的**: `Storyline` と `useStorylineDragController` の仕様と運用ルールを整理する。
 **適用範囲**: `src/components/Storyline.tsx`, `src/hooks/useStorylineDragController.ts`, `src/components/CutCard.tsx`, `src/components/SceneDurationBar.tsx`。
-**関連ファイル**: `docs/references/DOMAIN.md`, `docs/references/MAPPING.md`, `docs/guides/scene-duration-bar.md`, `docs/guides/preview.md`, `docs/guides/autoclip.md`。
+**関連ファイル**: `docs/references/DOMAIN.md`, `docs/references/MAPPING.md`, `docs/guides/preview.md`, `docs/guides/autoclip.md`, `docs/guides/implementation/scene-duration-bar-ui.md`。
 **更新頻度**: 中。
 
 ## Must / Must Not
@@ -57,6 +57,13 @@
 - StoryTimeline/Storyline drop targets accept image/video assets.
 - Audio files are excluded from StoryTimeline/Storyline external D&D targets.
 - Unsupported external payloads do not create cuts.
+
+## Storyline UI Boundary
+- `Storyline` owns drag-and-drop execution, scene selection, and scene scroll execution.
+- `SceneDurationBar` is a Header-side summary UI of `StoryTimeline` and only emits scene selection events.
+- Header must not directly query Storyline DOM for scrolling (`document.querySelector` based scroll control is prohibited).
+- External file drop flow is scene-targeted in `Storyline`; workspace-level fallback drop handling remains in `App`.
+- Timeline structure mutation in this boundary must stay on command execution paths (`executeCommand`).
 
 ## Interaction Performance Notes
 - During native drag, `closeDetailsPanel()` is triggered once on drag-enter (not every drag-over event) to avoid repeated store updates and re-renders.

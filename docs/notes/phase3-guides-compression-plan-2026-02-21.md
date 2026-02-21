@@ -42,5 +42,7 @@
   - `cut-history.md` をL1責務へ圧縮（Command列挙・日付運用節を削除）。
 - Wave 3（完了）:
   - `scene-duration-bar.md` / `lip-sync.md` / `preview.md` のUI・実装詳細を圧縮。
+  - 修正（2026-02-21）: Wave 3 の `scene-duration-bar.md` は圧縮維持ではなく分解へ方針更新。
+  - 修正内容: L1 は `storyline.md` の `Storyline UI Boundary` へ統合し、UI仕様は `docs/guides/implementation/scene-duration-bar-ui.md` と `docs/guides/implementation/header-ui.md` へ分離。旧 `scene-duration-bar.md` は削除。
 - Wave 4（完了）:
   - `export.md` をL1責務へ圧縮し、Preview と時間概念を統一。
