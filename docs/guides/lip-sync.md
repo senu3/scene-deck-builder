@@ -28,6 +28,21 @@
 - 編集入力は base/variant 系 asset を使い、再生入力と混同しない。
 - 生成物バンドルの所有関係は owner を軸に管理する。
 
+## 時間軸の原則
+- LipSync の時間軸は canonical cut timing に従う。
+- 音声長や RMS 結果を時間正本として扱わない。
+- LipSync は時間を生成しない（時間の消費者である）。
+
+## Export整合
+- Export 時も canonical cut timing を基準とする。
+- LipSync 用生成物は Export の時間定義を変更しない。
+- 音声の有無や長さで cut duration を再計算しない。
+
+## 失敗時ポリシー
+- 音声欠落時は明示的 degraded 表示とする。
+- 欠落フレームを暗黙生成しない。
+- metadata 不整合時は fail-fast を優先する。
+
 ## 再生・編集の責務分離
 - 再生:
   - RMS からフレーム選択を行う。
