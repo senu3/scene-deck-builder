@@ -21,6 +21,8 @@
 - `docs/notes/archive/preview-sequence-same-source-clip-buffering-todo-2026-02-14.md`
 - `docs/notes/archive/autosave-toast-notes.md`
 - `docs/notes/archive/backward-compat-inventory-implemented-2026-02-18.md`
+- `docs/notes/archive/phase3-guides-compression-plan-closed-2026-02-21.md`
+- `docs/notes/archive/wave5-media-storyline-compression-notes-implemented-2026-02-21.md`
 
 ## ルール
 - 現在進行中の意思決定は `docs/notes/` 直下に置く。

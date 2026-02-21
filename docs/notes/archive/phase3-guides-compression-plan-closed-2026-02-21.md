@@ -1,5 +1,10 @@
 # Phase 3 Guides Compression Plan (2026-02-21)
 
+## Status
+- Closed (2026-02-21)
+- L1 domain guides compression/restructure completed for current scope.
+- Remaining AutoClip uncertainty is managed as a separate open note (`docs/notes/autoclip-open-items-2026-02-21.md`) and is out of scope for this plan closure.
+
 ## 目的
 - `docs/guides/*.md`（L1）の探索コストを下げる。
 - 実装詳細・経緯・運用メモをL1から分離する。
@@ -52,3 +57,7 @@
   - `storyline.md` を他ガイド導線を維持したまま再圧縮。
   - 重点反映: Command/Event 境界、順序正本（`sceneOrder` / `cut.order`）、禁止事項（配列順正本化禁止・UI直書き禁止）。
   - `autoclip.md` は保留（次Wave対象）。
+- Wave 6（追補・2026-02-21）:
+  - `autoclip.md` を最小L1へ圧縮（責務境界のみ維持）。
+  - 実装依存仕様を `docs/guides/implementation/autoclip-simple.md` へ分離。
+  - 未確定事項（精度/UI配置/RMS有効性）を `docs/notes/autoclip-open-items-2026-02-21.md` で管理開始。
