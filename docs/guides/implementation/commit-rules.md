@@ -1,7 +1,13 @@
 # Commit Rules
 
-## TL;DR 目的
-- 変更意図が追跡できるコミット粒度を維持し、Gate 変更時の監査漏れを防ぐ。
+## TL;DR
+対象：コミット粒度と命名規約
+正本：type(scope): subject と gate scope規約
+原則：
+- コード変更と意味的docsは別コミット
+- Gate変更はscope=gateNで追跡
+- baseline/機械的変更は専用コミット
+詳細：Gate運用は gate-checks を参照
 
 ## 目的
 - コミット単位で変更意図と影響範囲を追跡可能にする。

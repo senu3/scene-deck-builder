@@ -1,5 +1,14 @@
 # Export Guide
 
+## TL;DR
+対象：Export時系列生成と出力境界
+正本：sceneOrder + canonical cut timing
+原則：
+- Preview/Exportで時間定義を分離しない
+- export入力は正規化済みcut列のみ
+- scenes配列順を順序根拠にしない
+詳細：音声詳細は export-audio-mix を参照
+
 **目的**: Export の時系列・解決ロジック・出力運用を固定し、Preview/Export parity を維持する。
 **適用範囲**: `src/features/export/*`, `src/utils/exportSequence.ts`, `src/utils/timelineOrder.ts`, `electron/main.ts`（export系 IPC）。
 **関連ファイル**: `docs/ARCHITECTURE.md`, `docs/guides/preview.md`, `docs/guides/implementation/export-audio-mix.md`, `docs/guides/cut-history.md`。

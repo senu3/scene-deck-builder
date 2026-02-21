@@ -1,5 +1,14 @@
 # Preview Guide (Single vs Sequence)
 
+## TL;DR
+対象：Sequence Previewの再生制御
+正本：cut canonical timing
+原則：
+- 再生制御は単一コントローラ経由
+- 表示と出力で時間正本を分離しない
+- assetIdベースの解決整合を維持する
+詳細：再生実装は preview系実装を参照
+
 **目的**: Preview 再生の構造と変更禁止点を明文化する。
 **適用範囲**: `PreviewModal` / 再生コントローラ / MediaSource。
 **関連ファイル**: `src/components/PreviewModal.tsx`, `src/utils/previewPlaybackController.ts`, `src/utils/previewMedia.tsx`。

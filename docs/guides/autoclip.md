@@ -1,5 +1,14 @@
 # AutoClip Guide
 
+## TL;DR
+対象：AutoClip（Simple）の分割生成ルール
+正本：AutoClip mode定義とcut分割境界
+原則：
+- 動画cutのみ対象
+- 生成cut追加はCommand経由
+- source cutを破壊更新しない
+詳細：モード実装は implementation / notes を参照
+
 **目的**: Simple AutoClip の挙動・モード定義・既知課題を整理し、実装変更時の判断基準を固定する。  
 **適用範囲**: `src/components/CutCard.tsx`, `src/components/context-menus/CutContextMenu.tsx`, `src/store/commands.ts`, `src/features/cut/simpleAutoClip.ts`。  
 **関連ファイル**: `docs/guides/storyline.md`, `docs/guides/implementation/thumbnail-profiles.md`, `docs/guides/cut-history.md`, `docs/references/MAPPING.md`。  

@@ -1,5 +1,14 @@
 # Storyline Controller & SceneDurationBar
 
+## TL;DR
+対象：StorylineヘッダーのScene要約表示
+正本：StoryTimeline上のscene duration集計
+原則：
+- Scene選択通知のみ担当
+- スクロール実制御はStoryline側
+- 再生進捗UIとして扱わない
+詳細：配色/UI実装は implementation を参照
+
 **目的**: StorylineのD&D制御とSceneDurationBarの役割を整理する。
 **適用範囲**: `Storyline` / `useStorylineDragController` / `SceneDurationBar`。
 **関連ファイル**: `src/components/Storyline.tsx`, `src/hooks/useStorylineDragController.ts`, `src/components/SceneDurationBar.tsx`。

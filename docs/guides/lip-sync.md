@@ -1,5 +1,14 @@
 # LipSync Guide (RMS-based, Mask Preprocess)
 
+## TL;DR
+対象：LipSync設定・再生・前処理
+正本：lip sync metadata と assetId参照
+原則：
+- 再生解決は正規API経由
+- base64をmetadata永続化しない
+- 重処理は登録時に寄せる
+詳細：処理詳細は implementation / notes を参照
+
 **目的**: AI-Scene-Deck における LipSync のデータ構造、保存、前処理、再生の実装仕様を定義する。  
 **適用範囲**: `LipSyncModal`, `PreviewModal`, `metadataStore`, `lipSyncUtils`, `electron/main`。  
 **関連ファイル**:  

@@ -1,5 +1,14 @@
 # Storyline Guide
 
+## TL;DR
+対象：Storyline編集操作とD&D境界
+正本：sceneOrder と Command境界
+原則：
+- 構造変更はCommand経由
+- Scene操作はsceneId直指定
+- Preview/Export軸へ責務越境しない
+詳細：関連挙動は preview / autoclip を参照
+
 **目的**: `Storyline` と `useStorylineDragController` の仕様と運用ルールを整理する。
 **適用範囲**: `src/components/Storyline.tsx`, `src/hooks/useStorylineDragController.ts`, `src/components/CutCard.tsx`, `src/components/SceneDurationBar.tsx`。
 **関連ファイル**: `docs/references/DOMAIN.md`, `docs/references/MAPPING.md`, `docs/guides/scene-duration-bar.md`, `docs/guides/preview.md`, `docs/guides/autoclip.md`。

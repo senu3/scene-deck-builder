@@ -1,5 +1,14 @@
 # Media Handling Overview
 
+## TL;DR
+対象：media I/O と ffmpeg実行境界
+正本：media:// 経路と queue 境界
+原則：
+- 大容量をbase64全量読み込みへ戻さない
+- ffmpeg個別spawnを乱立させない
+- thumbnail生成入口を単一化する
+詳細：サムネイル/監査は implementation を参照
+
 **目的**: media://, ffmpeg, PCM, thumbnail, queue の概要をまとめる。
 **適用範囲**: main/renderer のメディア I/O と preview 再生。
 **関連ファイル**: `electron/main.ts`, `electron/preload.ts`, `electron/services/ffmpegController.ts`, `electron/services/thumbnailService.ts`, `src/components/PreviewModal.tsx`, `src/features/thumbnails/provider.ts`, `src/utils/videoUtils.ts`, `src/utils/thumbnailCache.ts`, `src/utils/audioUtils.ts`。
