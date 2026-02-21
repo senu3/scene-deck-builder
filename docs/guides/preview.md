@@ -9,115 +9,44 @@
 - assetIdベースの解決整合を維持する
 詳細：再生実装は preview系実装を参照
 
-**目的**: Preview 再生の構造と変更禁止点を明文化する。
-**適用範囲**: `PreviewModal` / 再生コントローラ / MediaSource。
-**関連ファイル**: `src/components/PreviewModal.tsx`, `src/utils/previewPlaybackController.ts`, `src/utils/previewMedia.tsx`。
+**目的**: Preview 再生の責務境界と変更禁止点を固定する。  
+**適用範囲**: `PreviewModal` / 再生コントローラ / Preview media source。  
+**関連ファイル**: `docs/guides/export.md`, `docs/guides/media-handling.md`, `docs/guides/implementation/thumbnail-profiles.md`。  
 **更新頻度**: 中。
 
 ## Must / Must Not
 - Must: Sequence 再生は `useSequencePlaybackController` を単一制御面として使う。
-- Must: sequence item 構築時に `sequenceCuts` 指定がある場合はその範囲のみを使う。
-- Must: assetId ベースの URL キャッシュ整合を維持する。
-- Must Not: Sequence Mode を `<video>` 直接制御に戻さない。
+- Must: `sequenceCuts` 指定時はその範囲のみで sequence を構築する。
+- Must: timing 解決は canonical cut timing を使う。
+- Must: canonical timing は domain 正規化後の値を使用する。
+- Must: URL/asset 解決は `assetId` 整合を維持する。
+- Must: Preview は独自の時間再計算を持たない。
+- Must Not: Sequence Mode を `<video>` 直接制御へ戻さない。
 - Must Not: 画像 Sequence の時間制御を ad-hoc タイマーへ戻さない。
+- Must Not: Preview/Export で時間定義を分岐させない。
+- Must Not: Controller はドメイン構造を書き換えない。
 
-> TODO は `docs/TODO_MASTER.md`（`TODO-DEBT-002`, `TODO-INVEST-001`）を参照。
-> 命名方針: public APIは `useSequencePlaybackController`、内部概念名は `SequenceClock` を使う。
-> 用語注意: 本ガイドの `MediaSource` は Preview向け app-specific abstraction を指し、Web APIの `MediaSource` とは別。
+## モード境界
+- Single Mode:
+  - 単一 asset（または単一 cut）の確認に使う。
+  - clip-local な IN/OUT 調整を許可する。
+- Sequence Mode:
+  - cut 列の連続再生を行う。
+  - play/pause/seek/loop/range/buffering をコントローラで一元管理する。
 
-## Modes
+## 時間・音声の原則
+- 表示時間は cut canonical timing を正本とする。
+- AudioPlan/再生同期は cut 列由来の時間軸で扱う。
+- focus cut 不在時は曖昧なフォールバック再生を行わず、欠落状態を明示する。
 
-### Single Mode
-- Activated when `PreviewModal` receives a single `asset` prop.
-- In Storyline, video cut preview is opened via `openVideoPreview(cutId)` and always enters Single Mode.
-- If `focusCutId` is missing, Single Mode runs as **asset-only preview** (no cut-bound settings).
-- Video: uses direct `<video>` rendering with per-element handlers.
-- Image: uses the Sequence playback engine (`useSequencePlaybackController` + `createImageMediaSource`) even in Single Mode.
-- Image display time resolves from metadata (`displayTime`) and falls back to `1.0s` (clamped to `>= 0.1s`).
-- IN/OUT is stored in local component state (video) or controller range (image/sequence).
-- Audio sync uses a dedicated `AudioManager`.
-- Video: starts from `video.currentTime` on play/pause changes.
-- Image: follows the sequence controller’s absolute time.
+## Export連携
+- Preview 起点 export は Export ガイドの正本ルールに従う。
+- Preview 側で独自の export 時間定義を持たない。
 
-### Sequence Mode
-- Activated when no single `asset` is provided.
-- In Storyline, non-video cut preview (image/lipsync) is opened via `openSequencePreview(cutId)`.
-- Builds `PreviewItem[]` from cuts, then drives playback through a controller.
-- Uses `useSequencePlaybackController` to unify play/pause/seek/loop/range/buffering state.
-- Each cut creates a `MediaSource`.
-- Video: `createVideoMediaSource`.
-- Image: `createImageMediaSource`.
-- Cut changes are triggered by `onEnded` from the current `MediaSource`.
-- Scene scoped sequence preview is supported via `PreviewModal` props `sequenceCuts` + `sequenceContext`.
-- When `sequenceCuts` is provided, Sequence Mode must be built only from those cuts (no fallback to full project / selected scene).
+## 運用メモ
+- UI文言の未確定事項は `docs/TODO_MASTER.md` で管理する。
+- 実装手順・性能調整・既知事象は `docs/notes/` へ分離する。
 
-## Resolution Defaults (Export Trigger)
-- `Free` resolution is treated as `1280x720` when invoking MP4 export from Preview/App.
-- Fixed presets (`FHD/HD/4K/SD`) use their explicit width/height values.
-
-## Preview Media Source Abstraction
-`MediaSource` provides a common interface:
-- `play()` / `pause()`
-- `seek(localTimeSec)`
-- `setRate(rate)`
-- `getCurrentTime()`
-- `dispose()`
-- `element` (JSX to render)
-
-Video sources queue play/seek until the element is mounted, avoiding the cut boundary stop issue.
-
-## Audio Sync (Sequence Mode)
-- Audio uses `AudioManager.play(absoluteTimeSec)`.
-- Absolute time is derived from the controller’s `currentIndex + localProgress`.
-- Audio managers are separate for Single and Sequence to prevent cross-mode races.
-- Embedded audio (video element) mute is controlled by `globalMuted || !cut.useEmbeddedAudio`.
-- Attached audio keeps the current shared control (`globalMuted/globalVolume`) for now.
-- Attached audio binding selection priority is deterministic: `voice.lipsync` > `voice.other` > `se` (enabled entries only).
-- Scene attached audio is resolved via `resolvePreviewAudioTracks(...)` and takes priority over cut attached audio.
-- Single video preview keeps the video render path unchanged and syncs scene audio by clip-local time (`video.currentTime - clipInPoint`) + `scenePreviewOffset`.
-- Sequence preview syncs scene audio by scene-relative absolute time (`absoluteTime - sceneStartAbs + previewOffsetSec`).
-
-## Focused Cut Fallback
-- When `focusCutId` is specified but not found, Preview does not fall back to full-sequence playback.
-- Instead it shows an empty state (`Selected cut is no longer available`).
-
-## Timeline Marker Interaction
-- Timeline progress bar click always performs seek (it does not move IN/OUT markers even when a marker is focused).
-- IN/OUT marker movement is limited to marker drag and frame-step shortcuts when a marker is focused.
-- Marker drag end clears focused marker state to avoid accidental marker edits after drop.
-- IN/OUT constraints (IN <= OUT, OUT >= IN) are applied in a shared path used by marker drag and focused marker frame-step.
-- Keyboard shortcuts are ignored when focus is on editable targets (`input/textarea/select/contentEditable`) or when `ctrl/meta/alt` modifiers are pressed.
-
-## Export Interaction
-- Export entry points share a common pre-export pause path so playback stop behavior stays consistent across full export and range export flows.
-
-## Clip Save Behavior
-- In Single Mode video preview, saving clip points behaves differently for first-time and existing clips.
-- If the target cut is not clipped yet, the source cut is duplicated and clip points are applied to the duplicated cut.
-- If the target cut is already clipped, clip points are updated in place on that cut.
-- Clip thumbnails are treated as cut-specific. Thumbnail updates during clip save/clear should not mutate shared asset cache thumbnails.
-
-## Buffering / Preload
-- Sequence preloads URLs in a time window (`PLAY_SAFE_AHEAD`, `PRELOAD_AHEAD`).
-- Initial preload warms the first `INITIAL_PRELOAD_ITEMS`.
-- Video URL cache is pruned as the playhead moves (keeps a small rewind window).
-- Video URL cache is keyed by **assetId** to prevent mismatched URLs.
-- Image preview sources use thumbnail IPC with a sequence-only profile (`sequence-preview`) instead of asset-grid sizing.
-- Project load path restoration: when `cut.asset.path` is empty in saved snapshots, load flow hydrates the asset from `assets/.index.json` by `assetId` before Sequence video URL creation.
-
-## Known Follow-up
-- `TODO-INVEST-001` を参照: `docs/TODO_MASTER.md`
-
-## Must NOT Do
-- Do not control Sequence Mode playback by directly calling `<video>` methods.
-- Do not special-case Single Mode images back to plain `<img>` timers.
-- Do not remove the pending play/seek logic in `createVideoMediaSource`.
-- Do not reuse or keep old `MediaSource` instances.
-- Do not attach Sequence Mode audio to the video element's currentTime events.
-- Do not bypass the assetId check when binding video URLs.
-- Do not switch Sequence Mode back to blob/base64 video URLs.
-
-## Related Docs
-- `docs/guides/media-handling.md`
-- `docs/guides/implementation/thumbnail-profiles.md`
-- `docs/references/DOMAIN.md`
+## 関連ガイド
+- Export正本: `docs/guides/export.md`
+- Media I/O: `docs/guides/media-handling.md`

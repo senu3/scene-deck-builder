@@ -1,4 +1,4 @@
-# LipSync Guide (RMS-based, Mask Preprocess)
+# LipSync Guide
 
 ## TL;DR
 対象：LipSync設定・再生・前処理
@@ -9,120 +9,40 @@
 - 重処理は登録時に寄せる
 詳細：処理詳細は implementation / notes を参照
 
-**目的**: AI-Scene-Deck における LipSync のデータ構造、保存、前処理、再生の実装仕様を定義する。  
-**適用範囲**: `LipSyncModal`, `PreviewModal`, `metadataStore`, `lipSyncUtils`, `electron/main`。  
-**関連ファイル**:  
-- `src/components/LipSyncModal.tsx`  
-- `src/components/PreviewModal.tsx`  
-- `src/components/DetailsPanel.tsx`  
-- `src/utils/lipSyncUtils.ts`  
-- `src/utils/metadataStore.ts`  
-- `src/store/useStore.ts`  
-- `electron/main.ts`, `electron/preload.ts`  
-- `src/vite-env.d.ts`  
-**更新頻度**: 中。  
+**目的**: LipSync のデータ境界と再生原則を固定する。  
+**適用範囲**: LipSync 設定保存、前処理、Preview/Details 再生。  
+**関連ファイル**: `docs/guides/preview.md`, `docs/guides/media-handling.md`, `docs/guides/vault-assets.md`。  
+**更新頻度**: 中。
 
 ## Must / Must Not
-- Must: 再生時は `getLipSyncFrameAssetIds` を経由してフレーム列を解決する。
-- Must: generated IDs は「生成物のみ」の正準ルールを維持する。
-- Must: 登録時前処理（mask/composited）を優先し、再生時負荷を増やさない。
+- Must: 再生時は `getLipSyncFrameAssetIds` 相当の正規API経由でフレーム列を解決する。
+- Must: generated IDs は「生成物のみ」を保持する。
+- Must: マスク合成などの重処理は登録時前処理に寄せる。
+- Must: metadata には `assetId` 参照を保存する。
 - Must Not: base64 を metadata 永続化しない。
 - Must Not: `compositedFrameAssetIds` を編集入力へ流用しない。
+- Must Not: 再生ループで合成処理を行わない。
 
-## Design Principles
-- **再生は軽く、登録時に重く**  
-  マスク合成は登録時に前処理し、再生中は RMS -> フレーム切替のみを行う。
-- **base64 を metadata に永続化しない**  
-  画像/マスクは Vault asset に保存し、metadata は `assetId` 参照のみ保持する。
-- **v2正規化を維持**  
-  `compositedFrameAssetIds` を必須として扱い、load 時に欠損データは one-time normalize で補完する。
+## データ境界
+- 正本は `AssetMetadata.lipSync` と対応 asset 群。
+- 編集入力は base/variant 系 asset を使い、再生入力と混同しない。
+- 生成物バンドルの所有関係は owner を軸に管理する。
 
-## Data Model
-`AssetMetadata.lipSync` に設定を格納する。
+## 再生・編集の責務分離
+- 再生:
+  - RMS からフレーム選択を行う。
+  - 欠損時は安全な既定フレームへフォールバックする。
+- 編集:
+  - 再編集時も編集用入力を正本とし、再生用合成結果を直接編集しない。
 
-```ts
-type LipSyncSettings = {
-  baseImageAssetId: string;         // closed
-  variantAssetIds: string[];        // [half1, half2, open]
-  maskAssetId?: string;             // Optional mouth mask
-  compositedFrameAssetIds: string[]; // [closed, half1, half2, open] (runtime required)
-  ownerAssetId?: string;            // LipSync owner (target assetId)
-  ownedGeneratedAssetIds?: string[]; // Current generated bundle (mask/composited)
-  orphanedGeneratedAssetIds?: string[]; // Old generated assets from re-register
-  rmsSourceAudioAssetId: string;
-  thresholds: { t1: number; t2: number; t3: number };
-  fps: number;
-  sourceVideoAssetId?: string;
-  version?: 1 | 2;
-};
-```
+## Cleanup方針
+- Relink / 削除時は参照整合を崩さずに cleanup する。
+- 参照中 asset の扱いは Vault/Asset ガイドの削除ポリシーに従う。
 
-## Asset Handling
-- フレーム/マスクは `importDataUrlAsset` で Vault に保存する。
-- metadata にはバイナリを持たせない。
-- 再生で使うフレーム列は `getLipSyncFrameAssetIds(settings)` で `compositedFrameAssetIds` のみを解決する。
+## 運用メモ
+- 破壊的移行は `docs/TODO_MASTER.md` の Breaking Track で管理する。
+- 実装手順・移行経緯・詳細検討は `docs/notes/` へ分離する。
 
-## Bundle Ownership
-- LipSync 生成物（mask/composited）は `ownerAssetId` を軸に同一バンドルとして扱う。
-- 現在有効な生成物は `ownedGeneratedAssetIds` に保持する。
-- 再登録時に前回バンドルとの差分は `orphanedGeneratedAssetIds` に自動移行する。
-- 物理保存先は当面 `vault/assets` のまま（論理管理のみ実施）。
-- `ownedGeneratedAssetIds` / `orphanedGeneratedAssetIds` は **生成物のみ** を保持し、owner/base/variant/rms/sourceVideo は含めない（正準ルール）。
-
-## Mask Preprocess (Register Time)
-1. `LipSyncModal` で closed/half1/half2/open + mask を用意する。  
-2. `maskAssetId` を先に Vault 登録する。  
-3. `precompose-lipsync-frames` IPC を呼び、ffmpeg で4フレーム合成する。  
-4. IPC が失敗した場合のみ renderer Canvas 合成へフォールバックする。  
-5. 合成結果を Vault に保存し、`compositedFrameAssetIds` として metadata に保持する。  
-
-### IPC
-- channel: `precompose-lipsync-frames`
-- request:
-  - `baseImagePath`
-  - `frameImagePaths` (closed含む4件)
-  - `maskImagePath`
-- response:
-  - `success`
-  - `frameDataUrls?: string[]`
-  - `error?: string`
-
-## Edit Behavior
-- 再EDIT時は、編集用フレームとして常に `baseImageAssetId + variantAssetIds` を読む。
-- `compositedFrameAssetIds` は再生用であり、編集用入力に使わない。
-- これにより「マスク二重適用」や「口形状の潰れ」を回避する。
-- 再登録時は未変更フレームを既存 asset のまま再利用し、再キャプチャ分のみ更新する。
-- 再登録時は `ownerAssetId = target assetId` を維持し、生成物バンドルを更新する。
-- Relink 時に対象 cut が LipSync（または owner metadata に LipSync 設定あり）の場合は Confirm を表示する。
-- Relink 実行時は cut の LipSync フラグを解除し、通常の画像 cut として扱う。
-
-## Cleanup Policy
-- **Cut 削除**: LipSync 設定と生成アセットは保持する（asset に戻した時の再利用を優先）。
-- **Relink**: 旧 owner に対する LipSync 設定を解除し、残存 LipSync cut が無ければ生成アセットを cleanup する。
-- **Asset 削除**: `deleteAssetWithPolicy` を入口に参照整合を保ちながら削除する。
-- cleanup 対象は主に `ownedGeneratedAssetIds` / `orphanedGeneratedAssetIds`（必要に応じて index 解決）を使う。
-
-## AssetPanel Behavior
-- 生成フレーム（mask/composited/orphaned）は AssetPanel 一覧に表示しない。
-- owner（ベース）アセットのみを表示し、LipSync 設定がある場合は LipSync バッジを表示する。
-- これによりユーザーの資産一覧では「編集対象アセット」を優先し、生成中間物を隠蔽する。
-- 防御実装として、一覧非表示判定では owner/base/variant/rms/sourceVideo を生成物集合から除外する（metadata の過去揺れ対策）。
-
-## Playback
-- `PreviewModal` / `DetailsPanel` は `getLipSyncFrameAssetIds` でフレーム列を取得する。
-- RMS 変換は `absoluteTimeToRmsIndex` / `rmsValueToVariantIndex` を使用する。
-- RMS 不足時は base フレームで継続する。
-
-## Must NOT Do
-- `compositedFrameAssetIds` を編集入力として再利用しない。
-- base64 を metadata に保存しない。
-- 再生ループで Canvas 合成を行わない。
-
-## Next Phase
-- `TODO-BREAKING-001` を参照: `docs/TODO_MASTER.md`
-
-## Related Docs
-- `docs/notes/archive/lip-sync-requirements.md`
-- `docs/guides/preview.md`
-- `docs/guides/media-handling.md`
-- `docs/guides/implementation/buffer-memory.md`
+## 関連ガイド
+- Preview再生: `docs/guides/preview.md`
+- Vault境界: `docs/guides/vault-assets.md`

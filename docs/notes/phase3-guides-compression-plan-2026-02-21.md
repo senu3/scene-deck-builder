@@ -37,8 +37,8 @@
 ## 実施ステータス
 - Wave 1（完了）:
   - `docs/guides/*.md` 全9ファイルへ `TL;DR` を追加。
-- Wave 2（進行中）:
+- Wave 2（完了）:
   - `vault-assets.md` をL1責務へ圧縮（実装詳細節を削除）。
   - `cut-history.md` をL1責務へ圧縮（Command列挙・日付運用節を削除）。
-- Wave 3（着手待ち）:
+- Wave 3（完了）:
   - `scene-duration-bar.md` / `lip-sync.md` / `preview.md` のUI・実装詳細を圧縮。
