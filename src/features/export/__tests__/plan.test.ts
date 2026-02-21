@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_EXPORT_FPS, resolveExportPlan, resolveExportResolution } from '../plan';
 
 describe('export plan', () => {
-  it('normalizes free/invalid resolution to defaults', () => {
-    expect(resolveExportResolution({ width: 0, height: 0 })).toEqual({ width: 1280, height: 720 });
-    expect(resolveExportResolution({ width: Number.NaN, height: -1 })).toEqual({ width: 1280, height: 720 });
+  it.each([
+    { input: { width: 0, height: 0 }, expected: { width: 1280, height: 720 } },
+    { input: { width: Number.NaN, height: -1 }, expected: { width: 1280, height: 720 } },
+  ])('normalizes free/invalid resolution to defaults: %o', ({ input, expected }) => {
+    expect(resolveExportResolution(input)).toEqual(expected);
   });
 
   it('builds mp4 plan with normalized resolution', () => {

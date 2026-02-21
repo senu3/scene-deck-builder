@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Asset, Scene } from '../../types';
+import type { Scene } from '../../types';
 import { buildSequenceItemsForCuts, buildSequenceItemsForExport, resolveFramingParams } from '../exportSequence';
+import { mapAssetsById } from './testHelpers';
 
 const imageAsset = {
   id: 'asset-image',
@@ -43,10 +44,7 @@ describe('buildSequenceItemsForExport', () => {
       },
     ];
 
-    const assets = new Map<string, Asset>([
-      [imageAsset.id, imageAsset],
-      [videoAsset.id, videoAsset],
-    ]);
+    const assets = mapAssetsById([imageAsset, videoAsset]);
     const items = buildSequenceItemsForExport(scenes, ['scene-1', 'scene-2'], {
       resolveAssetById: (assetId) => assets.get(assetId),
     });
@@ -68,10 +66,7 @@ describe('buildSequenceItemsForExport', () => {
       ],
     }];
 
-    const assets = new Map<string, Asset>([
-      [imageAsset.id, imageAsset],
-      [videoAsset.id, videoAsset],
-    ]);
+    const assets = mapAssetsById([imageAsset, videoAsset]);
     const items = buildSequenceItemsForExport(scenes, {
       resolveAssetById: (assetId) => assets.get(assetId),
     });
@@ -118,10 +113,10 @@ describe('buildSequenceItemsForExport', () => {
       },
     ];
 
-    const assets = new Map<string, Asset>([
-      [imageAsset.id, imageAsset],
-      [videoAsset.id, videoAsset],
-      ['asset-audio', { id: 'asset-audio', name: 'audio.wav', path: '/tmp/audio.wav', type: 'audio' as const }],
+    const assets = mapAssetsById([
+      imageAsset,
+      videoAsset,
+      { id: 'asset-audio', name: 'audio.wav', path: '/tmp/audio.wav', type: 'audio' as const },
     ]);
     const items = buildSequenceItemsForCuts(cuts, {
       framingDefaults: { mode: 'fit', anchor: 'left' },
@@ -147,7 +142,7 @@ describe('buildSequenceItemsForExport', () => {
       { id: 'cmp-3', name: 'cmp-3.png', path: '/tmp/cmp-3.png', type: 'image' as const },
       { id: 'cmp-4', name: 'cmp-4.png', path: '/tmp/cmp-4.png', type: 'image' as const },
     ];
-    const assets = new Map([lipOwner, ...frames].map((asset) => [asset.id, asset]));
+    const assets = mapAssetsById([lipOwner, ...frames]);
 
     const items = buildSequenceItemsForCuts(
       [{
@@ -256,7 +251,7 @@ describe('buildSequenceItemsForExport', () => {
       { id: 'cmp-3', name: 'cmp-3.png', path: '/tmp/cmp-3.png', type: 'image' as const },
       { id: 'cmp-4', name: 'cmp-4.png', path: '/tmp/cmp-4.png', type: 'image' as const },
     ];
-    const assets = new Map([imageAsset, videoAsset, lipOwner, ...lipsyncFrames].map((asset) => [asset.id, asset]));
+    const assets = mapAssetsById([imageAsset, videoAsset, lipOwner, ...lipsyncFrames]);
 
     const scenes: Scene[] = [
       {

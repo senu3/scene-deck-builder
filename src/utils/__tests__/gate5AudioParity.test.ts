@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { Asset, Cut, MetadataStore } from '../../types';
+import type { Cut } from '../../types';
 import { buildExportAudioPlan, canonicalizeCutsForExportAudioPlan } from '../exportAudioPlan';
 import { buildSequenceItemsForCuts } from '../exportSequence';
 import { computeCanonicalStoryTimingsForCuts } from '../storyTiming';
+import { createSceneAttachMetadataStore, mapAssetsById } from './testHelpers';
 
 describe('gate5 audio parity', () => {
   it('keeps timing->items->audioPlan aligned with embedded-audio off/on semantics', () => {
@@ -32,27 +33,13 @@ describe('gate5 audio parity', () => {
       },
     ];
 
-    const assets = new Map<string, Asset>([
-      ['vid-1', { id: 'vid-1', name: 'v1.mp4', path: '/vault/v1.mp4', type: 'video', duration: 4 }],
-      ['img-1', { id: 'img-1', name: 'i1.png', path: '/vault/i1.png', type: 'image' }],
-      ['vid-2', { id: 'vid-2', name: 'v2.mp4', path: '/vault/v2.mp4', type: 'video' }],
-      ['aud-cut', { id: 'aud-cut', name: 'cut.wav', path: '/vault/cut.wav', type: 'audio' }],
-      ['aud-scene', { id: 'aud-scene', name: 'scene.wav', path: '/vault/scene.wav', type: 'audio' }],
+    const assets = mapAssetsById([
+      { id: 'vid-1', name: 'v1.mp4', path: '/vault/v1.mp4', type: 'video', duration: 4 },
+      { id: 'img-1', name: 'i1.png', path: '/vault/i1.png', type: 'image' },
+      { id: 'vid-2', name: 'v2.mp4', path: '/vault/v2.mp4', type: 'video' },
+      { id: 'aud-cut', name: 'cut.wav', path: '/vault/cut.wav', type: 'audio' },
+      { id: 'aud-scene', name: 'scene.wav', path: '/vault/scene.wav', type: 'audio' },
     ]);
-
-    const metadataStore: MetadataStore = {
-      version: 1,
-      metadata: {},
-      sceneMetadata: {
-        'scene-1': {
-          id: 'scene-1',
-          name: 'S1',
-          notes: [],
-          updatedAt: 't',
-          attachAudio: { id: 'sa-1', audioAssetId: 'aud-scene', enabled: true, kind: 'scene' },
-        },
-      },
-    };
 
     const cutSceneMap = new Map<string, string>([
       ['cut-1', 'scene-1'],
@@ -75,7 +62,7 @@ describe('gate5 audio parity', () => {
     });
     const audioPlan = buildExportAudioPlan({
       cuts: canonicalizeCutsForExportAudioPlan(normalizedCuts, (assetId) => assets.get(assetId)).cuts,
-      metadataStore,
+      metadataStore: createSceneAttachMetadataStore('scene-1', 'aud-scene'),
       getAssetById: (assetId) => assets.get(assetId),
       resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
     });

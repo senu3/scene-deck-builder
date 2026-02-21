@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { Asset, Cut, MetadataStore } from '../../types';
+import type { Cut } from '../../types';
 import { buildExportAudioPlan, canonicalizeCutsForExportAudioPlan, type ExportAudioPlanCut } from '../exportAudioPlan';
+import { createSceneAttachMetadataStore, mapAssetsById } from './testHelpers';
 
 describe('buildExportAudioPlan', () => {
   it('builds mixed events for video + cut attach + scene attach', () => {
@@ -23,35 +24,16 @@ describe('buildExportAudioPlan', () => {
       },
     ];
 
-    const assets = new Map<string, Asset>([
-      ['vid-1', { id: 'vid-1', name: 'v.mp4', path: '/vault/v.mp4', type: 'video' }],
-      ['img-1', { id: 'img-1', name: 'i.png', path: '/vault/i.png', type: 'image' }],
-      ['aud-cut', { id: 'aud-cut', name: 'cut.wav', path: '/vault/cut.wav', type: 'audio' }],
-      ['aud-scene', { id: 'aud-scene', name: 'scene.wav', path: '/vault/scene.wav', type: 'audio' }],
+    const assets = mapAssetsById([
+      { id: 'vid-1', name: 'v.mp4', path: '/vault/v.mp4', type: 'video' },
+      { id: 'img-1', name: 'i.png', path: '/vault/i.png', type: 'image' },
+      { id: 'aud-cut', name: 'cut.wav', path: '/vault/cut.wav', type: 'audio' },
+      { id: 'aud-scene', name: 'scene.wav', path: '/vault/scene.wav', type: 'audio' },
     ]);
-
-    const metadataStore: MetadataStore = {
-      version: 1,
-      metadata: {},
-      sceneMetadata: {
-        'scene-1': {
-          id: 'scene-1',
-          name: 'S1',
-          notes: [],
-          updatedAt: 't',
-          attachAudio: {
-            id: 'sa-1',
-            audioAssetId: 'aud-scene',
-            enabled: true,
-            kind: 'scene',
-          },
-        },
-      },
-    };
 
     const plan = buildExportAudioPlan({
       cuts: canonicalizeCutsForExportAudioPlan(cuts, (assetId) => assets.get(assetId)).cuts,
-      metadataStore,
+      metadataStore: createSceneAttachMetadataStore('scene-1', 'aud-scene'),
       getAssetById: (assetId) => assets.get(assetId),
       resolveSceneIdByCutId: () => 'scene-1',
     });
@@ -79,8 +61,8 @@ describe('buildExportAudioPlan', () => {
         useEmbeddedAudio: true,
       },
     ];
-    const assets = new Map<string, Asset>([
-      ['vid-1', { id: 'vid-1', name: 'v.mp4', path: '/vault/v.mp4', type: 'video' }],
+    const assets = mapAssetsById([
+      { id: 'vid-1', name: 'v.mp4', path: '/vault/v.mp4', type: 'video' },
     ]);
 
     const plan = buildExportAudioPlan({
@@ -106,9 +88,9 @@ describe('buildExportAudioPlan', () => {
         audioBindings: [{ id: 'b1', audioAssetId: 'aud-cut', enabled: true, offsetSec: 1.25, gain: 0.8, kind: 'voice.other' }],
       },
     ];
-    const assets = new Map<string, Asset>([
-      ['vid-1', { id: 'vid-1', name: 'v.mp4', path: '/vault/v.mp4', type: 'video' }],
-      ['aud-cut', { id: 'aud-cut', name: 'cut.wav', path: '/vault/cut.wav', type: 'audio' }],
+    const assets = mapAssetsById([
+      { id: 'vid-1', name: 'v.mp4', path: '/vault/v.mp4', type: 'video' },
+      { id: 'aud-cut', name: 'cut.wav', path: '/vault/cut.wav', type: 'audio' },
     ]);
 
     const plan = buildExportAudioPlan({
@@ -138,34 +120,16 @@ describe('buildExportAudioPlan', () => {
         ],
       },
     ];
-    const assets = new Map<string, Asset>([
-      ['img-1', { id: 'img-1', name: 'i.png', path: '/vault/i.png', type: 'image' }],
-      ['aud-on', { id: 'aud-on', name: 'on.wav', path: '/vault/on.wav', type: 'audio' }],
-      ['aud-off', { id: 'aud-off', name: 'off.wav', path: '/vault/off.wav', type: 'audio' }],
-      ['aud-scene', { id: 'aud-scene', name: 'scene.wav', path: '/vault/scene.wav', type: 'audio' }],
+    const assets = mapAssetsById([
+      { id: 'img-1', name: 'i.png', path: '/vault/i.png', type: 'image' },
+      { id: 'aud-on', name: 'on.wav', path: '/vault/on.wav', type: 'audio' },
+      { id: 'aud-off', name: 'off.wav', path: '/vault/off.wav', type: 'audio' },
+      { id: 'aud-scene', name: 'scene.wav', path: '/vault/scene.wav', type: 'audio' },
     ]);
-    const metadataStore: MetadataStore = {
-      version: 1,
-      metadata: {},
-      sceneMetadata: {
-        'scene-1': {
-          id: 'scene-1',
-          name: 'S1',
-          notes: [],
-          updatedAt: 't',
-          attachAudio: {
-            id: 'sa-1',
-            audioAssetId: 'aud-scene',
-            enabled: false,
-            kind: 'scene',
-          },
-        },
-      },
-    };
 
     const plan = buildExportAudioPlan({
       cuts: canonicalizeCutsForExportAudioPlan(cuts, (assetId) => assets.get(assetId)).cuts,
-      metadataStore,
+      metadataStore: createSceneAttachMetadataStore('scene-1', 'aud-scene', false),
       getAssetById: (assetId) => assets.get(assetId),
       resolveSceneIdByCutId: () => 'scene-1',
     });
@@ -185,8 +149,8 @@ describe('buildExportAudioPlan', () => {
         order: 0,
       },
     ];
-    const assets = new Map<string, Asset>([
-      ['vid-1', { id: 'vid-1', name: 'v.mp4', path: '/vault/v.mp4', type: 'video', duration: 4 }],
+    const assets = mapAssetsById([
+      { id: 'vid-1', name: 'v.mp4', path: '/vault/v.mp4', type: 'video', duration: 4 },
     ]);
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
