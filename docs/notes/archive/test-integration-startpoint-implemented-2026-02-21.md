@@ -1,5 +1,9 @@
 # Test Integration Startpoint (2026-02-18)
 
+**Status**: Implemented (archived)  
+**Implemented by**:
+- `935c1d2` `test(integration): consolidate low-risk test cases and shared fixtures`
+
 ## 目的
 - テスト統合の開始地点を固定し、過剰増加を防ぎつつ診断力を維持する。
 
@@ -47,3 +51,13 @@
 2. `exportAudioPlan` / `exportSequence` / `gate5AudioParity` の fixture helper を共通化。
 3. `store` テストの `initializeProject` / asset 定義を helper 化。
 4. Gate 直結テスト群は名称とアサーションを維持したまま据え置く。
+
+## 実施ログ
+- 2026-02-21:
+  - `previewAudioTracks` / `lipSyncExport` / `features/export/plan` の低リスクケースを `it.each` 化。
+  - `utils` テスト向けに shared helper（asset map / scene attach metadata）を追加し、`exportAudioPlan` / `exportSequence` / `gate5AudioParity` の重複 fixture を縮退。
+  - `store` テスト向けに shared helper（single scene 初期化 / 共通 asset）を追加し、`useEmbeddedAudioStore` / `audioBindingDisplayName` / `cutRuntimeState` の初期化重複を縮退。
+  - `timelineIntegrityCommands` など Gate 直結テストの名称・アサーションは据え置き。
+- 検証:
+  - `npm test -- src/utils/__tests__/previewAudioTracks.test.ts src/utils/__tests__/lipSyncExport.test.ts src/features/export/__tests__/plan.test.ts src/utils/__tests__/exportSequence.test.ts src/utils/__tests__/exportAudioPlan.test.ts src/utils/__tests__/gate5AudioParity.test.ts src/store/__tests__/useEmbeddedAudioStore.test.ts src/store/__tests__/audioBindingDisplayName.test.ts src/store/__tests__/cutRuntimeState.test.ts`
+  - `npm run check:gate:strict`
