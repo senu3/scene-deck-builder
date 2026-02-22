@@ -1761,9 +1761,10 @@ export default function PreviewModal({
       const clipInPoint = currentItem.cut.isClip && currentItem.cut.inPoint !== undefined
         ? currentSpec?.inPoint ?? currentItem.cut.inPoint
         : 0;
+      const durationBound = currentSpec?.duration ?? currentItem.normalizedDisplayTime;
       const clipOutPoint = currentItem.cut.isClip && currentItem.cut.outPoint !== undefined
         ? currentSpec?.outPoint ?? currentItem.cut.outPoint
-        : undefined;
+        : clipInPoint + durationBound;
 
       const videoSourceKey = `${currentItem.cut.id}:${videoObjectUrl.url}:${clipInPoint}:${clipOutPoint ?? 'end'}`;
       const source = createVideoMediaSource({
