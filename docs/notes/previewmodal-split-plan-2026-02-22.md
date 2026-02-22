@@ -174,3 +174,7 @@
   - `usePreviewSharedViewState.ts` を追加し、shared派生値（framing/resolution/progress）と埋め込みvideoのvolume/mute同期、progress反映effectを `PreviewModal.tsx` から分離。
   - `PreviewModal.tsx` は view props 組み立てを中心にし、shared UI state/effect の責務を hook 側へ集約。
   - `npm run build` でビルド成功を確認。
+- 2026-02-22 Step 4 進捗（single media asset読み込みのhook化）:
+  - `usePreviewSingleMediaAsset.ts` を追加し、Single Mode の video URL / image thumbnail 読み込みと loading 状態、Single時URL cleanup を `PreviewModal.tsx` から分離。
+  - `PreviewModal.tsx` では `isLoading` と `singleModeImageData` を hook から受け取り、Singleメディア読込責務を移管。
+  - `npm run build` でビルド成功を確認。
