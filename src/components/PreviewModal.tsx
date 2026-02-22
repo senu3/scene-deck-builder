@@ -14,15 +14,12 @@ import {
 } from '../store/selectors';
 import type { Asset, Cut } from '../types';
 import { createVideoObjectUrl } from '../utils/videoUtils';
-import { formatTime, cyclePlaybackSpeed } from '../utils/timeUtils';
+import { cyclePlaybackSpeed } from '../utils/timeUtils';
 import { resolveCutAsset, resolveCutThumbnail } from '../utils/assetResolve';
 import { useSequencePlaybackController } from '../utils/previewPlaybackController';
 import { getAssetThumbnail } from '../features/thumbnails/api';
-import { buildSequenceItemsForCuts } from '../utils/exportSequence';
-import { DEFAULT_EXPORT_RESOLUTION } from '../constants/export';
 import { EXPORT_FRAMING_DEFAULTS } from '../constants/framing';
 import { buildPreviewViewportFramingStyle, buildPreviewViewportFramingStyleFromResolved } from '../utils/previewFraming';
-import { buildExportAudioPlan, canonicalizeCutsForExportAudioPlan } from '../utils/exportAudioPlan';
 import { getScenesInOrder } from '../utils/sceneOrder';
 import {
   asCanonicalDurationSec,
@@ -57,6 +54,7 @@ import { usePreviewSequenceMediaSource } from './preview-modal/usePreviewSequenc
 import { usePreviewSequenceAudio } from './preview-modal/usePreviewSequenceAudio';
 import { usePreviewSequenceBuffering } from './preview-modal/usePreviewSequenceBuffering';
 import { usePreviewSingleAttachedAudio } from './preview-modal/usePreviewSingleAttachedAudio';
+import { usePreviewExportActions } from './preview-modal/usePreviewExportActions';
 import type { FocusedMarker } from './shared';
 import './PreviewModal.css';
 import './shared/playback-controls.css';
@@ -121,7 +119,6 @@ export default function PreviewModal({
   const [selectedResolution, setSelectedResolution] = useState<ResolutionPreset>(
     exportResolution ? { ...exportResolution } : RESOLUTION_PRESETS[0]
   );
-  const [isExporting, setIsExporting] = useState(false);
   // Overlay is view-only helper UI; it must not persist state or affect export decisions.
   const { showOverlay, showOverlayNow, scheduleHideOverlay } = usePreviewOverlayVisibility({ hideDelayMs: 300 });
   const { show: showMiniToast, element: miniToastElement } = useMiniToast();
@@ -1071,189 +1068,19 @@ export default function PreviewModal({
     onToggleMute: toggleGlobalMute,
   });
 
-  // Export full sequence (no range)
-  const handleExportFull = useCallback(async () => {
-    if (items.length === 0) return;
-
-    setIsExporting(true);
-    pauseBeforeExport();
-
-    try {
-      const exportWidth = selectedResolution.width > 0 ? selectedResolution.width : DEFAULT_EXPORT_RESOLUTION.width;
-      const exportHeight = selectedResolution.height > 0 ? selectedResolution.height : DEFAULT_EXPORT_RESOLUTION.height;
-      const exportCuts = items.map((item) => ({
-        ...item.cut,
-        displayTime: item.normalizedDisplayTime,
-      }));
-
-      if (onExportSequence) {
-        await onExportSequence(exportCuts, { width: exportWidth, height: exportHeight });
-        return;
-      }
-
-      if (!window.electronAPI) {
-        return;
-      }
-
-      const outputPath = await window.electronAPI.showSaveSequenceDialog('sequence_export.mp4');
-      if (!outputPath) {
-        return;
-      }
-
-      const sequenceItems = buildSequenceItemsForCuts(
-        exportCuts,
-        {
-          debugFraming: true,
-          framingDefaults: EXPORT_FRAMING_DEFAULTS,
-          metadataByAssetId: metadataStore?.metadata,
-          resolveAssetById: getAsset,
-        }
-      );
-      const cutSceneMap = new Map<string, string>();
-      for (const item of items) {
-        cutSceneMap.set(item.cut.id, item.sceneId);
-      }
-      const audioPlan = buildExportAudioPlan({
-        cuts: canonicalizeCutsForExportAudioPlan(exportCuts, getAsset).cuts,
-        metadataStore: metadataStore ?? null,
-        getAssetById: getAsset,
-        resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
-      });
-
-      const result = await window.electronAPI.exportSequence({
-        items: sequenceItems,
-        outputPath,
-        width: exportWidth,
-        height: exportHeight,
-        fps: 30,
-        audioPlan,
-      });
-
-      if (result.success) {
-        alert(
-          `Export complete!\nFile: ${result.outputPath}\nSize: ${(result.fileSize! / 1024 / 1024).toFixed(2)} MB` +
-          `${result.audioOutputPath ? `\nAudio: ${result.audioOutputPath}` : ''}`
-        );
-      } else {
-        alert(`Export failed: ${result.error}`);
-      }
-    } catch (error) {
-      alert(`Export error: ${String(error)}`);
-    } finally {
-      setIsExporting(false);
-    }
-  }, [items, selectedResolution, pauseBeforeExport, metadataStore, getAsset, onExportSequence]);
-
-  // Export with IN/OUT range (Save button) - kept for future UI implementation
-  const _handleExportRange = useCallback(async () => {
-    if (!window.electronAPI || items.length === 0) return;
-    if (inPoint === null || outPoint === null) return;
-
-    setIsExporting(true);
-    pauseBeforeExport();
-
-    try {
-      const exportWidth = selectedResolution.width > 0 ? selectedResolution.width : DEFAULT_EXPORT_RESOLUTION.width;
-      const exportHeight = selectedResolution.height > 0 ? selectedResolution.height : DEFAULT_EXPORT_RESOLUTION.height;
-
-      const outputPath = await window.electronAPI.showSaveSequenceDialog('sequence_export.mp4');
-      if (!outputPath) {
-        return;
-      }
-
-      const rangeStart = Math.min(inPoint, outPoint);
-      const rangeEnd = Math.max(inPoint, outPoint);
-
-      const rangeCuts: Cut[] = [];
-
-      let accumulatedTime = 0;
-      for (const item of items) {
-        const asset = resolveAssetForCut(item.cut);
-        if (!asset?.path) continue;
-
-        const itemStart = accumulatedTime;
-        const itemEnd = accumulatedTime + item.normalizedDisplayTime;
-        accumulatedTime = itemEnd;
-
-        if (itemEnd <= rangeStart || itemStart >= rangeEnd) continue;
-
-        const clipStart = Math.max(0, rangeStart - itemStart);
-        const clipEnd = Math.min(item.normalizedDisplayTime, rangeEnd - itemStart);
-        const clipDuration = clipEnd - clipStart;
-
-        if (clipDuration <= 0) continue;
-
-        if (asset.type === 'video') {
-          const originalInPoint = item.cut.isClip && item.cut.inPoint !== undefined ? item.cut.inPoint : 0;
-          const clippedCut: Cut = {
-            ...item.cut,
-            displayTime: clipDuration,
-            isClip: true,
-            inPoint: originalInPoint + clipStart,
-            outPoint: originalInPoint + clipEnd,
-          };
-          rangeCuts.push(clippedCut);
-        } else {
-          rangeCuts.push({
-            ...item.cut,
-            displayTime: clipDuration,
-            isClip: false,
-            inPoint: undefined,
-            outPoint: undefined,
-          });
-        }
-      }
-
-      const sequenceItems = buildSequenceItemsForCuts(
-        rangeCuts,
-        {
-          debugFraming: true,
-          framingDefaults: EXPORT_FRAMING_DEFAULTS,
-          metadataByAssetId: metadataStore?.metadata,
-          resolveAssetById: getAsset,
-        }
-      );
-
-      if (sequenceItems.length === 0) {
-        alert('No items in the selected range');
-        return;
-      }
-      const cutSceneMap = new Map<string, string>();
-      for (const item of items) {
-        cutSceneMap.set(item.cut.id, item.sceneId);
-      }
-      const audioPlan = buildExportAudioPlan({
-        cuts: canonicalizeCutsForExportAudioPlan(rangeCuts, getAsset).cuts,
-        metadataStore: metadataStore ?? null,
-        getAssetById: getAsset,
-        resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
-      });
-
-      const result = await window.electronAPI.exportSequence({
-        items: sequenceItems,
-        outputPath,
-        width: exportWidth,
-        height: exportHeight,
-        fps: 30,
-        audioPlan,
-      });
-
-      if (result.success) {
-        alert(
-          `Export complete! (${formatTime(rangeStart)} - ${formatTime(rangeEnd)})\nFile: ${result.outputPath}\nSize: ${(result.fileSize! / 1024 / 1024).toFixed(2)} MB` +
-          `${result.audioOutputPath ? `\nAudio: ${result.audioOutputPath}` : ''}`
-        );
-      } else {
-        alert(`Export failed: ${result.error}`);
-      }
-    } catch (error) {
-      alert(`Export error: ${String(error)}`);
-    } finally {
-      setIsExporting(false);
-    }
-  }, [items, selectedResolution, inPoint, outPoint, pauseBeforeExport, resolveAssetForCut, metadataStore, getAsset]);
+  const { isExporting, handleExportFull, handleExportRange } = usePreviewExportActions({
+    items,
+    selectedResolution,
+    metadataStore: metadataStore ?? null,
+    getAsset,
+    onExportSequence,
+    pauseBeforeExport,
+    inPoint,
+    outPoint,
+    resolveAssetForCut,
+  });
   // Suppress unused variable warning - code kept for future use
-  void _handleExportRange;
+  void handleExportRange;
 
   // Apply volume/mute to the active video element (embedded audio only)
   useEffect(() => {
