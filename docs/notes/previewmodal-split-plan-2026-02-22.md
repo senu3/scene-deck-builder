@@ -260,3 +260,8 @@
   - `getPrimaryAudioBindingForCut` / `getAttachedAudioForCut` / `getAudioOffsetForCut` / `shouldMuteEmbeddedAudio` のローカル helper を `PreviewModal.tsx` から削除し、resolver 呼び出しへ置換。
   - `usePreviewSingleAttachedAudio.ts` は `resolveAudioBindingForCut` を受ける構成へ変更し、attach audio + offset の算出正本を統一。
   - `npm run build` でビルド成功を確認。
+- 2026-02-22 Step 11 進捗（Composition Root 最終整理）:
+  - `usePreviewSingleModeSession.ts` を追加し、Single mode の再生/INOUT/CLIP/marker-drag/動画イベント handler を 1 束へ集約。
+  - `PreviewModal.tsx` から Single 関連の条件分岐 handler/effect を削減し、hook 呼び出し + View props 組み立て中心へ整理。
+  - `useClipRangeState` は range state と marker focus の責務を維持し、Single mode 専用の副作用は `usePreviewSingleModeSession` 側へ移管。
+  - `npm run build` でビルド成功を確認し、手動テスト（Single再生/INOUT/CLIP/marker/frame capture）もOK。
