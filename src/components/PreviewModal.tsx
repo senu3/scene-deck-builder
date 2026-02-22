@@ -1,5 +1,4 @@
 import { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { X, Play, Pause, SkipBack, SkipForward, Repeat, Maximize, Scissors, Camera } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import {
   selectScenes,
@@ -34,11 +33,6 @@ import {
   resolveCanonicalCutDuration,
   type CanonicalDurationSec,
 } from '../utils/storyTiming';
-import {
-  PlaybackRangeMarkers,
-  VolumeControl,
-  TimeDisplay,
-} from './shared';
 import type { FocusedMarker } from './shared';
 import { useMiniToast } from '../ui';
 import type { PreviewItem, PreviewModalProps, ResolutionPreset } from './preview-modal/types';
@@ -55,9 +49,9 @@ import {
   isEditableTarget,
   revokeIfBlob,
 } from './preview-modal/helpers';
-import { PreviewResolutionPicker } from './preview-modal/PreviewResolutionPicker';
 import { buildPreviewItems } from './preview-modal/previewItemsBuilder';
 import { PreviewModalSequenceView } from './preview-modal/PreviewModalSequenceView';
+import { PreviewModalSingleView } from './preview-modal/PreviewModalSingleView';
 import './PreviewModal.css';
 import './shared/playback-controls.css';
 
@@ -2000,274 +1994,71 @@ export default function PreviewModal({
   // ===== SINGLE MODE RENDER =====
   if (isSingleMode) {
     return (
-      <div className="preview-modal" ref={modalRef} onMouseDown={handleContainerMouseDown}>
-        <div className="preview-backdrop" onClick={onClose} />
-        <div className="preview-container preview-container--compact">
-          {/* Display area */}
-          <div
-            className={previewDisplayClassName}
-            ref={displayContainerRef}
-            onMouseEnter={showOverlayNow}
-            onMouseMove={showOverlayNow}
-            onMouseLeave={scheduleHideOverlay}
-          >
-            {/* Minimal header overlay */}
-            <div className="preview-header preview-header--compact">
-              <div className="preview-header-left">
-                <span className="preview-title">{asset.name}</span>
-                {isAssetOnlyPreview && (
-                  <span className="preview-badge">Asset Preview</span>
-                )}
-              </div>
-              <div className="preview-header-right">
-                <button className="preview-close-btn" onClick={onClose} title="Close (Esc)">
-                  <X size={20} />
-                </button>
-              </div>
-            </div>
-
-            {isLoading ? (
-              <div className="preview-placeholder">
-                <div className="loading-spinner" />
-                <p>Loading {isSingleModeVideo ? 'video' : 'image'}...</p>
-              </div>
-            ) : isSingleModeVideo && videoObjectUrl?.url ? (
-              (() => {
-                const viewportStyle = getViewportStyle();
-                const videoContent = (
-                  <video
-                    ref={videoRef}
-                    src={videoObjectUrl.url}
-                    className="preview-media"
-                    onClick={toggleSingleModePlay}
-                    onTimeUpdate={handleSingleModeTimeUpdate}
-                    onLoadedMetadata={handleSingleModeLoadedMetadata}
-                    onPlay={() => setSingleModeIsPlaying(true)}
-                    onPause={() => setSingleModeIsPlaying(false)}
-                    onEnded={handleSingleModeVideoEnded}
-                  />
-                );
-
-                if (viewportStyle) {
-                  return (
-                    <div
-                      className="resolution-viewport"
-                      style={{
-                        width: viewportStyle.width,
-                        height: viewportStyle.height,
-                        ...currentFraming,
-                      }}
-                    >
-                      <div className="resolution-label">
-                        {selectedResolution.name} ({selectedResolution.width}×{selectedResolution.height})
-                      </div>
-                      {videoContent}
-                    </div>
-                  );
-                }
-
-                return (
-                  <>
-                    {videoContent}
-                    {/* Play overlay */}
-                    {!isPlaying && !isLoading && (
-                      <div className="play-overlay" onClick={toggleSingleModePlay}>
-                        <Play size={40} />
-                      </div>
-                    )}
-                  </>
-                );
-              })()
-            ) : isSingleModeImage && singleModeImageData ? (
-              (() => {
-                const viewportStyle = getViewportStyle();
-                const imageContent = sequenceMediaElement ?? (
-                  <img
-                    src={singleModeImageData}
-                    alt={asset?.name || 'Preview'}
-                    className="preview-media"
-                  />
-                );
-
-                if (viewportStyle) {
-                  return (
-                    <div
-                      className="resolution-viewport"
-                      style={{
-                        width: viewportStyle.width,
-                        height: viewportStyle.height,
-                        ...currentFraming,
-                      }}
-                    >
-                      <div className="resolution-label">
-                        {selectedResolution.name} ({selectedResolution.width}×{selectedResolution.height})
-                      </div>
-                      {imageContent}
-                    </div>
-                  );
-                }
-
-                return imageContent;
-              })()
-            ) : (
-              <div className="preview-placeholder">
-                <p>Failed to load {isSingleModeVideo ? 'video' : 'image'}</p>
-              </div>
-            )}
-
-            {/* Overlay controls */}
-            {/* Overlay is visual-only assist for preview interaction.
-                It must not persist, mutate project state, or affect export decisions. */}
-            <div
-              className={`preview-overlay ${showOverlay ? 'is-visible' : ''}`}
-              onMouseEnter={showOverlayNow}
-              onMouseLeave={scheduleHideOverlay}
-            >
-              <div className="preview-overlay-row preview-overlay-row--top">
-                <div className="preview-overlay-left">
-                  {previewResolutionLabel && (
-                    <span className="preview-resolution-badge">{previewResolutionLabel}</span>
-                  )}
-                </div>
-                <div className="preview-overlay-right">
-                  <PreviewResolutionPicker
-                    selectedResolutionName={selectedResolution.name}
-                    presets={RESOLUTION_PRESETS}
-                    onSelect={(preset) => {
-                      setSelectedResolution(preset);
-                      onResolutionChange?.(preset);
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div className="preview-overlay-row preview-overlay-row--bottom">
-                {/* Progress bar with time display */}
-                {(isSingleModeVideo || isSingleModeImage) && (
-                  <div className="preview-progress">
-                    <div
-                      className="preview-progress-bar preview-progress-bar--scrub"
-                      ref={progressBarRef}
-                      onClick={handleSingleModeProgressClick}
-                    >
-                      <PlaybackRangeMarkers
-                        inPoint={inPoint}
-                        outPoint={outPoint}
-                        duration={singleModePlaybackDuration}
-                        showMilliseconds={isSingleModeVideo}
-                        focusedMarker={focusedMarker}
-                        onMarkerFocus={handleMarkerFocus}
-                        onMarkerDrag={handleMarkerDrag}
-                        onMarkerDragEnd={handleMarkerDragEnd}
-                        progressBarRef={progressBarRef}
-                      />
-                      <div className="preview-progress-fill" style={{ width: `${singleModeProgressPercent}%` }} />
-                      <div className="preview-progress-handle" style={{ left: `${singleModeProgressPercent}%` }} />
-                    </div>
-                    <div className="preview-progress-info">
-                      <TimeDisplay
-                        currentTime={singleModePlaybackTime}
-                        totalDuration={singleModePlaybackDuration}
-                        showMilliseconds={isSingleModeVideo}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Controls */}
-                <div className="preview-controls-row">
-                  <button
-                    className="preview-ctrl-btn"
-                    onClick={() => skip(-5)}
-                    title="Rewind 5s (←)"
-                  >
-                    <SkipBack size={18} />
-                  </button>
-                  <button
-                    className="preview-ctrl-btn preview-ctrl-btn--primary"
-                    onClick={isSingleModeVideo ? toggleSingleModePlay : handlePlayPause}
-                    title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
-                  >
-                    {isPlaying ? <Pause size={22} /> : <Play size={22} />}
-                  </button>
-                  <button
-                    className="preview-ctrl-btn"
-                    onClick={() => skip(5)}
-                    title="Forward 5s (→)"
-                  >
-                    <SkipForward size={18} />
-                  </button>
-                  <div className="preview-ctrl-divider" />
-                  <button
-                    className={`preview-ctrl-btn preview-ctrl-btn--text ${inPoint !== null ? 'is-active' : ''}`}
-                    onClick={isSingleModeVideo ? handleSingleModeSetInPoint : handleSetInPoint}
-                    title="Set IN point (I)"
-                  >
-                    I
-                  </button>
-                  <button
-                    className={`preview-ctrl-btn preview-ctrl-btn--text ${outPoint !== null ? 'is-active' : ''}`}
-                    onClick={isSingleModeVideo ? handleSingleModeSetOutPoint : handleSetOutPoint}
-                    title="Set OUT point (O)"
-                  >
-                    O
-                  </button>
-                  {isSingleModeVideo && showSingleModeClipButton && (
-                    <button
-                      className={`preview-ctrl-btn ${isSingleModeClipEnabled ? 'is-active' : ''}`}
-                      onClick={isSingleModeClipEnabled ? handleSingleModeClearClip : handleSingleModeSave}
-                      title={isSingleModeClipEnabled ? 'Clear clip' : 'Save clip'}
-                      disabled={isSingleModeClipPending}
-                    >
-                      <Scissors size={18} />
-                    </button>
-                  )}
-                  <div className="preview-ctrl-divider" />
-                  {isSingleModeVideo && onFrameCapture && (
-                    <button
-                      className="preview-ctrl-btn"
-                      onClick={handleSingleModeCaptureFrame}
-                      title="Capture frame"
-                    >
-                      <Camera size={18} />
-                    </button>
-                  )}
-                  <button
-                    className={`preview-ctrl-btn ${isLooping ? 'is-active' : ''}`}
-                    onClick={toggleLooping}
-                    title={`Loop (L) - ${isLooping ? 'On' : 'Off'}`}
-                  >
-                    <Repeat size={16} />
-                  </button>
-                  <VolumeControl
-                    volume={globalVolume}
-                    isMuted={globalMuted}
-                    onVolumeChange={setGlobalVolume}
-                    onMuteToggle={toggleGlobalMute}
-                  />
-                  {isSingleModeVideo && (
-                    <button
-                      className="preview-ctrl-btn preview-ctrl-btn--text"
-                      onClick={() => cycleSpeed('up')}
-                      title="Speed ([/])"
-                    >
-                      {playbackSpeed.toFixed(1)}x
-                    </button>
-                  )}
-                  <button
-                    className="preview-ctrl-btn"
-                    onClick={toggleFullscreen}
-                    title={isFullscreen ? 'Exit fullscreen (F)' : 'Fullscreen (F)'}
-                  >
-                    <Maximize size={16} />
-                  </button>
-                  {miniToastElement}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <PreviewModalSingleView
+        modalRef={modalRef}
+        displayContainerRef={displayContainerRef}
+        progressBarRef={progressBarRef}
+        videoRef={videoRef}
+        onClose={onClose}
+        onContainerMouseDown={handleContainerMouseDown}
+        previewDisplayClassName={previewDisplayClassName}
+        showOverlayNow={showOverlayNow}
+        scheduleHideOverlay={scheduleHideOverlay}
+        asset={asset}
+        isAssetOnlyPreview={isAssetOnlyPreview}
+        isLoading={isLoading}
+        isSingleModeVideo={isSingleModeVideo}
+        isSingleModeImage={isSingleModeImage}
+        videoObjectUrl={videoObjectUrl}
+        sequenceMediaElement={sequenceMediaElement}
+        singleModeImageData={singleModeImageData}
+        getViewportStyle={getViewportStyle}
+        currentFraming={currentFraming}
+        selectedResolution={selectedResolution}
+        onResolutionSelect={(preset) => {
+          setSelectedResolution(preset);
+          onResolutionChange?.(preset);
+        }}
+        previewResolutionLabel={previewResolutionLabel}
+        showOverlay={showOverlay}
+        inPoint={inPoint}
+        outPoint={outPoint}
+        singleModePlaybackDuration={singleModePlaybackDuration}
+        singleModeProgressPercent={singleModeProgressPercent}
+        singleModePlaybackTime={singleModePlaybackTime}
+        focusedMarker={focusedMarker}
+        onMarkerFocus={handleMarkerFocus}
+        onMarkerDrag={handleMarkerDrag}
+        onMarkerDragEnd={handleMarkerDragEnd}
+        handleSingleModeProgressClick={handleSingleModeProgressClick}
+        isPlaying={isPlaying}
+        skipBack={() => skip(-5)}
+        skipForward={() => skip(5)}
+        togglePlay={isSingleModeVideo ? toggleSingleModePlay : handlePlayPause}
+        handleSetInPoint={isSingleModeVideo ? handleSingleModeSetInPoint : handleSetInPoint}
+        handleSetOutPoint={isSingleModeVideo ? handleSingleModeSetOutPoint : handleSetOutPoint}
+        showSingleModeClipButton={showSingleModeClipButton}
+        isSingleModeClipEnabled={isSingleModeClipEnabled}
+        onClipPrimaryAction={isSingleModeClipEnabled ? handleSingleModeClearClip : handleSingleModeSave}
+        isSingleModeClipPending={isSingleModeClipPending}
+        onFrameCapture={onFrameCapture ? handleSingleModeCaptureFrame : undefined}
+        isLooping={isLooping}
+        toggleLooping={toggleLooping}
+        globalVolume={globalVolume}
+        globalMuted={globalMuted}
+        setGlobalVolume={setGlobalVolume}
+        toggleGlobalMute={toggleGlobalMute}
+        playbackSpeed={playbackSpeed}
+        cycleSpeedUp={() => cycleSpeed('up')}
+        isFullscreen={isFullscreen}
+        toggleFullscreen={toggleFullscreen}
+        miniToastElement={miniToastElement}
+        handleSingleModeTimeUpdate={handleSingleModeTimeUpdate}
+        handleSingleModeLoadedMetadata={handleSingleModeLoadedMetadata}
+        onSingleModeVideoPlay={() => setSingleModeIsPlaying(true)}
+        onSingleModeVideoPause={() => setSingleModeIsPlaying(false)}
+        handleSingleModeVideoEnded={handleSingleModeVideoEnded}
+      />
     );
   }
 
