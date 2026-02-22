@@ -166,3 +166,7 @@
   - `usePreviewSingleAttachedAudio.ts` を追加し、Single Mode の attach/scene audio 読み込み・再生同期・音量適用を `PreviewModal.tsx` から分離。
   - `PreviewModal.tsx` では呼び出しのみ残し、single audio の state/effect 実装を除去して composition を明確化。
   - `npm run build` でビルド成功を確認。
+- 2026-02-22 Step 4 進捗（export actionsのhook化）:
+  - `usePreviewExportActions.ts` を追加し、full/range export の処理と `isExporting` 管理を `PreviewModal.tsx` から分離。
+  - `PreviewModal.tsx` では export action の呼び出しだけを残し、export処理の責務を composition 外へ移管。
+  - `npm run build` でビルド成功を確認。
