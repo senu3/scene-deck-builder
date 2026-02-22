@@ -52,7 +52,8 @@ import type { Asset, Cut } from './types';
 import { getAssetThumbnail } from './features/thumbnails/api';
 import { generateVideoClipThumbnail } from './features/cut/clipThumbnail';
 import { importFileToVault } from './utils/assetPath';
-import { getDragKind, queueExternalFilesToScene } from './utils/dragDrop';
+import { getDragKind, isDndDebugEnabled, logDragDebug, queueExternalFilesToScene, setDndDebugEnabled } from './utils/dragDrop';
+import type { DragDebugEventDetail } from './utils/dragDrop';
 import { buildSequenceItemsForCuts } from './utils/exportSequence';
 import { getCutIdsInTimelineOrder, getCutsInTimelineOrder, getScenesAndCutsInTimelineOrder } from './utils/timelineOrder';
 import { getFirstSceneId, getSceneIndex, getScenesInOrder, resolveSceneById } from './utils/sceneOrder';
@@ -124,6 +125,8 @@ function App() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [showEnvironmentSettings, setShowEnvironmentSettings] = useState(false);
   const [showNotificationTests, setShowNotificationTests] = useState(false);
+  const [dndDebugEvents, setDndDebugEvents] = useState<DragDebugEventDetail[]>([]);
+  const dndDebugEnabled = isDndDebugEnabled();
   const [exportResolution, setExportResolution] = useState({ name: 'Free', width: 0, height: 0 });
   const [isExporting, setIsExporting] = useState(false);
   const [scenePreviewRequest, setScenePreviewRequest] = useState<{ sceneId: string; sceneName: string; cuts: Cut[] } | null>(null);
@@ -259,6 +262,81 @@ function App() {
     });
     return () => unsubscribe();
   }, [toggleSidebar]);
+
+  // Debug probe for native external DnD delivery (capture phase)
+  useEffect(() => {
+    if (!dndDebugEnabled) return undefined;
+
+    const events: Array<keyof WindowEventMap> = ['dragenter', 'dragover', 'dragleave', 'drop'];
+    const onWindowDragEvent = (event: Event) => {
+      const e = event as DragEvent;
+      const dataTransfer = e.dataTransfer;
+      if (!dataTransfer) {
+        console.warn('[DND-PROBE] window event without dataTransfer', { type: e.type });
+        return;
+      }
+
+      logDragDebug(`probe.window.${e.type}`, dataTransfer, {
+        defaultPrevented: e.defaultPrevented,
+      });
+    };
+
+    const onDocumentDragEvent = (event: Event) => {
+      const e = event as DragEvent;
+      const dataTransfer = e.dataTransfer;
+      if (!dataTransfer) {
+        console.warn('[DND-PROBE] document event without dataTransfer', { type: e.type });
+        return;
+      }
+
+      logDragDebug(`probe.document.${e.type}`, dataTransfer, {
+        defaultPrevented: e.defaultPrevented,
+      });
+    };
+
+    for (const eventName of events) {
+      window.addEventListener(eventName, onWindowDragEvent, true);
+      document.addEventListener(eventName, onDocumentDragEvent, true);
+    }
+
+    return () => {
+      for (const eventName of events) {
+        window.removeEventListener(eventName, onWindowDragEvent, true);
+        document.removeEventListener(eventName, onDocumentDragEvent, true);
+      }
+    };
+  }, [dndDebugEnabled]);
+
+  useEffect(() => {
+    if (!dndDebugEnabled) return undefined;
+    const handler = (event: Event) => {
+      const customEvent = event as CustomEvent<DragDebugEventDetail>;
+      if (!customEvent.detail) return;
+      setDndDebugEvents((prev) => {
+        const next = [...prev, customEvent.detail];
+        return next.slice(-10);
+      });
+    };
+    window.addEventListener('scene-deck-dnd-debug', handler as EventListener);
+    return () => window.removeEventListener('scene-deck-dnd-debug', handler as EventListener);
+  }, [dndDebugEnabled]);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return undefined;
+    const g = window as Window & {
+      __sceneDeckSetDndDebug?: (enabled: boolean) => void;
+      __sceneDeckIsDndDebugEnabled?: () => boolean;
+    };
+    g.__sceneDeckSetDndDebug = (enabled: boolean) => {
+      setDndDebugEnabled(enabled);
+      window.location.reload();
+    };
+    g.__sceneDeckIsDndDebugEnabled = () => isDndDebugEnabled();
+    return () => {
+      delete g.__sceneDeckSetDndDebug;
+      delete g.__sceneDeckIsDndDebugEnabled;
+    };
+  }, []);
 
   const handleDragStart = (event: DragStartEvent) => {
     const data = event.active.data.current as { type?: string; sceneId?: string; index?: number } | undefined;
@@ -449,7 +527,9 @@ function App() {
 
   // Handle native file drop from OS (fallback when not dropping on a scene)
   const handleWorkspaceDragOver = useCallback((e: React.DragEvent) => {
-    if (getDragKind(e.dataTransfer) === 'externalFiles') {
+    const dragKind = getDragKind(e.dataTransfer);
+    logDragDebug('workspace.dragover', e.dataTransfer, { dragKind, detailsPanelOpen });
+    if (dragKind === 'externalFiles') {
       e.preventDefault();
       e.stopPropagation();
       if (detailsPanelOpen) {
@@ -466,7 +546,9 @@ function App() {
     e.preventDefault();
     e.stopPropagation();
 
-    if (getDragKind(e.dataTransfer) !== 'externalFiles') {
+    const dragKind = getDragKind(e.dataTransfer);
+    logDragDebug('workspace.drop', e.dataTransfer, { dragKind, selectedSceneId });
+    if (dragKind !== 'externalFiles') {
       return;
     }
 
@@ -478,6 +560,7 @@ function App() {
       files: Array.from(e.dataTransfer.files),
       createCutFromImport,
     });
+    logDragDebug('workspace.drop.externalQueued', e.dataTransfer, { targetSceneId });
   }, [selectedSceneId, scenes, sceneOrder, createCutFromImport]);
 
   // Open export modal from controls
@@ -992,6 +1075,45 @@ function App() {
             onClose={() => setShowNotificationTests(false)}
           />
         </Suspense>
+        {dndDebugEnabled && (
+          <div
+            style={{
+              position: 'fixed',
+              right: 8,
+              bottom: 8,
+              width: 420,
+              maxHeight: 240,
+              overflow: 'auto',
+              background: 'rgba(0,0,0,0.82)',
+              color: '#fff',
+              fontSize: 11,
+              lineHeight: 1.35,
+              fontFamily: 'monospace',
+              padding: 8,
+              border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: 6,
+              zIndex: 99999,
+              pointerEvents: 'none',
+            }}
+          >
+            <div style={{ marginBottom: 6, fontWeight: 700 }}>[DND DEBUG HUD]</div>
+            {dndDebugEvents.length === 0 ? (
+              <div>no events</div>
+            ) : (
+              dndDebugEvents.map((entry, index) => (
+                <div key={`${entry.ts}-${index}`} style={{ marginBottom: 6 }}>
+                  <div>{entry.label}</div>
+                  <div>
+                    types={entry.snapshot.types.join('|') || '-'} items={entry.snapshot.itemCount} files={entry.snapshot.fileCount}
+                  </div>
+                  <div>
+                    paths={entry.snapshot.files.filter((file) => file.hasPath).length}/{entry.snapshot.files.length} kind={String(entry.details?.dragKind ?? '-')}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
     </DndContext>
   );

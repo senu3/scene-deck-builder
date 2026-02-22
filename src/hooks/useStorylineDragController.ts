@@ -5,7 +5,7 @@ import { AddCutCommand } from '../store/commands';
 import type { Command } from '../store/historyStore';
 import type { CutImportSource } from '../utils/cutImport';
 import type { Asset, Scene } from '../types';
-import { getDragKind, getSupportedMediaFiles, hasSupportedMediaDrag, queueExternalFilesToScene } from '../utils/dragDrop';
+import { getDragKind, getSupportedMediaFiles, hasSupportedMediaDrag, isDndDebugEnabled, logDragDebug, queueExternalFilesToScene } from '../utils/dragDrop';
 
 // --- DND: placeholder state ---
 // Placeholder state for external file drops and cross-scene moves
@@ -96,6 +96,7 @@ export function useStorylineDragController({
   const handleDrop = async (sceneId: string, e: React.DragEvent, insertIndex?: number) => {
     e.preventDefault();
     e.stopPropagation();
+    logDragDebug('storyline.handleDrop.begin', e.dataTransfer, { sceneId, insertIndex });
 
     // Clear placeholder state
     setPlaceholder(null);
@@ -106,6 +107,9 @@ export function useStorylineDragController({
       if (data) {
         let asset: Asset = JSON.parse(data);
         if (asset.type === 'audio') {
+          if (isDndDebugEnabled()) {
+            console.warn('[DND] storyline.handleDrop.skipAudioAsset', { sceneId, assetName: asset.name });
+          }
           return;
         }
         // Ensure the asset has a unique ID
@@ -123,12 +127,29 @@ export function useStorylineDragController({
             type: asset.type,
             existingAsset: asset,
           }, insertIndex, vaultPath).catch(() => {});
+          if (isDndDebugEnabled()) {
+            console.warn('[DND] storyline.handleDrop.assetImportQueued', {
+              sceneId,
+              assetId: asset.id,
+              assetName: asset.name,
+              hasOriginalPath: !!asset.originalPath,
+              hasVaultRelativePath: !!asset.vaultRelativePath,
+            });
+          }
         } else {
           // Asset already in vault or no vault set - add directly
           // Use command for undo/redo support
           // For videos, set displayTime to video duration
           const displayTime = asset.type === 'video' && asset.duration ? asset.duration : undefined;
           executeCommand(new AddCutCommand(sceneId, asset, displayTime, insertIndex)).catch(() => {});
+          if (isDndDebugEnabled()) {
+            console.warn('[DND] storyline.handleDrop.assetAddedDirect', {
+              sceneId,
+              assetId: asset.id,
+              assetName: asset.name,
+              assetType: asset.type,
+            });
+          }
         }
         return;
       }
@@ -141,6 +162,7 @@ export function useStorylineDragController({
         insertIndex,
         vaultPathOverride: vaultPath,
       });
+      logDragDebug('storyline.handleDrop.externalQueued', e.dataTransfer, { sceneId, insertIndex });
     } catch (error) {
       console.error('Failed to add cut:', error);
     }
@@ -175,6 +197,7 @@ export function useStorylineDragController({
   // --- DND: native (external / asset) ---
   const handleStorylineDragEnter = useCallback((e: React.DragEvent) => {
     const dragKind = getDragKind(e.dataTransfer);
+    logDragDebug('storyline.dragenter', e.dataTransfer, { dragKind, depth: dragDepthRef.current });
     if (dragKind === 'none') return;
     e.preventDefault();
     e.stopPropagation();
@@ -205,6 +228,7 @@ export function useStorylineDragController({
 
   const handleStorylineDragOver = useCallback((e: React.DragEvent) => {
     const dragKind = getDragKind(e.dataTransfer);
+    logDragDebug('storyline.dragover', e.dataTransfer, { dragKind, x: e.clientX, y: e.clientY });
     if (dragKind === 'none') return;
     e.preventDefault();
     e.stopPropagation();
@@ -256,6 +280,7 @@ export function useStorylineDragController({
 
   const handleStorylineDragLeave = useCallback((e: React.DragEvent) => {
     const dragKind = getDragKind(e.dataTransfer);
+    logDragDebug('storyline.dragleave', e.dataTransfer, { dragKind, depth: dragDepthRef.current });
     if (dragKind === 'none') return;
     e.preventDefault();
     e.stopPropagation();
@@ -269,6 +294,7 @@ export function useStorylineDragController({
 
   const handleInboundDrop = useCallback((e: React.DragEvent) => {
     const dragKind = getDragKind(e.dataTransfer);
+    logDragDebug('storyline.drop', e.dataTransfer, { dragKind, x: e.clientX, y: e.clientY });
     if (dragKind === 'none') return;
     e.preventDefault();
     e.stopPropagation();

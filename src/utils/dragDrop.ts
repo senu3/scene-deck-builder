@@ -4,9 +4,64 @@ import { getCuttableMediaType } from './mediaType';
 
 export type CuttableMediaType = 'image' | 'video';
 export type DragKind = 'asset' | 'externalFiles' | 'none';
+const DND_DEBUG_STORAGE_KEY = 'sceneDeck:dndDebug';
+
+interface DragDebugItemSnapshot {
+  kind: string;
+  type: string;
+  hasFile: boolean;
+  name?: string;
+}
+
+interface DragDebugFileSnapshot {
+  name: string;
+  type: string;
+  size: number;
+  hasPath: boolean;
+  mediaType: CuttableMediaType | null;
+}
+
+export interface DragDebugSnapshot {
+  types: string[];
+  itemCount: number;
+  fileCount: number;
+  items: DragDebugItemSnapshot[];
+  files: DragDebugFileSnapshot[];
+}
+
+export interface DragDebugEventDetail {
+  label: string;
+  details?: Record<string, unknown>;
+  snapshot: DragDebugSnapshot;
+  ts: string;
+}
 
 export function getMediaType(filename: string): CuttableMediaType | null {
   return getCuttableMediaType(filename);
+}
+
+export function isDndDebugEnabled(): boolean {
+  const envEnabled = import.meta.env.DEV && import.meta.env.VITE_DND_DEBUG_HUD === '1';
+  if (envEnabled) return true;
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem(DND_DEBUG_STORAGE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function setDndDebugEnabled(enabled: boolean): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (enabled) {
+      window.localStorage.setItem(DND_DEBUG_STORAGE_KEY, '1');
+    } else {
+      window.localStorage.removeItem(DND_DEBUG_STORAGE_KEY);
+    }
+  } catch {
+    // ignore storage errors
+  }
 }
 
 export function getFilePath(file: File): string | undefined {
@@ -60,6 +115,54 @@ export function getDragKind(dataTransfer: DataTransfer): DragKind {
     return 'externalFiles';
   }
   return 'none';
+}
+
+export function createDragDebugSnapshot(dataTransfer: DataTransfer): DragDebugSnapshot {
+  const items = Array.from(dataTransfer.items || []);
+  const files = Array.from(dataTransfer.files || []);
+
+  return {
+    types: Array.from(dataTransfer.types || []),
+    itemCount: items.length,
+    fileCount: files.length,
+    items: items.map((item) => {
+      const file = item.kind === 'file' ? item.getAsFile() : null;
+      return {
+        kind: item.kind,
+        type: item.type || '',
+        hasFile: !!file,
+        name: file?.name,
+      };
+    }),
+    files: files.map((file) => {
+      const path = getFilePath(file);
+      return {
+        name: file.name,
+        type: file.type || '',
+        size: file.size,
+        hasPath: !!path,
+        mediaType: getMediaType(file.name),
+      };
+    }),
+  };
+}
+
+export function logDragDebug(
+  label: string,
+  dataTransfer: DataTransfer,
+  details?: Record<string, unknown>
+): void {
+  if (!isDndDebugEnabled()) return;
+  const payload: DragDebugEventDetail = {
+    label,
+    details,
+    snapshot: createDragDebugSnapshot(dataTransfer),
+    ts: new Date().toISOString(),
+  };
+  console.warn(`[DND] ${label}`, payload);
+  window.dispatchEvent(new CustomEvent<DragDebugEventDetail>('scene-deck-dnd-debug', {
+    detail: payload,
+  }));
 }
 
 interface QueueExternalFilesToSceneOptions {
