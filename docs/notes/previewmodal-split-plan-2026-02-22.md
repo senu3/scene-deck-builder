@@ -162,3 +162,7 @@
   - `usePreviewSequenceBuffering.ts` を追加し、Sequence Mode の URL cache / preload / buffering 判定 effect を `PreviewModal.tsx` から分離。
   - `PreviewModal.tsx` は `checkBufferStatus` の利用のみを残し、buffering責務を hook 側へ集約。
   - `npm run build` でビルド成功を確認。
+- 2026-02-22 Step 4 進捗（single attached audio管理のhook化）:
+  - `usePreviewSingleAttachedAudio.ts` を追加し、Single Mode の attach/scene audio 読み込み・再生同期・音量適用を `PreviewModal.tsx` から分離。
+  - `PreviewModal.tsx` では呼び出しのみ残し、single audio の state/effect 実装を除去して composition を明確化。
+  - `npm run build` でビルド成功を確認。
