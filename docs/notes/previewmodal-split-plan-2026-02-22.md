@@ -95,3 +95,8 @@
   - `sequenceCuts` 優先や canonical timing 利用など、既存ロジックは同一ルールで維持。
   - 影響範囲が再生内容に及ぶため、ここで一旦動作確認フェーズを挟む。
   - `npm run build` でビルド成功を確認。
+- 2026-02-22 Step 2 実施（Sequence側）:
+  - Sequence Mode の empty/通常描画を `PreviewModalSequenceView.tsx` へ抽出。
+  - `PreviewModal.tsx` は Sequence描画の props 組み立てに寄せ、JSX本体の責務を縮小。
+  - `npm run build` でビルド成功を確認。
+  - 再生・操作系UIのイベント伝搬に関わるため、この地点で手動確認フェーズを挟む。
