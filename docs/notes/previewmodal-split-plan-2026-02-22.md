@@ -137,6 +137,11 @@
   - `usePreviewKeyboardShortcuts.ts` を追加し、Previewのキーボード操作登録を `PreviewModal.tsx` から分離。
   - `PreviewModal.tsx` の keydown effect を hook 呼び出しへ置換し、ショートカット割当は既存動作を維持。
   - `npm run build` でビルド成功を確認。
+- 2026-02-22 Step 4 進捗（sequence media source切替のhook化）:
+  - `usePreviewSequenceMediaSource.ts` を追加し、Sequenceの media source 切替 effect（video/image/lipsync）を `PreviewModal.tsx` から分離。
+  - `PreviewModal.tsx` から該当 effect 実装を除去し、hook戻り値の `sequenceMediaElement` を View へ受け渡す構成に変更。
+  - `npm run build` でビルド成功を確認。
+  - 再生挙動（source切替・進行・表示）に関わるため、この地点で手動確認フェーズを挟む。
 - 2026-02-22 Follow-up fix:
   - Sequence Mode の進行表示で、React の `style` 更新と rAF の直接DOM更新が競合していたため整理。
   - シーケンス再生バーの fill/handle は rAF/effect の単一路で更新し、表示時刻は再生中のみ live time を優先。
