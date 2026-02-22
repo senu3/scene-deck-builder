@@ -105,3 +105,7 @@
   - `PreviewModal.tsx` の Single 分岐は props 組み立て中心に変更し、View責務を分離。
   - `npm run build` でビルド成功を確認。
   - Single再生/clip/UI操作に関わるため、この地点で手動確認フェーズを挟む。
+- 2026-02-22 Step 4 着手（state/persistence 分離）:
+  - `useClipRangeState.ts` を新設し、Singleの in/out state・focused marker・`onRangeChange` 通知を `PreviewModal.tsx` から分離。
+  - 既存handlerロジックは維持し、まず state と通知経路のみをhook化。
+  - `npm run build` でビルド成功を確認。
