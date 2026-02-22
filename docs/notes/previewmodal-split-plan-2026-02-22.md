@@ -170,3 +170,7 @@
   - `usePreviewExportActions.ts` を追加し、full/range export の処理と `isExporting` 管理を `PreviewModal.tsx` から分離。
   - `PreviewModal.tsx` では export action の呼び出しだけを残し、export処理の責務を composition 外へ移管。
   - `npm run build` でビルド成功を確認。
+- 2026-02-22 Step 4 進捗（shared view stateのhook化）:
+  - `usePreviewSharedViewState.ts` を追加し、shared派生値（framing/resolution/progress）と埋め込みvideoのvolume/mute同期、progress反映effectを `PreviewModal.tsx` から分離。
+  - `PreviewModal.tsx` は view props 組み立てを中心にし、shared UI state/effect の責務を hook 側へ集約。
+  - `npm run build` でビルド成功を確認。
