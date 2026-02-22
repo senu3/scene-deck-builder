@@ -33,6 +33,7 @@ import {
 import { useHistoryStore } from './store/historyStore';
 import {
   AddCutCommand,
+  ClearClipPointsCommand,
   DuplicateCutWithClipCommand,
   MoveCutBetweenScenesCommand,
   MoveCutsToSceneCommand,
@@ -813,6 +814,21 @@ function App() {
     }
   }, [previewData, executeCommand, updateCutAsset]);
 
+  const handleVideoPreviewClipClear = useCallback(async () => {
+    if (!previewData) return;
+    const { scene, cut, asset } = previewData;
+    if (!cut.isClip) return;
+
+    await executeCommand(new ClearClipPointsCommand(scene.id, cut.id));
+
+    if (asset.path) {
+      const newThumbnail = await generateVideoClipThumbnail(cut.id, asset.path, 0);
+      if (newThumbnail) {
+        updateCutAsset(scene.id, cut.id, { thumbnail: newThumbnail });
+      }
+    }
+  }, [previewData, executeCommand, updateCutAsset]);
+
   // Handle frame capture from video preview modal
   const handleVideoPreviewFrameCapture = useCallback(async (timestamp: number): Promise<string | void> => {
     if (!previewData || !vaultPath) {
@@ -942,6 +958,7 @@ function App() {
               initialInPoint={previewData.cut.inPoint}
               initialOutPoint={previewData.cut.outPoint}
               onClipSave={handleVideoPreviewClipSave}
+              onClipClear={handleVideoPreviewClipClear}
               onFrameCapture={handleVideoPreviewFrameCapture}
               exportResolution={exportResolution}
               onResolutionChange={setExportResolution}

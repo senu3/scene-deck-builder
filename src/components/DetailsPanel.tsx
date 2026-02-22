@@ -1406,6 +1406,7 @@ export default function DetailsPanel() {
             initialInPoint={cut?.inPoint}
             initialOutPoint={cut?.outPoint}
             onClipSave={isVideo ? handleSaveClip : undefined}
+            onClipClear={isVideo ? handleClearClip : undefined}
             onFrameCapture={isVideo ? handleFrameCapture : undefined}
           />
         )}
