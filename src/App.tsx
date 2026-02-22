@@ -34,7 +34,6 @@ import { useHistoryStore } from './store/historyStore';
 import {
   AddCutCommand,
   ClearClipPointsCommand,
-  DuplicateCutWithClipCommand,
   MoveCutBetweenScenesCommand,
   MoveCutsToSceneCommand,
   PasteCutsCommand,
@@ -792,24 +791,14 @@ function App() {
   const handleVideoPreviewClipSave = useCallback(async (inPoint: number, outPoint: number) => {
     if (!previewData) return;
     const { scene, cut, asset } = previewData;
-    let targetCutId = cut.id;
-
-    if (cut.isClip) {
-      // Existing clip: update IN/OUT points in place
-      await executeCommand(new UpdateClipPointsCommand(scene.id, cut.id, inPoint, outPoint));
-    } else {
-      // First-time clip: duplicate source cut and apply clip to duplicated cut
-      const duplicateClipCommand = new DuplicateCutWithClipCommand(scene.id, cut.id, inPoint, outPoint);
-      await executeCommand(duplicateClipCommand);
-      targetCutId = duplicateClipCommand.getCreatedCutId() ?? cut.id;
-    }
+    await executeCommand(new UpdateClipPointsCommand(scene.id, cut.id, inPoint, outPoint));
 
     // Regenerate thumbnail at IN point
     if (asset.path) {
-      const newThumbnail = await generateVideoClipThumbnail(targetCutId, asset.path, inPoint, outPoint);
+      const newThumbnail = await generateVideoClipThumbnail(cut.id, asset.path, inPoint, outPoint);
       if (newThumbnail) {
         // Clip thumbnail is cut-specific; do not mutate shared asset cache thumbnail.
-        updateCutAsset(scene.id, targetCutId, { thumbnail: newThumbnail });
+        updateCutAsset(scene.id, cut.id, { thumbnail: newThumbnail });
       }
     }
   }, [previewData, executeCommand, updateCutAsset]);
