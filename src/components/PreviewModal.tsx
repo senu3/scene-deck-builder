@@ -53,6 +53,7 @@ import { usePreviewExportActions } from './preview-modal/usePreviewExportActions
 import { usePreviewSharedViewState } from './preview-modal/usePreviewSharedViewState';
 import { usePreviewSingleMediaAsset } from './preview-modal/usePreviewSingleMediaAsset';
 import { usePreviewPlaybackControls } from './preview-modal/usePreviewPlaybackControls';
+import { usePreviewInteractionCommands } from './preview-modal/usePreviewInteractionCommands';
 import type { FocusedMarker } from './shared';
 import './PreviewModal.css';
 import './shared/playback-controls.css';
@@ -921,61 +922,42 @@ export default function PreviewModal({
     setSequenceRange,
   ]);
 
-  const handleShortcutPlayPause = useCallback(() => {
-    if (isSingleModeVideo) {
-      toggleSingleModePlay();
-      return;
-    }
-    handlePlayPause();
-  }, [isSingleModeVideo, toggleSingleModePlay, handlePlayPause]);
-
-  const handleShortcutStepFrameOrMarker = useCallback((direction: -1 | 1) => {
-    if (focusedMarker) {
-      stepFocusedMarker(direction);
-      return;
-    }
-    if (isSingleModeVideo) {
-      stepFrame(direction);
-      return;
-    }
-    // In Sequence Mode, frame step only works during video clip playback
-    const currentItem = items[currentIndex];
-    const currentAsset = currentItem ? resolveAssetForCut(currentItem.cut) : undefined;
-    if (currentAsset?.type === 'video') {
-      stepFrame(direction);
-    }
-  }, [focusedMarker, isSingleModeVideo, stepFocusedMarker, stepFrame, items, currentIndex, resolveAssetForCut]);
-
-  const handleShortcutSetInPoint = useCallback(() => {
-    if (isSingleModeVideo) {
-      handleSingleModeSetInPoint();
-      return;
-    }
-    handleSetInPoint();
-  }, [isSingleModeVideo, handleSingleModeSetInPoint, handleSetInPoint]);
-
-  const handleShortcutSetOutPoint = useCallback(() => {
-    if (isSingleModeVideo) {
-      handleSingleModeSetOutPoint();
-      return;
-    }
-    handleSetOutPoint();
-  }, [isSingleModeVideo, handleSingleModeSetOutPoint, handleSetOutPoint]);
+  const interactionCommands = usePreviewInteractionCommands({
+    isSingleModeVideo,
+    focusedMarker,
+    items,
+    currentIndex,
+    resolveAssetForCut,
+    toggleSingleModePlay,
+    handlePlayPause,
+    skip,
+    stepFocusedMarker,
+    stepFrame,
+    handleSingleModeSetInPoint,
+    handleSingleModeSetOutPoint,
+    handleSetInPoint,
+    handleSetOutPoint,
+    toggleLooping,
+    toggleGlobalMute,
+    handleMarkerFocus,
+    handleMarkerDrag,
+    handleMarkerDragEnd,
+  });
 
   usePreviewKeyboardShortcuts({
     onClose,
-    onPlayPause: handleShortcutPlayPause,
-    onSkipBack: () => skip(-5),
-    onSkipForward: () => skip(5),
-    onStepBack: () => handleShortcutStepFrameOrMarker(-1),
-    onStepForward: () => handleShortcutStepFrameOrMarker(1),
+    onPlayPause: interactionCommands.playPause,
+    onSkipBack: interactionCommands.skipBack,
+    onSkipForward: interactionCommands.skipForward,
+    onStepBack: interactionCommands.stepBack,
+    onStepForward: interactionCommands.stepForward,
     onSpeedDown: () => cycleSpeed('down'),
     onSpeedUp: () => cycleSpeed('up'),
     onToggleFullscreen: toggleFullscreen,
-    onToggleLooping: toggleLooping,
-    onSetInPoint: handleShortcutSetInPoint,
-    onSetOutPoint: handleShortcutSetOutPoint,
-    onToggleMute: toggleGlobalMute,
+    onToggleLooping: interactionCommands.toggleLooping,
+    onSetInPoint: interactionCommands.setInPoint,
+    onSetOutPoint: interactionCommands.setOutPoint,
+    onToggleMute: interactionCommands.toggleMute,
   });
 
   const { isExporting, handleExportFull, handleExportRange } = usePreviewExportActions({
@@ -1075,27 +1057,27 @@ export default function PreviewModal({
         singleModeProgressPercent={singleModeProgressPercent}
         singleModePlaybackTime={singleModePlaybackTime}
         focusedMarker={focusedMarker}
-        onMarkerFocus={handleMarkerFocus}
-        onMarkerDrag={handleMarkerDrag}
-        onMarkerDragEnd={handleMarkerDragEnd}
+        onMarkerFocus={interactionCommands.markerFocus}
+        onMarkerDrag={interactionCommands.markerDrag}
+        onMarkerDragEnd={interactionCommands.markerDragEnd}
         handleSingleModeProgressClick={handleSingleModeProgressClick}
         isPlaying={isPlaying}
-        skipBack={() => skip(-5)}
-        skipForward={() => skip(5)}
-        togglePlay={isSingleModeVideo ? toggleSingleModePlay : handlePlayPause}
-        handleSetInPoint={isSingleModeVideo ? handleSingleModeSetInPoint : handleSetInPoint}
-        handleSetOutPoint={isSingleModeVideo ? handleSingleModeSetOutPoint : handleSetOutPoint}
+        skipBack={interactionCommands.skipBack}
+        skipForward={interactionCommands.skipForward}
+        togglePlay={interactionCommands.playPause}
+        handleSetInPoint={interactionCommands.setInPoint}
+        handleSetOutPoint={interactionCommands.setOutPoint}
         showSingleModeClipButton={showSingleModeClipButton}
         isSingleModeClipEnabled={isSingleModeClipEnabled}
         onClipPrimaryAction={isSingleModeClipEnabled ? handleSingleModeClearClip : handleSingleModeSave}
         isSingleModeClipPending={isSingleModeClipPending}
         onFrameCapture={onFrameCapture ? handleSingleModeCaptureFrame : undefined}
         isLooping={isLooping}
-        toggleLooping={toggleLooping}
+        toggleLooping={interactionCommands.toggleLooping}
         globalVolume={globalVolume}
         globalMuted={globalMuted}
         setGlobalVolume={setGlobalVolume}
-        toggleGlobalMute={toggleGlobalMute}
+        toggleGlobalMute={interactionCommands.toggleMute}
         playbackSpeed={playbackSpeed}
         cycleSpeedUp={() => cycleSpeed('up')}
         isFullscreen={isFullscreen}
@@ -1146,26 +1128,26 @@ export default function PreviewModal({
       outPoint={outPoint}
       sequenceTotalDuration={sequenceTotalDuration}
       focusedMarker={focusedMarker}
-      onMarkerFocus={handleMarkerFocus}
-      onMarkerDrag={handleMarkerDrag}
-      onMarkerDragEnd={handleMarkerDragEnd}
+      onMarkerFocus={interactionCommands.markerFocus}
+      onMarkerDrag={interactionCommands.markerDrag}
+      onMarkerDragEnd={interactionCommands.markerDragEnd}
       onProgressBarMouseDown={handleProgressBarMouseDown}
       onProgressBarHover={handleProgressBarHover}
       onProgressBarLeave={handleProgressBarLeave}
       hoverTime={hoverTime}
       sequenceCurrentTime={sequenceCurrentTime}
       goToPrev={goToPrev}
-      handlePlayPause={handlePlayPause}
+      handlePlayPause={interactionCommands.playPause}
       isPlaying={isPlaying}
       goToNext={goToNext}
-      handleSetInPoint={handleSetInPoint}
-      handleSetOutPoint={handleSetOutPoint}
+      handleSetInPoint={interactionCommands.setInPoint}
+      handleSetOutPoint={interactionCommands.setOutPoint}
       isLooping={isLooping}
-      toggleLooping={toggleLooping}
+      toggleLooping={interactionCommands.toggleLooping}
       globalVolume={globalVolume}
       globalMuted={globalMuted}
       setGlobalVolume={setGlobalVolume}
-      toggleGlobalMute={toggleGlobalMute}
+      toggleGlobalMute={interactionCommands.toggleMute}
       isFullscreen={isFullscreen}
       toggleFullscreen={toggleFullscreen}
       miniToastElement={miniToastElement}
