@@ -211,8 +211,6 @@ export default function PreviewModal({
   const { show: showMiniToast, element: miniToastElement } = useMiniToast();
   const overlayTimeoutRef = useRef<number | null>(null);
   const lipSyncToastShownRef = useRef<Set<string>>(new Set());
-  // NOTE: Known issue (Free resolution only): very tall images can push overlay controls out of view.
-  // Using the resolution simulator avoids the disappearance. Keep in mind for future layout tweaks.
 
   // Buffer management state (Sequence Mode)
   const videoUrlCacheRef = useRef<Map<string, string>>(new Map()); // assetId -> URL
@@ -2349,6 +2347,10 @@ export default function PreviewModal({
   const singleModeProgressPercent = singleModePlaybackDuration > 0
     ? (singleModePlaybackTime / singleModePlaybackDuration) * 100
     : 0;
+  const isFreeResolution = selectedResolution.width === 0;
+  const previewDisplayClassName = isFreeResolution
+    ? 'preview-display'
+    : 'preview-display preview-display--expanded';
 
   // ===== SINGLE MODE RENDER =====
   if (isSingleMode) {
@@ -2358,7 +2360,7 @@ export default function PreviewModal({
         <div className="preview-container preview-container--compact">
           {/* Display area */}
           <div
-            className="preview-display preview-display--expanded"
+            className={previewDisplayClassName}
             ref={displayContainerRef}
             onMouseEnter={showOverlayNow}
             onMouseMove={showOverlayNow}
@@ -2671,7 +2673,7 @@ export default function PreviewModal({
       <div className="preview-container preview-container--compact">
         {/* Display area */}
         <div
-          className="preview-display preview-display--expanded"
+          className={previewDisplayClassName}
           ref={displayContainerRef}
           onMouseEnter={showOverlayNow}
           onMouseMove={showOverlayNow}
