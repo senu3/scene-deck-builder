@@ -44,6 +44,7 @@ import {
 } from './preview-modal/constants';
 import {
   clampToDuration,
+  constrainMarkerTime,
   isEditableTarget,
   revokeIfBlob,
 } from './preview-modal/helpers';
@@ -55,8 +56,11 @@ import { usePreviewOverlayVisibility } from './preview-modal/usePreviewOverlayVi
 import { usePreviewViewport } from './preview-modal/usePreviewViewport';
 import { usePreviewSequenceDerived } from './preview-modal/usePreviewSequenceDerived';
 import { usePreviewFullscreen } from './preview-modal/usePreviewFullscreen';
+import type { FocusedMarker } from './shared';
 import './PreviewModal.css';
 import './shared/playback-controls.css';
+
+const CLIP_POINT_EPSILON = 0.0001;
 
 export default function PreviewModal({
   onClose,
@@ -186,7 +190,9 @@ export default function PreviewModal({
   const { displayContainerRef, getViewportStyle } = usePreviewViewport(selectedResolution);
   const [sequenceMediaElement, setSequenceMediaElement] = useState<JSX.Element | null>(null);
   const {
+    singleModeInPoint,
     setSingleModeInPoint,
+    singleModeOutPoint,
     setSingleModeOutPoint,
     focusedMarker,
     setFocusedMarker,
