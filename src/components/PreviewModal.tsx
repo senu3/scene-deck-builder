@@ -52,6 +52,7 @@ import {
 import { buildPreviewItems } from './preview-modal/previewItemsBuilder';
 import { PreviewModalSequenceView } from './preview-modal/PreviewModalSequenceView';
 import { PreviewModalSingleView } from './preview-modal/PreviewModalSingleView';
+import { useClipRangeState } from './preview-modal/useClipRangeState';
 import './PreviewModal.css';
 import './shared/playback-controls.css';
 
@@ -135,10 +136,6 @@ export default function PreviewModal({
   const [isSingleModeClipEnabled, setIsSingleModeClipEnabled] = useState(false);
   const [isSingleModeClipPending, setIsSingleModeClipPending] = useState(false);
 
-  // IN/OUT point state - initialize from props for Single Mode
-  const [singleModeInPoint, setSingleModeInPoint] = useState<number | null>(initialInPoint ?? null);
-  const [singleModeOutPoint, setSingleModeOutPoint] = useState<number | null>(initialOutPoint ?? null);
-
   const resolveCutDisplayTimeSec = useCallback((cut: Cut | null | undefined): CanonicalDurationSec => {
     const resolved = resolveCanonicalCutDuration(cut, getAsset, {
       fallbackDurationSec: 1.0,
@@ -171,12 +168,23 @@ export default function PreviewModal({
   const currentIndex = usesSequenceController ? sequenceState.currentIndex : 0;
   const isPlaying = usesSequenceController ? sequenceState.isPlaying : singleModeIsPlaying;
   const isLooping = usesSequenceController ? sequenceState.isLooping : singleModeIsLooping;
-  const inPoint = usesSequenceController ? sequenceState.inPoint : singleModeInPoint;
-  const outPoint = usesSequenceController ? sequenceState.outPoint : singleModeOutPoint;
   const isBuffering = usesSequenceController ? sequenceState.isBuffering : false;
-
-  // Focused marker state for draggable markers
-  const [focusedMarker, setFocusedMarker] = useState<FocusedMarker>(null);
+  const {
+    setSingleModeInPoint,
+    setSingleModeOutPoint,
+    focusedMarker,
+    setFocusedMarker,
+    inPoint,
+    outPoint,
+    notifyRangeChange,
+  } = useClipRangeState({
+    usesSequenceController,
+    sequenceInPoint: sequenceState.inPoint,
+    sequenceOutPoint: sequenceState.outPoint,
+    initialInPoint,
+    initialOutPoint,
+    onRangeChange,
+  });
 
   const modalRef = useRef<HTMLDivElement>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
@@ -382,10 +390,6 @@ export default function PreviewModal({
       setSingleModeCurrentTime(videoRef.current.currentTime);
     }
   }, [isSingleModeVideo, singleModeDuration, isPlaying, FRAME_DURATION, sequencePause]);
-
-  const notifyRangeChange = useCallback((nextInPoint: number | null, nextOutPoint: number | null) => {
-    onRangeChange?.({ inPoint: nextInPoint, outPoint: nextOutPoint });
-  }, [onRangeChange]);
 
   const setMarkerTimeAndSeek = useCallback((marker: 'in' | 'out', newTime: number) => {
     const duration = usesSequenceController
