@@ -109,3 +109,8 @@
   - `useClipRangeState.ts` を新設し、Singleの in/out state・focused marker・`onRangeChange` 通知を `PreviewModal.tsx` から分離。
   - 既存handlerロジックは維持し、まず state と通知経路のみをhook化。
   - `npm run build` でビルド成功を確認。
+- 2026-02-22 Step 4 進捗（marker操作のhook化）:
+  - `setMarkerTimeAndSeek` / marker focus/drag/end / progress-bar外クリック解除 / frame単位移動を `useClipRangeState.ts` へ移管。
+  - `PreviewModal.tsx` は marker操作の呼び出し側に縮小し、state+操作の責務を集約。
+  - `npm run build` でビルド成功を確認。
+  - マーカー操作系イベント挙動に関わるため、この地点で手動確認フェーズを挟む。
