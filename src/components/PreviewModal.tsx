@@ -705,6 +705,7 @@ export default function PreviewModal({
       setFocusedMarker(null);
       setIsSingleModeClipEnabled(false);
       notifyRangeChange(null, null);
+      showMiniToast('VIDEOCLIP cleared', 'success');
     } catch (error) {
       console.error('Failed to clear clip:', error);
       showMiniToast(error instanceof Error ? error.message : 'Failed to clear clip', 'error');
@@ -724,6 +725,7 @@ export default function PreviewModal({
     try {
       await onClipSave?.(start, end);
       setIsSingleModeClipEnabled(true);
+      showMiniToast('VIDEOCLIP set', 'success');
     } catch (error) {
       console.error('Failed to save clip:', error);
       showMiniToast(error instanceof Error ? error.message : 'Failed to save clip', 'error');
