@@ -2293,7 +2293,11 @@ export default function PreviewModal({
   const currentItem = items[currentIndex];
   const globalProgress = isSingleMode ? 0 : sequenceSelectors.getGlobalProgress();
   const sequenceTotalDuration = isSingleMode ? 0 : sequenceState.totalDuration;
-  const sequenceCurrentTime = isSingleMode ? 0 : sequenceSelectors.getAbsoluteTime();
+  const sequenceCurrentTime = isSingleMode
+    ? 0
+    : (sequenceState.isPlaying && !isDragging
+      ? getSequenceLiveAbsoluteTime()
+      : sequenceSelectors.getAbsoluteTime());
   const singleModePlaybackDuration = isSingleModeVideo ? singleModeDuration : sequenceState.totalDuration;
   const singleModePlaybackTime = isSingleModeVideo ? singleModeCurrentTime : sequenceSelectors.getAbsoluteTime();
   const previewResolutionLabel = useMemo(() => {
@@ -2843,12 +2847,10 @@ export default function PreviewModal({
                   <div
                     ref={progressFillRef}
                     className="preview-progress-fill"
-                    style={{ width: `${globalProgress}%` }}
                   />
                   <div
                     ref={progressHandleRef}
                     className="preview-progress-handle"
-                    style={{ left: `${globalProgress}%` }}
                   />
                   {hoverTime && (
                     <div className="preview-progress-tooltip">
