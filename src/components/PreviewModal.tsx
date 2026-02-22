@@ -98,7 +98,7 @@ interface SingleModeProps {
   asset: Asset;
   initialInPoint?: number;
   initialOutPoint?: number;
-  onClipSave?: (inPoint: number, outPoint: number) => void;
+  onClipSave?: (inPoint: number, outPoint: number) => Promise<void> | void;
   onClipClear?: () => Promise<void> | void;
   onFrameCapture?: (timestamp: number) => Promise<string | void> | void;
 }
@@ -223,6 +223,8 @@ export default function PreviewModal({
   const [isLoading, setIsLoading] = useState(isSingleMode);
   const [singleModeDuration, setSingleModeDuration] = useState(0);
   const [singleModeCurrentTime, setSingleModeCurrentTime] = useState(0);
+  const [isSingleModeClipEnabled, setIsSingleModeClipEnabled] = useState(false);
+  const [isSingleModeClipPending, setIsSingleModeClipPending] = useState(false);
 
   // IN/OUT point state - initialize from props for Single Mode
   const [singleModeInPoint, setSingleModeInPoint] = useState<number | null>(initialInPoint ?? null);
@@ -695,29 +697,40 @@ export default function PreviewModal({
 
   const handleSingleModeClearClip = useCallback(async () => {
     if (!isSingleModeVideo) return;
-
-    setSingleModeInPoint(null);
-    setSingleModeOutPoint(null);
-    setFocusedMarker(null);
-    notifyRangeChange(null, null);
-
+    setIsSingleModeClipPending(true);
     try {
       await onClipClear?.();
+      setSingleModeInPoint(null);
+      setSingleModeOutPoint(null);
+      setFocusedMarker(null);
+      setIsSingleModeClipEnabled(false);
+      notifyRangeChange(null, null);
     } catch (error) {
       console.error('Failed to clear clip:', error);
       showMiniToast(error instanceof Error ? error.message : 'Failed to clear clip', 'error');
+    } finally {
+      setIsSingleModeClipPending(false);
     }
   }, [isSingleModeVideo, notifyRangeChange, onClipClear, showMiniToast]);
 
   // Single Mode Save handler: save clip when both IN and OUT are set
-  const handleSingleModeSave = useCallback(() => {
+  const handleSingleModeSave = useCallback(async () => {
     if (!isSingleModeVideo) return;
     if (inPoint === null || outPoint === null) return;
 
     const start = Math.min(inPoint, outPoint);
     const end = Math.max(inPoint, outPoint);
-    onClipSave?.(start, end);
-  }, [isSingleModeVideo, inPoint, outPoint, onClipSave]);
+    setIsSingleModeClipPending(true);
+    try {
+      await onClipSave?.(start, end);
+      setIsSingleModeClipEnabled(true);
+    } catch (error) {
+      console.error('Failed to save clip:', error);
+      showMiniToast(error instanceof Error ? error.message : 'Failed to save clip', 'error');
+    } finally {
+      setIsSingleModeClipPending(false);
+    }
+  }, [isSingleModeVideo, inPoint, outPoint, onClipSave, showMiniToast]);
 
   const handleSingleModeCaptureFrame = useCallback(async () => {
     if (!isSingleModeVideo || !onFrameCapture) return;
@@ -760,6 +773,11 @@ export default function PreviewModal({
       videoRef.current.playbackRate = playbackSpeed;
     }
   }, [isSingleModeVideo, playbackSpeed]);
+
+  useEffect(() => {
+    if (!isSingleModeVideo) return;
+    setIsSingleModeClipEnabled(!!focusCutData?.cut?.isClip);
+  }, [isSingleModeVideo, focusCutData?.cut?.id, focusCutData?.cut?.isClip]);
 
   // ===== SINGLE MODE ATTACHED AUDIO =====
 
@@ -2347,8 +2365,7 @@ export default function PreviewModal({
 
   // Single Mode: show Save button only when both IN/OUT are set
   const hasSingleModeRange = isSingleModeVideo && inPoint !== null && outPoint !== null;
-  const isSingleModeExistingClip = isSingleModeVideo && !!focusCutData?.cut?.isClip;
-  const showSingleModeClipButton = isSingleModeVideo && !!(onClipSave || onClipClear) && (hasSingleModeRange || isSingleModeExistingClip);
+  const showSingleModeClipButton = isSingleModeVideo && hasSingleModeRange && !!(onClipSave || onClipClear);
 
   // Single Mode progress
   const singleModeProgressPercent = singleModePlaybackDuration > 0
@@ -2586,9 +2603,10 @@ export default function PreviewModal({
                   </button>
                   {isSingleModeVideo && showSingleModeClipButton && (
                     <button
-                      className="preview-ctrl-btn"
-                      onClick={isSingleModeExistingClip ? handleSingleModeClearClip : handleSingleModeSave}
-                      title={isSingleModeExistingClip ? 'Clear clip' : 'Save clip'}
+                      className={`preview-ctrl-btn ${isSingleModeClipEnabled ? 'is-active' : ''}`}
+                      onClick={isSingleModeClipEnabled ? handleSingleModeClearClip : handleSingleModeSave}
+                      title={isSingleModeClipEnabled ? 'Clear clip' : 'Save clip'}
+                      disabled={isSingleModeClipPending}
                     >
                       <Scissors size={18} />
                     </button>
