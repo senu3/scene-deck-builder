@@ -17,7 +17,6 @@ import { createVideoObjectUrl } from '../utils/videoUtils';
 import { formatTime, cyclePlaybackSpeed } from '../utils/timeUtils';
 import { resolveCutAsset, resolveCutThumbnail } from '../utils/assetResolve';
 import { AudioManager } from '../utils/audioUtils';
-import { createImageMediaSource, createLipSyncImageMediaSource, createVideoMediaSource } from '../utils/previewMedia';
 import { useSequencePlaybackController } from '../utils/previewPlaybackController';
 import { getAssetThumbnail } from '../features/thumbnails/api';
 import { buildSequenceItemsForCuts } from '../utils/exportSequence';
@@ -57,6 +56,7 @@ import { usePreviewSequenceDerived } from './preview-modal/usePreviewSequenceDer
 import { usePreviewFullscreen } from './preview-modal/usePreviewFullscreen';
 import { useSequenceProgressInteractions } from './preview-modal/useSequenceProgressInteractions';
 import { usePreviewKeyboardShortcuts } from './preview-modal/usePreviewKeyboardShortcuts';
+import { usePreviewSequenceMediaSource } from './preview-modal/usePreviewSequenceMediaSource';
 import type { FocusedMarker } from './shared';
 import './PreviewModal.css';
 import './shared/playback-controls.css';
@@ -125,7 +125,6 @@ export default function PreviewModal({
   // Overlay is view-only helper UI; it must not persist state or affect export decisions.
   const { showOverlay, showOverlayNow, scheduleHideOverlay } = usePreviewOverlayVisibility({ hideDelayMs: 300 });
   const { show: showMiniToast, element: miniToastElement } = useMiniToast();
-  const lipSyncToastShownRef = useRef<Set<string>>(new Set());
 
   // Buffer management state (Sequence Mode)
   const videoUrlCacheRef = useRef<Map<string, string>>(new Map()); // assetId -> URL
@@ -187,7 +186,6 @@ export default function PreviewModal({
   const progressHandleRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const { displayContainerRef, getViewportStyle } = usePreviewViewport(selectedResolution);
-  const [sequenceMediaElement, setSequenceMediaElement] = useState<JSX.Element | null>(null);
   const {
     isDragging,
     hoverTime,
@@ -1221,6 +1219,22 @@ export default function PreviewModal({
     metadataStore: metadataStore ?? null,
     getAsset,
   });
+  const { sequenceMediaElement } = usePreviewSequenceMediaSource({
+    usesSequenceController,
+    items,
+    currentIndex: sequenceState.currentIndex,
+    videoObjectUrl,
+    playbackSpeed,
+    setSequenceSource,
+    sequenceTick,
+    sequenceGoToNext,
+    setSequenceRate,
+    previewSequenceItemByCutId,
+    getSequenceLiveAbsoluteTime,
+    showMiniToast,
+    resolveAssetForCut,
+    videoRef,
+  });
   const buildSequenceAudioEventKey = useCallback((event: ExportAudioEvent, index: number) => {
     return [
       index,
@@ -1353,151 +1367,6 @@ export default function PreviewModal({
 
     sequenceToggle();
   }, [usesSequenceController, items.length, sequenceState, sequenceSelectors, sequenceToggle, seekSequenceAbsolute]);
-
-  useEffect(() => {
-    if (!usesSequenceController) {
-      setSequenceSource(null);
-      setSequenceMediaElement(null);
-      return;
-    }
-
-    setSequenceSource(null);
-    setSequenceMediaElement(null);
-
-    const currentItem = items[sequenceState.currentIndex];
-    const asset = resolveAssetForCut(currentItem?.cut);
-    if (!currentItem || !asset) return;
-
-    const currentSpec = previewSequenceItemByCutId.get(currentItem.cut.id);
-    if (currentSpec?.lipSync) {
-      let isActive = true;
-      const loadLipSyncSources = async () => {
-        const sources: string[] = [];
-        for (const framePath of currentSpec.lipSync!.framePaths) {
-          let src = '';
-          try {
-            const thumb = await getAssetThumbnail('sequence-preview', {
-              path: framePath,
-              type: 'image',
-            });
-            if (thumb) src = thumb;
-          } catch {
-            // ignore
-          }
-          sources.push(src);
-        }
-
-        const baseFallback = sources[0] || currentItem.thumbnail || '';
-        const resolvedSources = sources.map((src) => src || baseFallback);
-
-        if (!currentSpec.lipSync!.rms?.length) {
-          if (!lipSyncToastShownRef.current.has(asset.id)) {
-            lipSyncToastShownRef.current.add(asset.id);
-            showMiniToast('Lip sync RMS not available', 'warning');
-          }
-          const fallbackSource = createImageMediaSource({
-            src: baseFallback,
-            alt: `${currentItem.sceneName} - Cut ${currentItem.cutIndex + 1}`,
-            className: 'preview-media',
-            duration: currentSpec.duration,
-            onTimeUpdate: sequenceTick,
-            onEnded: sequenceGoToNext,
-          });
-          if (!isActive) return;
-          setSequenceSource(fallbackSource);
-          setSequenceMediaElement(fallbackSource.element);
-          setSequenceRate(playbackSpeed);
-          return;
-        }
-
-        const lipSyncSource = createLipSyncImageMediaSource({
-          sources: resolvedSources,
-          alt: `${currentItem.sceneName} - Cut ${currentItem.cutIndex + 1}`,
-          className: 'preview-media',
-          duration: currentSpec.duration,
-          rms: currentSpec.lipSync!.rms,
-          rmsFps: currentSpec.lipSync!.rmsFps,
-          thresholds: currentSpec.lipSync!.thresholds,
-          getAbsoluteTime: getSequenceLiveAbsoluteTime,
-          audioOffsetSec: currentSpec.lipSync!.audioOffsetSec,
-          onTimeUpdate: sequenceTick,
-          onEnded: sequenceGoToNext,
-        });
-
-        if (!isActive) return;
-        setSequenceSource(lipSyncSource);
-        setSequenceMediaElement(lipSyncSource.element);
-        setSequenceRate(playbackSpeed);
-      };
-
-      void loadLipSyncSources();
-      return () => {
-        isActive = false;
-      };
-    }
-
-    if (asset.type === 'video') {
-      const assetId = asset.id ?? currentItem.cut.assetId ?? null;
-      if (!videoObjectUrl || !assetId || videoObjectUrl.assetId !== assetId) {
-        return;
-      }
-
-      const clipInPoint = currentItem.cut.isClip && currentItem.cut.inPoint !== undefined
-        ? currentSpec?.inPoint ?? currentItem.cut.inPoint
-        : 0;
-      const clipOutPoint = currentItem.cut.isClip && currentItem.cut.outPoint !== undefined
-        ? currentSpec?.outPoint ?? currentItem.cut.outPoint
-        : undefined;
-
-      const videoSourceKey = `${currentItem.cut.id}:${videoObjectUrl.url}:${clipInPoint}:${clipOutPoint ?? 'end'}`;
-      const source = createVideoMediaSource({
-        src: videoObjectUrl.url,
-        key: videoSourceKey,
-        className: 'preview-media',
-        // Sequence mode audio is driven by exportAudioPlan events; keep element audio muted to avoid double playback.
-        muted: true,
-        refObject: videoRef,
-        inPoint: clipInPoint,
-        outPoint: clipOutPoint,
-        onTimeUpdate: sequenceTick,
-        onEnded: sequenceGoToNext,
-      });
-      setSequenceSource(source);
-      setSequenceMediaElement(source.element);
-      setSequenceRate(playbackSpeed);
-      return;
-    }
-
-    if (asset.type === 'image') {
-      if (currentItem.thumbnail) {
-        const source = createImageMediaSource({
-          src: currentItem.thumbnail,
-          alt: `${currentItem.sceneName} - Cut ${currentItem.cutIndex + 1}`,
-          className: 'preview-media',
-          duration: currentItem.normalizedDisplayTime,
-          onTimeUpdate: sequenceTick,
-          onEnded: sequenceGoToNext,
-        });
-        setSequenceSource(source);
-        setSequenceMediaElement(source.element);
-        setSequenceRate(playbackSpeed);
-      }
-    }
-  }, [
-    usesSequenceController,
-    items,
-    sequenceState.currentIndex,
-    videoObjectUrl,
-    playbackSpeed,
-    setSequenceSource,
-    sequenceTick,
-    sequenceGoToNext,
-    setSequenceRate,
-    previewSequenceItemByCutId,
-    getSequenceLiveAbsoluteTime,
-    showMiniToast,
-    resolveAssetForCut,
-  ]);
 
   useEffect(() => {
     if (!usesSequenceController) return;
