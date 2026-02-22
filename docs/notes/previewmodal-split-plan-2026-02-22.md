@@ -61,6 +61,21 @@
 - 新規: `src/components/preview-modal/usePreviewInteractionCommands.ts`（名称は実装時に最終確定）
 - ユーザー操作入口（play/pause, seek/skip, in/out, loop, mute, marker操作）を mode 非依存の command API として統一する。
 - command 内部で mode 分岐を吸収し、View/Shortcut 側は同一インターフェースのみ参照する。
+- `speed` は command 層の対象外（Single 専用の暫定扱い）。
+
+8. 統合優先ルール（過分割抑制）
+- 新規 hook を増やす前に、近接責務の hook を「役割クラス」で統合する。
+- 優先統合単位:
+  - View 系: overlay + viewport + fullscreen（`usePreviewViewShell` 相当）
+  - Input 系: keyboard + progress interaction（`usePreviewInputs` 相当）
+  - Sequence session 系: mediaSource + buffering + sequenceAudio（`usePreviewSequenceSession` 相当）
+- 「操作入口の正本」は `usePreviewInteractionCommands` のみとし、View/Shortcut は command API だけを見る。
+
+9. 過分割ライン判定（統合トリガ）
+- 以下のいずれかに当たる hook は統合候補とする:
+  - 依存引数が 6 個以上
+  - 別 hook の戻り値を 2 つ以上合成している
+  - state を持たず effect 1 個のみの薄い wrapper
 
 ## 実装ステップ
 1. 型・定数抽出（挙動無変更）
@@ -68,9 +83,10 @@
 3. `previewItemsBuilder` 抽出（item構築一本化）
 4. `usePreviewSession` 抽出（再生/音声/buffer移管）
 5. `useClipRangeState` 導入（state/persistence 分離）
-6. `PreviewModal.tsx` を最終整理
-7. `usePreviewInteractionCommands` 導入（操作入口の統一）
-8. command API を View/Shortcut に接続し、最終整理
+6. `usePreviewInteractionCommands` 導入（操作入口の統一）
+7. command API を View/Shortcut に接続（操作入口の正本化）
+8. 過分割抑制の統合フェーズ
+9. `PreviewModal.tsx` を最終整理（Composition Root 固定）
 
 ## 検証観点
 - 自動:
@@ -81,6 +97,7 @@
   - `sequenceCuts` 指定時に指定範囲のみ再生される。
   - VIDEOCLIP の set/clear と MiniToast 表示が維持される。
   - IN/OUT 操作時の再生位置・表示・保存の整合が崩れない。
+  - command API 経由で Single/Sequence の操作感（play/pause, in/out, loop, mute, marker）が一致する。
 
 ## Done Criteria
 - `PreviewModal.tsx` が Composition Root として読めるサイズ/責務に縮小している。
@@ -200,3 +217,7 @@
   - `PreviewModal.tsx` の keyboard shortcut と Single/Sequence View の操作配線を command API 経由に置換し、操作入口を統一。
   - `speed` は計画どおり command 層に含めず、既存の単独経路（UI/shortcut -> playbackSpeed更新）を維持。
   - `npm run build` でビルド成功を確認。
+- 2026-02-22 Plan update（過分割抑制へ方針修正）:
+  - Step 4 以降の「薄い hook 増殖」を抑えるため、今後は新規分割より役割統合を優先する方針へ変更。
+  - 統合単位（View/Input/Sequence session）と過分割ライン判定（依存数・hook合成数・薄いeffect hook）を追加。
+  - 操作入口の正本を `usePreviewInteractionCommands` に固定し、`usePreviewPlaybackControls` などの重複責務は統合対象として扱う。
