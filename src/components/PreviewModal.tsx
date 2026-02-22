@@ -53,6 +53,7 @@ import { PreviewModalSingleView } from './preview-modal/PreviewModalSingleView';
 import { useClipRangeState } from './preview-modal/useClipRangeState';
 import { usePreviewOverlayVisibility } from './preview-modal/usePreviewOverlayVisibility';
 import { usePreviewViewport } from './preview-modal/usePreviewViewport';
+import { usePreviewSequenceDerived } from './preview-modal/usePreviewSequenceDerived';
 import './PreviewModal.css';
 import './shared/playback-controls.css';
 
@@ -994,38 +995,14 @@ export default function PreviewModal({
 
   // ===== SEQUENCE MODE ATTACHED AUDIO =====
 
-  const previewSequenceItems = useMemo(() => {
-    const exportCuts = items.map((item) => ({
-      ...item.cut,
-      displayTime: item.normalizedDisplayTime,
-    }));
-    return buildSequenceItemsForCuts(exportCuts, {
-      framingDefaults: EXPORT_FRAMING_DEFAULTS,
-      metadataByAssetId: metadataStore?.metadata,
-      resolveAssetById: getAsset,
-      strictLipSync: false,
-    });
-  }, [items, metadataStore, getAsset]);
-  const previewSequenceItemByCutId = useMemo(
-    () => new Map(previewSequenceItems.map((item, index) => [items[index]?.cut.id, item] as const).filter((entry) => !!entry[0])),
-    [previewSequenceItems, items]
-  );
-  const previewAudioPlan = useMemo(() => {
-    const exportCuts = items.map((item) => ({
-      ...item.cut,
-      displayTime: item.normalizedDisplayTime,
-    }));
-    const cutSceneMap = new Map<string, string>();
-    for (const item of items) {
-      cutSceneMap.set(item.cut.id, item.sceneId);
-    }
-    return buildExportAudioPlan({
-      cuts: canonicalizeCutsForExportAudioPlan(exportCuts, getAsset).cuts,
-      metadataStore: metadataStore ?? null,
-      getAssetById: getAsset,
-      resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
-    });
-  }, [items, metadataStore, getAsset]);
+  const {
+    previewSequenceItemByCutId,
+    previewAudioPlan,
+  } = usePreviewSequenceDerived({
+    items,
+    metadataStore: metadataStore ?? null,
+    getAsset,
+  });
   const buildSequenceAudioEventKey = useCallback((event: ExportAudioEvent, index: number) => {
     return [
       index,
