@@ -86,3 +86,7 @@
   - `types.ts` / `constants.ts` / `helpers.ts` を新設し、`PreviewModal.tsx` から型・定数・小ヘルパーを分離。
   - 目的は挙動無変更での責務整理開始。
   - `npm run build` でビルド成功を確認。
+- 2026-02-22 Step 2 前段:
+  - 重複していた解像度セレクタUIを `PreviewResolutionPicker.tsx` に抽出。
+  - Full View分離前に、表示責務を段階的に外出しする足場を追加。
+  - `npm run build` でビルド成功を確認。
