@@ -57,6 +57,11 @@
 - 新規: `src/components/preview-modal/types.ts`
 - 必要時のみ `constants.ts` を追加。
 
+7. 操作コマンド層の導入（Single/SequenceのUX整合）
+- 新規: `src/components/preview-modal/usePreviewInteractionCommands.ts`（名称は実装時に最終確定）
+- ユーザー操作入口（play/pause, seek/skip, in/out, loop, mute, speed, marker操作）を mode 非依存の command API として統一する。
+- command 内部で mode 分岐を吸収し、View/Shortcut 側は同一インターフェースのみ参照する。
+
 ## 実装ステップ
 1. 型・定数抽出（挙動無変更）
 2. `PreviewModalView` 抽出（見た目無変更）
@@ -64,6 +69,8 @@
 4. `usePreviewSession` 抽出（再生/音声/buffer移管）
 5. `useClipRangeState` 導入（state/persistence 分離）
 6. `PreviewModal.tsx` を最終整理
+7. `usePreviewInteractionCommands` 導入（操作入口の統一）
+8. command API を View/Shortcut に接続し、最終整理
 
 ## 検証観点
 - 自動:
@@ -182,3 +189,6 @@
   - `usePreviewPlaybackControls.ts` を追加し、go next/prev, play pause, loop, speed, pauseBeforeExport と sequence rate/buffering 連携 effect を `PreviewModal.tsx` から分離。
   - `PreviewModal.tsx` では keyboard shortcut と view への配線のみを保持し、再生制御ロジックの責務を hook 側へ移管。
   - `npm run build` でビルド成功を確認。
+- 2026-02-22 Plan update（操作コマンド層の追加）:
+  - Single/Sequence の内部実装差を維持しつつ、ユーザー操作入口の一貫性を高めるため `usePreviewInteractionCommands` 導入タスクを計画へ追加。
+  - 次フェーズで play/pause, seek/skip, in/out, loop, mute, speed, marker 操作の command API 統一を実施予定。
