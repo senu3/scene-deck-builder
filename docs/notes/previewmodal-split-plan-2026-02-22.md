@@ -77,6 +77,29 @@
   - 別 hook の戻り値を 2 つ以上合成している
   - state を持たず effect 1 個のみの薄い wrapper
 
+10. 残タスクA: PreviewModal 内ローカル helper の整理（Audio）
+- 対象: `getPrimaryAudioBindingForCut` / `getAttachedAudioForCut` / `getAudioOffsetForCut` / `shouldMuteEmbeddedAudio`
+- 方針:
+  - hook 化ではなく純関数モジュール `audioBinding.ts` に集約する。
+  - 入口は `resolveCutAudioBinding(cut, scene, assets, settings, ...) -> { primary, attached?, offset, muteEmbedded, ... }` を正本とする。
+  - 周辺の細分 helper は module private に閉じ、不要な export を増やさない。
+- 例外（hook を許容する条件）:
+  - 計算が重く `useMemo` 最適化が必要な場合
+  - 計算結果を UI state と一体管理する必要がある場合
+  - その場合でも `useAudioBinding()` の薄いラッパ 1 個に限定し、内部実装は `audioBinding.ts` を呼ぶ。
+
+11. 残タスクB: Composition Root 最終整理（過分割抑制版）
+- `PreviewModal.tsx` に残してよい責務:
+  - イベント配線のみ（例: `onClick={() => commands.playPause()}`）
+  - View props の整形（命名整列・default 補完）
+  - 複数 hook 戻り値の assembly（ロジックを入れない）
+- `PreviewModal.tsx` から外へ出す責務:
+  - 条件分岐が多い handler（状態に応じて挙動が変わるもの）
+  - 複数 state を調停する effect
+  - domain 判定（mute/offset 等）
+- 外出し時のルール:
+  - 新規の薄い hook を増やさず、既存の束へ吸収する（`usePreviewSequenceSession` / `usePreviewViewShell` / `usePreviewInputs`）。
+
 ## 実装ステップ
 1. 型・定数抽出（挙動無変更）
 2. `PreviewModalView` 抽出（見た目無変更）
@@ -87,6 +110,8 @@
 7. command API を View/Shortcut に接続（操作入口の正本化）
 8. 過分割抑制の統合フェーズ
 9. `PreviewModal.tsx` を最終整理（Composition Root 固定）
+10. Audio helper を `audioBinding.ts` に集約（正本固定）
+11. Composition Root の責務線引き確定（残してよい責務のみを残置）
 
 ## 検証観点
 - 自動:
@@ -221,3 +246,6 @@
   - Step 4 以降の「薄い hook 増殖」を抑えるため、今後は新規分割より役割統合を優先する方針へ変更。
   - 統合単位（View/Input/Sequence session）と過分割ライン判定（依存数・hook合成数・薄いeffect hook）を追加。
   - 操作入口の正本を `usePreviewInteractionCommands` に固定し、`usePreviewPlaybackControls` などの重複責務は統合対象として扱う。
+- 2026-02-22 Plan update（残タスク具体化 3/4）:
+  - 残タスク3: Audio 判定 helper 群は `audioBinding.ts` 純関数へ統合し、Audio 正本ロジックを 1 箇所化。
+  - 残タスク4: Composition Root 最終整理では「残してよい責務」を明示し、薄い hook 増殖ではなく既存束への吸収を原則化。
