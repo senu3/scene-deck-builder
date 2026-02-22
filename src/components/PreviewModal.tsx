@@ -57,6 +57,7 @@ import {
   isEditableTarget,
   revokeIfBlob,
 } from './preview-modal/helpers';
+import { PreviewResolutionPicker } from './preview-modal/PreviewResolutionPicker';
 import './PreviewModal.css';
 import './shared/playback-controls.css';
 
@@ -2425,24 +2426,14 @@ export default function PreviewModal({
                   )}
                 </div>
                 <div className="preview-overlay-right">
-                  <select
-                    className="preview-resolution-select"
-                    value={selectedResolution.name}
-                    onChange={(e) => {
-                      const preset = RESOLUTION_PRESETS.find(p => p.name === e.target.value);
-                      if (preset) {
-                        setSelectedResolution(preset);
-                        onResolutionChange?.(preset);
-                      }
+                  <PreviewResolutionPicker
+                    selectedResolutionName={selectedResolution.name}
+                    presets={RESOLUTION_PRESETS}
+                    onSelect={(preset) => {
+                      setSelectedResolution(preset);
+                      onResolutionChange?.(preset);
                     }}
-                    title="Resolution Simulation"
-                  >
-                    {RESOLUTION_PRESETS.map(preset => (
-                      <option key={preset.name} value={preset.name}>
-                        {preset.name}{preset.width > 0 ? ` (${preset.width}×${preset.height})` : ''}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </div>
               </div>
 
@@ -2704,24 +2695,14 @@ export default function PreviewModal({
                 )}
               </div>
               <div className="preview-overlay-right">
-                <select
-                  className="preview-resolution-select"
-                  value={selectedResolution.name}
-                  onChange={(e) => {
-                    const preset = RESOLUTION_PRESETS.find(p => p.name === e.target.value);
-                    if (preset) {
-                      setSelectedResolution(preset);
-                      onResolutionChange?.(preset);
-                    }
+                <PreviewResolutionPicker
+                  selectedResolutionName={selectedResolution.name}
+                  presets={RESOLUTION_PRESETS}
+                  onSelect={(preset) => {
+                    setSelectedResolution(preset);
+                    onResolutionChange?.(preset);
                   }}
-                  title="Resolution Simulation"
-                >
-                  {RESOLUTION_PRESETS.map(preset => (
-                    <option key={preset.name} value={preset.name}>
-                      {preset.name}{preset.width > 0 ? ` (${preset.width}×${preset.height})` : ''}
-                    </option>
-                  ))}
-                </select>
+                />
                 <button
                   className="preview-icon-btn"
                   onClick={handleExportFull}
