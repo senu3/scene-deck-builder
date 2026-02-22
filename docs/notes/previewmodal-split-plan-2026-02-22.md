@@ -126,3 +126,7 @@
   - `usePreviewSequenceDerived.ts` を追加し、`previewSequenceItemByCutId` と `previewAudioPlan` の派生計算を `PreviewModal.tsx` から分離。
   - Preview/Export parity に関わる canonical 入力（`normalizedDisplayTime`）は既存ルールを維持。
   - `npm run build` でビルド成功を確認。
+- 2026-02-22 Step 4 進捗（fullscreen制御のhook化）:
+  - `usePreviewFullscreen.ts` を追加し、fullscreen トグルと状態管理を `PreviewModal.tsx` から分離。
+  - `PreviewModal.tsx` から `requestFullscreen/exitFullscreen` 直接実装を除去。
+  - `npm run build` でビルド成功を確認。
