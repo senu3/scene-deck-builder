@@ -33,7 +33,6 @@ import {
   resolveCanonicalCutDuration,
   type CanonicalDurationSec,
 } from '../utils/storyTiming';
-import type { FocusedMarker } from './shared';
 import { useMiniToast } from '../ui';
 import type { PreviewItem, PreviewModalProps, ResolutionPreset } from './preview-modal/types';
 import {
@@ -45,7 +44,6 @@ import {
 } from './preview-modal/constants';
 import {
   clampToDuration,
-  constrainMarkerTime,
   isEditableTarget,
   revokeIfBlob,
 } from './preview-modal/helpers';
@@ -169,22 +167,6 @@ export default function PreviewModal({
   const isPlaying = usesSequenceController ? sequenceState.isPlaying : singleModeIsPlaying;
   const isLooping = usesSequenceController ? sequenceState.isLooping : singleModeIsLooping;
   const isBuffering = usesSequenceController ? sequenceState.isBuffering : false;
-  const {
-    setSingleModeInPoint,
-    setSingleModeOutPoint,
-    focusedMarker,
-    setFocusedMarker,
-    inPoint,
-    outPoint,
-    notifyRangeChange,
-  } = useClipRangeState({
-    usesSequenceController,
-    sequenceInPoint: sequenceState.inPoint,
-    sequenceOutPoint: sequenceState.outPoint,
-    initialInPoint,
-    initialOutPoint,
-    onRangeChange,
-  });
 
   const modalRef = useRef<HTMLDivElement>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
@@ -194,6 +176,35 @@ export default function PreviewModal({
   const displayContainerRef = useRef<HTMLDivElement>(null);
   const [displaySize, setDisplaySize] = useState({ width: 0, height: 0 });
   const [sequenceMediaElement, setSequenceMediaElement] = useState<JSX.Element | null>(null);
+  const {
+    setSingleModeInPoint,
+    setSingleModeOutPoint,
+    focusedMarker,
+    setFocusedMarker,
+    inPoint,
+    outPoint,
+    notifyRangeChange,
+    stepFocusedMarker,
+    handleMarkerFocus,
+    handleMarkerDrag,
+    handleMarkerDragEnd,
+    handleContainerMouseDown,
+  } = useClipRangeState({
+    usesSequenceController,
+    sequenceInPoint: sequenceState.inPoint,
+    sequenceOutPoint: sequenceState.outPoint,
+    sequenceTotalDuration: sequenceState.totalDuration,
+    singleModeDuration,
+    itemsLength: items.length,
+    initialInPoint,
+    initialOutPoint,
+    onRangeChange,
+    setSequenceRange,
+    seekSequenceAbsolute,
+    setSingleModeCurrentTime,
+    videoRef,
+    frameDuration: FRAME_DURATION,
+  });
 
   // ===== ATTACHED AUDIO HELPER =====
 
@@ -390,85 +401,6 @@ export default function PreviewModal({
       setSingleModeCurrentTime(videoRef.current.currentTime);
     }
   }, [isSingleModeVideo, singleModeDuration, isPlaying, FRAME_DURATION, sequencePause]);
-
-  const setMarkerTimeAndSeek = useCallback((marker: 'in' | 'out', newTime: number) => {
-    const duration = usesSequenceController
-      ? sequenceState.totalDuration
-      : singleModeDuration;
-    const constrainedTime = constrainMarkerTime(marker, newTime, duration, inPoint, outPoint);
-
-    if (marker === 'in') {
-      if (!usesSequenceController) {
-        setSingleModeInPoint(constrainedTime);
-        notifyRangeChange(constrainedTime, outPoint);
-      } else {
-        setSequenceRange(constrainedTime, outPoint ?? null);
-        notifyRangeChange(constrainedTime, outPoint ?? null);
-      }
-    } else {
-      if (!usesSequenceController) {
-        setSingleModeOutPoint(constrainedTime);
-        notifyRangeChange(inPoint, constrainedTime);
-      } else {
-        setSequenceRange(inPoint ?? null, constrainedTime);
-        notifyRangeChange(inPoint ?? null, constrainedTime);
-      }
-    }
-
-    if (!usesSequenceController && videoRef.current) {
-      videoRef.current.currentTime = constrainedTime;
-      setSingleModeCurrentTime(constrainedTime);
-    } else if (usesSequenceController && items.length > 0) {
-      seekSequenceAbsolute(constrainedTime);
-    }
-  }, [
-    usesSequenceController,
-    sequenceState.totalDuration,
-    singleModeDuration,
-    items.length,
-    inPoint,
-    outPoint,
-    notifyRangeChange,
-    setSequenceRange,
-    seekSequenceAbsolute,
-  ]);
-
-  // Step focused marker by one frame
-  const stepFocusedMarker = useCallback((direction: number) => {
-    if (!focusedMarker) return;
-    const currentMarkerTime = focusedMarker === 'in' ? inPoint : outPoint;
-    if (currentMarkerTime === null) return;
-    setMarkerTimeAndSeek(focusedMarker, currentMarkerTime + (direction * FRAME_DURATION));
-  }, [focusedMarker, inPoint, outPoint, setMarkerTimeAndSeek]);
-
-  // Handle marker focus
-  const handleMarkerFocus = useCallback((marker: FocusedMarker) => {
-    setFocusedMarker(marker);
-  }, []);
-
-  // Handle marker drag (both modes)
-  const handleMarkerDrag = useCallback((marker: 'in' | 'out', newTime: number) => {
-    setMarkerTimeAndSeek(marker, newTime);
-  }, [setMarkerTimeAndSeek]);
-
-  // Handle marker drag end
-  const handleMarkerDragEnd = useCallback(() => {
-    setFocusedMarker(null);
-  }, []);
-
-  // Clear focused marker when clicking outside progress bar
-  const handleContainerMouseDown = useCallback((e: React.MouseEvent) => {
-    if (!focusedMarker) return;
-
-    // Check if click was inside the progress bar
-    const target = e.target as HTMLElement;
-    const progressBar = target.closest('.preview-progress-bar');
-
-    // If clicked outside progress bar, clear focus
-    if (!progressBar) {
-      setFocusedMarker(null);
-    }
-  }, [focusedMarker]);
 
   const showOverlayNow = useCallback(() => {
     if (overlayTimeoutRef.current !== null) {
