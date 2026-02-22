@@ -18,8 +18,6 @@ import { cyclePlaybackSpeed } from '../utils/timeUtils';
 import { resolveCutAsset, resolveCutThumbnail } from '../utils/assetResolve';
 import { useSequencePlaybackController } from '../utils/previewPlaybackController';
 import { getAssetThumbnail } from '../features/thumbnails/api';
-import { EXPORT_FRAMING_DEFAULTS } from '../constants/framing';
-import { buildPreviewViewportFramingStyle, buildPreviewViewportFramingStyleFromResolved } from '../utils/previewFraming';
 import { getScenesInOrder } from '../utils/sceneOrder';
 import {
   asCanonicalDurationSec,
@@ -55,6 +53,7 @@ import { usePreviewSequenceAudio } from './preview-modal/usePreviewSequenceAudio
 import { usePreviewSequenceBuffering } from './preview-modal/usePreviewSequenceBuffering';
 import { usePreviewSingleAttachedAudio } from './preview-modal/usePreviewSingleAttachedAudio';
 import { usePreviewExportActions } from './preview-modal/usePreviewExportActions';
+import { usePreviewSharedViewState } from './preview-modal/usePreviewSharedViewState';
 import type { FocusedMarker } from './shared';
 import './PreviewModal.css';
 import './shared/playback-controls.css';
@@ -1082,112 +1081,52 @@ export default function PreviewModal({
   // Suppress unused variable warning - code kept for future use
   void handleExportRange;
 
-  // Apply volume/mute to the active video element (embedded audio only)
-  useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.volume = globalVolume;
-      const activeCut = isSingleMode
-        ? (focusCutData?.cut ?? null)
-        : (items[sequenceState.currentIndex]?.cut ?? null);
-      videoRef.current.muted = isSingleMode ? shouldMuteEmbeddedAudio(activeCut) : true;
-    }
-  }, [
-    globalVolume,
-    isSingleMode,
-    focusCutData?.cut,
-    items,
-    sequenceState.currentIndex,
-    shouldMuteEmbeddedAudio,
-  ]);
-
   // ===== SHARED COMPUTED VALUES =====
-  const currentItem = items[currentIndex];
-  const globalProgress = isSingleMode ? 0 : sequenceSelectors.getGlobalProgress();
-  const sequenceTotalDuration = isSingleMode ? 0 : sequenceState.totalDuration;
-  const sequenceCurrentTime = isSingleMode ? 0 : sequenceSelectors.getAbsoluteTime();
-  const singleModePlaybackDuration = isSingleModeVideo ? singleModeDuration : sequenceState.totalDuration;
-  const singleModePlaybackTime = isSingleModeVideo ? singleModeCurrentTime : sequenceSelectors.getAbsoluteTime();
-  const previewResolutionLabel = useMemo(() => {
-    const targetAsset = isSingleMode ? asset : resolveAssetForCut(currentItem?.cut);
-    const width = targetAsset?.metadata?.width;
-    const height = targetAsset?.metadata?.height;
-    if (typeof width === 'number' && typeof height === 'number') {
-      return `${width}×${height}`;
-    }
-    return null;
-  }, [isSingleMode, asset, currentItem, resolveAssetForCut]);
-  const currentFraming = useMemo(() => {
-    const targetCut = isSingleMode
-      ? focusCutData?.cut
-      : currentItem?.cut;
-    if (targetCut) {
-      const fromSequenceSpec = previewSequenceItemByCutId.get(targetCut.id);
-      if (fromSequenceSpec) {
-        return buildPreviewViewportFramingStyleFromResolved(
-          fromSequenceSpec.framingMode,
-          fromSequenceSpec.framingAnchor
-        );
-      }
-    }
-    return buildPreviewViewportFramingStyle(targetCut?.framing, EXPORT_FRAMING_DEFAULTS);
-  }, [isSingleMode, focusCutData?.cut, currentItem?.cut, previewSequenceItemByCutId]);
+  const {
+    currentItem,
+    sequenceTotalDuration,
+    sequenceCurrentTime,
+    singleModePlaybackDuration,
+    singleModePlaybackTime,
+    previewResolutionLabel,
+    currentFraming,
+    singleModeProgressPercent,
+    previewDisplayClassName,
+  } = usePreviewSharedViewState({
+    isSingleMode,
+    isSingleModeVideo,
+    usesSequenceController,
+    isDragging,
+    items,
+    currentIndex,
+    sequenceCurrentIndex: sequenceState.currentIndex,
+    sequenceTotalDuration: sequenceState.totalDuration,
+    getSequenceGlobalProgress: sequenceSelectors.getGlobalProgress,
+    getSequenceAbsoluteTime: sequenceSelectors.getAbsoluteTime,
+    getSequenceLiveAbsoluteTime,
+    sequenceIsPlaying: sequenceState.isPlaying,
+    singleModeDuration,
+    singleModeCurrentTime,
+    asset,
+    focusCut: focusCutData?.cut ?? null,
+    previewSequenceItemByCutId,
+    resolveAssetForCut,
+    selectedResolution,
+    globalVolume,
+    shouldMuteEmbeddedAudio,
+    videoRef,
+    progressFillRef,
+    progressHandleRef,
+  });
 
   // _hasRange kept for future range export UI implementation
   const _hasRange = inPoint !== null && outPoint !== null;
   // Suppress unused variable warnings - code kept for future use
   void _hasRange;
 
-  useEffect(() => {
-    if (progressFillRef.current) {
-      progressFillRef.current.style.width = `${globalProgress}%`;
-    }
-    if (progressHandleRef.current) {
-      progressHandleRef.current.style.left = `${globalProgress}%`;
-    }
-  }, [globalProgress]);
-
-  useEffect(() => {
-    if (!usesSequenceController || !sequenceState.isPlaying || isDragging) return;
-
-    let rafId = 0;
-    const update = () => {
-      // Hotpath rule (Gate 10): requestAnimationFrame loop updates UI only.
-      const totalDuration = sequenceState.totalDuration;
-      if (totalDuration > 0) {
-        const liveTime = getSequenceLiveAbsoluteTime();
-        const percent = Math.max(0, Math.min(100, (liveTime / totalDuration) * 100));
-        if (progressFillRef.current) {
-          progressFillRef.current.style.width = `${percent}%`;
-        }
-        if (progressHandleRef.current) {
-          progressHandleRef.current.style.left = `${percent}%`;
-        }
-      }
-      rafId = window.requestAnimationFrame(update);
-    };
-
-    rafId = window.requestAnimationFrame(update);
-    return () => window.cancelAnimationFrame(rafId);
-  }, [
-    usesSequenceController,
-    sequenceState.isPlaying,
-    sequenceState.totalDuration,
-    isDragging,
-    getSequenceLiveAbsoluteTime,
-  ]);
-
   // Single Mode: show Save button only when both IN/OUT are set
   const hasSingleModeRange = isSingleModeVideo && inPoint !== null && outPoint !== null;
   const showSingleModeClipButton = isSingleModeVideo && hasSingleModeRange && !!(onClipSave || onClipClear);
-
-  // Single Mode progress
-  const singleModeProgressPercent = singleModePlaybackDuration > 0
-    ? (singleModePlaybackTime / singleModePlaybackDuration) * 100
-    : 0;
-  const isFreeResolution = selectedResolution.width === 0;
-  const previewDisplayClassName = isFreeResolution
-    ? 'preview-display'
-    : 'preview-display preview-display--expanded';
 
   // ===== SINGLE MODE RENDER =====
   if (isSingleMode) {
