@@ -24,7 +24,7 @@ import { resolvePreviewAudioTracks } from '../utils/previewAudioTracks';
 import { DEFAULT_EXPORT_RESOLUTION } from '../constants/export';
 import { EXPORT_FRAMING_DEFAULTS } from '../constants/framing';
 import { buildPreviewViewportFramingStyle, buildPreviewViewportFramingStyleFromResolved } from '../utils/previewFraming';
-import { buildExportAudioPlan, canonicalizeCutsForExportAudioPlan, type ExportAudioEvent } from '../utils/exportAudioPlan';
+import { buildExportAudioPlan, canonicalizeCutsForExportAudioPlan } from '../utils/exportAudioPlan';
 import { getScenesInOrder } from '../utils/sceneOrder';
 import {
   asCanonicalDurationSec,
@@ -57,6 +57,7 @@ import { usePreviewFullscreen } from './preview-modal/usePreviewFullscreen';
 import { useSequenceProgressInteractions } from './preview-modal/useSequenceProgressInteractions';
 import { usePreviewKeyboardShortcuts } from './preview-modal/usePreviewKeyboardShortcuts';
 import { usePreviewSequenceMediaSource } from './preview-modal/usePreviewSequenceMediaSource';
+import { usePreviewSequenceAudio } from './preview-modal/usePreviewSequenceAudio';
 import type { FocusedMarker } from './shared';
 import './PreviewModal.css';
 import './shared/playback-controls.css';
@@ -291,20 +292,12 @@ export default function PreviewModal({
   // Keep separate managers for single-mode and sequence event-mix to avoid cross-mode races.
   const singleAudioManagerRef = useRef(new AudioManager());
   const singleAudioPlayingRef = useRef(false);
-  const sequenceAudioManagersRef = useRef<Map<string, AudioManager>>(new Map());
-  const sequenceAudioLoadIdsRef = useRef<Map<string, number>>(new Map());
   const [singleAudioLoaded, setSingleAudioLoaded] = useState(false);
 
   // Unload audio on unmount (but do NOT dispose the AudioManager)
   useEffect(() => {
     return () => {
       singleAudioManagerRef.current.unload();
-      for (const manager of sequenceAudioManagersRef.current.values()) {
-        manager.unload();
-        manager.dispose();
-      }
-      sequenceAudioManagersRef.current.clear();
-      sequenceAudioLoadIdsRef.current.clear();
     };
   }, []);
 
@@ -903,9 +896,6 @@ export default function PreviewModal({
   // Apply volume to attached audio
   useEffect(() => {
     singleAudioManagerRef.current.setVolume(globalMuted ? 0 : globalVolume);
-    for (const manager of sequenceAudioManagersRef.current.values()) {
-      manager.setVolume(globalMuted ? 0 : globalVolume);
-    }
   }, [globalVolume, globalMuted]);
 
   // ===== SEQUENCE MODE LOGIC =====
@@ -1235,109 +1225,16 @@ export default function PreviewModal({
     resolveAssetForCut,
     videoRef,
   });
-  const buildSequenceAudioEventKey = useCallback((event: ExportAudioEvent, index: number) => {
-    return [
-      index,
-      event.sourceType,
-      event.assetId || '',
-      event.sceneId || '',
-      event.cutId || '',
-      event.timelineStartSec.toFixed(3),
-      event.durationSec.toFixed(3),
-      event.sourcePath,
-    ].join('|');
-  }, []);
-
-  // Sequence mode audio: consume the same event list as exportAudioPlan and render as multi-track.
-  useEffect(() => {
-    if (isSingleMode || items.length === 0) {
-      for (const manager of sequenceAudioManagersRef.current.values()) {
-        manager.pause();
-        manager.unload();
-        manager.dispose();
-      }
-      sequenceAudioManagersRef.current.clear();
-      sequenceAudioLoadIdsRef.current.clear();
-      return;
-    }
-
-    const absoluteTime = Math.max(0, sequenceSelectors.getAbsoluteTime());
-    const shouldPlay = sequenceState.isPlaying && !sequenceState.isBuffering;
-    const activeEntries = previewAudioPlan.events
-      .map((event, index) => ({ event, key: buildSequenceAudioEventKey(event, index) }))
-      .filter(({ event }) => {
-        const start = event.timelineStartSec;
-        const end = event.timelineStartSec + event.durationSec;
-        return absoluteTime >= start && absoluteTime < end;
-      });
-    const activeKeys = new Set(activeEntries.map((entry) => entry.key));
-
-    for (const [key, manager] of sequenceAudioManagersRef.current.entries()) {
-      if (activeKeys.has(key)) continue;
-      manager.pause();
-      manager.unload();
-      manager.dispose();
-      sequenceAudioManagersRef.current.delete(key);
-      sequenceAudioLoadIdsRef.current.delete(key);
-    }
-
-    for (const { event, key } of activeEntries) {
-      const sourcePath = event.sourcePath;
-      if (!sourcePath) continue;
-
-      let manager = sequenceAudioManagersRef.current.get(key);
-      if (!manager || manager.isDisposed()) {
-        manager = new AudioManager();
-        sequenceAudioManagersRef.current.set(key, manager);
-        sequenceAudioLoadIdsRef.current.set(key, manager.getLoadId());
-      }
-
-      const gain = Number.isFinite(event.gain) ? Math.max(0, event.gain as number) : 1;
-      const mixedVolume = Math.max(0, Math.min(1, (globalMuted ? 0 : globalVolume) * gain));
-      manager.setVolume(mixedVolume);
-      const sourceOffsetSec = Number.isFinite(event.sourceOffsetSec) ? (event.sourceOffsetSec as number) : 0;
-      const playPosition = Math.max(0, absoluteTime - event.timelineStartSec + sourceOffsetSec);
-
-      if (!manager.isLoaded()) {
-        const startLoadId = manager.getLoadId() + 1;
-        sequenceAudioLoadIdsRef.current.set(key, startLoadId);
-        void manager.load(sourcePath).then((loaded) => {
-          const expectedLoadId = sequenceAudioLoadIdsRef.current.get(key);
-          if (!loaded || expectedLoadId !== startLoadId) return;
-          if (!sequenceAudioManagersRef.current.has(key)) return;
-          if (!shouldPlay) return;
-          manager!.play(playPosition);
-        });
-        continue;
-      }
-
-      if (!shouldPlay) {
-        if (manager.getIsPlaying()) {
-          manager.pause();
-        }
-        continue;
-      }
-
-      if (!manager.getIsPlaying()) {
-        manager.play(playPosition);
-      } else {
-        const drift = Math.abs(manager.getCurrentTime() - playPosition);
-        if (drift > 0.25) {
-          manager.seek(playPosition);
-        }
-      }
-    }
-  }, [
+  usePreviewSequenceAudio({
     isSingleMode,
-    items,
-    sequenceSelectors,
-    sequenceState.isPlaying,
-    sequenceState.isBuffering,
+    itemsLength: items.length,
+    getAbsoluteTime: sequenceSelectors.getAbsoluteTime,
+    isPlaying: sequenceState.isPlaying,
+    isBuffering: sequenceState.isBuffering,
     previewAudioPlan,
-    buildSequenceAudioEventKey,
     globalMuted,
     globalVolume,
-  ]);
+  });
 
   const goToNext = useCallback(() => {
     if (isSingleMode) return;
