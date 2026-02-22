@@ -154,3 +154,7 @@
   - 低い表示高で header が progress/marker クリックを奪うケースを修正。
   - `.preview-header` を `pointer-events: none`、`.preview-close-btn` のみ `pointer-events: auto` にして、ヘッダー透過領域のクリック干渉を解消。
   - `npm run build` でビルド成功を確認。
+- 2026-02-22 Step 4 進捗（sequence audio管理のhook化）:
+  - `usePreviewSequenceAudio.ts` を追加し、Sequence Mode の event-mix audio manager 管理と再生同期 effect を `PreviewModal.tsx` から分離。
+  - `PreviewModal.tsx` は `previewAudioPlan` を hook に渡す composition に変更し、single/sequence 音声責務の境界を明確化。
+  - `npm run build` でビルド成功を確認。
