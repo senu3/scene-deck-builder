@@ -103,3 +103,7 @@
   - Sequence Mode の動画再生で `displayTime` が再生境界に反映されていなかったため、video source の `outPoint` を canonical duration で制限。
   - `isClip` 指定時は既存の clip out を優先し、非clip動画のみ `clipIn + durationBound` を適用。
   - `npm run build` でビルド成功を確認。
+- 2026-02-22 Follow-up fix 3:
+  - 低い表示高で header が progress/marker クリックを奪うケースを修正。
+  - `.preview-header` を `pointer-events: none`、`.preview-close-btn` のみ `pointer-events: auto` にして、ヘッダー透過領域のクリック干渉を解消。
+  - `npm run build` でビルド成功を確認。
