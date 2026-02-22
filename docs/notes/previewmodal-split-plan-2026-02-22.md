@@ -90,3 +90,8 @@
   - 重複していた解像度セレクタUIを `PreviewResolutionPicker.tsx` に抽出。
   - Full View分離前に、表示責務を段階的に外出しする足場を追加。
   - `npm run build` でビルド成功を確認。
+- 2026-02-22 Step 3 実施:
+  - `buildPreviewItems` を `previewItemsBuilder.ts` に抽出し、`PreviewModal.tsx` の巨大な items構築 `useEffect` を置換。
+  - `sequenceCuts` 優先や canonical timing 利用など、既存ロジックは同一ルールで維持。
+  - 影響範囲が再生内容に及ぶため、ここで一旦動作確認フェーズを挟む。
+  - `npm run build` でビルド成功を確認。
