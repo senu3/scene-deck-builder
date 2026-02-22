@@ -195,3 +195,8 @@
 - 2026-02-22 Plan update（speedの扱い見直し）:
   - Sequence Mode は slideshow 特性上 speed 変更要件が不確実なため、command 層の対象から `speed` を除外。
   - `speed` は当面 Single 専用操作として保持し、Sequence への適用/削除判断は split 完了後の整理フェーズで扱う。
+- 2026-02-22 Step 5 進捗（interaction command層の導入）:
+  - `usePreviewInteractionCommands.ts` を追加し、play/pause, skip, step, in/out, loop, mute, marker操作を mode 非依存の command API として集約。
+  - `PreviewModal.tsx` の keyboard shortcut と Single/Sequence View の操作配線を command API 経由に置換し、操作入口を統一。
+  - `speed` は計画どおり command 層に含めず、既存の単独経路（UI/shortcut -> playbackSpeed更新）を維持。
+  - `npm run build` でビルド成功を確認。
