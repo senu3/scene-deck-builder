@@ -228,6 +228,7 @@ export default function PreviewModal({
   const [isSingleModeClipPending, setIsSingleModeClipPending] = useState(false);
   const lastCommittedClipPointsRef = useRef<{ start: number; end: number } | null>(null);
   const singleModeClipDragDirtyRef = useRef(false);
+  const queuedClipCommitRef = useRef<{ inPoint: number | null; outPoint: number | null } | null>(null);
   const singleModeRangeRef = useRef<{ inPoint: number | null; outPoint: number | null }>({
     inPoint: initialInPoint ?? null,
     outPoint: initialOutPoint ?? null,
@@ -494,7 +495,10 @@ export default function PreviewModal({
   const commitSingleModeClipPoints = useCallback(async (nextInPoint: number | null, nextOutPoint: number | null) => {
     if (!isSingleModeVideo || !isSingleModeClipEnabled || !onClipSave) return;
     if (nextInPoint === null || nextOutPoint === null) return;
-    if (isSingleModeClipPending) return;
+    if (isSingleModeClipPending) {
+      queuedClipCommitRef.current = { inPoint: nextInPoint, outPoint: nextOutPoint };
+      return;
+    }
 
     const start = Math.min(nextInPoint, nextOutPoint);
     const end = Math.max(nextInPoint, nextOutPoint);
@@ -518,6 +522,15 @@ export default function PreviewModal({
       setIsSingleModeClipPending(false);
     }
   }, [isSingleModeVideo, isSingleModeClipEnabled, onClipSave, isSingleModeClipPending, showMiniToast]);
+
+  useEffect(() => {
+    if (!isSingleModeVideo || !isSingleModeClipEnabled) return;
+    if (isSingleModeClipPending) return;
+    const queued = queuedClipCommitRef.current;
+    if (!queued) return;
+    queuedClipCommitRef.current = null;
+    void commitSingleModeClipPoints(queued.inPoint, queued.outPoint);
+  }, [isSingleModeVideo, isSingleModeClipEnabled, isSingleModeClipPending, commitSingleModeClipPoints]);
 
   const setMarkerTimeAndSeek = useCallback((marker: 'in' | 'out', newTime: number) => {
     const duration = usesSequenceController
@@ -790,6 +803,7 @@ export default function PreviewModal({
       setFocusedMarker(null);
       setIsSingleModeClipEnabled(false);
       lastCommittedClipPointsRef.current = null;
+      queuedClipCommitRef.current = null;
       notifyRangeChange(null, null);
       showMiniToast('VIDEOCLIP cleared', 'success');
     } catch (error) {
