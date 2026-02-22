@@ -98,7 +98,8 @@ interface SingleModeProps {
   asset: Asset;
   initialInPoint?: number;
   initialOutPoint?: number;
-  onClipSave?: (inPoint: number, outPoint: number) => void;
+  onClipSave?: (inPoint: number, outPoint: number) => Promise<void> | void;
+  onClipClear?: () => Promise<void> | void;
   onFrameCapture?: (timestamp: number) => Promise<string | void> | void;
 }
 
@@ -159,6 +160,7 @@ export default function PreviewModal({
   initialOutPoint,
   onRangeChange,
   onClipSave,
+  onClipClear,
   onFrameCapture,
 }: PreviewModalProps) {
   const scenes = useStore(selectScenes);
@@ -221,6 +223,8 @@ export default function PreviewModal({
   const [isLoading, setIsLoading] = useState(isSingleMode);
   const [singleModeDuration, setSingleModeDuration] = useState(0);
   const [singleModeCurrentTime, setSingleModeCurrentTime] = useState(0);
+  const [isSingleModeClipEnabled, setIsSingleModeClipEnabled] = useState(false);
+  const [isSingleModeClipPending, setIsSingleModeClipPending] = useState(false);
 
   // IN/OUT point state - initialize from props for Single Mode
   const [singleModeInPoint, setSingleModeInPoint] = useState<number | null>(initialInPoint ?? null);
@@ -669,34 +673,66 @@ export default function PreviewModal({
   // Single Mode IN/OUT handlers
   const handleSingleModeSetInPoint = useCallback(() => {
     if (!isSingleModeVideo) return;
-    if (singleModeInPoint !== null) {
-      setSingleModeInPoint(null);
-      return;
+    const nextInPoint = clampToDuration(singleModeCurrentTime, singleModeDuration);
+    const nextOutPoint = outPoint !== null && nextInPoint >= outPoint ? null : outPoint;
+    setSingleModeInPoint(nextInPoint);
+    setSingleModeOutPoint(nextOutPoint);
+    if (focusedMarker === 'out' && nextOutPoint === null) {
+      setFocusedMarker(null);
     }
-    setSingleModeInPoint(singleModeCurrentTime);
-    notifyRangeChange(singleModeCurrentTime, outPoint);
-  }, [isSingleModeVideo, singleModeInPoint, singleModeCurrentTime, outPoint, notifyRangeChange]);
+    notifyRangeChange(nextInPoint, nextOutPoint);
+  }, [isSingleModeVideo, singleModeCurrentTime, singleModeDuration, outPoint, focusedMarker, notifyRangeChange]);
 
   const handleSingleModeSetOutPoint = useCallback(() => {
     if (!isSingleModeVideo) return;
-    if (singleModeOutPoint !== null) {
-      setSingleModeOutPoint(null);
-      return;
+    const nextOutPoint = clampToDuration(singleModeCurrentTime, singleModeDuration);
+    const nextInPoint = inPoint !== null && nextOutPoint <= inPoint ? null : inPoint;
+    setSingleModeInPoint(nextInPoint);
+    setSingleModeOutPoint(nextOutPoint);
+    if (focusedMarker === 'in' && nextInPoint === null) {
+      setFocusedMarker(null);
     }
-    setSingleModeOutPoint(singleModeCurrentTime);
-    notifyRangeChange(inPoint, singleModeCurrentTime);
-  }, [isSingleModeVideo, singleModeOutPoint, singleModeCurrentTime, inPoint, notifyRangeChange]);
+    notifyRangeChange(nextInPoint, nextOutPoint);
+  }, [isSingleModeVideo, singleModeCurrentTime, singleModeDuration, inPoint, focusedMarker, notifyRangeChange]);
+
+  const handleSingleModeClearClip = useCallback(async () => {
+    if (!isSingleModeVideo) return;
+    setIsSingleModeClipPending(true);
+    try {
+      await onClipClear?.();
+      setSingleModeInPoint(null);
+      setSingleModeOutPoint(null);
+      setFocusedMarker(null);
+      setIsSingleModeClipEnabled(false);
+      notifyRangeChange(null, null);
+      showMiniToast('VIDEOCLIP cleared', 'success');
+    } catch (error) {
+      console.error('Failed to clear clip:', error);
+      showMiniToast(error instanceof Error ? error.message : 'Failed to clear clip', 'error');
+    } finally {
+      setIsSingleModeClipPending(false);
+    }
+  }, [isSingleModeVideo, notifyRangeChange, onClipClear, showMiniToast]);
 
   // Single Mode Save handler: save clip when both IN and OUT are set
-  const handleSingleModeSave = useCallback(() => {
+  const handleSingleModeSave = useCallback(async () => {
     if (!isSingleModeVideo) return;
     if (inPoint === null || outPoint === null) return;
 
     const start = Math.min(inPoint, outPoint);
     const end = Math.max(inPoint, outPoint);
-    onClipSave?.(start, end);
-    onClose();
-  }, [isSingleModeVideo, inPoint, outPoint, onClipSave, onClose]);
+    setIsSingleModeClipPending(true);
+    try {
+      await onClipSave?.(start, end);
+      setIsSingleModeClipEnabled(true);
+      showMiniToast('VIDEOCLIP set', 'success');
+    } catch (error) {
+      console.error('Failed to save clip:', error);
+      showMiniToast(error instanceof Error ? error.message : 'Failed to save clip', 'error');
+    } finally {
+      setIsSingleModeClipPending(false);
+    }
+  }, [isSingleModeVideo, inPoint, outPoint, onClipSave, showMiniToast]);
 
   const handleSingleModeCaptureFrame = useCallback(async () => {
     if (!isSingleModeVideo || !onFrameCapture) return;
@@ -739,6 +775,11 @@ export default function PreviewModal({
       videoRef.current.playbackRate = playbackSpeed;
     }
   }, [isSingleModeVideo, playbackSpeed]);
+
+  useEffect(() => {
+    if (!isSingleModeVideo) return;
+    setIsSingleModeClipEnabled(!!focusCutData?.cut?.isClip);
+  }, [isSingleModeVideo, focusCutData?.cut?.id, focusCutData?.cut?.isClip]);
 
   // ===== SINGLE MODE ATTACHED AUDIO =====
 
@@ -1814,59 +1855,43 @@ export default function PreviewModal({
 
   // IN/OUT point handlers
   const handleSetInPoint = useCallback(() => {
-    if (items.length === 0) return;
-    const currentTime = getUiPlayheadTime();
     if (isSingleModeVideo) {
-      if (singleModeInPoint !== null) {
-        setSingleModeInPoint(null);
-      } else {
-        setSingleModeInPoint(currentTime);
-        notifyRangeChange(currentTime, outPoint);
-      }
+      handleSingleModeSetInPoint();
       return;
     }
-    if (inPoint !== null) {
-      setSequenceRange(null, outPoint ?? null);
-      return;
-    }
-    setSequenceRange(currentTime, outPoint ?? null);
-    notifyRangeChange(currentTime, outPoint ?? null);
+    if (items.length === 0) return;
+    const nextInPoint = clampToDuration(getUiPlayheadTime(), sequenceState.totalDuration);
+    const nextOutPoint = outPoint !== null && nextInPoint >= outPoint ? null : outPoint;
+    setSequenceRange(nextInPoint, nextOutPoint);
+    notifyRangeChange(nextInPoint, nextOutPoint);
   }, [
     items.length,
     getUiPlayheadTime,
     isSingleModeVideo,
-    singleModeInPoint,
-    inPoint,
     outPoint,
+    handleSingleModeSetInPoint,
+    sequenceState.totalDuration,
     notifyRangeChange,
     setSequenceRange,
   ]);
 
   const handleSetOutPoint = useCallback(() => {
-    if (items.length === 0) return;
-    const currentTime = getUiPlayheadTime();
     if (isSingleModeVideo) {
-      if (singleModeOutPoint !== null) {
-        setSingleModeOutPoint(null);
-      } else {
-        setSingleModeOutPoint(currentTime);
-        notifyRangeChange(inPoint, currentTime);
-      }
+      handleSingleModeSetOutPoint();
       return;
     }
-    if (outPoint !== null) {
-      setSequenceRange(inPoint ?? null, null);
-      return;
-    }
-    setSequenceRange(inPoint ?? null, currentTime);
-    notifyRangeChange(inPoint ?? null, currentTime);
+    if (items.length === 0) return;
+    const nextOutPoint = clampToDuration(getUiPlayheadTime(), sequenceState.totalDuration);
+    const nextInPoint = inPoint !== null && nextOutPoint <= inPoint ? null : inPoint;
+    setSequenceRange(nextInPoint, nextOutPoint);
+    notifyRangeChange(nextInPoint, nextOutPoint);
   }, [
     items.length,
     getUiPlayheadTime,
     isSingleModeVideo,
-    singleModeOutPoint,
     inPoint,
-    outPoint,
+    handleSingleModeSetOutPoint,
+    sequenceState.totalDuration,
     notifyRangeChange,
     setSequenceRange,
   ]);
@@ -2341,7 +2366,8 @@ export default function PreviewModal({
   ]);
 
   // Single Mode: show Save button only when both IN/OUT are set
-  const showSingleModeSaveButton = isSingleModeVideo && inPoint !== null && outPoint !== null && !!onClipSave;
+  const hasSingleModeRange = isSingleModeVideo && inPoint !== null && outPoint !== null;
+  const showSingleModeClipButton = isSingleModeVideo && hasSingleModeRange && !!(onClipSave || onClipClear);
 
   // Single Mode progress
   const singleModeProgressPercent = singleModePlaybackDuration > 0
@@ -2566,22 +2592,23 @@ export default function PreviewModal({
                   <button
                     className={`preview-ctrl-btn preview-ctrl-btn--text ${inPoint !== null ? 'is-active' : ''}`}
                     onClick={isSingleModeVideo ? handleSingleModeSetInPoint : handleSetInPoint}
-                    title={inPoint !== null ? 'Clear IN point (I)' : 'Set IN point (I)'}
+                    title="Set IN point (I)"
                   >
                     I
                   </button>
                   <button
                     className={`preview-ctrl-btn preview-ctrl-btn--text ${outPoint !== null ? 'is-active' : ''}`}
                     onClick={isSingleModeVideo ? handleSingleModeSetOutPoint : handleSetOutPoint}
-                    title={outPoint !== null ? 'Clear OUT point (O)' : 'Set OUT point (O)'}
+                    title="Set OUT point (O)"
                   >
                     O
                   </button>
-                  {isSingleModeVideo && showSingleModeSaveButton && (
+                  {isSingleModeVideo && showSingleModeClipButton && (
                     <button
-                      className="preview-ctrl-btn"
-                      onClick={handleSingleModeSave}
-                      title="Save clip"
+                      className={`preview-ctrl-btn ${isSingleModeClipEnabled ? 'is-active' : ''}`}
+                      onClick={isSingleModeClipEnabled ? handleSingleModeClearClip : handleSingleModeSave}
+                      title={isSingleModeClipEnabled ? 'Clear clip' : 'Save clip'}
+                      disabled={isSingleModeClipPending}
                     >
                       <Scissors size={18} />
                     </button>
@@ -2863,14 +2890,14 @@ export default function PreviewModal({
                 <button
                   className={`preview-ctrl-btn preview-ctrl-btn--text ${inPoint !== null ? 'is-active' : ''}`}
                   onClick={handleSetInPoint}
-                  title={inPoint !== null ? 'Clear IN point (I)' : 'Set IN point (I)'}
+                  title="Set IN point (I)"
                 >
                   I
                 </button>
                 <button
                   className={`preview-ctrl-btn preview-ctrl-btn--text ${outPoint !== null ? 'is-active' : ''}`}
                   onClick={handleSetOutPoint}
-                  title={outPoint !== null ? 'Clear OUT point (O)' : 'Set OUT point (O)'}
+                  title="Set OUT point (O)"
                 >
                   O
                 </button>

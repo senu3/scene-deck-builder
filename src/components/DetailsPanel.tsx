@@ -52,7 +52,6 @@ import {
   UpdateDisplayTimeCommand,
   RemoveCutCommand,
   BatchUpdateDisplayTimeCommand,
-  DuplicateCutWithClipCommand,
   UpdateClipPointsCommand,
   ClearClipPointsCommand,
   AddCutCommand,
@@ -410,30 +409,21 @@ export default function DetailsPanel() {
 
   const handleSaveClip = async (inPoint: number, outPoint: number) => {
     if (cutScene && cut && asset) {
-      let targetCutId = cut.id;
-      if (cut.isClip) {
-        // Existing clip: update IN/OUT points in place
-        await executeCommand(
-          new UpdateClipPointsCommand(cutScene.id, cut.id, inPoint, outPoint),
-        );
-      } else {
-        // First-time clip: duplicate source cut and apply clip to duplicated cut
-        const duplicateClipCommand = new DuplicateCutWithClipCommand(cutScene.id, cut.id, inPoint, outPoint);
-        await executeCommand(duplicateClipCommand);
-        targetCutId = duplicateClipCommand.getCreatedCutId() ?? cut.id;
-      }
+      await executeCommand(
+        new UpdateClipPointsCommand(cutScene.id, cut.id, inPoint, outPoint),
+      );
 
       // Regenerate thumbnail at IN point
       if (asset.path && asset.type === "video") {
         const newThumbnail = await getCutClipThumbnail('details-panel', {
-          cutId: targetCutId,
+          cutId: cut.id,
           path: asset.path,
           inPointSec: inPoint,
           outPointSec: outPoint,
         });
         if (newThumbnail) {
           // Clip thumbnail is cut-specific; do not mutate shared asset cache thumbnail.
-          updateCutAsset(cutScene.id, targetCutId, { thumbnail: newThumbnail });
+          updateCutAsset(cutScene.id, cut.id, { thumbnail: newThumbnail });
           setThumbnail(newThumbnail);
         }
       }
@@ -1406,6 +1396,7 @@ export default function DetailsPanel() {
             initialInPoint={cut?.inPoint}
             initialOutPoint={cut?.outPoint}
             onClipSave={isVideo ? handleSaveClip : undefined}
+            onClipClear={isVideo ? handleClearClip : undefined}
             onFrameCapture={isVideo ? handleFrameCapture : undefined}
           />
         )}
