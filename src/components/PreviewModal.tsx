@@ -16,11 +16,9 @@ import type { Asset, Cut } from '../types';
 import { createVideoObjectUrl } from '../utils/videoUtils';
 import { formatTime, cyclePlaybackSpeed } from '../utils/timeUtils';
 import { resolveCutAsset, resolveCutThumbnail } from '../utils/assetResolve';
-import { AudioManager } from '../utils/audioUtils';
 import { useSequencePlaybackController } from '../utils/previewPlaybackController';
 import { getAssetThumbnail } from '../features/thumbnails/api';
 import { buildSequenceItemsForCuts } from '../utils/exportSequence';
-import { resolvePreviewAudioTracks } from '../utils/previewAudioTracks';
 import { DEFAULT_EXPORT_RESOLUTION } from '../constants/export';
 import { EXPORT_FRAMING_DEFAULTS } from '../constants/framing';
 import { buildPreviewViewportFramingStyle, buildPreviewViewportFramingStyleFromResolved } from '../utils/previewFraming';
@@ -28,7 +26,6 @@ import { buildExportAudioPlan, canonicalizeCutsForExportAudioPlan } from '../uti
 import { getScenesInOrder } from '../utils/sceneOrder';
 import {
   asCanonicalDurationSec,
-  computeCanonicalStoryTimingsForCuts,
   resolveCanonicalCutDuration,
   type CanonicalDurationSec,
 } from '../utils/storyTiming';
@@ -59,6 +56,7 @@ import { usePreviewKeyboardShortcuts } from './preview-modal/usePreviewKeyboardS
 import { usePreviewSequenceMediaSource } from './preview-modal/usePreviewSequenceMediaSource';
 import { usePreviewSequenceAudio } from './preview-modal/usePreviewSequenceAudio';
 import { usePreviewSequenceBuffering } from './preview-modal/usePreviewSequenceBuffering';
+import { usePreviewSingleAttachedAudio } from './preview-modal/usePreviewSingleAttachedAudio';
 import type { FocusedMarker } from './shared';
 import './PreviewModal.css';
 import './shared/playback-controls.css';
@@ -283,58 +281,6 @@ export default function PreviewModal({
 
   // State for image data in Single Mode
   const [singleModeImageData, setSingleModeImageData] = useState<string | null>(null);
-
-  // Attached audio state
-  // Keep separate managers for single-mode and sequence event-mix to avoid cross-mode races.
-  const singleAudioManagerRef = useRef(new AudioManager());
-  const singleAudioPlayingRef = useRef(false);
-  const [singleAudioLoaded, setSingleAudioLoaded] = useState(false);
-
-  // Unload audio on unmount (but do NOT dispose the AudioManager)
-  useEffect(() => {
-    return () => {
-      singleAudioManagerRef.current.unload();
-    };
-  }, []);
-
-  const singleSceneAudioTrack = useMemo(() => {
-    const sceneId = focusCutData?.scene.id ?? null;
-    const previewOffsetSec = focusCutData
-      ? (() => {
-          const timings = computeCanonicalStoryTimingsForCuts(
-            focusCutData.scene.cuts.map((item) => ({
-              cut: item,
-              sceneId: focusCutData.scene.id,
-            })),
-            getAsset,
-            { fallbackDurationSec: 1.0, preferAssetDuration: true }
-          );
-          const cutTiming = timings.cutTimings.get(focusCutData.cut.id);
-          const sceneTiming = timings.sceneTimings.get(focusCutData.scene.id);
-          if (!cutTiming || !sceneTiming) return 0;
-          return Math.max(0, cutTiming.startSec - sceneTiming.startSec);
-        })()
-      : 0;
-    return resolvePreviewAudioTracks({
-      sceneId,
-      cuts: focusCutData?.scene.cuts || [],
-      sceneStartAbs: 0,
-      previewOffsetSec,
-      metadataStore,
-      getAssetById: getAsset,
-    })[0] || null;
-  }, [focusCutData, metadataStore, getAsset]);
-
-  const getSingleModeSceneAudioPlayhead = useCallback((): number => {
-    const absoluteTime = videoRef.current?.currentTime ?? 0;
-    if (!isSingleModeVideo) {
-      return absoluteTime;
-    }
-    const clipStart = inPoint !== null
-      ? Math.min(inPoint, outPoint ?? inPoint)
-      : 0;
-    return Math.max(0, absoluteTime - clipStart);
-  }, [isSingleModeVideo, inPoint, outPoint]);
 
   // Load video URL or image data for Single Mode
   useEffect(() => {
@@ -806,93 +752,27 @@ export default function PreviewModal({
     };
   }, [isSingleModeVideo, focusCutData?.cut?.id, focusCutData?.cut?.isClip, focusCutData?.cut?.inPoint, focusCutData?.cut?.outPoint]);
 
-  // ===== SINGLE MODE ATTACHED AUDIO =====
-
-  // Load attached audio for Single Mode (only when asset changes)
-  useEffect(() => {
-    if (!isSingleMode || !asset?.id) {
-      singleAudioManagerRef.current.unload();
-      setSingleAudioLoaded(false);
-      singleAudioPlayingRef.current = false;
-      return;
-    }
-
-    if (!hasCutContext) {
-      singleAudioManagerRef.current.unload();
-      setSingleAudioLoaded(false);
-      singleAudioPlayingRef.current = false;
-      return;
-    }
-
-    const attachedAudio = singleSceneAudioTrack?.asset || getAttachedAudioForCut(focusCutData?.cut ?? null);
-    singleAudioManagerRef.current.unload();
-    setSingleAudioLoaded(false);
-    singleAudioPlayingRef.current = false;
-
-    if (!attachedAudio?.path) {
-      return;
-    }
-
-    const manager = singleAudioManagerRef.current;
-    if (manager.isDisposed()) return;
-
-    const loadAudio = async () => {
-      const offset = singleSceneAudioTrack ? 0 : getAudioOffsetForCut(focusCutData?.cut ?? null);
-      manager.setOffset(offset);
-      const expectedLoadId = manager.getLoadId() + 1;
-      const loaded = await manager.load(attachedAudio.path);
-      if (!loaded) return;
-      if (manager.getActiveLoadId() === expectedLoadId) {
-        setSingleAudioLoaded(true);
-      }
-    };
-
-    loadAudio();
-  }, [isSingleMode, asset?.id, hasCutContext, focusCutData?.cut, getAttachedAudioForCut, getAudioOffsetForCut, singleSceneAudioTrack]);
-
-  // Sync Single Mode audio with video playback (only on play/pause change)
-  useEffect(() => {
-    if (!isSingleMode || !singleAudioLoaded) return;
-    const manager = singleAudioManagerRef.current;
-
-    if (isSingleModeVideo) {
-      if (singleModeIsPlaying) {
-        const currentTime = getSingleModeSceneAudioPlayhead();
-        const sceneStartOffset = singleSceneAudioTrack?.previewOffsetSec ?? 0;
-        manager.play(currentTime + sceneStartOffset);
-      } else {
-        manager.pause();
-      }
-      singleAudioPlayingRef.current = singleModeIsPlaying;
-      return;
-    }
-
-    if (sequenceState.isPlaying && !sequenceState.isBuffering) {
-      if (!singleAudioPlayingRef.current) {
-        const sceneStartOffset = singleSceneAudioTrack?.previewOffsetSec ?? 0;
-        manager.play(Math.max(0, sequenceSelectors.getAbsoluteTime() + sceneStartOffset));
-        singleAudioPlayingRef.current = true;
-      }
-    } else if (singleAudioPlayingRef.current) {
-      manager.pause();
-      singleAudioPlayingRef.current = false;
-    }
-  }, [
+  usePreviewSingleAttachedAudio({
     isSingleMode,
     isSingleModeVideo,
+    hasCutContext,
+    assetId: asset?.id,
+    focusCut: focusCutData?.cut ?? null,
+    focusScene: focusCutData?.scene ?? null,
+    metadataStore: metadataStore ?? null,
+    getAsset,
+    getAttachedAudioForCut,
+    getAudioOffsetForCut,
+    inPoint,
+    outPoint,
+    videoRef,
     singleModeIsPlaying,
-    singleAudioLoaded,
-    sequenceState.isPlaying,
-    sequenceState.isBuffering,
-    sequenceSelectors,
-    singleSceneAudioTrack,
-    getSingleModeSceneAudioPlayhead,
-  ]);
-
-  // Apply volume to attached audio
-  useEffect(() => {
-    singleAudioManagerRef.current.setVolume(globalMuted ? 0 : globalVolume);
-  }, [globalVolume, globalMuted]);
+    sequenceIsPlaying: sequenceState.isPlaying,
+    sequenceIsBuffering: sequenceState.isBuffering,
+    getSequenceAbsoluteTime: sequenceSelectors.getAbsoluteTime,
+    globalMuted,
+    globalVolume,
+  });
 
   // ===== SEQUENCE MODE LOGIC =====
 
