@@ -99,3 +99,7 @@
   - Sequence Mode の進行表示で、React の `style` 更新と rAF の直接DOM更新が競合していたため整理。
   - シーケンス再生バーの fill/handle は rAF/effect の単一路で更新し、表示時刻は再生中のみ live time を優先。
   - `npm run build` でビルド成功を確認。
+- 2026-02-22 Follow-up fix 2:
+  - Sequence Mode の動画再生で `displayTime` が再生境界に反映されていなかったため、video source の `outPoint` を canonical duration で制限。
+  - `isClip` 指定時は既存の clip out を優先し、非clip動画のみ `clipIn + durationBound` を適用。
+  - `npm run build` でビルド成功を確認。
