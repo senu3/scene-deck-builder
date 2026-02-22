@@ -336,10 +336,40 @@ function registerMediaProtocol() {
     try {
       const parsedUrl = new URL(request.url);
       let filePath = decodeURI(parsedUrl.pathname);
+      const host = decodeURI(parsedUrl.hostname || '');
+
+      // Backward-compatible recovery for malformed absolute-path URLs like:
+      // media://home/... or media://mnt/... (host + pathname split by URL parser)
+      if (host) {
+        const pathname = filePath.startsWith('/') ? filePath : `/${filePath}`;
+        const hostPathCandidate = `/${host}${pathname}`;
+        const drivePathCandidate = /^[A-Za-z]$/.test(host) ? `/${host}:${pathname}` : null;
+        const candidates = drivePathCandidate ? [drivePathCandidate, hostPathCandidate] : [hostPathCandidate];
+        const existing = candidates.find((candidate) => fs.existsSync(candidate));
+
+        if (existing) {
+          filePath = existing;
+        } else if (drivePathCandidate) {
+          // Keep drive candidate so platform-specific conversion below can still fix it.
+          filePath = drivePathCandidate;
+        } else {
+          filePath = hostPathCandidate;
+        }
+      }
 
       // On Windows, pathname starts with /C:/...; strip leading slash
       if (process.platform === 'win32' && /^[\\/][A-Za-z]:\//.test(filePath)) {
         filePath = filePath.slice(1);
+      } else if (process.platform !== 'win32') {
+        const winDrivePath = /^\/([A-Za-z]):\/(.*)$/.exec(filePath);
+        if (winDrivePath) {
+          const drive = winDrivePath[1].toLowerCase();
+          const rest = winDrivePath[2];
+          const wslCandidate = `/mnt/${drive}/${rest}`;
+          if (fs.existsSync(wslCandidate)) {
+            filePath = wslCandidate;
+          }
+        }
       }
       const stats = fs.statSync(filePath);
       const fileSize = stats.size;
