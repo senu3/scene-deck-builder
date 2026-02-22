@@ -54,6 +54,7 @@ import { useClipRangeState } from './preview-modal/useClipRangeState';
 import { usePreviewOverlayVisibility } from './preview-modal/usePreviewOverlayVisibility';
 import { usePreviewViewport } from './preview-modal/usePreviewViewport';
 import { usePreviewSequenceDerived } from './preview-modal/usePreviewSequenceDerived';
+import { usePreviewFullscreen } from './preview-modal/usePreviewFullscreen';
 import './PreviewModal.css';
 import './shared/playback-controls.css';
 
@@ -109,7 +110,6 @@ export default function PreviewModal({
 
   const [items, setItems] = useState<PreviewItem[]>([]);
   const [singleModeIsPlaying, setSingleModeIsPlaying] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
   const [hoverTime, setHoverTime] = useState<string | null>(null);
@@ -171,6 +171,7 @@ export default function PreviewModal({
   const isBuffering = usesSequenceController ? sequenceState.isBuffering : false;
 
   const modalRef = useRef<HTMLDivElement>(null);
+  const { isFullscreen, toggleFullscreen } = usePreviewFullscreen(modalRef);
   const progressBarRef = useRef<HTMLDivElement>(null);
   const progressFillRef = useRef<HTMLDivElement>(null);
   const progressHandleRef = useRef<HTMLDivElement>(null);
@@ -1480,16 +1481,6 @@ export default function PreviewModal({
     handleShortcutSetOutPoint,
     toggleGlobalMute,
   ]);
-
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement && modalRef.current) {
-      modalRef.current.requestFullscreen();
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
-    }
-  };
 
   // Export full sequence (no range)
   const handleExportFull = useCallback(async () => {
