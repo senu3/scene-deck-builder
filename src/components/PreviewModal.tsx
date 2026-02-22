@@ -51,6 +51,7 @@ import { buildPreviewItems } from './preview-modal/previewItemsBuilder';
 import { PreviewModalSequenceView } from './preview-modal/PreviewModalSequenceView';
 import { PreviewModalSingleView } from './preview-modal/PreviewModalSingleView';
 import { useClipRangeState } from './preview-modal/useClipRangeState';
+import { usePreviewOverlayVisibility } from './preview-modal/usePreviewOverlayVisibility';
 import './PreviewModal.css';
 import './shared/playback-controls.css';
 
@@ -117,9 +118,8 @@ export default function PreviewModal({
   );
   const [isExporting, setIsExporting] = useState(false);
   // Overlay is view-only helper UI; it must not persist state or affect export decisions.
-  const [showOverlay, setShowOverlay] = useState(true);
+  const { showOverlay, showOverlayNow, scheduleHideOverlay } = usePreviewOverlayVisibility({ hideDelayMs: 300 });
   const { show: showMiniToast, element: miniToastElement } = useMiniToast();
-  const overlayTimeoutRef = useRef<number | null>(null);
   const lipSyncToastShownRef = useRef<Set<string>>(new Set());
 
   // Buffer management state (Sequence Mode)
@@ -401,32 +401,6 @@ export default function PreviewModal({
       setSingleModeCurrentTime(videoRef.current.currentTime);
     }
   }, [isSingleModeVideo, singleModeDuration, isPlaying, FRAME_DURATION, sequencePause]);
-
-  const showOverlayNow = useCallback(() => {
-    if (overlayTimeoutRef.current !== null) {
-      window.clearTimeout(overlayTimeoutRef.current);
-      overlayTimeoutRef.current = null;
-    }
-    setShowOverlay(true);
-  }, []);
-
-  const scheduleHideOverlay = useCallback(() => {
-    if (overlayTimeoutRef.current !== null) {
-      window.clearTimeout(overlayTimeoutRef.current);
-    }
-    overlayTimeoutRef.current = window.setTimeout(() => {
-      setShowOverlay(false);
-      overlayTimeoutRef.current = null;
-    }, 300);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (overlayTimeoutRef.current !== null) {
-        window.clearTimeout(overlayTimeoutRef.current);
-      }
-    };
-  }, []);
 
   // Skip seconds (Both modes)
   const skip = useCallback((seconds: number) => {
