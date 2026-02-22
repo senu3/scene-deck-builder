@@ -13,11 +13,9 @@ import {
   selectMetadataStore,
 } from '../store/selectors';
 import type { Asset, Cut } from '../types';
-import { createVideoObjectUrl } from '../utils/videoUtils';
 import { cyclePlaybackSpeed } from '../utils/timeUtils';
 import { resolveCutAsset, resolveCutThumbnail } from '../utils/assetResolve';
 import { useSequencePlaybackController } from '../utils/previewPlaybackController';
-import { getAssetThumbnail } from '../features/thumbnails/api';
 import { getScenesInOrder } from '../utils/sceneOrder';
 import {
   asCanonicalDurationSec,
@@ -54,6 +52,7 @@ import { usePreviewSequenceBuffering } from './preview-modal/usePreviewSequenceB
 import { usePreviewSingleAttachedAudio } from './preview-modal/usePreviewSingleAttachedAudio';
 import { usePreviewExportActions } from './preview-modal/usePreviewExportActions';
 import { usePreviewSharedViewState } from './preview-modal/usePreviewSharedViewState';
+import { usePreviewSingleMediaAsset } from './preview-modal/usePreviewSingleMediaAsset';
 import type { FocusedMarker } from './shared';
 import './PreviewModal.css';
 import './shared/playback-controls.css';
@@ -123,7 +122,6 @@ export default function PreviewModal({
   const { show: showMiniToast, element: miniToastElement } = useMiniToast();
 
   // Single Mode specific state
-  const [isLoading, setIsLoading] = useState(isSingleMode);
   const [singleModeDuration, setSingleModeDuration] = useState(0);
   const [singleModeCurrentTime, setSingleModeCurrentTime] = useState(0);
   const [isSingleModeClipEnabled, setIsSingleModeClipEnabled] = useState(false);
@@ -275,60 +273,13 @@ export default function PreviewModal({
 
   // ===== SINGLE MODE LOGIC =====
 
-  // State for image data in Single Mode
-  const [singleModeImageData, setSingleModeImageData] = useState<string | null>(null);
-
-  // Load video URL or image data for Single Mode
-  useEffect(() => {
-    if (!isSingleMode || !asset?.path) return;
-
-    let isMounted = true;
-
-    const loadAsset = async () => {
-      setIsLoading(true);
-
-      if (asset.type === 'video') {
-        const url = await createVideoObjectUrl(asset.path);
-        if (isMounted && url) {
-          setVideoObjectUrl({ assetId: asset.id, url });
-        }
-      } else if (asset.type === 'image') {
-        if (asset.path) {
-          try {
-            const previewImage = await getAssetThumbnail('sequence-preview', {
-              assetId: asset.id,
-              path: asset.path,
-              type: 'image',
-            });
-            if (isMounted && previewImage) {
-              setSingleModeImageData(previewImage);
-            }
-          } catch {
-            // Failed to load image
-          }
-        }
-      }
-
-      setIsLoading(false);
-    };
-
-    loadAsset();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [isSingleMode, asset?.path, asset?.type, asset?.thumbnail]);
-
-  // Cleanup Object URL on unmount (Single Mode)
-  useEffect(() => {
-    if (!isSingleMode) return;
-
-    return () => {
-      if (videoObjectUrl?.url) {
-        revokeIfBlob(videoObjectUrl.url);
-      }
-    };
-  }, [isSingleMode, videoObjectUrl]);
+  const { isLoading, singleModeImageData } = usePreviewSingleMediaAsset({
+    isSingleMode,
+    asset,
+    videoObjectUrl,
+    setVideoObjectUrl,
+    revokeIfBlob,
+  });
 
   // Frame stepping (Single Mode)
   const stepFrame = useCallback((direction: number) => {
