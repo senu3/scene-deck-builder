@@ -13,8 +13,10 @@ interface UsePreviewSingleAttachedAudioInput {
   focusScene: Scene | null;
   metadataStore: MetadataStore | null;
   getAsset: (assetId: string) => Asset | undefined;
-  getAttachedAudioForCut: (cut: Cut | null | undefined) => Asset | undefined;
-  getAudioOffsetForCut: (cut: Cut | null | undefined) => number;
+  resolveAudioBindingForCut: (cut: Cut | null | undefined) => {
+    attached: Asset | undefined;
+    offset: number;
+  };
   inPoint: number | null;
   outPoint: number | null;
   videoRef: React.RefObject<HTMLVideoElement>;
@@ -35,8 +37,7 @@ export function usePreviewSingleAttachedAudio({
   focusScene,
   metadataStore,
   getAsset,
-  getAttachedAudioForCut,
-  getAudioOffsetForCut,
+  resolveAudioBindingForCut,
   inPoint,
   outPoint,
   videoRef,
@@ -111,7 +112,8 @@ export function usePreviewSingleAttachedAudio({
       return;
     }
 
-    const attachedAudio = singleSceneAudioTrack?.asset || getAttachedAudioForCut(focusCut);
+    const audioBinding = resolveAudioBindingForCut(focusCut);
+    const attachedAudio = singleSceneAudioTrack?.asset || audioBinding.attached;
     singleAudioManagerRef.current.unload();
     setSingleAudioLoaded(false);
     singleAudioPlayingRef.current = false;
@@ -124,7 +126,7 @@ export function usePreviewSingleAttachedAudio({
     if (manager.isDisposed()) return;
 
     const loadAudio = async () => {
-      const offset = singleSceneAudioTrack ? 0 : getAudioOffsetForCut(focusCut);
+      const offset = singleSceneAudioTrack ? 0 : audioBinding.offset;
       manager.setOffset(offset);
       const expectedLoadId = manager.getLoadId() + 1;
       const loaded = await manager.load(attachedAudio.path);
@@ -140,8 +142,7 @@ export function usePreviewSingleAttachedAudio({
     assetId,
     hasCutContext,
     focusCut,
-    getAttachedAudioForCut,
-    getAudioOffsetForCut,
+    resolveAudioBindingForCut,
     singleSceneAudioTrack,
   ]);
 

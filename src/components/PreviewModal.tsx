@@ -49,6 +49,7 @@ import { usePreviewInteractionCommands } from './preview-modal/usePreviewInterac
 import { usePreviewViewShell } from './preview-modal/usePreviewViewShell';
 import { usePreviewInputs } from './preview-modal/usePreviewInputs';
 import { usePreviewSequenceSession } from './preview-modal/usePreviewSequenceSession';
+import { resolveCutAudioBinding } from './preview-modal/audioBinding';
 import type { FocusedMarker } from './shared';
 import './PreviewModal.css';
 import './shared/playback-controls.css';
@@ -208,27 +209,13 @@ export default function PreviewModal({
 
   // ===== ATTACHED AUDIO HELPER =====
 
-  const getPrimaryAudioBindingForCut = useCallback((cut: Cut | null | undefined) => {
-    if (!cut?.audioBindings?.length) return undefined;
-    const enabledBindings = cut.audioBindings.filter((binding) => binding.enabled !== false);
-    if (enabledBindings.length === 0) return cut.audioBindings[0];
-
-    const kindPriority: Record<'voice.lipsync' | 'voice.other' | 'se', number> = {
-      'voice.lipsync': 0,
-      'voice.other': 1,
-      'se': 2,
-    };
-
-    return enabledBindings
-      .slice()
-      .sort((a, b) => kindPriority[a.kind] - kindPriority[b.kind])[0];
-  }, []);
-
-  const getAttachedAudioForCut = useCallback((cut: Cut | null | undefined): Asset | undefined => {
-    const binding = getPrimaryAudioBindingForCut(cut);
-    if (!binding?.audioAssetId) return undefined;
-    return getAsset(binding.audioAssetId);
-  }, [getPrimaryAudioBindingForCut, getAsset]);
+  const resolveAudioBindingForCut = useCallback((cut: Cut | null | undefined) => {
+    return resolveCutAudioBinding({
+      cut,
+      getAsset,
+      globalMuted,
+    });
+  }, [getAsset, globalMuted]);
 
   const resolveAssetForCut = useCallback((cut: Cut | null | undefined): Asset | null => {
     return resolveCutAsset(cut, getAsset);
@@ -238,14 +225,9 @@ export default function PreviewModal({
     return resolveCutThumbnail(cut, getAsset);
   }, [getAsset]);
 
-  const getAudioOffsetForCut = useCallback((cut: Cut | null | undefined): number => {
-    return getPrimaryAudioBindingForCut(cut)?.offsetSec ?? 0;
-  }, [getPrimaryAudioBindingForCut]);
-
   const shouldMuteEmbeddedAudio = useCallback((cut: Cut | null | undefined): boolean => {
-    const useEmbeddedAudio = cut?.useEmbeddedAudio ?? true;
-    return globalMuted || !useEmbeddedAudio;
-  }, [globalMuted]);
+    return resolveAudioBindingForCut(cut).muteEmbedded;
+  }, [resolveAudioBindingForCut]);
 
   const getDisplayTimeForAsset = useCallback((assetId: string): number | null => {
     if (!metadataStore) return null;
@@ -699,8 +681,7 @@ export default function PreviewModal({
     focusScene: focusCutData?.scene ?? null,
     metadataStore: metadataStore ?? null,
     getAsset,
-    getAttachedAudioForCut,
-    getAudioOffsetForCut,
+    resolveAudioBindingForCut,
     inPoint,
     outPoint,
     videoRef,
