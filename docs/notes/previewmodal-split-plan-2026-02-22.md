@@ -122,3 +122,7 @@
   - `usePreviewViewport.ts` を追加し、display領域サイズ計測と解像度viewport計算を `PreviewModal.tsx` から分離。
   - `PreviewModal.tsx` から `useLayoutEffect` + `displaySize` + `getViewportStyle` 実装を除去。
   - `npm run build` でビルド成功を確認。
+- 2026-02-22 Step 4 進捗（sequence派生計算のhook化）:
+  - `usePreviewSequenceDerived.ts` を追加し、`previewSequenceItemByCutId` と `previewAudioPlan` の派生計算を `PreviewModal.tsx` から分離。
+  - Preview/Export parity に関わる canonical 入力（`normalizedDisplayTime`）は既存ルールを維持。
+  - `npm run build` でビルド成功を確認。
