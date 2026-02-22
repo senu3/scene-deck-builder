@@ -9,6 +9,7 @@ import { vi } from 'vitest';
 // Minimal window.electronAPI mock for renderer unit tests.
 const electronAPIMock = {
   pathExists: vi.fn(async () => true),
+  getPathForFile: vi.fn((file: File) => (file as File & { path?: string }).path || ''),
   getFolderContents: vi.fn(async () => []),
   loadProjectFromPath: vi.fn(async () => ({ data: null, path: '' })),
   saveProject: vi.fn(async () => 'mocked-path'),

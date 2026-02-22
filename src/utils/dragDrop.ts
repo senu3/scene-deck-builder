@@ -10,16 +10,21 @@ export function getMediaType(filename: string): CuttableMediaType | null {
 }
 
 export function getFilePath(file: File): string | undefined {
+  const fromBridge = window.electronAPI?.getPathForFile?.(file);
+  if (fromBridge) return fromBridge;
   return (file as File & { path?: string }).path;
 }
 
 export function getSupportedMediaFiles(dataTransfer: DataTransfer): File[] {
   const items = Array.from(dataTransfer.items || []);
   if (items.length > 0) {
-    return items
+    const filesFromItems = items
       .filter((item) => item.kind === 'file')
       .map((item) => item.getAsFile())
       .filter((file): file is File => !!file && getMediaType(file.name) !== null);
+    if (filesFromItems.length > 0) {
+      return filesFromItems;
+    }
   }
 
   return Array.from(dataTransfer.files || [])
@@ -39,7 +44,6 @@ export function hasSupportedMediaDrag(dataTransfer: DataTransfer): boolean {
         return true;
       }
     }
-    return false;
   }
 
   return Array.from(dataTransfer.files || []).some((file) => getMediaType(file.name) !== null);
@@ -52,10 +56,8 @@ export function hasAssetPanelDrag(dataTransfer: DataTransfer): boolean {
 
 export function getDragKind(dataTransfer: DataTransfer): DragKind {
   if (hasAssetPanelDrag(dataTransfer)) return 'asset';
-  if (dataTransfer.types.includes('Files')) {
-    if (hasSupportedMediaDrag(dataTransfer) || getSupportedMediaFiles(dataTransfer).length > 0) {
-      return 'externalFiles';
-    }
+  if (hasSupportedMediaDrag(dataTransfer) || getSupportedMediaFiles(dataTransfer).length > 0) {
+    return 'externalFiles';
   }
   return 'none';
 }

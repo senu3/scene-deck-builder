@@ -291,6 +291,7 @@ interface AppVersions {
 
 interface ElectronAPI {
   getVersions?: () => AppVersions;
+  getPathForFile?: (file: File) => string;
   // Folder operations
   selectFolder: () => Promise<FolderSelection | null>;
   getFolderContents: (folderPath: string) => Promise<FileItem[]>;

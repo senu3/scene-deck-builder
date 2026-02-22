@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webUtils } from 'electron';
 const IPC_TOGGLE_SIDEBAR = 'toggle-sidebar';
 const IPC_AUTOSAVE_FLUSH_REQUEST = 'autosave-flush-request';
 const IPC_AUTOSAVE_FLUSH_COMPLETE = 'autosave-flush-complete';
@@ -295,6 +295,8 @@ const electronAPI = {
     node: process.versions.node,
     v8: process.versions.v8,
   }),
+  getPathForFile: (file: File): string =>
+    webUtils.getPathForFile(file),
   // Folder operations
   selectFolder: (): Promise<FolderSelection | null> =>
     ipcRenderer.invoke('select-folder'),
