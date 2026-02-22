@@ -39,21 +39,16 @@ import { buildPreviewItems } from './preview-modal/previewItemsBuilder';
 import { PreviewModalSequenceView } from './preview-modal/PreviewModalSequenceView';
 import { PreviewModalSingleView } from './preview-modal/PreviewModalSingleView';
 import { useClipRangeState } from './preview-modal/useClipRangeState';
-import { usePreviewOverlayVisibility } from './preview-modal/usePreviewOverlayVisibility';
-import { usePreviewViewport } from './preview-modal/usePreviewViewport';
 import { usePreviewSequenceDerived } from './preview-modal/usePreviewSequenceDerived';
-import { usePreviewFullscreen } from './preview-modal/usePreviewFullscreen';
-import { useSequenceProgressInteractions } from './preview-modal/useSequenceProgressInteractions';
-import { usePreviewKeyboardShortcuts } from './preview-modal/usePreviewKeyboardShortcuts';
-import { usePreviewSequenceMediaSource } from './preview-modal/usePreviewSequenceMediaSource';
-import { usePreviewSequenceAudio } from './preview-modal/usePreviewSequenceAudio';
-import { usePreviewSequenceBuffering } from './preview-modal/usePreviewSequenceBuffering';
 import { usePreviewSingleAttachedAudio } from './preview-modal/usePreviewSingleAttachedAudio';
 import { usePreviewExportActions } from './preview-modal/usePreviewExportActions';
 import { usePreviewSharedViewState } from './preview-modal/usePreviewSharedViewState';
 import { usePreviewSingleMediaAsset } from './preview-modal/usePreviewSingleMediaAsset';
 import { usePreviewPlaybackControls } from './preview-modal/usePreviewPlaybackControls';
 import { usePreviewInteractionCommands } from './preview-modal/usePreviewInteractionCommands';
+import { usePreviewViewShell } from './preview-modal/usePreviewViewShell';
+import { usePreviewInputs } from './preview-modal/usePreviewInputs';
+import { usePreviewSequenceSession } from './preview-modal/usePreviewSequenceSession';
 import type { FocusedMarker } from './shared';
 import './PreviewModal.css';
 import './shared/playback-controls.css';
@@ -118,8 +113,6 @@ export default function PreviewModal({
   const [selectedResolution, setSelectedResolution] = useState<ResolutionPreset>(
     exportResolution ? { ...exportResolution } : RESOLUTION_PRESETS[0]
   );
-  // Overlay is view-only helper UI; it must not persist state or affect export decisions.
-  const { showOverlay, showOverlayNow, scheduleHideOverlay } = usePreviewOverlayVisibility({ hideDelayMs: 300 });
   const { show: showMiniToast, element: miniToastElement } = useMiniToast();
 
   // Single Mode specific state
@@ -170,25 +163,22 @@ export default function PreviewModal({
   const isBuffering = usesSequenceController ? sequenceState.isBuffering : false;
 
   const modalRef = useRef<HTMLDivElement>(null);
-  const { isFullscreen, toggleFullscreen } = usePreviewFullscreen(modalRef);
   const progressBarRef = useRef<HTMLDivElement>(null);
   const progressFillRef = useRef<HTMLDivElement>(null);
   const progressHandleRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const { displayContainerRef, getViewportStyle } = usePreviewViewport(selectedResolution);
   const {
-    isDragging,
-    hoverTime,
-    handleProgressBarMouseDown,
-    handleProgressBarHover,
-    handleProgressBarLeave,
-  } = useSequenceProgressInteractions({
-    progressBarRef,
-    itemsLength: items.length,
-    totalDuration: sequenceState.totalDuration,
-    sequencePause,
-    seekSequenceAbsolute,
-    seekSequencePercent,
+    showOverlay,
+    showOverlayNow,
+    scheduleHideOverlay,
+    displayContainerRef,
+    getViewportStyle,
+    isFullscreen,
+    toggleFullscreen,
+  } = usePreviewViewShell({
+    modalRef,
+    selectedResolution,
+    overlayHideDelayMs: 300,
   });
   const {
     singleModeInPoint,
@@ -791,10 +781,22 @@ export default function PreviewModal({
     seekSequenceAbsolute,
   ]);
 
-  const { checkBufferStatus } = usePreviewSequenceBuffering({
+  const {
+    previewSequenceItemByCutId,
+    previewAudioPlan,
+  } = usePreviewSequenceDerived({
+    items,
+    metadataStore: metadataStore ?? null,
+    getAsset,
+  });
+
+  // ===== SEQUENCE MODE SESSION =====
+  const { checkBufferStatus, sequenceMediaElement } = usePreviewSequenceSession({
     isSingleMode,
+    usesSequenceController,
     items,
     currentIndex,
+    sequenceCurrentIndex: sequenceState.currentIndex,
     videoObjectUrl,
     setVideoObjectUrl,
     resolveAssetForCut,
@@ -805,23 +807,6 @@ export default function PreviewModal({
     playSafeAhead: PLAY_SAFE_AHEAD,
     preloadAhead: PRELOAD_AHEAD,
     revokeIfBlob,
-  });
-
-  // ===== SEQUENCE MODE ATTACHED AUDIO =====
-
-  const {
-    previewSequenceItemByCutId,
-    previewAudioPlan,
-  } = usePreviewSequenceDerived({
-    items,
-    metadataStore: metadataStore ?? null,
-    getAsset,
-  });
-  const { sequenceMediaElement } = usePreviewSequenceMediaSource({
-    usesSequenceController,
-    items,
-    currentIndex: sequenceState.currentIndex,
-    videoObjectUrl,
     playbackSpeed,
     setSequenceSource,
     sequenceTick,
@@ -830,15 +815,8 @@ export default function PreviewModal({
     previewSequenceItemByCutId,
     getSequenceLiveAbsoluteTime,
     showMiniToast,
-    resolveAssetForCut,
     videoRef,
-  });
-  usePreviewSequenceAudio({
-    isSingleMode,
-    itemsLength: items.length,
-    getAbsoluteTime: sequenceSelectors.getAbsoluteTime,
-    isPlaying: sequenceState.isPlaying,
-    isBuffering: sequenceState.isBuffering,
+    getSequenceAbsoluteTime: sequenceSelectors.getAbsoluteTime,
     previewAudioPlan,
     globalMuted,
     globalVolume,
@@ -944,7 +922,19 @@ export default function PreviewModal({
     handleMarkerDragEnd,
   });
 
-  usePreviewKeyboardShortcuts({
+  const {
+    isDragging,
+    hoverTime,
+    handleProgressBarMouseDown,
+    handleProgressBarHover,
+    handleProgressBarLeave,
+  } = usePreviewInputs({
+    progressBarRef,
+    itemsLength: items.length,
+    totalDuration: sequenceState.totalDuration,
+    sequencePause,
+    seekSequenceAbsolute,
+    seekSequencePercent,
     onClose,
     onPlayPause: interactionCommands.playPause,
     onSkipBack: interactionCommands.skipBack,
