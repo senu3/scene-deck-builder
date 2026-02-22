@@ -45,7 +45,6 @@ import {
 import {
   clampToDuration,
   constrainMarkerTime,
-  isEditableTarget,
   revokeIfBlob,
 } from './preview-modal/helpers';
 import { buildPreviewItems } from './preview-modal/previewItemsBuilder';
@@ -57,6 +56,7 @@ import { usePreviewViewport } from './preview-modal/usePreviewViewport';
 import { usePreviewSequenceDerived } from './preview-modal/usePreviewSequenceDerived';
 import { usePreviewFullscreen } from './preview-modal/usePreviewFullscreen';
 import { useSequenceProgressInteractions } from './preview-modal/useSequenceProgressInteractions';
+import { usePreviewKeyboardShortcuts } from './preview-modal/usePreviewKeyboardShortcuts';
 import type { FocusedMarker } from './shared';
 import './PreviewModal.css';
 import './shared/playback-controls.css';
@@ -1629,75 +1629,21 @@ export default function PreviewModal({
     sequencePause();
   }, [usesSequenceController, sequencePause]);
 
-  // Keyboard controls - unified for both modes
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.defaultPrevented) return;
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
-      if (isEditableTarget(e.target)) return;
-
-      switch (e.key) {
-        case 'Escape':
-          onClose();
-          break;
-        case ' ':
-          e.preventDefault();
-          handleShortcutPlayPause();
-          break;
-        case 'ArrowLeft':
-          e.preventDefault();
-          skip(-5);
-          break;
-        case 'ArrowRight':
-          e.preventDefault();
-          skip(5);
-          break;
-        case ',':
-          e.preventDefault();
-          handleShortcutStepFrameOrMarker(-1);
-          break;
-        case '.':
-          e.preventDefault();
-          handleShortcutStepFrameOrMarker(1);
-          break;
-        case '[':
-          e.preventDefault();
-          cycleSpeed('down');
-          break;
-        case ']':
-          e.preventDefault();
-          cycleSpeed('up');
-          break;
-        case 'f':
-          toggleFullscreen();
-          break;
-        case 'l':
-          toggleLooping();
-          break;
-        case 'i':
-          handleShortcutSetInPoint();
-          break;
-        case 'o':
-          handleShortcutSetOutPoint();
-          break;
-        case 'm':
-          toggleGlobalMute();
-          break;
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [
+  usePreviewKeyboardShortcuts({
     onClose,
-    handleShortcutPlayPause,
-    skip,
-    handleShortcutStepFrameOrMarker,
-    cycleSpeed,
-    handleShortcutSetInPoint,
-    handleShortcutSetOutPoint,
-    toggleGlobalMute,
-  ]);
+    onPlayPause: handleShortcutPlayPause,
+    onSkipBack: () => skip(-5),
+    onSkipForward: () => skip(5),
+    onStepBack: () => handleShortcutStepFrameOrMarker(-1),
+    onStepForward: () => handleShortcutStepFrameOrMarker(1),
+    onSpeedDown: () => cycleSpeed('down'),
+    onSpeedUp: () => cycleSpeed('up'),
+    onToggleFullscreen: toggleFullscreen,
+    onToggleLooping: toggleLooping,
+    onSetInPoint: handleShortcutSetInPoint,
+    onSetOutPoint: handleShortcutSetOutPoint,
+    onToggleMute: toggleGlobalMute,
+  });
 
   // Export full sequence (no range)
   const handleExportFull = useCallback(async () => {
