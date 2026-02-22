@@ -249,3 +249,9 @@
 - 2026-02-22 Plan update（残タスク具体化 3/4）:
   - 残タスク3: Audio 判定 helper 群は `audioBinding.ts` 純関数へ統合し、Audio 正本ロジックを 1 箇所化。
   - 残タスク4: Composition Root 最終整理では「残してよい責務」を明示し、薄い hook 増殖ではなく既存束への吸収を原則化。
+- 2026-02-22 Step 8 実施（統合フェーズ先行）:
+  - View 系の束: `usePreviewViewShell.ts` を追加し、overlay/viewport/fullscreen の配線を 1 入口へ統合。
+  - Input 系の束: `usePreviewInputs.ts` を追加し、keyboard shortcut と sequence progress interaction の呼び出しを 1 入口へ統合。
+  - Sequence session 系の束: `usePreviewSequenceSession.ts` を追加し、media source / buffering / sequence audio の配線を 1 入口へ統合。
+  - `PreviewModal.tsx` は各束の呼び出し + View props 組み立て寄りに整理（挙動は既存 hook 実装を再利用）。
+  - `npm run build` でビルド成功を確認。
