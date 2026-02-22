@@ -80,3 +80,9 @@
 - state と persistence の責務境界がファイル単位で追跡可能。
 - Gate/Preview parity の既存制約を破らない。
 - 既存のVIDEOCLIP/MiniToast/Single+Sequence動作が回帰していない。
+
+## Progress Log
+- 2026-02-22 Step 1 着手:
+  - `types.ts` / `constants.ts` / `helpers.ts` を新設し、`PreviewModal.tsx` から型・定数・小ヘルパーを分離。
+  - 目的は挙動無変更での責務整理開始。
+  - `npm run build` でビルド成功を確認。
