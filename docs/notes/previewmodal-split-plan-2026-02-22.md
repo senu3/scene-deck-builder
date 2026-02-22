@@ -178,3 +178,7 @@
   - `usePreviewSingleMediaAsset.ts` を追加し、Single Mode の video URL / image thumbnail 読み込みと loading 状態、Single時URL cleanup を `PreviewModal.tsx` から分離。
   - `PreviewModal.tsx` では `isLoading` と `singleModeImageData` を hook から受け取り、Singleメディア読込責務を移管。
   - `npm run build` でビルド成功を確認。
+- 2026-02-22 Step 4 進捗（playback controlsのhook化）:
+  - `usePreviewPlaybackControls.ts` を追加し、go next/prev, play pause, loop, speed, pauseBeforeExport と sequence rate/buffering 連携 effect を `PreviewModal.tsx` から分離。
+  - `PreviewModal.tsx` では keyboard shortcut と view への配線のみを保持し、再生制御ロジックの責務を hook 側へ移管。
+  - `npm run build` でビルド成功を確認。
