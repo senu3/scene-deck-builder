@@ -255,3 +255,8 @@
   - Sequence session 系の束: `usePreviewSequenceSession.ts` を追加し、media source / buffering / sequence audio の配線を 1 入口へ統合。
   - `PreviewModal.tsx` は各束の呼び出し + View props 組み立て寄りに整理（挙動は既存 hook 実装を再利用）。
   - `npm run build` でビルド成功を確認。
+- 2026-02-22 Step 10 着手（Audio helper 集約）:
+  - `audioBinding.ts` を新設し、`resolveCutAudioBinding(...)` を Audio 判定の単一入口として追加。
+  - `getPrimaryAudioBindingForCut` / `getAttachedAudioForCut` / `getAudioOffsetForCut` / `shouldMuteEmbeddedAudio` のローカル helper を `PreviewModal.tsx` から削除し、resolver 呼び出しへ置換。
+  - `usePreviewSingleAttachedAudio.ts` は `resolveAudioBindingForCut` を受ける構成へ変更し、attach audio + offset の算出正本を統一。
+  - `npm run build` でビルド成功を確認。
