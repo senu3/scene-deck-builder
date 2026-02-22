@@ -13,7 +13,6 @@ import {
   selectMetadataStore,
 } from '../store/selectors';
 import type { Asset, Cut } from '../types';
-import { cyclePlaybackSpeed } from '../utils/timeUtils';
 import { resolveCutAsset, resolveCutThumbnail } from '../utils/assetResolve';
 import { useSequencePlaybackController } from '../utils/previewPlaybackController';
 import { getScenesInOrder } from '../utils/sceneOrder';
@@ -53,6 +52,7 @@ import { usePreviewSingleAttachedAudio } from './preview-modal/usePreviewSingleA
 import { usePreviewExportActions } from './preview-modal/usePreviewExportActions';
 import { usePreviewSharedViewState } from './preview-modal/usePreviewSharedViewState';
 import { usePreviewSingleMediaAsset } from './preview-modal/usePreviewSingleMediaAsset';
+import { usePreviewPlaybackControls } from './preview-modal/usePreviewPlaybackControls';
 import type { FocusedMarker } from './shared';
 import './PreviewModal.css';
 import './shared/playback-controls.css';
@@ -843,65 +843,33 @@ export default function PreviewModal({
     globalVolume,
   });
 
-  const goToNext = useCallback(() => {
-    if (isSingleMode) return;
-    sequenceGoToNext();
-  }, [isSingleMode, sequenceGoToNext]);
-
-  const goToPrev = useCallback(() => {
-    if (isSingleMode) return;
-    sequenceGoToPrev();
-  }, [isSingleMode, sequenceGoToPrev]);
-
-  const handlePlayPause = useCallback(() => {
-    if (!usesSequenceController || items.length === 0) return;
-
-    if (!sequenceState.isPlaying) {
-      const currentAbsTime = sequenceSelectors.getAbsoluteTime();
-      if (sequenceState.inPoint !== null && sequenceState.outPoint !== null) {
-        const effectiveOutPoint = Math.max(sequenceState.inPoint, sequenceState.outPoint);
-        const effectiveInPoint = Math.min(sequenceState.inPoint, sequenceState.outPoint);
-        if (currentAbsTime < effectiveInPoint - 0.001 || currentAbsTime >= effectiveOutPoint - 0.001) {
-          seekSequenceAbsolute(effectiveInPoint);
-        }
-      } else if (sequenceState.currentIndex >= items.length - 1 && sequenceState.localProgress >= 99) {
-        seekSequenceAbsolute(0);
-      }
-    }
-
-    sequenceToggle();
-  }, [usesSequenceController, items.length, sequenceState, sequenceSelectors, sequenceToggle, seekSequenceAbsolute]);
-
-  useEffect(() => {
-    if (!usesSequenceController) return;
-    setSequenceRate(playbackSpeed);
-  }, [usesSequenceController, playbackSpeed, setSequenceRate]);
-
-  // Auto pause/resume based on buffer status (Sequence Mode)
-  useEffect(() => {
-    if (isSingleMode || items.length === 0) return;
-
-    const { ready } = checkBufferStatus();
-
-    if (sequenceState.isPlaying && !ready && !sequenceState.isBuffering) {
-      setSequenceBuffering(true);
-    } else if (sequenceState.isPlaying && ready && sequenceState.isBuffering) {
-      setSequenceBuffering(false);
-    }
-  }, [isSingleMode, items, sequenceState.isPlaying, sequenceState.isBuffering, checkBufferStatus, setSequenceBuffering]);
-
-  // Cycle playback speed
-  const cycleSpeed = useCallback((direction: 'up' | 'down') => {
-    setPlaybackSpeed(current => cyclePlaybackSpeed(current, direction));
-  }, []);
-
-  const toggleLooping = useCallback(() => {
-    if (!usesSequenceController) {
-      setSingleModeIsLooping(prev => !prev);
-    } else {
-      setSequenceLooping(!sequenceState.isLooping);
-    }
-  }, [usesSequenceController, sequenceState.isLooping, setSequenceLooping]);
+  const {
+    goToNext,
+    goToPrev,
+    handlePlayPause,
+    cycleSpeed,
+    toggleLooping,
+    pauseBeforeExport,
+  } = usePreviewPlaybackControls({
+    isSingleMode,
+    usesSequenceController,
+    itemsLength: items.length,
+    sequenceState,
+    getSequenceAbsoluteTime: sequenceSelectors.getAbsoluteTime,
+    sequenceGoToNext,
+    sequenceGoToPrev,
+    sequenceToggle,
+    sequencePause,
+    setSequenceLooping,
+    seekSequenceAbsolute,
+    setSequenceRate,
+    setSequenceBuffering,
+    checkBufferStatus,
+    playbackSpeed,
+    setPlaybackSpeed,
+    setSingleModeIsPlaying,
+    setSingleModeIsLooping,
+  });
 
   const getUiPlayheadTime = useCallback(() => {
     if (isSingleModeVideo) {
@@ -993,14 +961,6 @@ export default function PreviewModal({
     }
     handleSetOutPoint();
   }, [isSingleModeVideo, handleSingleModeSetOutPoint, handleSetOutPoint]);
-
-  const pauseBeforeExport = useCallback(() => {
-    if (!usesSequenceController) {
-      setSingleModeIsPlaying(false);
-      return;
-    }
-    sequencePause();
-  }, [usesSequenceController, sequencePause]);
 
   usePreviewKeyboardShortcuts({
     onClose,
