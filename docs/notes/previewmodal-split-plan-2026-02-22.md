@@ -158,3 +158,7 @@
   - `usePreviewSequenceAudio.ts` を追加し、Sequence Mode の event-mix audio manager 管理と再生同期 effect を `PreviewModal.tsx` から分離。
   - `PreviewModal.tsx` は `previewAudioPlan` を hook に渡す composition に変更し、single/sequence 音声責務の境界を明確化。
   - `npm run build` でビルド成功を確認。
+- 2026-02-22 Step 4 進捗（sequence buffering管理のhook化）:
+  - `usePreviewSequenceBuffering.ts` を追加し、Sequence Mode の URL cache / preload / buffering 判定 effect を `PreviewModal.tsx` から分離。
+  - `PreviewModal.tsx` は `checkBufferStatus` の利用のみを残し、buffering責務を hook 側へ集約。
+  - `npm run build` でビルド成功を確認。
