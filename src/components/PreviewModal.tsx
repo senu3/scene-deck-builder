@@ -56,6 +56,7 @@ import { usePreviewOverlayVisibility } from './preview-modal/usePreviewOverlayVi
 import { usePreviewViewport } from './preview-modal/usePreviewViewport';
 import { usePreviewSequenceDerived } from './preview-modal/usePreviewSequenceDerived';
 import { usePreviewFullscreen } from './preview-modal/usePreviewFullscreen';
+import { useSequenceProgressInteractions } from './preview-modal/useSequenceProgressInteractions';
 import type { FocusedMarker } from './shared';
 import './PreviewModal.css';
 import './shared/playback-controls.css';
@@ -115,8 +116,6 @@ export default function PreviewModal({
   const [items, setItems] = useState<PreviewItem[]>([]);
   const [singleModeIsPlaying, setSingleModeIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
-  const [isDragging, setIsDragging] = useState(false);
-  const [hoverTime, setHoverTime] = useState<string | null>(null);
   const [videoObjectUrl, setVideoObjectUrl] = useState<{ assetId: string; url: string } | null>(null);
   const [singleModeIsLooping, setSingleModeIsLooping] = useState(false);
   const [selectedResolution, setSelectedResolution] = useState<ResolutionPreset>(
@@ -189,6 +188,20 @@ export default function PreviewModal({
   const videoRef = useRef<HTMLVideoElement>(null);
   const { displayContainerRef, getViewportStyle } = usePreviewViewport(selectedResolution);
   const [sequenceMediaElement, setSequenceMediaElement] = useState<JSX.Element | null>(null);
+  const {
+    isDragging,
+    hoverTime,
+    handleProgressBarMouseDown,
+    handleProgressBarHover,
+    handleProgressBarLeave,
+  } = useSequenceProgressInteractions({
+    progressBarRef,
+    itemsLength: items.length,
+    totalDuration: sequenceState.totalDuration,
+    sequencePause,
+    seekSequenceAbsolute,
+    seekSequencePercent,
+  });
   const {
     singleModeInPoint,
     setSingleModeInPoint,
@@ -1869,68 +1882,6 @@ export default function PreviewModal({
   }, [items, selectedResolution, inPoint, outPoint, pauseBeforeExport, resolveAssetForCut, metadataStore, getAsset]);
   // Suppress unused variable warning - code kept for future use
   void _handleExportRange;
-
-  // Progress bar handlers
-  const handleProgressBarClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (!progressBarRef.current || items.length === 0) return;
-
-    const rect = progressBarRef.current.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const progressPercent = Math.max(0, Math.min(100, (clickX / rect.width) * 100));
-
-    const totalDuration = sequenceState.totalDuration;
-    if (totalDuration <= 0) return;
-    const newTime = (progressPercent / 100) * totalDuration;
-
-    // Progress bar click always seeks. Marker movement is drag/keyboard only.
-    seekSequenceAbsolute(newTime);
-  }, [items, sequenceState.totalDuration, seekSequenceAbsolute]);
-
-  const handleProgressBarMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    setIsDragging(true);
-    sequencePause();
-    handleProgressBarClick(e);
-  }, [handleProgressBarClick, sequencePause]);
-
-  const handleProgressBarMouseMove = useCallback((e: MouseEvent) => {
-    if (!isDragging || !progressBarRef.current || items.length === 0) return;
-
-    const rect = progressBarRef.current.getBoundingClientRect();
-    const clickX = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
-    const progressPercent = (clickX / rect.width) * 100;
-    seekSequencePercent(progressPercent);
-  }, [isDragging, items, seekSequencePercent]);
-
-  const handleProgressBarMouseUp = useCallback(() => {
-    setIsDragging(false);
-  }, []);
-
-  const handleProgressBarHover = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (!progressBarRef.current || items.length === 0) return;
-
-    const rect = progressBarRef.current.getBoundingClientRect();
-    const hoverX = e.clientX - rect.left;
-    const progressPercent = (hoverX / rect.width) * 100;
-
-    const totalDuration = sequenceState.totalDuration;
-    const hoverTimeSeconds = (progressPercent / 100) * totalDuration;
-    setHoverTime(formatTime(hoverTimeSeconds));
-  }, [items, sequenceState.totalDuration]);
-
-  const handleProgressBarLeave = useCallback(() => {
-    setHoverTime(null);
-  }, []);
-
-  useEffect(() => {
-    if (isDragging) {
-      window.addEventListener('mousemove', handleProgressBarMouseMove);
-      window.addEventListener('mouseup', handleProgressBarMouseUp);
-      return () => {
-        window.removeEventListener('mousemove', handleProgressBarMouseMove);
-        window.removeEventListener('mouseup', handleProgressBarMouseUp);
-      };
-    }
-  }, [isDragging, handleProgressBarMouseMove, handleProgressBarMouseUp]);
 
   // Apply volume/mute to the active video element (embedded audio only)
   useEffect(() => {
