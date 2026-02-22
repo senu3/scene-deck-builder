@@ -228,6 +228,10 @@ export default function PreviewModal({
   const [isSingleModeClipPending, setIsSingleModeClipPending] = useState(false);
   const lastCommittedClipPointsRef = useRef<{ start: number; end: number } | null>(null);
   const singleModeClipDragDirtyRef = useRef(false);
+  const singleModeRangeRef = useRef<{ inPoint: number | null; outPoint: number | null }>({
+    inPoint: initialInPoint ?? null,
+    outPoint: initialOutPoint ?? null,
+  });
 
   // IN/OUT point state - initialize from props for Single Mode
   const [singleModeInPoint, setSingleModeInPoint] = useState<number | null>(initialInPoint ?? null);
@@ -481,6 +485,12 @@ export default function PreviewModal({
     onRangeChange?.({ inPoint: nextInPoint, outPoint: nextOutPoint });
   }, [onRangeChange]);
 
+  const setSingleModeRange = useCallback((nextInPoint: number | null, nextOutPoint: number | null) => {
+    singleModeRangeRef.current = { inPoint: nextInPoint, outPoint: nextOutPoint };
+    setSingleModeInPoint(nextInPoint);
+    setSingleModeOutPoint(nextOutPoint);
+  }, []);
+
   const commitSingleModeClipPoints = useCallback(async (nextInPoint: number | null, nextOutPoint: number | null) => {
     if (!isSingleModeVideo || !isSingleModeClipEnabled || !onClipSave) return;
     if (nextInPoint === null || nextOutPoint === null) return;
@@ -517,16 +527,18 @@ export default function PreviewModal({
 
     if (marker === 'in') {
       if (!usesSequenceController) {
-        setSingleModeInPoint(constrainedTime);
-        notifyRangeChange(constrainedTime, outPoint);
+        const nextOutPoint = singleModeRangeRef.current.outPoint;
+        setSingleModeRange(constrainedTime, nextOutPoint);
+        notifyRangeChange(constrainedTime, nextOutPoint);
       } else {
         setSequenceRange(constrainedTime, outPoint ?? null);
         notifyRangeChange(constrainedTime, outPoint ?? null);
       }
     } else {
       if (!usesSequenceController) {
-        setSingleModeOutPoint(constrainedTime);
-        notifyRangeChange(inPoint, constrainedTime);
+        const nextInPoint = singleModeRangeRef.current.inPoint;
+        setSingleModeRange(nextInPoint, constrainedTime);
+        notifyRangeChange(nextInPoint, constrainedTime);
       } else {
         setSequenceRange(inPoint ?? null, constrainedTime);
         notifyRangeChange(inPoint ?? null, constrainedTime);
@@ -547,6 +559,7 @@ export default function PreviewModal({
     inPoint,
     outPoint,
     notifyRangeChange,
+    setSingleModeRange,
     setSequenceRange,
     seekSequenceAbsolute,
   ]);
@@ -576,10 +589,11 @@ export default function PreviewModal({
   const handleMarkerDragEnd = useCallback(async () => {
     if (isSingleModeVideo && isSingleModeClipEnabled && singleModeClipDragDirtyRef.current) {
       singleModeClipDragDirtyRef.current = false;
-      await commitSingleModeClipPoints(inPoint, outPoint);
+      const { inPoint: latestInPoint, outPoint: latestOutPoint } = singleModeRangeRef.current;
+      await commitSingleModeClipPoints(latestInPoint, latestOutPoint);
     }
     setFocusedMarker(null);
-  }, [isSingleModeVideo, isSingleModeClipEnabled, commitSingleModeClipPoints, inPoint, outPoint]);
+  }, [isSingleModeVideo, isSingleModeClipEnabled, commitSingleModeClipPoints]);
 
   // Clear focused marker when clicking outside progress bar
   const handleContainerMouseDown = useCallback((e: React.MouseEvent) => {
@@ -718,8 +732,7 @@ export default function PreviewModal({
     const nextOutPoint = isSingleModeClipEnabled
       ? outPoint
       : (outPoint !== null && nextInPoint >= outPoint ? null : outPoint);
-    setSingleModeInPoint(nextInPoint);
-    setSingleModeOutPoint(nextOutPoint);
+    setSingleModeRange(nextInPoint, nextOutPoint);
     if (focusedMarker === 'out' && nextOutPoint === null) {
       setFocusedMarker(null);
     }
@@ -736,6 +749,7 @@ export default function PreviewModal({
     notifyRangeChange,
     isSingleModeClipEnabled,
     commitSingleModeClipPoints,
+    setSingleModeRange,
   ]);
 
   const handleSingleModeSetOutPoint = useCallback(() => {
@@ -747,8 +761,7 @@ export default function PreviewModal({
     const nextInPoint = isSingleModeClipEnabled
       ? inPoint
       : (inPoint !== null && nextOutPoint <= inPoint ? null : inPoint);
-    setSingleModeInPoint(nextInPoint);
-    setSingleModeOutPoint(nextOutPoint);
+    setSingleModeRange(nextInPoint, nextOutPoint);
     if (focusedMarker === 'in' && nextInPoint === null) {
       setFocusedMarker(null);
     }
@@ -765,6 +778,7 @@ export default function PreviewModal({
     notifyRangeChange,
     isSingleModeClipEnabled,
     commitSingleModeClipPoints,
+    setSingleModeRange,
   ]);
 
   const handleSingleModeClearClip = useCallback(async () => {
@@ -772,8 +786,7 @@ export default function PreviewModal({
     setIsSingleModeClipPending(true);
     try {
       await onClipClear?.();
-      setSingleModeInPoint(null);
-      setSingleModeOutPoint(null);
+      setSingleModeRange(null, null);
       setFocusedMarker(null);
       setIsSingleModeClipEnabled(false);
       lastCommittedClipPointsRef.current = null;
@@ -785,7 +798,7 @@ export default function PreviewModal({
     } finally {
       setIsSingleModeClipPending(false);
     }
-  }, [isSingleModeVideo, notifyRangeChange, onClipClear, showMiniToast]);
+  }, [isSingleModeVideo, notifyRangeChange, onClipClear, setSingleModeRange, showMiniToast]);
 
   // Single Mode Save handler: save clip when both IN and OUT are set
   const handleSingleModeSave = useCallback(async () => {
@@ -864,9 +877,17 @@ export default function PreviewModal({
         start: Math.min(sourceInPoint, sourceOutPoint),
         end: Math.max(sourceInPoint, sourceOutPoint),
       };
+      singleModeRangeRef.current = {
+        inPoint: sourceInPoint,
+        outPoint: sourceOutPoint,
+      };
       return;
     }
     lastCommittedClipPointsRef.current = null;
+    singleModeRangeRef.current = {
+      inPoint: singleModeInPoint,
+      outPoint: singleModeOutPoint,
+    };
   }, [isSingleModeVideo, focusCutData?.cut?.id, focusCutData?.cut?.isClip, focusCutData?.cut?.inPoint, focusCutData?.cut?.outPoint]);
 
   // ===== SINGLE MODE ATTACHED AUDIO =====
