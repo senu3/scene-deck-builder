@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { X, Play, Pause, SkipBack, SkipForward, Download, Loader2, Repeat, Maximize, Scissors, Camera } from 'lucide-react';
+import { X, Play, Pause, SkipBack, SkipForward, Repeat, Maximize, Scissors, Camera } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import {
   selectScenes,
@@ -57,6 +57,7 @@ import {
 } from './preview-modal/helpers';
 import { PreviewResolutionPicker } from './preview-modal/PreviewResolutionPicker';
 import { buildPreviewItems } from './preview-modal/previewItemsBuilder';
+import { PreviewModalSequenceView } from './preview-modal/PreviewModalSequenceView';
 import './PreviewModal.css';
 import './shared/playback-controls.css';
 
@@ -2270,262 +2271,65 @@ export default function PreviewModal({
     );
   }
 
-  // ===== SEQUENCE MODE RENDER =====
-
-  // Empty state for Sequence Mode
-  if (items.length === 0) {
-    return (
-      <div className="preview-modal" ref={modalRef}>
-        <div className="preview-backdrop" onClick={onClose} />
-        <div className="preview-container">
-          <div className="preview-header preview-header--static">
-            <span>Preview</span>
-            <button className="preview-close-btn" onClick={onClose} title="Close (Esc)">
-              <X size={20} />
-            </button>
-          </div>
-          <div className="preview-empty">
-            {missingFocusedCut ? (
-              <>
-                <p>Selected cut is no longer available</p>
-                <p className="hint">The cut may have been deleted or moved.</p>
-              </>
-            ) : (
-              <>
-                <p>No cuts to preview</p>
-                <p className="hint">Add some images or videos to your timeline first.</p>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="preview-modal" ref={modalRef} onMouseDown={handleContainerMouseDown}>
-      <div className="preview-backdrop" onClick={onClose} />
-      <div className="preview-container preview-container--compact">
-        {/* Display area */}
-        <div
-          className={previewDisplayClassName}
-          ref={displayContainerRef}
-          onMouseEnter={showOverlayNow}
-          onMouseMove={showOverlayNow}
-          onMouseLeave={scheduleHideOverlay}
-        >
-          {/* Minimal header overlay */}
-          <div className="preview-header preview-header--compact">
-            <div className="preview-header-left">
-              <span className="preview-badge">{currentIndex + 1}/{items.length}</span>
-              <span className="preview-title">{currentItem?.sceneName}</span>
-              <span className="preview-cut-label">Cut {(currentItem?.cutIndex || 0) + 1}</span>
-            </div>
-            <div className="preview-header-right">
-              <button className="preview-close-btn" onClick={onClose} title="Close (Esc)">
-                <X size={20} />
-              </button>
-            </div>
-          </div>
-
-          {(() => {
-            const viewportStyle = getViewportStyle();
-            const content = sequenceMediaElement ?? (() => {
-              const currentAsset = currentItem ? resolveAssetForCut(currentItem.cut) : undefined;
-              if (currentAsset?.type === 'video') {
-                return (
-                  <div className="preview-placeholder">
-                    <p>Loading video...</p>
-                  </div>
-                );
-              }
-              return (
-                <div className="preview-placeholder">
-                  <p>No preview available</p>
-                </div>
-              );
-            })();
-
-            if (viewportStyle) {
-              return (
-                <div
-                  className="resolution-viewport"
-                  style={{
-                    width: viewportStyle.width,
-                    height: viewportStyle.height,
-                    ...currentFraming,
-                  }}
-                >
-                  <div className="resolution-label">
-                    {selectedResolution.name} ({selectedResolution.width}×{selectedResolution.height})
-                  </div>
-                  {content}
-                  {/* Buffering overlay */}
-                  {isBuffering && (
-                    <div className="buffering-overlay">
-                      <Loader2 size={48} className="buffering-spinner" />
-                      <span>Loading...</span>
-                    </div>
-                  )}
-                </div>
-              );
-            }
-
-            return (
-              <>
-                {content}
-                {/* Buffering overlay */}
-                {isBuffering && (
-                  <div className="buffering-overlay">
-                    <Loader2 size={48} className="buffering-spinner" />
-                    <span>Loading...</span>
-                  </div>
-                )}
-              </>
-            );
-          })()}
-
-          {/* Overlay controls */}
-          <div
-            className={`preview-overlay ${showOverlay ? 'is-visible' : ''}`}
-            onMouseEnter={showOverlayNow}
-            onMouseLeave={scheduleHideOverlay}
-          >
-            <div className="preview-overlay-row preview-overlay-row--top">
-              <div className="preview-overlay-left">
-                {previewResolutionLabel && (
-                  <span className="preview-resolution-badge">{previewResolutionLabel}</span>
-                )}
-              </div>
-              <div className="preview-overlay-right">
-                <PreviewResolutionPicker
-                  selectedResolutionName={selectedResolution.name}
-                  presets={RESOLUTION_PRESETS}
-                  onSelect={(preset) => {
-                    setSelectedResolution(preset);
-                    onResolutionChange?.(preset);
-                  }}
-                />
-                <button
-                  className="preview-icon-btn"
-                  onClick={handleExportFull}
-                  disabled={isExporting || items.length === 0}
-                  title="Export full sequence to MP4"
-                >
-                  <Download size={16} />
-                </button>
-              </div>
-            </div>
-
-            <div className="preview-overlay-row preview-overlay-row--bottom">
-              {/* Progress bar with time display */}
-              <div className="preview-progress">
-                <div
-                  className="preview-progress-bar preview-progress-bar--scrub"
-                  ref={progressBarRef}
-                  onMouseDown={handleProgressBarMouseDown}
-                  onMouseMove={handleProgressBarHover}
-                  onMouseLeave={handleProgressBarLeave}
-                >
-                  <PlaybackRangeMarkers
-                    inPoint={inPoint}
-                    outPoint={outPoint}
-                    duration={sequenceTotalDuration}
-                    showMilliseconds={false}
-                    focusedMarker={focusedMarker}
-                    onMarkerFocus={handleMarkerFocus}
-                    onMarkerDrag={handleMarkerDrag}
-                    onMarkerDragEnd={handleMarkerDragEnd}
-                    progressBarRef={progressBarRef}
-                  />
-                  <div
-                    ref={progressFillRef}
-                    className="preview-progress-fill"
-                    style={{ width: `${globalProgress}%` }}
-                  />
-                  <div
-                    ref={progressHandleRef}
-                    className="preview-progress-handle"
-                    style={{ left: `${globalProgress}%` }}
-                  />
-                  {hoverTime && (
-                    <div className="preview-progress-tooltip">
-                      {hoverTime}
-                    </div>
-                  )}
-                </div>
-                <div className="preview-progress-info">
-                  <TimeDisplay currentTime={sequenceCurrentTime} totalDuration={sequenceTotalDuration} />
-                </div>
-              </div>
-
-              {/* Controls */}
-              <div className="preview-controls-row">
-                <button
-                  className="preview-ctrl-btn"
-                  onClick={goToPrev}
-                  disabled={currentIndex === 0}
-                  title="Previous Cut"
-                >
-                  <SkipBack size={18} />
-                </button>
-                <button
-                  className="preview-ctrl-btn preview-ctrl-btn--primary"
-                  onClick={handlePlayPause}
-                  title="Play/Pause (Space)"
-                >
-                  {isPlaying ? <Pause size={22} /> : <Play size={22} />}
-                </button>
-                <button
-                  className="preview-ctrl-btn"
-                  onClick={goToNext}
-                  disabled={currentIndex >= items.length - 1}
-                  title="Next Cut"
-                >
-                  <SkipForward size={18} />
-                </button>
-                <div className="preview-ctrl-divider" />
-                <button
-                  className={`preview-ctrl-btn preview-ctrl-btn--text ${inPoint !== null ? 'is-active' : ''}`}
-                  onClick={handleSetInPoint}
-                  title="Set IN point (I)"
-                >
-                  I
-                </button>
-                <button
-                  className={`preview-ctrl-btn preview-ctrl-btn--text ${outPoint !== null ? 'is-active' : ''}`}
-                  onClick={handleSetOutPoint}
-                  title="Set OUT point (O)"
-                >
-                  O
-                </button>
-                <div className="preview-ctrl-divider" />
-                <button
-                  className={`preview-ctrl-btn ${isLooping ? 'is-active' : ''}`}
-                  onClick={toggleLooping}
-                  title={`Loop (L) - ${isLooping ? 'On' : 'Off'}`}
-                >
-                  <Repeat size={16} />
-                </button>
-                <VolumeControl
-                  volume={globalVolume}
-                  isMuted={globalMuted}
-                  onVolumeChange={setGlobalVolume}
-                  onMuteToggle={toggleGlobalMute}
-                />
-                <button
-                  className="preview-ctrl-btn"
-                  onClick={toggleFullscreen}
-                  title={isFullscreen ? 'Exit fullscreen (F)' : 'Fullscreen (F)'}
-                >
-                  <Maximize size={16} />
-                </button>
-                {miniToastElement}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <PreviewModalSequenceView
+      modalRef={modalRef}
+      displayContainerRef={displayContainerRef}
+      progressBarRef={progressBarRef}
+      progressFillRef={progressFillRef}
+      progressHandleRef={progressHandleRef}
+      onClose={onClose}
+      onContainerMouseDown={handleContainerMouseDown}
+      showOverlayNow={showOverlayNow}
+      scheduleHideOverlay={scheduleHideOverlay}
+      previewDisplayClassName={previewDisplayClassName}
+      items={items}
+      missingFocusedCut={missingFocusedCut}
+      currentIndex={currentIndex}
+      currentItem={currentItem}
+      sequenceMediaElement={sequenceMediaElement}
+      resolveAssetForCut={resolveAssetForCut}
+      getViewportStyle={getViewportStyle}
+      currentFraming={currentFraming}
+      selectedResolution={selectedResolution}
+      onResolutionSelect={(preset) => {
+        setSelectedResolution(preset);
+        onResolutionChange?.(preset);
+      }}
+      previewResolutionLabel={previewResolutionLabel}
+      onExportFull={() => {
+        void handleExportFull();
+      }}
+      isExporting={isExporting}
+      isBuffering={isBuffering}
+      showOverlay={showOverlay}
+      inPoint={inPoint}
+      outPoint={outPoint}
+      sequenceTotalDuration={sequenceTotalDuration}
+      focusedMarker={focusedMarker}
+      onMarkerFocus={handleMarkerFocus}
+      onMarkerDrag={handleMarkerDrag}
+      onMarkerDragEnd={handleMarkerDragEnd}
+      onProgressBarMouseDown={handleProgressBarMouseDown}
+      onProgressBarHover={handleProgressBarHover}
+      onProgressBarLeave={handleProgressBarLeave}
+      hoverTime={hoverTime}
+      sequenceCurrentTime={sequenceCurrentTime}
+      goToPrev={goToPrev}
+      handlePlayPause={handlePlayPause}
+      isPlaying={isPlaying}
+      goToNext={goToNext}
+      handleSetInPoint={handleSetInPoint}
+      handleSetOutPoint={handleSetOutPoint}
+      isLooping={isLooping}
+      toggleLooping={toggleLooping}
+      globalVolume={globalVolume}
+      globalMuted={globalMuted}
+      setGlobalVolume={setGlobalVolume}
+      toggleGlobalMute={toggleGlobalMute}
+      isFullscreen={isFullscreen}
+      toggleFullscreen={toggleFullscreen}
+      miniToastElement={miniToastElement}
+    />
   );
 }
