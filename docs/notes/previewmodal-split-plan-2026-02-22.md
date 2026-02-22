@@ -118,3 +118,7 @@
   - `usePreviewOverlayVisibility.ts` を追加し、overlay の表示/非表示タイマー制御を `PreviewModal.tsx` から分離。
   - `PreviewModal.tsx` から timeout ref / cleanup effect / show/hide callback を除去。
   - `npm run build` でビルド成功を確認。
+- 2026-02-22 Step 4 進捗（viewport責務のhook化）:
+  - `usePreviewViewport.ts` を追加し、display領域サイズ計測と解像度viewport計算を `PreviewModal.tsx` から分離。
+  - `PreviewModal.tsx` から `useLayoutEffect` + `displaySize` + `getViewportStyle` 実装を除去。
+  - `npm run build` でビルド成功を確認。
