@@ -114,3 +114,7 @@
   - `PreviewModal.tsx` は marker操作の呼び出し側に縮小し、state+操作の責務を集約。
   - `npm run build` でビルド成功を確認。
   - マーカー操作系イベント挙動に関わるため、この地点で手動確認フェーズを挟む。
+- 2026-02-22 Step 4 進捗（overlay制御のhook化）:
+  - `usePreviewOverlayVisibility.ts` を追加し、overlay の表示/非表示タイマー制御を `PreviewModal.tsx` から分離。
+  - `PreviewModal.tsx` から timeout ref / cleanup effect / show/hide callback を除去。
+  - `npm run build` でビルド成功を確認。
