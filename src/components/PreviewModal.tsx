@@ -135,6 +135,13 @@ export default function PreviewModal({
   const [singleModeCurrentTime, setSingleModeCurrentTime] = useState(0);
   const [isSingleModeClipEnabled, setIsSingleModeClipEnabled] = useState(false);
   const [isSingleModeClipPending, setIsSingleModeClipPending] = useState(false);
+  const lastCommittedClipPointsRef = useRef<{ start: number; end: number } | null>(null);
+  const singleModeClipDragDirtyRef = useRef(false);
+  const queuedClipCommitRef = useRef<{ inPoint: number | null; outPoint: number | null } | null>(null);
+  const singleModeRangeRef = useRef<{ inPoint: number | null; outPoint: number | null }>({
+    inPoint: initialInPoint ?? null,
+    outPoint: initialOutPoint ?? null,
+  });
 
   const resolveCutDisplayTimeSec = useCallback((cut: Cut | null | undefined): CanonicalDurationSec => {
     const resolved = resolveCanonicalCutDuration(cut, getAsset, {
@@ -185,12 +192,6 @@ export default function PreviewModal({
     setFocusedMarker,
     inPoint,
     outPoint,
-    notifyRangeChange,
-    stepFocusedMarker,
-    handleMarkerFocus,
-    handleMarkerDrag,
-    handleMarkerDragEnd,
-    handleContainerMouseDown,
   } = useClipRangeState({
     usesSequenceController,
     sequenceInPoint: sequenceState.inPoint,
@@ -404,6 +405,145 @@ export default function PreviewModal({
     }
   }, [isSingleModeVideo, singleModeDuration, isPlaying, FRAME_DURATION, sequencePause]);
 
+  const notifyRangeChange = useCallback((nextInPoint: number | null, nextOutPoint: number | null) => {
+    onRangeChange?.({ inPoint: nextInPoint, outPoint: nextOutPoint });
+  }, [onRangeChange]);
+
+  const setSingleModeRange = useCallback((nextInPoint: number | null, nextOutPoint: number | null) => {
+    singleModeRangeRef.current = { inPoint: nextInPoint, outPoint: nextOutPoint };
+    setSingleModeInPoint(nextInPoint);
+    setSingleModeOutPoint(nextOutPoint);
+  }, []);
+
+  const commitSingleModeClipPoints = useCallback(async (nextInPoint: number | null, nextOutPoint: number | null) => {
+    if (!isSingleModeVideo || !isSingleModeClipEnabled || !onClipSave) return;
+    if (nextInPoint === null || nextOutPoint === null) return;
+    if (isSingleModeClipPending) {
+      queuedClipCommitRef.current = { inPoint: nextInPoint, outPoint: nextOutPoint };
+      return;
+    }
+
+    const start = Math.min(nextInPoint, nextOutPoint);
+    const end = Math.max(nextInPoint, nextOutPoint);
+    const committed = lastCommittedClipPointsRef.current;
+    if (
+      committed &&
+      Math.abs(committed.start - start) < CLIP_POINT_EPSILON &&
+      Math.abs(committed.end - end) < CLIP_POINT_EPSILON
+    ) {
+      return;
+    }
+
+    setIsSingleModeClipPending(true);
+    try {
+      await onClipSave(start, end);
+      lastCommittedClipPointsRef.current = { start, end };
+    } catch (error) {
+      console.error('Failed to update clip points:', error);
+      showMiniToast(error instanceof Error ? error.message : 'Failed to update clip points', 'error');
+    } finally {
+      setIsSingleModeClipPending(false);
+    }
+  }, [isSingleModeVideo, isSingleModeClipEnabled, onClipSave, isSingleModeClipPending, showMiniToast]);
+
+  useEffect(() => {
+    if (!isSingleModeVideo || !isSingleModeClipEnabled) return;
+    if (isSingleModeClipPending) return;
+    const queued = queuedClipCommitRef.current;
+    if (!queued) return;
+    queuedClipCommitRef.current = null;
+    void commitSingleModeClipPoints(queued.inPoint, queued.outPoint);
+  }, [isSingleModeVideo, isSingleModeClipEnabled, isSingleModeClipPending, commitSingleModeClipPoints]);
+
+  const setMarkerTimeAndSeek = useCallback((marker: 'in' | 'out', newTime: number) => {
+    const duration = usesSequenceController
+      ? sequenceState.totalDuration
+      : singleModeDuration;
+    const constrainedTime = constrainMarkerTime(marker, newTime, duration, inPoint, outPoint);
+
+    if (marker === 'in') {
+      if (!usesSequenceController) {
+        const nextOutPoint = singleModeRangeRef.current.outPoint;
+        setSingleModeRange(constrainedTime, nextOutPoint);
+        notifyRangeChange(constrainedTime, nextOutPoint);
+      } else {
+        setSequenceRange(constrainedTime, outPoint ?? null);
+        notifyRangeChange(constrainedTime, outPoint ?? null);
+      }
+    } else {
+      if (!usesSequenceController) {
+        const nextInPoint = singleModeRangeRef.current.inPoint;
+        setSingleModeRange(nextInPoint, constrainedTime);
+        notifyRangeChange(nextInPoint, constrainedTime);
+      } else {
+        setSequenceRange(inPoint ?? null, constrainedTime);
+        notifyRangeChange(inPoint ?? null, constrainedTime);
+      }
+    }
+
+    if (!usesSequenceController && videoRef.current) {
+      videoRef.current.currentTime = constrainedTime;
+      setSingleModeCurrentTime(constrainedTime);
+    } else if (usesSequenceController && items.length > 0) {
+      seekSequenceAbsolute(constrainedTime);
+    }
+  }, [
+    usesSequenceController,
+    sequenceState.totalDuration,
+    singleModeDuration,
+    items.length,
+    inPoint,
+    outPoint,
+    notifyRangeChange,
+    setSingleModeRange,
+    setSequenceRange,
+    seekSequenceAbsolute,
+  ]);
+
+  // Step focused marker by one frame
+  const stepFocusedMarker = useCallback((direction: number) => {
+    if (!focusedMarker) return;
+    const currentMarkerTime = focusedMarker === 'in' ? inPoint : outPoint;
+    if (currentMarkerTime === null) return;
+    setMarkerTimeAndSeek(focusedMarker, currentMarkerTime + (direction * FRAME_DURATION));
+  }, [focusedMarker, inPoint, outPoint, setMarkerTimeAndSeek]);
+
+  // Handle marker focus
+  const handleMarkerFocus = useCallback((marker: FocusedMarker) => {
+    setFocusedMarker(marker);
+  }, []);
+
+  // Handle marker drag (both modes)
+  const handleMarkerDrag = useCallback((marker: 'in' | 'out', newTime: number) => {
+    if (isSingleModeVideo && isSingleModeClipEnabled) {
+      singleModeClipDragDirtyRef.current = true;
+    }
+    setMarkerTimeAndSeek(marker, newTime);
+  }, [setMarkerTimeAndSeek, isSingleModeVideo, isSingleModeClipEnabled]);
+
+  // Handle marker drag end
+  const handleMarkerDragEnd = useCallback(async () => {
+    if (isSingleModeVideo && isSingleModeClipEnabled && singleModeClipDragDirtyRef.current) {
+      singleModeClipDragDirtyRef.current = false;
+      const { inPoint: latestInPoint, outPoint: latestOutPoint } = singleModeRangeRef.current;
+      await commitSingleModeClipPoints(latestInPoint, latestOutPoint);
+    }
+    setFocusedMarker(null);
+  }, [isSingleModeVideo, isSingleModeClipEnabled, commitSingleModeClipPoints]);
+
+  // Clear focused marker when clicking outside progress bar
+  const handleContainerMouseDown = useCallback((e: React.MouseEvent) => {
+    if (!focusedMarker) return;
+
+    // Check if click was inside the progress bar
+    const target = e.target as HTMLElement;
+    const progressBar = target.closest('.preview-progress-bar');
+
+    // If clicked outside progress bar, clear focus
+    if (!progressBar) {
+      setFocusedMarker(null);
+    }
+  }, [focusedMarker]);
   // Skip seconds (Both modes)
   const skip = useCallback((seconds: number) => {
     if (!usesSequenceController) {
@@ -494,37 +634,72 @@ export default function PreviewModal({
   // Single Mode IN/OUT handlers
   const handleSingleModeSetInPoint = useCallback(() => {
     if (!isSingleModeVideo) return;
-    const nextInPoint = clampToDuration(singleModeCurrentTime, singleModeDuration);
-    const nextOutPoint = outPoint !== null && nextInPoint >= outPoint ? null : outPoint;
-    setSingleModeInPoint(nextInPoint);
-    setSingleModeOutPoint(nextOutPoint);
+    const candidateInPoint = clampToDuration(singleModeCurrentTime, singleModeDuration);
+    const nextInPoint = isSingleModeClipEnabled && outPoint !== null
+      ? Math.min(candidateInPoint, outPoint)
+      : candidateInPoint;
+    const nextOutPoint = isSingleModeClipEnabled
+      ? outPoint
+      : (outPoint !== null && nextInPoint >= outPoint ? null : outPoint);
+    setSingleModeRange(nextInPoint, nextOutPoint);
     if (focusedMarker === 'out' && nextOutPoint === null) {
       setFocusedMarker(null);
     }
     notifyRangeChange(nextInPoint, nextOutPoint);
-  }, [isSingleModeVideo, singleModeCurrentTime, singleModeDuration, outPoint, focusedMarker, notifyRangeChange]);
+    if (isSingleModeClipEnabled) {
+      void commitSingleModeClipPoints(nextInPoint, nextOutPoint);
+    }
+  }, [
+    isSingleModeVideo,
+    singleModeCurrentTime,
+    singleModeDuration,
+    outPoint,
+    focusedMarker,
+    notifyRangeChange,
+    isSingleModeClipEnabled,
+    commitSingleModeClipPoints,
+    setSingleModeRange,
+  ]);
 
   const handleSingleModeSetOutPoint = useCallback(() => {
     if (!isSingleModeVideo) return;
-    const nextOutPoint = clampToDuration(singleModeCurrentTime, singleModeDuration);
-    const nextInPoint = inPoint !== null && nextOutPoint <= inPoint ? null : inPoint;
-    setSingleModeInPoint(nextInPoint);
-    setSingleModeOutPoint(nextOutPoint);
+    const candidateOutPoint = clampToDuration(singleModeCurrentTime, singleModeDuration);
+    const nextOutPoint = isSingleModeClipEnabled && inPoint !== null
+      ? Math.max(candidateOutPoint, inPoint)
+      : candidateOutPoint;
+    const nextInPoint = isSingleModeClipEnabled
+      ? inPoint
+      : (inPoint !== null && nextOutPoint <= inPoint ? null : inPoint);
+    setSingleModeRange(nextInPoint, nextOutPoint);
     if (focusedMarker === 'in' && nextInPoint === null) {
       setFocusedMarker(null);
     }
     notifyRangeChange(nextInPoint, nextOutPoint);
-  }, [isSingleModeVideo, singleModeCurrentTime, singleModeDuration, inPoint, focusedMarker, notifyRangeChange]);
+    if (isSingleModeClipEnabled) {
+      void commitSingleModeClipPoints(nextInPoint, nextOutPoint);
+    }
+  }, [
+    isSingleModeVideo,
+    singleModeCurrentTime,
+    singleModeDuration,
+    inPoint,
+    focusedMarker,
+    notifyRangeChange,
+    isSingleModeClipEnabled,
+    commitSingleModeClipPoints,
+    setSingleModeRange,
+  ]);
 
   const handleSingleModeClearClip = useCallback(async () => {
     if (!isSingleModeVideo) return;
     setIsSingleModeClipPending(true);
     try {
       await onClipClear?.();
-      setSingleModeInPoint(null);
-      setSingleModeOutPoint(null);
+      setSingleModeRange(null, null);
       setFocusedMarker(null);
       setIsSingleModeClipEnabled(false);
+      lastCommittedClipPointsRef.current = null;
+      queuedClipCommitRef.current = null;
       notifyRangeChange(null, null);
       showMiniToast('VIDEOCLIP cleared', 'success');
     } catch (error) {
@@ -533,7 +708,7 @@ export default function PreviewModal({
     } finally {
       setIsSingleModeClipPending(false);
     }
-  }, [isSingleModeVideo, notifyRangeChange, onClipClear, showMiniToast]);
+  }, [isSingleModeVideo, notifyRangeChange, onClipClear, setSingleModeRange, showMiniToast]);
 
   // Single Mode Save handler: save clip when both IN and OUT are set
   const handleSingleModeSave = useCallback(async () => {
@@ -546,6 +721,7 @@ export default function PreviewModal({
     try {
       await onClipSave?.(start, end);
       setIsSingleModeClipEnabled(true);
+      lastCommittedClipPointsRef.current = { start, end };
       showMiniToast('VIDEOCLIP set', 'success');
     } catch (error) {
       console.error('Failed to save clip:', error);
@@ -600,7 +776,29 @@ export default function PreviewModal({
   useEffect(() => {
     if (!isSingleModeVideo) return;
     setIsSingleModeClipEnabled(!!focusCutData?.cut?.isClip);
-  }, [isSingleModeVideo, focusCutData?.cut?.id, focusCutData?.cut?.isClip]);
+    const sourceInPoint = focusCutData?.cut?.inPoint;
+    const sourceOutPoint = focusCutData?.cut?.outPoint;
+    if (
+      focusCutData?.cut?.isClip &&
+      typeof sourceInPoint === 'number' &&
+      typeof sourceOutPoint === 'number'
+    ) {
+      lastCommittedClipPointsRef.current = {
+        start: Math.min(sourceInPoint, sourceOutPoint),
+        end: Math.max(sourceInPoint, sourceOutPoint),
+      };
+      singleModeRangeRef.current = {
+        inPoint: sourceInPoint,
+        outPoint: sourceOutPoint,
+      };
+      return;
+    }
+    lastCommittedClipPointsRef.current = null;
+    singleModeRangeRef.current = {
+      inPoint: singleModeInPoint,
+      outPoint: singleModeOutPoint,
+    };
+  }, [isSingleModeVideo, focusCutData?.cut?.id, focusCutData?.cut?.isClip, focusCutData?.cut?.inPoint, focusCutData?.cut?.outPoint]);
 
   // ===== SINGLE MODE ATTACHED AUDIO =====
 
