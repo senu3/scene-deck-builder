@@ -133,6 +133,10 @@
   - `useSequenceProgressInteractions.ts` を追加し、Sequenceの progress drag/hover/mouseup 管理を `PreviewModal.tsx` から分離。
   - `PreviewModal.tsx` から progress 操作の状態とイベント実装を除去し、hook呼び出しに置換。
   - `npm run build` でビルド成功を確認。
+- 2026-02-22 Step 4 進捗（keyboard shortcutのhook化）:
+  - `usePreviewKeyboardShortcuts.ts` を追加し、Previewのキーボード操作登録を `PreviewModal.tsx` から分離。
+  - `PreviewModal.tsx` の keydown effect を hook 呼び出しへ置換し、ショートカット割当は既存動作を維持。
+  - `npm run build` でビルド成功を確認。
 - 2026-02-22 Follow-up fix:
   - Sequence Mode の進行表示で、React の `style` 更新と rAF の直接DOM更新が競合していたため整理。
   - シーケンス再生バーの fill/handle は rAF/effect の単一路で更新し、表示時刻は再生中のみ live time を優先。
