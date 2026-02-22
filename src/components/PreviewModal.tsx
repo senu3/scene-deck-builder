@@ -42,109 +42,23 @@ import {
 } from './shared';
 import type { FocusedMarker } from './shared';
 import { useMiniToast } from '../ui';
+import type { PreviewItem, PreviewModalProps, ResolutionPreset } from './preview-modal/types';
+import {
+  FALLBACK_CANONICAL_DURATION_SEC,
+  FRAME_DURATION,
+  INITIAL_PRELOAD_ITEMS,
+  PLAY_SAFE_AHEAD,
+  PRELOAD_AHEAD,
+  RESOLUTION_PRESETS,
+} from './preview-modal/constants';
+import {
+  clampToDuration,
+  constrainMarkerTime,
+  isEditableTarget,
+  revokeIfBlob,
+} from './preview-modal/helpers';
 import './PreviewModal.css';
 import './shared/playback-controls.css';
-
-// 再生保証付き LazyLoad constants
-const PLAY_SAFE_AHEAD = 2.0; // seconds - minimum buffer required for playback
-const PRELOAD_AHEAD = 30.0; // seconds - preload this much ahead for smoother playback
-const INITIAL_PRELOAD_ITEMS = 5; // number of items to preload initially
-const FRAME_DURATION = 1 / 30;
-const FALLBACK_CANONICAL_DURATION_SEC = asCanonicalDurationSec(1.0);
-
-function clampToDuration(time: number, duration: number): number {
-  return Math.max(0, Math.min(duration, time));
-}
-
-function constrainMarkerTime(
-  marker: 'in' | 'out',
-  candidateTime: number,
-  duration: number,
-  inPoint: number | null,
-  outPoint: number | null,
-): number {
-  let next = clampToDuration(candidateTime, duration);
-  if (marker === 'in' && outPoint !== null) {
-    next = Math.min(next, outPoint);
-  }
-  if (marker === 'out' && inPoint !== null) {
-    next = Math.max(next, inPoint);
-  }
-  return next;
-}
-
-function isEditableTarget(target: EventTarget | null): boolean {
-  const element = target as HTMLElement | null;
-  if (!element) return false;
-  if (element.isContentEditable) return true;
-  const tagName = element.tagName;
-  return tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT';
-}
-
-function revokeIfBlob(url: string): void {
-  if (url.startsWith('blob:')) {
-    URL.revokeObjectURL(url);
-  }
-}
-
-interface ResolutionPresetType {
-  name: string;
-  width: number;
-  height: number;
-}
-
-// Single Mode props (for previewing a single asset)
-interface SingleModeProps {
-  asset: Asset;
-  initialInPoint?: number;
-  initialOutPoint?: number;
-  onClipSave?: (inPoint: number, outPoint: number) => Promise<void> | void;
-  onClipClear?: () => Promise<void> | void;
-  onFrameCapture?: (timestamp: number) => Promise<string | void> | void;
-}
-
-// Base props shared by both modes
-interface BasePreviewModalProps {
-  onClose: () => void;
-  exportResolution?: ResolutionPresetType;
-  onResolutionChange?: (resolution: ResolutionPresetType) => void;
-  focusCutId?: string;
-  sequenceCuts?: Cut[];
-  sequenceContext?: { kind: 'scene'; sceneId: string; sceneName?: string };
-  onRangeChange?: (range: { inPoint: number | null; outPoint: number | null }) => void;
-  onExportSequence?: (cuts: Cut[], resolution: { width: number; height: number }) => Promise<void> | void;
-}
-
-// PreviewModal can be called in Single Mode (with asset) or Sequence Mode (without asset)
-type PreviewModalProps = BasePreviewModalProps & Partial<SingleModeProps>;
-
-interface PreviewItem {
-  cut: Cut;
-  sceneId: string;
-  sceneName: string;
-  sceneIndex: number;
-  cutIndex: number;
-  sceneStartAbs: number;
-  previewOffsetSec: number;
-  // Derived only from canonical story timings. Do not source from raw cut duration fields directly.
-  normalizedDisplayTime: CanonicalDurationSec;
-  thumbnail: string | null;
-}
-
-// Resolution presets for simulation
-interface ResolutionPreset {
-  name: string;
-  width: number;
-  height: number;
-}
-
-const RESOLUTION_PRESETS: ResolutionPreset[] = [
-  { name: 'Free', width: 0, height: 0 },
-  { name: 'FHD', width: 1920, height: 1080 },
-  { name: 'HD', width: 1280, height: 720 },
-  { name: '4K', width: 3840, height: 2160 },
-  { name: 'SD', width: 640, height: 480 },
-];
 
 export default function PreviewModal({
   onClose,
