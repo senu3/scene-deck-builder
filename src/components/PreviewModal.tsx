@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useStore } from '../store/useStore';
 import {
   selectScenes,
@@ -52,6 +52,7 @@ import { PreviewModalSequenceView } from './preview-modal/PreviewModalSequenceVi
 import { PreviewModalSingleView } from './preview-modal/PreviewModalSingleView';
 import { useClipRangeState } from './preview-modal/useClipRangeState';
 import { usePreviewOverlayVisibility } from './preview-modal/usePreviewOverlayVisibility';
+import { usePreviewViewport } from './preview-modal/usePreviewViewport';
 import './PreviewModal.css';
 import './shared/playback-controls.css';
 
@@ -173,8 +174,7 @@ export default function PreviewModal({
   const progressFillRef = useRef<HTMLDivElement>(null);
   const progressHandleRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const displayContainerRef = useRef<HTMLDivElement>(null);
-  const [displaySize, setDisplaySize] = useState({ width: 0, height: 0 });
+  const { displayContainerRef, getViewportStyle } = usePreviewViewport(selectedResolution);
   const [sequenceMediaElement, setSequenceMediaElement] = useState<JSX.Element | null>(null);
   const {
     setSingleModeInPoint,
@@ -1129,40 +1129,6 @@ export default function PreviewModal({
     globalMuted,
     globalVolume,
   ]);
-
-  // Calculate display size for resolution simulation
-  useLayoutEffect(() => {
-    const updateDisplaySize = () => {
-      if (!displayContainerRef.current) return;
-      const container = displayContainerRef.current;
-      const rect = container.getBoundingClientRect();
-      setDisplaySize({ width: rect.width, height: rect.height });
-    };
-
-    updateDisplaySize();
-    window.addEventListener('resize', updateDisplaySize);
-    return () => window.removeEventListener('resize', updateDisplaySize);
-  }, [selectedResolution]);
-
-  // Calculate viewport frame for resolution simulation
-  const getViewportStyle = useCallback(() => {
-    if (selectedResolution.width === 0) return null;
-
-    const targetWidth = selectedResolution.width;
-    const targetHeight = selectedResolution.height;
-    const containerWidth = displaySize.width > 0 ? displaySize.width : 800;
-    const containerHeight = displaySize.height > 0 ? displaySize.height : 600;
-
-    const scaleX = containerWidth / targetWidth;
-    const scaleY = containerHeight / targetHeight;
-    const scale = Math.min(scaleX, scaleY) * 0.9;
-
-    return {
-      width: targetWidth * scale,
-      height: targetHeight * scale,
-      scale,
-    };
-  }, [selectedResolution, displaySize]);
 
   const goToNext = useCallback(() => {
     if (isSingleMode) return;
