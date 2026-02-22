@@ -59,7 +59,7 @@
 
 7. 操作コマンド層の導入（Single/SequenceのUX整合）
 - 新規: `src/components/preview-modal/usePreviewInteractionCommands.ts`（名称は実装時に最終確定）
-- ユーザー操作入口（play/pause, seek/skip, in/out, loop, mute, speed, marker操作）を mode 非依存の command API として統一する。
+- ユーザー操作入口（play/pause, seek/skip, in/out, loop, mute, marker操作）を mode 非依存の command API として統一する。
 - command 内部で mode 分岐を吸収し、View/Shortcut 側は同一インターフェースのみ参照する。
 
 ## 実装ステップ
@@ -191,4 +191,7 @@
   - `npm run build` でビルド成功を確認。
 - 2026-02-22 Plan update（操作コマンド層の追加）:
   - Single/Sequence の内部実装差を維持しつつ、ユーザー操作入口の一貫性を高めるため `usePreviewInteractionCommands` 導入タスクを計画へ追加。
-  - 次フェーズで play/pause, seek/skip, in/out, loop, mute, speed, marker 操作の command API 統一を実施予定。
+  - 次フェーズで play/pause, seek/skip, in/out, loop, mute, marker 操作の command API 統一を実施予定。
+- 2026-02-22 Plan update（speedの扱い見直し）:
+  - Sequence Mode は slideshow 特性上 speed 変更要件が不確実なため、command 層の対象から `speed` を除外。
+  - `speed` は当面 Single 専用操作として保持し、Sequence への適用/削除判断は split 完了後の整理フェーズで扱う。
