@@ -1,5 +1,4 @@
-import { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { X, Play, Pause, SkipBack, SkipForward, Download, Loader2, Repeat, Maximize, Scissors, Camera } from 'lucide-react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useStore } from '../store/useStore';
 import {
   selectScenes,
@@ -19,7 +18,6 @@ import { formatTime, cyclePlaybackSpeed } from '../utils/timeUtils';
 import { resolveCutAsset, resolveCutThumbnail } from '../utils/assetResolve';
 import { AudioManager } from '../utils/audioUtils';
 import { createImageMediaSource, createLipSyncImageMediaSource, createVideoMediaSource } from '../utils/previewMedia';
-import { getLipSyncFrameAssetIds } from '../utils/lipSyncUtils';
 import { useSequencePlaybackController } from '../utils/previewPlaybackController';
 import { getAssetThumbnail } from '../features/thumbnails/api';
 import { buildSequenceItemsForCuts } from '../utils/exportSequence';
@@ -35,116 +33,34 @@ import {
   resolveCanonicalCutDuration,
   type CanonicalDurationSec,
 } from '../utils/storyTiming';
-import {
-  PlaybackRangeMarkers,
-  VolumeControl,
-  TimeDisplay,
-} from './shared';
-import type { FocusedMarker } from './shared';
 import { useMiniToast } from '../ui';
+import type { PreviewItem, PreviewModalProps, ResolutionPreset } from './preview-modal/types';
+import {
+  FRAME_DURATION,
+  INITIAL_PRELOAD_ITEMS,
+  PLAY_SAFE_AHEAD,
+  PRELOAD_AHEAD,
+  RESOLUTION_PRESETS,
+} from './preview-modal/constants';
+import {
+  clampToDuration,
+  constrainMarkerTime,
+  isEditableTarget,
+  revokeIfBlob,
+} from './preview-modal/helpers';
+import { buildPreviewItems } from './preview-modal/previewItemsBuilder';
+import { PreviewModalSequenceView } from './preview-modal/PreviewModalSequenceView';
+import { PreviewModalSingleView } from './preview-modal/PreviewModalSingleView';
+import { useClipRangeState } from './preview-modal/useClipRangeState';
+import { usePreviewOverlayVisibility } from './preview-modal/usePreviewOverlayVisibility';
+import { usePreviewViewport } from './preview-modal/usePreviewViewport';
+import { usePreviewSequenceDerived } from './preview-modal/usePreviewSequenceDerived';
+import { usePreviewFullscreen } from './preview-modal/usePreviewFullscreen';
+import type { FocusedMarker } from './shared';
 import './PreviewModal.css';
 import './shared/playback-controls.css';
 
-// 再生保証付き LazyLoad constants
-const PLAY_SAFE_AHEAD = 2.0; // seconds - minimum buffer required for playback
-const PRELOAD_AHEAD = 30.0; // seconds - preload this much ahead for smoother playback
-const INITIAL_PRELOAD_ITEMS = 5; // number of items to preload initially
-const FRAME_DURATION = 1 / 30;
-const FALLBACK_CANONICAL_DURATION_SEC = asCanonicalDurationSec(1.0);
-
-function clampToDuration(time: number, duration: number): number {
-  return Math.max(0, Math.min(duration, time));
-}
-
-function constrainMarkerTime(
-  marker: 'in' | 'out',
-  candidateTime: number,
-  duration: number,
-  inPoint: number | null,
-  outPoint: number | null,
-): number {
-  let next = clampToDuration(candidateTime, duration);
-  if (marker === 'in' && outPoint !== null) {
-    next = Math.min(next, outPoint);
-  }
-  if (marker === 'out' && inPoint !== null) {
-    next = Math.max(next, inPoint);
-  }
-  return next;
-}
-
-function isEditableTarget(target: EventTarget | null): boolean {
-  const element = target as HTMLElement | null;
-  if (!element) return false;
-  if (element.isContentEditable) return true;
-  const tagName = element.tagName;
-  return tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT';
-}
-
-function revokeIfBlob(url: string): void {
-  if (url.startsWith('blob:')) {
-    URL.revokeObjectURL(url);
-  }
-}
-
-interface ResolutionPresetType {
-  name: string;
-  width: number;
-  height: number;
-}
-
-// Single Mode props (for previewing a single asset)
-interface SingleModeProps {
-  asset: Asset;
-  initialInPoint?: number;
-  initialOutPoint?: number;
-  onClipSave?: (inPoint: number, outPoint: number) => Promise<void> | void;
-  onClipClear?: () => Promise<void> | void;
-  onFrameCapture?: (timestamp: number) => Promise<string | void> | void;
-}
-
-// Base props shared by both modes
-interface BasePreviewModalProps {
-  onClose: () => void;
-  exportResolution?: ResolutionPresetType;
-  onResolutionChange?: (resolution: ResolutionPresetType) => void;
-  focusCutId?: string;
-  sequenceCuts?: Cut[];
-  sequenceContext?: { kind: 'scene'; sceneId: string; sceneName?: string };
-  onRangeChange?: (range: { inPoint: number | null; outPoint: number | null }) => void;
-  onExportSequence?: (cuts: Cut[], resolution: { width: number; height: number }) => Promise<void> | void;
-}
-
-// PreviewModal can be called in Single Mode (with asset) or Sequence Mode (without asset)
-type PreviewModalProps = BasePreviewModalProps & Partial<SingleModeProps>;
-
-interface PreviewItem {
-  cut: Cut;
-  sceneId: string;
-  sceneName: string;
-  sceneIndex: number;
-  cutIndex: number;
-  sceneStartAbs: number;
-  previewOffsetSec: number;
-  // Derived only from canonical story timings. Do not source from raw cut duration fields directly.
-  normalizedDisplayTime: CanonicalDurationSec;
-  thumbnail: string | null;
-}
-
-// Resolution presets for simulation
-interface ResolutionPreset {
-  name: string;
-  width: number;
-  height: number;
-}
-
-const RESOLUTION_PRESETS: ResolutionPreset[] = [
-  { name: 'Free', width: 0, height: 0 },
-  { name: 'FHD', width: 1920, height: 1080 },
-  { name: 'HD', width: 1280, height: 720 },
-  { name: '4K', width: 3840, height: 2160 },
-  { name: 'SD', width: 640, height: 480 },
-];
+const CLIP_POINT_EPSILON = 0.0001;
 
 export default function PreviewModal({
   onClose,
@@ -198,7 +114,6 @@ export default function PreviewModal({
 
   const [items, setItems] = useState<PreviewItem[]>([]);
   const [singleModeIsPlaying, setSingleModeIsPlaying] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
   const [hoverTime, setHoverTime] = useState<string | null>(null);
@@ -209,9 +124,8 @@ export default function PreviewModal({
   );
   const [isExporting, setIsExporting] = useState(false);
   // Overlay is view-only helper UI; it must not persist state or affect export decisions.
-  const [showOverlay, setShowOverlay] = useState(true);
+  const { showOverlay, showOverlayNow, scheduleHideOverlay } = usePreviewOverlayVisibility({ hideDelayMs: 300 });
   const { show: showMiniToast, element: miniToastElement } = useMiniToast();
-  const overlayTimeoutRef = useRef<number | null>(null);
   const lipSyncToastShownRef = useRef<Set<string>>(new Set());
 
   // Buffer management state (Sequence Mode)
@@ -225,10 +139,13 @@ export default function PreviewModal({
   const [singleModeCurrentTime, setSingleModeCurrentTime] = useState(0);
   const [isSingleModeClipEnabled, setIsSingleModeClipEnabled] = useState(false);
   const [isSingleModeClipPending, setIsSingleModeClipPending] = useState(false);
-
-  // IN/OUT point state - initialize from props for Single Mode
-  const [singleModeInPoint, setSingleModeInPoint] = useState<number | null>(initialInPoint ?? null);
-  const [singleModeOutPoint, setSingleModeOutPoint] = useState<number | null>(initialOutPoint ?? null);
+  const lastCommittedClipPointsRef = useRef<{ start: number; end: number } | null>(null);
+  const singleModeClipDragDirtyRef = useRef(false);
+  const queuedClipCommitRef = useRef<{ inPoint: number | null; outPoint: number | null } | null>(null);
+  const singleModeRangeRef = useRef<{ inPoint: number | null; outPoint: number | null }>({
+    inPoint: initialInPoint ?? null,
+    outPoint: initialOutPoint ?? null,
+  });
 
   const resolveCutDisplayTimeSec = useCallback((cut: Cut | null | undefined): CanonicalDurationSec => {
     const resolved = resolveCanonicalCutDuration(cut, getAsset, {
@@ -262,21 +179,41 @@ export default function PreviewModal({
   const currentIndex = usesSequenceController ? sequenceState.currentIndex : 0;
   const isPlaying = usesSequenceController ? sequenceState.isPlaying : singleModeIsPlaying;
   const isLooping = usesSequenceController ? sequenceState.isLooping : singleModeIsLooping;
-  const inPoint = usesSequenceController ? sequenceState.inPoint : singleModeInPoint;
-  const outPoint = usesSequenceController ? sequenceState.outPoint : singleModeOutPoint;
   const isBuffering = usesSequenceController ? sequenceState.isBuffering : false;
 
-  // Focused marker state for draggable markers
-  const [focusedMarker, setFocusedMarker] = useState<FocusedMarker>(null);
-
   const modalRef = useRef<HTMLDivElement>(null);
+  const { isFullscreen, toggleFullscreen } = usePreviewFullscreen(modalRef);
   const progressBarRef = useRef<HTMLDivElement>(null);
   const progressFillRef = useRef<HTMLDivElement>(null);
   const progressHandleRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const displayContainerRef = useRef<HTMLDivElement>(null);
-  const [displaySize, setDisplaySize] = useState({ width: 0, height: 0 });
+  const { displayContainerRef, getViewportStyle } = usePreviewViewport(selectedResolution);
   const [sequenceMediaElement, setSequenceMediaElement] = useState<JSX.Element | null>(null);
+  const {
+    singleModeInPoint,
+    setSingleModeInPoint,
+    singleModeOutPoint,
+    setSingleModeOutPoint,
+    focusedMarker,
+    setFocusedMarker,
+    inPoint,
+    outPoint,
+  } = useClipRangeState({
+    usesSequenceController,
+    sequenceInPoint: sequenceState.inPoint,
+    sequenceOutPoint: sequenceState.outPoint,
+    sequenceTotalDuration: sequenceState.totalDuration,
+    singleModeDuration,
+    itemsLength: items.length,
+    initialInPoint,
+    initialOutPoint,
+    onRangeChange,
+    setSequenceRange,
+    seekSequenceAbsolute,
+    setSingleModeCurrentTime,
+    videoRef,
+    frameDuration: FRAME_DURATION,
+  });
 
   // ===== ATTACHED AUDIO HELPER =====
 
@@ -478,6 +415,52 @@ export default function PreviewModal({
     onRangeChange?.({ inPoint: nextInPoint, outPoint: nextOutPoint });
   }, [onRangeChange]);
 
+  const setSingleModeRange = useCallback((nextInPoint: number | null, nextOutPoint: number | null) => {
+    singleModeRangeRef.current = { inPoint: nextInPoint, outPoint: nextOutPoint };
+    setSingleModeInPoint(nextInPoint);
+    setSingleModeOutPoint(nextOutPoint);
+  }, []);
+
+  const commitSingleModeClipPoints = useCallback(async (nextInPoint: number | null, nextOutPoint: number | null) => {
+    if (!isSingleModeVideo || !isSingleModeClipEnabled || !onClipSave) return;
+    if (nextInPoint === null || nextOutPoint === null) return;
+    if (isSingleModeClipPending) {
+      queuedClipCommitRef.current = { inPoint: nextInPoint, outPoint: nextOutPoint };
+      return;
+    }
+
+    const start = Math.min(nextInPoint, nextOutPoint);
+    const end = Math.max(nextInPoint, nextOutPoint);
+    const committed = lastCommittedClipPointsRef.current;
+    if (
+      committed &&
+      Math.abs(committed.start - start) < CLIP_POINT_EPSILON &&
+      Math.abs(committed.end - end) < CLIP_POINT_EPSILON
+    ) {
+      return;
+    }
+
+    setIsSingleModeClipPending(true);
+    try {
+      await onClipSave(start, end);
+      lastCommittedClipPointsRef.current = { start, end };
+    } catch (error) {
+      console.error('Failed to update clip points:', error);
+      showMiniToast(error instanceof Error ? error.message : 'Failed to update clip points', 'error');
+    } finally {
+      setIsSingleModeClipPending(false);
+    }
+  }, [isSingleModeVideo, isSingleModeClipEnabled, onClipSave, isSingleModeClipPending, showMiniToast]);
+
+  useEffect(() => {
+    if (!isSingleModeVideo || !isSingleModeClipEnabled) return;
+    if (isSingleModeClipPending) return;
+    const queued = queuedClipCommitRef.current;
+    if (!queued) return;
+    queuedClipCommitRef.current = null;
+    void commitSingleModeClipPoints(queued.inPoint, queued.outPoint);
+  }, [isSingleModeVideo, isSingleModeClipEnabled, isSingleModeClipPending, commitSingleModeClipPoints]);
+
   const setMarkerTimeAndSeek = useCallback((marker: 'in' | 'out', newTime: number) => {
     const duration = usesSequenceController
       ? sequenceState.totalDuration
@@ -486,16 +469,18 @@ export default function PreviewModal({
 
     if (marker === 'in') {
       if (!usesSequenceController) {
-        setSingleModeInPoint(constrainedTime);
-        notifyRangeChange(constrainedTime, outPoint);
+        const nextOutPoint = singleModeRangeRef.current.outPoint;
+        setSingleModeRange(constrainedTime, nextOutPoint);
+        notifyRangeChange(constrainedTime, nextOutPoint);
       } else {
         setSequenceRange(constrainedTime, outPoint ?? null);
         notifyRangeChange(constrainedTime, outPoint ?? null);
       }
     } else {
       if (!usesSequenceController) {
-        setSingleModeOutPoint(constrainedTime);
-        notifyRangeChange(inPoint, constrainedTime);
+        const nextInPoint = singleModeRangeRef.current.inPoint;
+        setSingleModeRange(nextInPoint, constrainedTime);
+        notifyRangeChange(nextInPoint, constrainedTime);
       } else {
         setSequenceRange(inPoint ?? null, constrainedTime);
         notifyRangeChange(inPoint ?? null, constrainedTime);
@@ -516,6 +501,7 @@ export default function PreviewModal({
     inPoint,
     outPoint,
     notifyRangeChange,
+    setSingleModeRange,
     setSequenceRange,
     seekSequenceAbsolute,
   ]);
@@ -535,13 +521,21 @@ export default function PreviewModal({
 
   // Handle marker drag (both modes)
   const handleMarkerDrag = useCallback((marker: 'in' | 'out', newTime: number) => {
+    if (isSingleModeVideo && isSingleModeClipEnabled) {
+      singleModeClipDragDirtyRef.current = true;
+    }
     setMarkerTimeAndSeek(marker, newTime);
-  }, [setMarkerTimeAndSeek]);
+  }, [setMarkerTimeAndSeek, isSingleModeVideo, isSingleModeClipEnabled]);
 
   // Handle marker drag end
-  const handleMarkerDragEnd = useCallback(() => {
+  const handleMarkerDragEnd = useCallback(async () => {
+    if (isSingleModeVideo && isSingleModeClipEnabled && singleModeClipDragDirtyRef.current) {
+      singleModeClipDragDirtyRef.current = false;
+      const { inPoint: latestInPoint, outPoint: latestOutPoint } = singleModeRangeRef.current;
+      await commitSingleModeClipPoints(latestInPoint, latestOutPoint);
+    }
     setFocusedMarker(null);
-  }, []);
+  }, [isSingleModeVideo, isSingleModeClipEnabled, commitSingleModeClipPoints]);
 
   // Clear focused marker when clicking outside progress bar
   const handleContainerMouseDown = useCallback((e: React.MouseEvent) => {
@@ -556,33 +550,6 @@ export default function PreviewModal({
       setFocusedMarker(null);
     }
   }, [focusedMarker]);
-
-  const showOverlayNow = useCallback(() => {
-    if (overlayTimeoutRef.current !== null) {
-      window.clearTimeout(overlayTimeoutRef.current);
-      overlayTimeoutRef.current = null;
-    }
-    setShowOverlay(true);
-  }, []);
-
-  const scheduleHideOverlay = useCallback(() => {
-    if (overlayTimeoutRef.current !== null) {
-      window.clearTimeout(overlayTimeoutRef.current);
-    }
-    overlayTimeoutRef.current = window.setTimeout(() => {
-      setShowOverlay(false);
-      overlayTimeoutRef.current = null;
-    }, 300);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (overlayTimeoutRef.current !== null) {
-        window.clearTimeout(overlayTimeoutRef.current);
-      }
-    };
-  }, []);
-
   // Skip seconds (Both modes)
   const skip = useCallback((seconds: number) => {
     if (!usesSequenceController) {
@@ -673,37 +640,72 @@ export default function PreviewModal({
   // Single Mode IN/OUT handlers
   const handleSingleModeSetInPoint = useCallback(() => {
     if (!isSingleModeVideo) return;
-    const nextInPoint = clampToDuration(singleModeCurrentTime, singleModeDuration);
-    const nextOutPoint = outPoint !== null && nextInPoint >= outPoint ? null : outPoint;
-    setSingleModeInPoint(nextInPoint);
-    setSingleModeOutPoint(nextOutPoint);
+    const candidateInPoint = clampToDuration(singleModeCurrentTime, singleModeDuration);
+    const nextInPoint = isSingleModeClipEnabled && outPoint !== null
+      ? Math.min(candidateInPoint, outPoint)
+      : candidateInPoint;
+    const nextOutPoint = isSingleModeClipEnabled
+      ? outPoint
+      : (outPoint !== null && nextInPoint >= outPoint ? null : outPoint);
+    setSingleModeRange(nextInPoint, nextOutPoint);
     if (focusedMarker === 'out' && nextOutPoint === null) {
       setFocusedMarker(null);
     }
     notifyRangeChange(nextInPoint, nextOutPoint);
-  }, [isSingleModeVideo, singleModeCurrentTime, singleModeDuration, outPoint, focusedMarker, notifyRangeChange]);
+    if (isSingleModeClipEnabled) {
+      void commitSingleModeClipPoints(nextInPoint, nextOutPoint);
+    }
+  }, [
+    isSingleModeVideo,
+    singleModeCurrentTime,
+    singleModeDuration,
+    outPoint,
+    focusedMarker,
+    notifyRangeChange,
+    isSingleModeClipEnabled,
+    commitSingleModeClipPoints,
+    setSingleModeRange,
+  ]);
 
   const handleSingleModeSetOutPoint = useCallback(() => {
     if (!isSingleModeVideo) return;
-    const nextOutPoint = clampToDuration(singleModeCurrentTime, singleModeDuration);
-    const nextInPoint = inPoint !== null && nextOutPoint <= inPoint ? null : inPoint;
-    setSingleModeInPoint(nextInPoint);
-    setSingleModeOutPoint(nextOutPoint);
+    const candidateOutPoint = clampToDuration(singleModeCurrentTime, singleModeDuration);
+    const nextOutPoint = isSingleModeClipEnabled && inPoint !== null
+      ? Math.max(candidateOutPoint, inPoint)
+      : candidateOutPoint;
+    const nextInPoint = isSingleModeClipEnabled
+      ? inPoint
+      : (inPoint !== null && nextOutPoint <= inPoint ? null : inPoint);
+    setSingleModeRange(nextInPoint, nextOutPoint);
     if (focusedMarker === 'in' && nextInPoint === null) {
       setFocusedMarker(null);
     }
     notifyRangeChange(nextInPoint, nextOutPoint);
-  }, [isSingleModeVideo, singleModeCurrentTime, singleModeDuration, inPoint, focusedMarker, notifyRangeChange]);
+    if (isSingleModeClipEnabled) {
+      void commitSingleModeClipPoints(nextInPoint, nextOutPoint);
+    }
+  }, [
+    isSingleModeVideo,
+    singleModeCurrentTime,
+    singleModeDuration,
+    inPoint,
+    focusedMarker,
+    notifyRangeChange,
+    isSingleModeClipEnabled,
+    commitSingleModeClipPoints,
+    setSingleModeRange,
+  ]);
 
   const handleSingleModeClearClip = useCallback(async () => {
     if (!isSingleModeVideo) return;
     setIsSingleModeClipPending(true);
     try {
       await onClipClear?.();
-      setSingleModeInPoint(null);
-      setSingleModeOutPoint(null);
+      setSingleModeRange(null, null);
       setFocusedMarker(null);
       setIsSingleModeClipEnabled(false);
+      lastCommittedClipPointsRef.current = null;
+      queuedClipCommitRef.current = null;
       notifyRangeChange(null, null);
       showMiniToast('VIDEOCLIP cleared', 'success');
     } catch (error) {
@@ -712,7 +714,7 @@ export default function PreviewModal({
     } finally {
       setIsSingleModeClipPending(false);
     }
-  }, [isSingleModeVideo, notifyRangeChange, onClipClear, showMiniToast]);
+  }, [isSingleModeVideo, notifyRangeChange, onClipClear, setSingleModeRange, showMiniToast]);
 
   // Single Mode Save handler: save clip when both IN and OUT are set
   const handleSingleModeSave = useCallback(async () => {
@@ -725,6 +727,7 @@ export default function PreviewModal({
     try {
       await onClipSave?.(start, end);
       setIsSingleModeClipEnabled(true);
+      lastCommittedClipPointsRef.current = { start, end };
       showMiniToast('VIDEOCLIP set', 'success');
     } catch (error) {
       console.error('Failed to save clip:', error);
@@ -779,7 +782,29 @@ export default function PreviewModal({
   useEffect(() => {
     if (!isSingleModeVideo) return;
     setIsSingleModeClipEnabled(!!focusCutData?.cut?.isClip);
-  }, [isSingleModeVideo, focusCutData?.cut?.id, focusCutData?.cut?.isClip]);
+    const sourceInPoint = focusCutData?.cut?.inPoint;
+    const sourceOutPoint = focusCutData?.cut?.outPoint;
+    if (
+      focusCutData?.cut?.isClip &&
+      typeof sourceInPoint === 'number' &&
+      typeof sourceOutPoint === 'number'
+    ) {
+      lastCommittedClipPointsRef.current = {
+        start: Math.min(sourceInPoint, sourceOutPoint),
+        end: Math.max(sourceInPoint, sourceOutPoint),
+      };
+      singleModeRangeRef.current = {
+        inPoint: sourceInPoint,
+        outPoint: sourceOutPoint,
+      };
+      return;
+    }
+    lastCommittedClipPointsRef.current = null;
+    singleModeRangeRef.current = {
+      inPoint: singleModeInPoint,
+      outPoint: singleModeOutPoint,
+    };
+  }, [isSingleModeVideo, focusCutData?.cut?.id, focusCutData?.cut?.isClip, focusCutData?.cut?.inPoint, focusCutData?.cut?.outPoint]);
 
   // ===== SINGLE MODE ATTACHED AUDIO =====
 
@@ -988,329 +1013,33 @@ export default function PreviewModal({
 
   // Build preview items
   useEffect(() => {
-    if (isSingleModeVideo) {
-      setItems([]);
-      return;
-    }
-
-    if (isSingleModeImage && asset) {
-      const displayTime = getDisplayTimeForAsset(asset.id);
-      const lipSyncSettings = getLipSyncSettingsForAsset(asset.id);
-      const singleCut: Cut = {
-        id: `single-${asset.id}`,
-        assetId: asset.id,
-        asset,
-        displayTime: displayTime ?? Number.NaN,
-        order: 0,
-        isLipSync: !!lipSyncSettings,
-        lipSyncFrameCount: lipSyncSettings ? getLipSyncFrameAssetIds(lipSyncSettings).length : undefined,
-      };
-      const thumbnail = singleModeImageData ?? resolveThumbnailForCut(singleCut) ?? null;
-
-      setItems([{
-        cut: singleCut,
-        sceneId: focusCutData?.scene.id || 'single',
-        sceneName: asset.name ?? 'Single',
-        sceneIndex: 0,
-        cutIndex: 0,
-        sceneStartAbs: 0,
-        previewOffsetSec: 0,
-        normalizedDisplayTime: resolveCutDisplayTimeSec(singleCut),
-        thumbnail,
-      }]);
-      return;
-    }
-
-    if (isSingleMode) return;
-    if (missingFocusedCut) {
-      setItems([]);
-      return;
-    }
-
-    if (sequenceCuts) {
-      const buildSceneScopedItems = async () => {
-        const newItems: PreviewItem[] = [];
-        const scopedSceneId = sequenceContext?.sceneId ?? 'sequence';
-        const scopedSceneName = sequenceContext?.sceneName || 'Scene';
-        const scopedTimings = computeCanonicalStoryTimingsForCuts(
-          sequenceCuts.map((cut) => ({ cut, sceneId: scopedSceneId })),
-          getAsset,
-          { fallbackDurationSec: 1.0, preferAssetDuration: true }
-        );
-        for (let cIdx = 0; cIdx < sequenceCuts.length; cIdx++) {
-          const cut = sequenceCuts[cIdx];
-          const cutAsset = resolveAssetForCut(cut);
-          const lipSyncSettings = cut.isLipSync && cutAsset?.id
-            ? getLipSyncSettingsForAsset(cutAsset.id)
-            : undefined;
-
-          let thumbnail: string | null = resolveThumbnailForCut(cut) ?? null;
-
-          if (cutAsset?.type === 'image' && cutAsset.path) {
-            try {
-              const cached = await getAssetThumbnail('sequence-preview', {
-                assetId: cutAsset.id,
-                path: cutAsset.path,
-                type: 'image',
-              });
-              if (cached) thumbnail = cached;
-            } catch {
-              // ignore
-            }
-          }
-
-          if (lipSyncSettings) {
-            const firstFrameAssetId = getLipSyncFrameAssetIds(lipSyncSettings)[0];
-            const baseAsset = firstFrameAssetId ? getAsset(firstFrameAssetId) : undefined;
-            if (baseAsset?.thumbnail) {
-              thumbnail = baseAsset.thumbnail;
-            } else if (baseAsset?.path) {
-              try {
-                const cached = await getAssetThumbnail('sequence-preview', {
-                  assetId: baseAsset.id,
-                  path: baseAsset.path,
-                  type: 'image',
-                });
-                if (cached) thumbnail = cached;
-              } catch {
-                // ignore
-              }
-            }
-          }
-
-          if (!thumbnail && cutAsset?.path) {
-            try {
-              if (cutAsset.type === 'video') {
-                thumbnail = await getAssetThumbnail('sequence-preview', {
-                  assetId: cutAsset.id,
-                  path: cutAsset.path,
-                  type: 'video',
-                });
-              } else {
-                thumbnail = await getAssetThumbnail('sequence-preview', {
-                  assetId: cutAsset.id,
-                  path: cutAsset.path,
-                  type: 'image',
-                });
-              }
-            } catch {
-              // Failed to load
-            }
-          }
-
-          newItems.push({
-            cut,
-            sceneId: scopedSceneId,
-            sceneName: scopedSceneName,
-            sceneIndex: 0,
-            cutIndex: cIdx,
-            sceneStartAbs: 0,
-            previewOffsetSec: 0,
-            normalizedDisplayTime: scopedTimings.normalizedDurationByCutId.get(cut.id) ?? FALLBACK_CANONICAL_DURATION_SEC,
-            thumbnail,
-          });
-        }
-
-        setItems(newItems);
-      };
-
-      void buildSceneScopedItems();
-      return;
-    }
-
-    if (focusCutData) {
-      const buildFocusedItems = async () => {
-        const { scene, sceneIndex, cut, cutIndex } = focusCutData;
-        const focusTimings = computeCanonicalStoryTimingsForCuts(
-          scene.cuts.map((item) => ({
-            cut: item,
-            sceneId: scene.id,
-          })),
-          getAsset,
-          { fallbackDurationSec: 1.0, preferAssetDuration: true }
-        );
-        const sceneStartAbs = focusTimings.sceneTimings.get(scene.id)?.startSec ?? 0;
-        const previewOffsetSec = Math.max(0, (focusTimings.cutTimings.get(cut.id)?.startSec ?? 0) - sceneStartAbs);
-        const normalizedDisplayTime = focusTimings.normalizedDurationByCutId.get(cut.id) ?? FALLBACK_CANONICAL_DURATION_SEC;
-        const cutAsset = resolveAssetForCut(cut);
-        if (!cutAsset) {
-          setItems([]);
-          return;
-        }
-
-        const lipSyncSettings = cut.isLipSync && cutAsset.id
-          ? getLipSyncSettingsForAsset(cutAsset.id)
-          : undefined;
-
-        let thumbnail: string | null = resolveThumbnailForCut(cut) ?? null;
-
-        if (cutAsset.type === 'image' && cutAsset.path) {
-          try {
-            const cached = await getAssetThumbnail('sequence-preview', {
-              assetId: cutAsset.id,
-              path: cutAsset.path,
-              type: 'image',
-            });
-            if (cached) thumbnail = cached;
-          } catch {
-            // ignore
-          }
-        }
-
-        if (lipSyncSettings) {
-          const firstFrameAssetId = getLipSyncFrameAssetIds(lipSyncSettings)[0];
-          const baseAsset = firstFrameAssetId ? getAsset(firstFrameAssetId) : undefined;
-          if (baseAsset?.thumbnail) {
-            thumbnail = baseAsset.thumbnail;
-          } else if (baseAsset?.path) {
-            try {
-              const cached = await getAssetThumbnail('sequence-preview', {
-                assetId: baseAsset.id,
-                path: baseAsset.path,
-                type: 'image',
-              });
-              if (cached) thumbnail = cached;
-            } catch {
-              // ignore
-            }
-          }
-        }
-
-        if (!thumbnail && cutAsset.path) {
-          try {
-            if (cutAsset.type === 'video') {
-              thumbnail = await getAssetThumbnail('sequence-preview', {
-                assetId: cutAsset.id,
-                path: cutAsset.path,
-                type: 'video',
-              });
-            } else {
-              thumbnail = await getAssetThumbnail('sequence-preview', {
-                assetId: cutAsset.id,
-                path: cutAsset.path,
-                type: 'image',
-              });
-            }
-          } catch {
-            // Failed to load
-          }
-        }
-
-        setItems([{
-          cut,
-          sceneId: scene.id,
-          sceneName: scene.name,
-          sceneIndex,
-          cutIndex,
-          sceneStartAbs,
-          previewOffsetSec,
-          normalizedDisplayTime,
-          thumbnail,
-        }]);
-      };
-
-      void buildFocusedItems();
-      return;
-    }
-
-    const buildItems = async () => {
-      const newItems: PreviewItem[] = [];
-
-      const scenesToPreview = previewMode === 'scene' && selectedSceneId
-        ? orderedScenes.filter(s => s.id === selectedSceneId)
-        : orderedScenes;
-      const timings = computeCanonicalStoryTimingsForCuts(
-        scenesToPreview.flatMap((scene) =>
-          scene.cuts.map((cut) => ({
-            cut,
-            sceneId: scene.id,
-          }))
-        ),
-        getAsset,
-        { fallbackDurationSec: 1.0, preferAssetDuration: true }
-      );
-      for (let sIdx = 0; sIdx < scenesToPreview.length; sIdx++) {
-        const scene = scenesToPreview[sIdx];
-        const sceneStartAbs = timings.sceneTimings.get(scene.id)?.startSec ?? 0;
-        for (let cIdx = 0; cIdx < scene.cuts.length; cIdx++) {
-          const cut = scene.cuts[cIdx];
-          const cutAsset = resolveAssetForCut(cut);
-          const lipSyncSettings = cut.isLipSync && cutAsset?.id
-            ? getLipSyncSettingsForAsset(cutAsset.id)
-            : undefined;
-
-          let thumbnail: string | null = resolveThumbnailForCut(cut) ?? null;
-
-          if (cutAsset?.type === 'image' && cutAsset.path) {
-            try {
-              const cached = await getAssetThumbnail('sequence-preview', {
-                assetId: cutAsset.id,
-                path: cutAsset.path,
-                type: 'image',
-              });
-              if (cached) thumbnail = cached;
-            } catch {
-              // ignore
-            }
-          }
-
-          if (lipSyncSettings) {
-            const firstFrameAssetId = getLipSyncFrameAssetIds(lipSyncSettings)[0];
-            const baseAsset = firstFrameAssetId ? getAsset(firstFrameAssetId) : undefined;
-            if (baseAsset?.thumbnail) {
-              thumbnail = baseAsset.thumbnail;
-            } else if (baseAsset?.path) {
-              try {
-                const cached = await getAssetThumbnail('sequence-preview', {
-                  assetId: baseAsset.id,
-                  path: baseAsset.path,
-                  type: 'image',
-                });
-                if (cached) thumbnail = cached;
-              } catch {
-                // ignore
-              }
-            }
-          }
-
-          if (!thumbnail && cutAsset?.path) {
-            try {
-              if (cutAsset.type === 'video') {
-                thumbnail = await getAssetThumbnail('sequence-preview', {
-                  assetId: cutAsset.id,
-                  path: cutAsset.path,
-                  type: 'video',
-                });
-              } else {
-                thumbnail = await getAssetThumbnail('sequence-preview', {
-                  assetId: cutAsset.id,
-                  path: cutAsset.path,
-                  type: 'image',
-                });
-              }
-            } catch {
-              // Failed to load
-            }
-          }
-
-          newItems.push({
-            cut,
-            sceneId: scene.id,
-            sceneName: scene.name,
-            sceneIndex: sIdx,
-            cutIndex: cIdx,
-            sceneStartAbs,
-            previewOffsetSec: 0,
-            normalizedDisplayTime: timings.normalizedDurationByCutId.get(cut.id) ?? FALLBACK_CANONICAL_DURATION_SEC,
-            thumbnail,
-          });
-        }
-      }
-
-      setItems(newItems);
+    let cancelled = false;
+    void buildPreviewItems({
+      isSingleMode,
+      isSingleModeVideo,
+      isSingleModeImage,
+      asset,
+      singleModeImageData,
+      orderedScenes,
+      previewMode,
+      selectedSceneId,
+      getAsset,
+      getDisplayTimeForAsset,
+      getLipSyncSettingsForAsset,
+      focusCutData,
+      missingFocusedCut,
+      sequenceCuts,
+      sequenceContext,
+      resolveAssetForCut,
+      resolveThumbnailForCut,
+      resolveCutDisplayTimeSec,
+    }).then((nextItems) => {
+      if (cancelled) return;
+      setItems(nextItems);
+    });
+    return () => {
+      cancelled = true;
     };
-
-    buildItems();
   }, [
     isSingleMode,
     isSingleModeVideo,
@@ -1471,38 +1200,14 @@ export default function PreviewModal({
 
   // ===== SEQUENCE MODE ATTACHED AUDIO =====
 
-  const previewSequenceItems = useMemo(() => {
-    const exportCuts = items.map((item) => ({
-      ...item.cut,
-      displayTime: item.normalizedDisplayTime,
-    }));
-    return buildSequenceItemsForCuts(exportCuts, {
-      framingDefaults: EXPORT_FRAMING_DEFAULTS,
-      metadataByAssetId: metadataStore?.metadata,
-      resolveAssetById: getAsset,
-      strictLipSync: false,
-    });
-  }, [items, metadataStore, getAsset]);
-  const previewSequenceItemByCutId = useMemo(
-    () => new Map(previewSequenceItems.map((item, index) => [items[index]?.cut.id, item] as const).filter((entry) => !!entry[0])),
-    [previewSequenceItems, items]
-  );
-  const previewAudioPlan = useMemo(() => {
-    const exportCuts = items.map((item) => ({
-      ...item.cut,
-      displayTime: item.normalizedDisplayTime,
-    }));
-    const cutSceneMap = new Map<string, string>();
-    for (const item of items) {
-      cutSceneMap.set(item.cut.id, item.sceneId);
-    }
-    return buildExportAudioPlan({
-      cuts: canonicalizeCutsForExportAudioPlan(exportCuts, getAsset).cuts,
-      metadataStore: metadataStore ?? null,
-      getAssetById: getAsset,
-      resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
-    });
-  }, [items, metadataStore, getAsset]);
+  const {
+    previewSequenceItemByCutId,
+    previewAudioPlan,
+  } = usePreviewSequenceDerived({
+    items,
+    metadataStore: metadataStore ?? null,
+    getAsset,
+  });
   const buildSequenceAudioEventKey = useCallback((event: ExportAudioEvent, index: number) => {
     return [
       index,
@@ -1606,40 +1311,6 @@ export default function PreviewModal({
     globalMuted,
     globalVolume,
   ]);
-
-  // Calculate display size for resolution simulation
-  useLayoutEffect(() => {
-    const updateDisplaySize = () => {
-      if (!displayContainerRef.current) return;
-      const container = displayContainerRef.current;
-      const rect = container.getBoundingClientRect();
-      setDisplaySize({ width: rect.width, height: rect.height });
-    };
-
-    updateDisplaySize();
-    window.addEventListener('resize', updateDisplaySize);
-    return () => window.removeEventListener('resize', updateDisplaySize);
-  }, [selectedResolution]);
-
-  // Calculate viewport frame for resolution simulation
-  const getViewportStyle = useCallback(() => {
-    if (selectedResolution.width === 0) return null;
-
-    const targetWidth = selectedResolution.width;
-    const targetHeight = selectedResolution.height;
-    const containerWidth = displaySize.width > 0 ? displaySize.width : 800;
-    const containerHeight = displaySize.height > 0 ? displaySize.height : 600;
-
-    const scaleX = containerWidth / targetWidth;
-    const scaleY = containerHeight / targetHeight;
-    const scale = Math.min(scaleX, scaleY) * 0.9;
-
-    return {
-      width: targetWidth * scale,
-      height: targetHeight * scale,
-      scale,
-    };
-  }, [selectedResolution, displaySize]);
 
   const goToNext = useCallback(() => {
     if (isSingleMode) return;
@@ -2015,16 +1686,6 @@ export default function PreviewModal({
     toggleGlobalMute,
   ]);
 
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement && modalRef.current) {
-      modalRef.current.requestFullscreen();
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
-    }
-  };
-
   // Export full sequence (no range)
   const handleExportFull = useCallback(async () => {
     if (items.length === 0) return;
@@ -2381,553 +2042,133 @@ export default function PreviewModal({
   // ===== SINGLE MODE RENDER =====
   if (isSingleMode) {
     return (
-      <div className="preview-modal" ref={modalRef} onMouseDown={handleContainerMouseDown}>
-        <div className="preview-backdrop" onClick={onClose} />
-        <div className="preview-container preview-container--compact">
-          {/* Display area */}
-          <div
-            className={previewDisplayClassName}
-            ref={displayContainerRef}
-            onMouseEnter={showOverlayNow}
-            onMouseMove={showOverlayNow}
-            onMouseLeave={scheduleHideOverlay}
-          >
-            {/* Minimal header overlay */}
-            <div className="preview-header preview-header--compact">
-              <div className="preview-header-left">
-                <span className="preview-title">{asset.name}</span>
-                {isAssetOnlyPreview && (
-                  <span className="preview-badge">Asset Preview</span>
-                )}
-              </div>
-              <div className="preview-header-right">
-                <button className="preview-close-btn" onClick={onClose} title="Close (Esc)">
-                  <X size={20} />
-                </button>
-              </div>
-            </div>
-
-            {isLoading ? (
-              <div className="preview-placeholder">
-                <div className="loading-spinner" />
-                <p>Loading {isSingleModeVideo ? 'video' : 'image'}...</p>
-              </div>
-            ) : isSingleModeVideo && videoObjectUrl?.url ? (
-              (() => {
-                const viewportStyle = getViewportStyle();
-                const videoContent = (
-                  <video
-                    ref={videoRef}
-                    src={videoObjectUrl.url}
-                    className="preview-media"
-                    onClick={toggleSingleModePlay}
-                    onTimeUpdate={handleSingleModeTimeUpdate}
-                    onLoadedMetadata={handleSingleModeLoadedMetadata}
-                    onPlay={() => setSingleModeIsPlaying(true)}
-                    onPause={() => setSingleModeIsPlaying(false)}
-                    onEnded={handleSingleModeVideoEnded}
-                  />
-                );
-
-                if (viewportStyle) {
-                  return (
-                    <div
-                      className="resolution-viewport"
-                      style={{
-                        width: viewportStyle.width,
-                        height: viewportStyle.height,
-                        ...currentFraming,
-                      }}
-                    >
-                      <div className="resolution-label">
-                        {selectedResolution.name} ({selectedResolution.width}×{selectedResolution.height})
-                      </div>
-                      {videoContent}
-                    </div>
-                  );
-                }
-
-                return (
-                  <>
-                    {videoContent}
-                    {/* Play overlay */}
-                    {!isPlaying && !isLoading && (
-                      <div className="play-overlay" onClick={toggleSingleModePlay}>
-                        <Play size={40} />
-                      </div>
-                    )}
-                  </>
-                );
-              })()
-            ) : isSingleModeImage && singleModeImageData ? (
-              (() => {
-                const viewportStyle = getViewportStyle();
-                const imageContent = sequenceMediaElement ?? (
-                  <img
-                    src={singleModeImageData}
-                    alt={asset?.name || 'Preview'}
-                    className="preview-media"
-                  />
-                );
-
-                if (viewportStyle) {
-                  return (
-                    <div
-                      className="resolution-viewport"
-                      style={{
-                        width: viewportStyle.width,
-                        height: viewportStyle.height,
-                        ...currentFraming,
-                      }}
-                    >
-                      <div className="resolution-label">
-                        {selectedResolution.name} ({selectedResolution.width}×{selectedResolution.height})
-                      </div>
-                      {imageContent}
-                    </div>
-                  );
-                }
-
-                return imageContent;
-              })()
-            ) : (
-              <div className="preview-placeholder">
-                <p>Failed to load {isSingleModeVideo ? 'video' : 'image'}</p>
-              </div>
-            )}
-
-            {/* Overlay controls */}
-            {/* Overlay is visual-only assist for preview interaction.
-                It must not persist, mutate project state, or affect export decisions. */}
-            <div
-              className={`preview-overlay ${showOverlay ? 'is-visible' : ''}`}
-              onMouseEnter={showOverlayNow}
-              onMouseLeave={scheduleHideOverlay}
-            >
-              <div className="preview-overlay-row preview-overlay-row--top">
-                <div className="preview-overlay-left">
-                  {previewResolutionLabel && (
-                    <span className="preview-resolution-badge">{previewResolutionLabel}</span>
-                  )}
-                </div>
-                <div className="preview-overlay-right">
-                  <select
-                    className="preview-resolution-select"
-                    value={selectedResolution.name}
-                    onChange={(e) => {
-                      const preset = RESOLUTION_PRESETS.find(p => p.name === e.target.value);
-                      if (preset) {
-                        setSelectedResolution(preset);
-                        onResolutionChange?.(preset);
-                      }
-                    }}
-                    title="Resolution Simulation"
-                  >
-                    {RESOLUTION_PRESETS.map(preset => (
-                      <option key={preset.name} value={preset.name}>
-                        {preset.name}{preset.width > 0 ? ` (${preset.width}×${preset.height})` : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="preview-overlay-row preview-overlay-row--bottom">
-                {/* Progress bar with time display */}
-                {(isSingleModeVideo || isSingleModeImage) && (
-                  <div className="preview-progress">
-                    <div
-                      className="preview-progress-bar preview-progress-bar--scrub"
-                      ref={progressBarRef}
-                      onClick={handleSingleModeProgressClick}
-                    >
-                      <PlaybackRangeMarkers
-                        inPoint={inPoint}
-                        outPoint={outPoint}
-                        duration={singleModePlaybackDuration}
-                        showMilliseconds={isSingleModeVideo}
-                        focusedMarker={focusedMarker}
-                        onMarkerFocus={handleMarkerFocus}
-                        onMarkerDrag={handleMarkerDrag}
-                        onMarkerDragEnd={handleMarkerDragEnd}
-                        progressBarRef={progressBarRef}
-                      />
-                      <div className="preview-progress-fill" style={{ width: `${singleModeProgressPercent}%` }} />
-                      <div className="preview-progress-handle" style={{ left: `${singleModeProgressPercent}%` }} />
-                    </div>
-                    <div className="preview-progress-info">
-                      <TimeDisplay
-                        currentTime={singleModePlaybackTime}
-                        totalDuration={singleModePlaybackDuration}
-                        showMilliseconds={isSingleModeVideo}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Controls */}
-                <div className="preview-controls-row">
-                  <button
-                    className="preview-ctrl-btn"
-                    onClick={() => skip(-5)}
-                    title="Rewind 5s (←)"
-                  >
-                    <SkipBack size={18} />
-                  </button>
-                  <button
-                    className="preview-ctrl-btn preview-ctrl-btn--primary"
-                    onClick={isSingleModeVideo ? toggleSingleModePlay : handlePlayPause}
-                    title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
-                  >
-                    {isPlaying ? <Pause size={22} /> : <Play size={22} />}
-                  </button>
-                  <button
-                    className="preview-ctrl-btn"
-                    onClick={() => skip(5)}
-                    title="Forward 5s (→)"
-                  >
-                    <SkipForward size={18} />
-                  </button>
-                  <div className="preview-ctrl-divider" />
-                  <button
-                    className={`preview-ctrl-btn preview-ctrl-btn--text ${inPoint !== null ? 'is-active' : ''}`}
-                    onClick={isSingleModeVideo ? handleSingleModeSetInPoint : handleSetInPoint}
-                    title="Set IN point (I)"
-                  >
-                    I
-                  </button>
-                  <button
-                    className={`preview-ctrl-btn preview-ctrl-btn--text ${outPoint !== null ? 'is-active' : ''}`}
-                    onClick={isSingleModeVideo ? handleSingleModeSetOutPoint : handleSetOutPoint}
-                    title="Set OUT point (O)"
-                  >
-                    O
-                  </button>
-                  {isSingleModeVideo && showSingleModeClipButton && (
-                    <button
-                      className={`preview-ctrl-btn ${isSingleModeClipEnabled ? 'is-active' : ''}`}
-                      onClick={isSingleModeClipEnabled ? handleSingleModeClearClip : handleSingleModeSave}
-                      title={isSingleModeClipEnabled ? 'Clear clip' : 'Save clip'}
-                      disabled={isSingleModeClipPending}
-                    >
-                      <Scissors size={18} />
-                    </button>
-                  )}
-                  <div className="preview-ctrl-divider" />
-                  {isSingleModeVideo && onFrameCapture && (
-                    <button
-                      className="preview-ctrl-btn"
-                      onClick={handleSingleModeCaptureFrame}
-                      title="Capture frame"
-                    >
-                      <Camera size={18} />
-                    </button>
-                  )}
-                  <button
-                    className={`preview-ctrl-btn ${isLooping ? 'is-active' : ''}`}
-                    onClick={toggleLooping}
-                    title={`Loop (L) - ${isLooping ? 'On' : 'Off'}`}
-                  >
-                    <Repeat size={16} />
-                  </button>
-                  <VolumeControl
-                    volume={globalVolume}
-                    isMuted={globalMuted}
-                    onVolumeChange={setGlobalVolume}
-                    onMuteToggle={toggleGlobalMute}
-                  />
-                  {isSingleModeVideo && (
-                    <button
-                      className="preview-ctrl-btn preview-ctrl-btn--text"
-                      onClick={() => cycleSpeed('up')}
-                      title="Speed ([/])"
-                    >
-                      {playbackSpeed.toFixed(1)}x
-                    </button>
-                  )}
-                  <button
-                    className="preview-ctrl-btn"
-                    onClick={toggleFullscreen}
-                    title={isFullscreen ? 'Exit fullscreen (F)' : 'Fullscreen (F)'}
-                  >
-                    <Maximize size={16} />
-                  </button>
-                  {miniToastElement}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ===== SEQUENCE MODE RENDER =====
-
-  // Empty state for Sequence Mode
-  if (items.length === 0) {
-    return (
-      <div className="preview-modal" ref={modalRef}>
-        <div className="preview-backdrop" onClick={onClose} />
-        <div className="preview-container">
-          <div className="preview-header preview-header--static">
-            <span>Preview</span>
-            <button className="preview-close-btn" onClick={onClose} title="Close (Esc)">
-              <X size={20} />
-            </button>
-          </div>
-          <div className="preview-empty">
-            {missingFocusedCut ? (
-              <>
-                <p>Selected cut is no longer available</p>
-                <p className="hint">The cut may have been deleted or moved.</p>
-              </>
-            ) : (
-              <>
-                <p>No cuts to preview</p>
-                <p className="hint">Add some images or videos to your timeline first.</p>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
+      <PreviewModalSingleView
+        modalRef={modalRef}
+        displayContainerRef={displayContainerRef}
+        progressBarRef={progressBarRef}
+        videoRef={videoRef}
+        onClose={onClose}
+        onContainerMouseDown={handleContainerMouseDown}
+        previewDisplayClassName={previewDisplayClassName}
+        showOverlayNow={showOverlayNow}
+        scheduleHideOverlay={scheduleHideOverlay}
+        asset={asset}
+        isAssetOnlyPreview={isAssetOnlyPreview}
+        isLoading={isLoading}
+        isSingleModeVideo={isSingleModeVideo}
+        isSingleModeImage={isSingleModeImage}
+        videoObjectUrl={videoObjectUrl}
+        sequenceMediaElement={sequenceMediaElement}
+        singleModeImageData={singleModeImageData}
+        getViewportStyle={getViewportStyle}
+        currentFraming={currentFraming}
+        selectedResolution={selectedResolution}
+        onResolutionSelect={(preset) => {
+          setSelectedResolution(preset);
+          onResolutionChange?.(preset);
+        }}
+        previewResolutionLabel={previewResolutionLabel}
+        showOverlay={showOverlay}
+        inPoint={inPoint}
+        outPoint={outPoint}
+        singleModePlaybackDuration={singleModePlaybackDuration}
+        singleModeProgressPercent={singleModeProgressPercent}
+        singleModePlaybackTime={singleModePlaybackTime}
+        focusedMarker={focusedMarker}
+        onMarkerFocus={handleMarkerFocus}
+        onMarkerDrag={handleMarkerDrag}
+        onMarkerDragEnd={handleMarkerDragEnd}
+        handleSingleModeProgressClick={handleSingleModeProgressClick}
+        isPlaying={isPlaying}
+        skipBack={() => skip(-5)}
+        skipForward={() => skip(5)}
+        togglePlay={isSingleModeVideo ? toggleSingleModePlay : handlePlayPause}
+        handleSetInPoint={isSingleModeVideo ? handleSingleModeSetInPoint : handleSetInPoint}
+        handleSetOutPoint={isSingleModeVideo ? handleSingleModeSetOutPoint : handleSetOutPoint}
+        showSingleModeClipButton={showSingleModeClipButton}
+        isSingleModeClipEnabled={isSingleModeClipEnabled}
+        onClipPrimaryAction={isSingleModeClipEnabled ? handleSingleModeClearClip : handleSingleModeSave}
+        isSingleModeClipPending={isSingleModeClipPending}
+        onFrameCapture={onFrameCapture ? handleSingleModeCaptureFrame : undefined}
+        isLooping={isLooping}
+        toggleLooping={toggleLooping}
+        globalVolume={globalVolume}
+        globalMuted={globalMuted}
+        setGlobalVolume={setGlobalVolume}
+        toggleGlobalMute={toggleGlobalMute}
+        playbackSpeed={playbackSpeed}
+        cycleSpeedUp={() => cycleSpeed('up')}
+        isFullscreen={isFullscreen}
+        toggleFullscreen={toggleFullscreen}
+        miniToastElement={miniToastElement}
+        handleSingleModeTimeUpdate={handleSingleModeTimeUpdate}
+        handleSingleModeLoadedMetadata={handleSingleModeLoadedMetadata}
+        onSingleModeVideoPlay={() => setSingleModeIsPlaying(true)}
+        onSingleModeVideoPause={() => setSingleModeIsPlaying(false)}
+        handleSingleModeVideoEnded={handleSingleModeVideoEnded}
+      />
     );
   }
 
   return (
-    <div className="preview-modal" ref={modalRef} onMouseDown={handleContainerMouseDown}>
-      <div className="preview-backdrop" onClick={onClose} />
-      <div className="preview-container preview-container--compact">
-        {/* Display area */}
-        <div
-          className={previewDisplayClassName}
-          ref={displayContainerRef}
-          onMouseEnter={showOverlayNow}
-          onMouseMove={showOverlayNow}
-          onMouseLeave={scheduleHideOverlay}
-        >
-          {/* Minimal header overlay */}
-          <div className="preview-header preview-header--compact">
-            <div className="preview-header-left">
-              <span className="preview-badge">{currentIndex + 1}/{items.length}</span>
-              <span className="preview-title">{currentItem?.sceneName}</span>
-              <span className="preview-cut-label">Cut {(currentItem?.cutIndex || 0) + 1}</span>
-            </div>
-            <div className="preview-header-right">
-              <button className="preview-close-btn" onClick={onClose} title="Close (Esc)">
-                <X size={20} />
-              </button>
-            </div>
-          </div>
-
-          {(() => {
-            const viewportStyle = getViewportStyle();
-            const content = sequenceMediaElement ?? (() => {
-              const currentAsset = currentItem ? resolveAssetForCut(currentItem.cut) : undefined;
-              if (currentAsset?.type === 'video') {
-                return (
-                  <div className="preview-placeholder">
-                    <p>Loading video...</p>
-                  </div>
-                );
-              }
-              return (
-                <div className="preview-placeholder">
-                  <p>No preview available</p>
-                </div>
-              );
-            })();
-
-            if (viewportStyle) {
-              return (
-                <div
-                  className="resolution-viewport"
-                  style={{
-                    width: viewportStyle.width,
-                    height: viewportStyle.height,
-                    ...currentFraming,
-                  }}
-                >
-                  <div className="resolution-label">
-                    {selectedResolution.name} ({selectedResolution.width}×{selectedResolution.height})
-                  </div>
-                  {content}
-                  {/* Buffering overlay */}
-                  {isBuffering && (
-                    <div className="buffering-overlay">
-                      <Loader2 size={48} className="buffering-spinner" />
-                      <span>Loading...</span>
-                    </div>
-                  )}
-                </div>
-              );
-            }
-
-            return (
-              <>
-                {content}
-                {/* Buffering overlay */}
-                {isBuffering && (
-                  <div className="buffering-overlay">
-                    <Loader2 size={48} className="buffering-spinner" />
-                    <span>Loading...</span>
-                  </div>
-                )}
-              </>
-            );
-          })()}
-
-          {/* Overlay controls */}
-          <div
-            className={`preview-overlay ${showOverlay ? 'is-visible' : ''}`}
-            onMouseEnter={showOverlayNow}
-            onMouseLeave={scheduleHideOverlay}
-          >
-            <div className="preview-overlay-row preview-overlay-row--top">
-              <div className="preview-overlay-left">
-                {previewResolutionLabel && (
-                  <span className="preview-resolution-badge">{previewResolutionLabel}</span>
-                )}
-              </div>
-              <div className="preview-overlay-right">
-                <select
-                  className="preview-resolution-select"
-                  value={selectedResolution.name}
-                  onChange={(e) => {
-                    const preset = RESOLUTION_PRESETS.find(p => p.name === e.target.value);
-                    if (preset) {
-                      setSelectedResolution(preset);
-                      onResolutionChange?.(preset);
-                    }
-                  }}
-                  title="Resolution Simulation"
-                >
-                  {RESOLUTION_PRESETS.map(preset => (
-                    <option key={preset.name} value={preset.name}>
-                      {preset.name}{preset.width > 0 ? ` (${preset.width}×${preset.height})` : ''}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  className="preview-icon-btn"
-                  onClick={handleExportFull}
-                  disabled={isExporting || items.length === 0}
-                  title="Export full sequence to MP4"
-                >
-                  <Download size={16} />
-                </button>
-              </div>
-            </div>
-
-            <div className="preview-overlay-row preview-overlay-row--bottom">
-              {/* Progress bar with time display */}
-              <div className="preview-progress">
-                <div
-                  className="preview-progress-bar preview-progress-bar--scrub"
-                  ref={progressBarRef}
-                  onMouseDown={handleProgressBarMouseDown}
-                  onMouseMove={handleProgressBarHover}
-                  onMouseLeave={handleProgressBarLeave}
-                >
-                  <PlaybackRangeMarkers
-                    inPoint={inPoint}
-                    outPoint={outPoint}
-                    duration={sequenceTotalDuration}
-                    showMilliseconds={false}
-                    focusedMarker={focusedMarker}
-                    onMarkerFocus={handleMarkerFocus}
-                    onMarkerDrag={handleMarkerDrag}
-                    onMarkerDragEnd={handleMarkerDragEnd}
-                    progressBarRef={progressBarRef}
-                  />
-                  <div
-                    ref={progressFillRef}
-                    className="preview-progress-fill"
-                    style={{ width: `${globalProgress}%` }}
-                  />
-                  <div
-                    ref={progressHandleRef}
-                    className="preview-progress-handle"
-                    style={{ left: `${globalProgress}%` }}
-                  />
-                  {hoverTime && (
-                    <div className="preview-progress-tooltip">
-                      {hoverTime}
-                    </div>
-                  )}
-                </div>
-                <div className="preview-progress-info">
-                  <TimeDisplay currentTime={sequenceCurrentTime} totalDuration={sequenceTotalDuration} />
-                </div>
-              </div>
-
-              {/* Controls */}
-              <div className="preview-controls-row">
-                <button
-                  className="preview-ctrl-btn"
-                  onClick={goToPrev}
-                  disabled={currentIndex === 0}
-                  title="Previous Cut"
-                >
-                  <SkipBack size={18} />
-                </button>
-                <button
-                  className="preview-ctrl-btn preview-ctrl-btn--primary"
-                  onClick={handlePlayPause}
-                  title="Play/Pause (Space)"
-                >
-                  {isPlaying ? <Pause size={22} /> : <Play size={22} />}
-                </button>
-                <button
-                  className="preview-ctrl-btn"
-                  onClick={goToNext}
-                  disabled={currentIndex >= items.length - 1}
-                  title="Next Cut"
-                >
-                  <SkipForward size={18} />
-                </button>
-                <div className="preview-ctrl-divider" />
-                <button
-                  className={`preview-ctrl-btn preview-ctrl-btn--text ${inPoint !== null ? 'is-active' : ''}`}
-                  onClick={handleSetInPoint}
-                  title="Set IN point (I)"
-                >
-                  I
-                </button>
-                <button
-                  className={`preview-ctrl-btn preview-ctrl-btn--text ${outPoint !== null ? 'is-active' : ''}`}
-                  onClick={handleSetOutPoint}
-                  title="Set OUT point (O)"
-                >
-                  O
-                </button>
-                <div className="preview-ctrl-divider" />
-                <button
-                  className={`preview-ctrl-btn ${isLooping ? 'is-active' : ''}`}
-                  onClick={toggleLooping}
-                  title={`Loop (L) - ${isLooping ? 'On' : 'Off'}`}
-                >
-                  <Repeat size={16} />
-                </button>
-                <VolumeControl
-                  volume={globalVolume}
-                  isMuted={globalMuted}
-                  onVolumeChange={setGlobalVolume}
-                  onMuteToggle={toggleGlobalMute}
-                />
-                <button
-                  className="preview-ctrl-btn"
-                  onClick={toggleFullscreen}
-                  title={isFullscreen ? 'Exit fullscreen (F)' : 'Fullscreen (F)'}
-                >
-                  <Maximize size={16} />
-                </button>
-                {miniToastElement}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <PreviewModalSequenceView
+      modalRef={modalRef}
+      displayContainerRef={displayContainerRef}
+      progressBarRef={progressBarRef}
+      progressFillRef={progressFillRef}
+      progressHandleRef={progressHandleRef}
+      onClose={onClose}
+      onContainerMouseDown={handleContainerMouseDown}
+      showOverlayNow={showOverlayNow}
+      scheduleHideOverlay={scheduleHideOverlay}
+      previewDisplayClassName={previewDisplayClassName}
+      items={items}
+      missingFocusedCut={missingFocusedCut}
+      currentIndex={currentIndex}
+      currentItem={currentItem}
+      sequenceMediaElement={sequenceMediaElement}
+      resolveAssetForCut={resolveAssetForCut}
+      getViewportStyle={getViewportStyle}
+      currentFraming={currentFraming}
+      selectedResolution={selectedResolution}
+      onResolutionSelect={(preset) => {
+        setSelectedResolution(preset);
+        onResolutionChange?.(preset);
+      }}
+      previewResolutionLabel={previewResolutionLabel}
+      onExportFull={() => {
+        void handleExportFull();
+      }}
+      isExporting={isExporting}
+      isBuffering={isBuffering}
+      showOverlay={showOverlay}
+      inPoint={inPoint}
+      outPoint={outPoint}
+      sequenceTotalDuration={sequenceTotalDuration}
+      focusedMarker={focusedMarker}
+      onMarkerFocus={handleMarkerFocus}
+      onMarkerDrag={handleMarkerDrag}
+      onMarkerDragEnd={handleMarkerDragEnd}
+      onProgressBarMouseDown={handleProgressBarMouseDown}
+      onProgressBarHover={handleProgressBarHover}
+      onProgressBarLeave={handleProgressBarLeave}
+      hoverTime={hoverTime}
+      sequenceCurrentTime={sequenceCurrentTime}
+      goToPrev={goToPrev}
+      handlePlayPause={handlePlayPause}
+      isPlaying={isPlaying}
+      goToNext={goToNext}
+      handleSetInPoint={handleSetInPoint}
+      handleSetOutPoint={handleSetOutPoint}
+      isLooping={isLooping}
+      toggleLooping={toggleLooping}
+      globalVolume={globalVolume}
+      globalMuted={globalMuted}
+      setGlobalVolume={setGlobalVolume}
+      toggleGlobalMute={toggleGlobalMute}
+      isFullscreen={isFullscreen}
+      toggleFullscreen={toggleFullscreen}
+      miniToastElement={miniToastElement}
+    />
   );
 }
