@@ -31,7 +31,6 @@ import {
   RESOLUTION_PRESETS,
 } from './preview-modal/constants';
 import {
-  clampToDuration,
   revokeIfBlob,
 } from './preview-modal/helpers';
 import { buildPreviewItems } from './preview-modal/previewItemsBuilder';
@@ -293,41 +292,6 @@ export default function PreviewModal({
     revokeIfBlob,
   });
 
-  // Frame stepping (Single Mode)
-  const stepFrame = useCallback((direction: number) => {
-    if (!videoRef.current) return;
-
-    // Pause video when stepping frames
-    if (isPlaying) {
-      videoRef.current.pause();
-      if (isSingleModeVideo) {
-        setSingleModeIsPlaying(false);
-      } else {
-        sequencePause();
-      }
-    }
-
-    const duration = isSingleModeVideo ? singleModeDuration : videoRef.current.duration;
-    const newTime = videoRef.current.currentTime + (direction * FRAME_DURATION);
-    videoRef.current.currentTime = Math.max(0, Math.min(duration, newTime));
-
-    if (isSingleModeVideo) {
-      setSingleModeCurrentTime(videoRef.current.currentTime);
-    }
-  }, [isSingleModeVideo, singleModeDuration, isPlaying, FRAME_DURATION, sequencePause]);
-  // Skip seconds (Both modes)
-  const skip = useCallback((seconds: number) => {
-    if (!usesSequenceController) {
-      // Single Mode: direct video seeking
-      if (!videoRef.current) return;
-      const newTime = Math.max(0, Math.min(singleModeDuration, videoRef.current.currentTime + seconds));
-      videoRef.current.currentTime = newTime;
-      setSingleModeCurrentTime(newTime);
-    } else {
-      skipSequence(seconds);
-    }
-  }, [usesSequenceController, singleModeDuration, skipSequence]);
-
   usePreviewSingleAttachedAudio({
     isSingleMode,
     isSingleModeVideo,
@@ -487,71 +451,31 @@ export default function PreviewModal({
     setSingleModeIsLooping,
   });
 
-  const getUiPlayheadTime = useCallback(() => {
-    if (isSingleModeVideo) {
-      return singleModeCurrentTime;
-    }
-    return sequenceSelectors.getAbsoluteTime();
-  }, [isSingleModeVideo, singleModeCurrentTime, sequenceSelectors]);
-
-  // IN/OUT point handlers
-  const handleSetInPoint = useCallback(() => {
-    if (isSingleModeVideo) {
-      handleSingleModeSetInPoint();
-      return;
-    }
-    if (items.length === 0) return;
-    const nextInPoint = clampToDuration(getUiPlayheadTime(), sequenceState.totalDuration);
-    const nextOutPoint = outPoint !== null && nextInPoint >= outPoint ? null : outPoint;
-    setSequenceRange(nextInPoint, nextOutPoint);
-    notifyRangeChange(nextInPoint, nextOutPoint);
-  }, [
-    items.length,
-    getUiPlayheadTime,
-    isSingleModeVideo,
-    outPoint,
-    handleSingleModeSetInPoint,
-    sequenceState.totalDuration,
-    notifyRangeChange,
-    setSequenceRange,
-  ]);
-
-  const handleSetOutPoint = useCallback(() => {
-    if (isSingleModeVideo) {
-      handleSingleModeSetOutPoint();
-      return;
-    }
-    if (items.length === 0) return;
-    const nextOutPoint = clampToDuration(getUiPlayheadTime(), sequenceState.totalDuration);
-    const nextInPoint = inPoint !== null && nextOutPoint <= inPoint ? null : inPoint;
-    setSequenceRange(nextInPoint, nextOutPoint);
-    notifyRangeChange(nextInPoint, nextOutPoint);
-  }, [
-    items.length,
-    getUiPlayheadTime,
-    isSingleModeVideo,
-    inPoint,
-    handleSingleModeSetOutPoint,
-    sequenceState.totalDuration,
-    notifyRangeChange,
-    setSequenceRange,
-  ]);
-
   const interactionCommands = usePreviewInteractionCommands({
     isSingleModeVideo,
+    isPlaying,
     focusedMarker,
     items,
     currentIndex,
+    inPoint,
+    outPoint,
+    singleModeDuration,
+    singleModeCurrentTime,
+    sequenceTotalDuration: sequenceState.totalDuration,
+    videoRef,
     resolveAssetForCut,
+    setSingleModeCurrentTime,
+    setSingleModeIsPlaying,
+    getSequenceAbsoluteTime: sequenceSelectors.getAbsoluteTime,
+    sequencePause,
+    skipSequence,
+    setSequenceRange,
+    notifyRangeChange,
     toggleSingleModePlay,
     handlePlayPause,
-    skip,
     stepFocusedMarker,
-    stepFrame,
     handleSingleModeSetInPoint,
     handleSingleModeSetOutPoint,
-    handleSetInPoint,
-    handleSetOutPoint,
     toggleLooping,
     toggleGlobalMute,
     handleMarkerFocus,
