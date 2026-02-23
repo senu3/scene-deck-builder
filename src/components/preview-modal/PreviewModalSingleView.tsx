@@ -351,7 +351,7 @@ export function PreviewModalSingleView({
                   <button
                     className="preview-ctrl-btn preview-ctrl-btn--text"
                     onClick={cycleSpeedUp}
-                    title="Speed ([/])"
+                    title="Cycle speed"
                   >
                     {playbackSpeed.toFixed(1)}x
                   </button>

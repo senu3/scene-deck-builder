@@ -24,11 +24,9 @@ interface UsePreviewSequenceSessionInput {
   playSafeAhead: number;
   preloadAhead: number;
   revokeIfBlob: (url: string) => void;
-  playbackSpeed: number;
   setSequenceSource: (source: MediaSource | null) => void;
   sequenceTick: (localTime: number) => void;
   sequenceGoToNext: () => void;
-  setSequenceRate: (rate: number) => void;
   previewSequenceItemByCutId: Map<string, ExportSequenceItem>;
   getSequenceLiveAbsoluteTime: () => number;
   showMiniToast: (message: string, variant?: 'success' | 'info' | 'warning' | 'error') => void;
@@ -55,11 +53,9 @@ export function usePreviewSequenceSession({
   playSafeAhead,
   preloadAhead,
   revokeIfBlob,
-  playbackSpeed,
   setSequenceSource,
   sequenceTick,
   sequenceGoToNext,
-  setSequenceRate,
   previewSequenceItemByCutId,
   getSequenceLiveAbsoluteTime,
   showMiniToast,
@@ -90,11 +86,9 @@ export function usePreviewSequenceSession({
     items,
     currentIndex: sequenceCurrentIndex,
     videoObjectUrl,
-    playbackSpeed,
     setSequenceSource,
     sequenceTick,
     sequenceGoToNext,
-    setSequenceRate,
     previewSequenceItemByCutId,
     getSequenceLiveAbsoluteTime,
     showMiniToast,

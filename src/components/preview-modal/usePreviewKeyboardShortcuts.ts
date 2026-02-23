@@ -8,8 +8,6 @@ interface UsePreviewKeyboardShortcutsInput {
   onSkipForward: () => void;
   onStepBack: () => void;
   onStepForward: () => void;
-  onSpeedDown: () => void;
-  onSpeedUp: () => void;
   onToggleFullscreen: () => void;
   onToggleLooping: () => void;
   onSetInPoint: () => void;
@@ -24,8 +22,6 @@ export function usePreviewKeyboardShortcuts({
   onSkipForward,
   onStepBack,
   onStepForward,
-  onSpeedDown,
-  onSpeedUp,
   onToggleFullscreen,
   onToggleLooping,
   onSetInPoint,
@@ -62,14 +58,6 @@ export function usePreviewKeyboardShortcuts({
           e.preventDefault();
           onStepForward();
           break;
-        case '[':
-          e.preventDefault();
-          onSpeedDown();
-          break;
-        case ']':
-          e.preventDefault();
-          onSpeedUp();
-          break;
         case 'f':
           onToggleFullscreen();
           break;
@@ -97,8 +85,6 @@ export function usePreviewKeyboardShortcuts({
     onSkipForward,
     onStepBack,
     onStepForward,
-    onSpeedDown,
-    onSpeedUp,
     onToggleFullscreen,
     onToggleLooping,
     onSetInPoint,

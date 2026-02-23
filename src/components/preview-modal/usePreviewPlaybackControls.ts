@@ -1,5 +1,4 @@
 import { useCallback, useEffect } from 'react';
-import { cyclePlaybackSpeed } from '../../utils/timeUtils';
 
 interface SequenceStateSnapshot {
   currentIndex: number;
@@ -24,11 +23,8 @@ interface UsePreviewPlaybackControlsInput {
   sequencePause: () => void;
   setSequenceLooping: (isLooping: boolean) => void;
   seekSequenceAbsolute: (time: number) => void;
-  setSequenceRate: (rate: number) => void;
   setSequenceBuffering: (isBuffering: boolean) => void;
   checkBufferStatus: () => { ready: boolean; neededItems: number[] };
-  playbackSpeed: number;
-  setPlaybackSpeed: React.Dispatch<React.SetStateAction<number>>;
   setSingleModeIsPlaying: React.Dispatch<React.SetStateAction<boolean>>;
   setSingleModeIsLooping: React.Dispatch<React.SetStateAction<boolean>>;
 }
@@ -45,11 +41,8 @@ export function usePreviewPlaybackControls({
   sequencePause,
   setSequenceLooping,
   seekSequenceAbsolute,
-  setSequenceRate,
   setSequenceBuffering,
   checkBufferStatus,
-  playbackSpeed,
-  setPlaybackSpeed,
   setSingleModeIsPlaying,
   setSingleModeIsLooping,
 }: UsePreviewPlaybackControlsInput) {
@@ -83,11 +76,6 @@ export function usePreviewPlaybackControls({
   }, [usesSequenceController, itemsLength, sequenceState, getSequenceAbsoluteTime, seekSequenceAbsolute, sequenceToggle]);
 
   useEffect(() => {
-    if (!usesSequenceController) return;
-    setSequenceRate(playbackSpeed);
-  }, [usesSequenceController, playbackSpeed, setSequenceRate]);
-
-  useEffect(() => {
     if (isSingleMode || itemsLength === 0) return;
 
     const { ready } = checkBufferStatus();
@@ -97,10 +85,6 @@ export function usePreviewPlaybackControls({
       setSequenceBuffering(false);
     }
   }, [isSingleMode, itemsLength, sequenceState.isPlaying, sequenceState.isBuffering, checkBufferStatus, setSequenceBuffering]);
-
-  const cycleSpeed = useCallback((direction: 'up' | 'down') => {
-    setPlaybackSpeed(current => cyclePlaybackSpeed(current, direction));
-  }, []);
 
   const toggleLooping = useCallback(() => {
     if (!usesSequenceController) {
@@ -122,7 +106,6 @@ export function usePreviewPlaybackControls({
     goToNext,
     goToPrev,
     handlePlayPause,
-    cycleSpeed,
     toggleLooping,
     pauseBeforeExport,
   };

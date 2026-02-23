@@ -21,11 +21,9 @@ interface UsePreviewSequenceMediaSourceInput {
   }>;
   currentIndex: number;
   videoObjectUrl: { assetId: string; url: string } | null;
-  playbackSpeed: number;
   setSequenceSource: (source: MediaSource | null) => void;
   sequenceTick: (localTime: number) => void;
   sequenceGoToNext: () => void;
-  setSequenceRate: (rate: number) => void;
   previewSequenceItemByCutId: Map<string, ExportSequenceItem>;
   getSequenceLiveAbsoluteTime: () => number;
   showMiniToast: (message: string, variant?: 'success' | 'info' | 'warning' | 'error') => void;
@@ -38,11 +36,9 @@ export function usePreviewSequenceMediaSource({
   items,
   currentIndex,
   videoObjectUrl,
-  playbackSpeed,
   setSequenceSource,
   sequenceTick,
   sequenceGoToNext,
-  setSequenceRate,
   previewSequenceItemByCutId,
   getSequenceLiveAbsoluteTime,
   showMiniToast,
@@ -104,7 +100,6 @@ export function usePreviewSequenceMediaSource({
           if (!isActive) return;
           setSequenceSource(fallbackSource);
           setSequenceMediaElement(fallbackSource.element);
-          setSequenceRate(playbackSpeed);
           return;
         }
 
@@ -125,7 +120,6 @@ export function usePreviewSequenceMediaSource({
         if (!isActive) return;
         setSequenceSource(lipSyncSource);
         setSequenceMediaElement(lipSyncSource.element);
-        setSequenceRate(playbackSpeed);
       };
 
       void loadLipSyncSources();
@@ -161,7 +155,6 @@ export function usePreviewSequenceMediaSource({
       });
       setSequenceSource(source);
       setSequenceMediaElement(source.element);
-      setSequenceRate(playbackSpeed);
       return;
     }
 
@@ -176,18 +169,15 @@ export function usePreviewSequenceMediaSource({
       });
       setSequenceSource(source);
       setSequenceMediaElement(source.element);
-      setSequenceRate(playbackSpeed);
     }
   }, [
     usesSequenceController,
     items,
     currentIndex,
     videoObjectUrl,
-    playbackSpeed,
     setSequenceSource,
     sequenceTick,
     sequenceGoToNext,
-    setSequenceRate,
     previewSequenceItemByCutId,
     getSequenceLiveAbsoluteTime,
     showMiniToast,

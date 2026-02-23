@@ -15,6 +15,7 @@ import {
 import type { Cut } from '../types';
 import { useSequencePlaybackController } from '../utils/previewPlaybackController';
 import { getScenesInOrder } from '../utils/sceneOrder';
+import { cyclePlaybackSpeed } from '../utils/timeUtils';
 import { useMiniToast } from '../ui';
 import type { PreviewModalProps, ResolutionPreset } from './preview-modal/types';
 import {
@@ -138,7 +139,6 @@ export default function PreviewModal({
   const {
     state: sequenceState,
     setSource: setSequenceSource,
-    setRate: setSequenceRate,
     tick: sequenceTick,
     goToNext: sequenceGoToNext,
     goToPrev: sequenceGoToPrev,
@@ -339,11 +339,9 @@ export default function PreviewModal({
     playSafeAhead: PLAY_SAFE_AHEAD,
     preloadAhead: PRELOAD_AHEAD,
     revokeIfBlob,
-    playbackSpeed,
     setSequenceSource,
     sequenceTick,
     sequenceGoToNext,
-    setSequenceRate,
     previewSequenceItemByCutId,
     getSequenceLiveAbsoluteTime,
     showMiniToast,
@@ -358,7 +356,6 @@ export default function PreviewModal({
     goToNext,
     goToPrev,
     handlePlayPause,
-    cycleSpeed,
     toggleLooping,
     pauseBeforeExport,
   } = usePreviewPlaybackControls({
@@ -373,14 +370,15 @@ export default function PreviewModal({
     sequencePause,
     setSequenceLooping,
     seekSequenceAbsolute,
-    setSequenceRate,
     setSequenceBuffering,
     checkBufferStatus,
-    playbackSpeed,
-    setPlaybackSpeed,
     setSingleModeIsPlaying,
     setSingleModeIsLooping,
   });
+
+  const cycleSingleModeSpeed = useCallback(() => {
+    setPlaybackSpeed(current => cyclePlaybackSpeed(current, 'up'));
+  }, []);
 
   const interactionCommands = usePreviewInteractionCommands({
     isSingleModeVideo,
@@ -433,8 +431,6 @@ export default function PreviewModal({
     onSkipForward: interactionCommands.skipForward,
     onStepBack: interactionCommands.stepBack,
     onStepForward: interactionCommands.stepForward,
-    onSpeedDown: () => cycleSpeed('down'),
-    onSpeedUp: () => cycleSpeed('up'),
     onToggleFullscreen: toggleFullscreen,
     onToggleLooping: interactionCommands.toggleLooping,
     onSetInPoint: interactionCommands.setInPoint,
@@ -561,7 +557,7 @@ export default function PreviewModal({
         setGlobalVolume={setGlobalVolume}
         toggleGlobalMute={interactionCommands.toggleMute}
         playbackSpeed={playbackSpeed}
-        cycleSpeedUp={() => cycleSpeed('up')}
+        cycleSpeedUp={cycleSingleModeSpeed}
         isFullscreen={isFullscreen}
         toggleFullscreen={toggleFullscreen}
         miniToastElement={miniToastElement}

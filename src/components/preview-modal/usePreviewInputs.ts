@@ -15,8 +15,6 @@ interface UsePreviewInputsInput {
   onSkipForward: () => void;
   onStepBack: () => void;
   onStepForward: () => void;
-  onSpeedDown: () => void;
-  onSpeedUp: () => void;
   onToggleFullscreen: () => void;
   onToggleLooping: () => void;
   onSetInPoint: () => void;
@@ -37,8 +35,6 @@ export function usePreviewInputs({
   onSkipForward,
   onStepBack,
   onStepForward,
-  onSpeedDown,
-  onSpeedUp,
   onToggleFullscreen,
   onToggleLooping,
   onSetInPoint,
@@ -67,8 +63,6 @@ export function usePreviewInputs({
     onSkipForward,
     onStepBack,
     onStepForward,
-    onSpeedDown,
-    onSpeedUp,
     onToggleFullscreen,
     onToggleLooping,
     onSetInPoint,
