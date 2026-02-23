@@ -67,26 +67,38 @@ function hasUiOnlyFooter(body) {
   return /^UI-Only:\s*true\s*$/im.test(body);
 }
 
-function parseScope(header) {
-  const m = header.match(/^[a-z]+(?:\(([a-z0-9-]+)\))?:\s.+$/i);
-  return m?.[1] ?? "";
+function parseCommitHeader(header) {
+  const conventional = header.match(
+    /^(feat|fix|refactor|docs|test|chore|build|ci|merge)\(([^)]+)\):\s+(.+)$/i,
+  );
+  if (conventional) {
+    return {
+      kind: "conventional",
+      type: conventional[1].toLowerCase(),
+      scope: conventional[2],
+    };
+  }
+
+  return null;
 }
 
 const { from, to, mode } = parseArgs(process.argv.slice(2));
 const range = from ? `${from}..${to}` : to;
 const shas = splitLines(safeRun(`git rev-list --reverse ${range}`));
-const changedFiles = splitLines(safeRun(`git diff --name-only ${range}`)).map(normalizePath);
 const warnings = [];
-
-let hasGateScopeCommit = false;
 
 for (const sha of shas) {
   const header = safeRun(`git log -1 --pretty=format:%s ${sha}`);
   const body = safeRun(`git log -1 --pretty=format:%b ${sha}`);
-  const scope = parseScope(header);
-  if (/^gate([1-9]|10)$/.test(scope)) {
-    hasGateScopeCommit = true;
+  const parsedHeader = parseCommitHeader(header);
+  if (!parsedHeader) {
+    warnings.push(
+      `[${sha.slice(0, 7)}] コミット件名が規約外です。許可形式: type(scope): subject または merge(scope)`,
+    );
+    continue;
   }
+
+  const { scope } = parsedHeader;
 
   if (hasUiOnlyFooter(body)) {
     const files = splitLines(
@@ -98,15 +110,6 @@ for (const sha of shas) {
         `[${sha.slice(0, 7)}] UI-Only: true が指定されていますが、ロジック影響の大きい変更を検知しました: ${logicHeavyFiles.join(", ")}`,
       );
     }
-  }
-}
-
-if (hasGateScopeCommit) {
-  const docsChanged = changedFiles.some((p) => p.startsWith("docs/"));
-  if (!docsChanged) {
-    warnings.push(
-      "scope=gateN のコミットがありますが、差分に docs/ の更新が見つかりません。例外の場合は PR 本文に理由を明記してください。",
-    );
   }
 }
 

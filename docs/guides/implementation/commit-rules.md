@@ -25,7 +25,7 @@
 
 ## Must
 - コミット件名は `type(scope): subject` を使用する。
-- `type` は `feat` `fix` `refactor` `docs` `test` `chore` `build` `ci` のみを使用する。
+- `type` は `feat` `fix` `refactor` `docs` `test` `chore` `build` `ci` `merge` のみを使用する。
 - `scope` は必須とし、主影響範囲を 1 つ選ぶ。
 - Gate に触れる `feat`/`fix`/`refactor` は `scope=gateN` を使う。
 - 見た目のみの変更はコミット本文フッターに `UI-Only: true` を付与する。
@@ -52,6 +52,7 @@
   - `chore(deps): bump zustand to vX`
   - `chore(electron): bump electron to vXX`
   - `build(electron): switch packaging flow to forge`
+  - `merge(previewmodal): Merge branch 'chore/previewmodal-phase2'`
 
 ## Gate 変更時ルール
 - 対象: Gate 不変条件、`check:gate`、strict 運用、baseline、監査ロジックへの変更。
@@ -71,7 +72,7 @@
 
 ## docs 更新ルール
 - 原則：コード変更と docs 更新は別コミット。
-- 例外：用語統一・名称変更に伴う docs 修正は同時マージ可（同一タイミングで反映）。
+- 例外：用語統一・名称変更・進捗状況の更新に伴う docs 修正は同一コミット可（同一タイミングで反映）。
 - `docs/notes/archive` への移動・INDEX更新は、通常の仕様更新コミットと分離して `docs(notes)` 系の専用コミットで行う。
 
 ## baseline 更新ルール
@@ -83,6 +84,7 @@
 ## Codex 運用手順（必須）
 - 作業前:
   - `docs/ARCHITECTURE.md` と対象ドメインガイド（`docs/guides/...`）を確認する。
+  - 必要に応じて作業用ブランチを作成し、作業対象を明確化する。
 - コミット前チェック:
   1. `git log --oneline <base>..HEAD` で自分のコミット一覧を確認する。
   2. 各コミットの `type/scope/subject` が規約に準拠していることを確認する。
