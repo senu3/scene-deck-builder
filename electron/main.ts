@@ -195,6 +195,7 @@ const DEFAULT_FFMPEG_LIMITS: FfmpegLimits = {
 };
 
 let ffmpegLimits: FfmpegLimits = { ...DEFAULT_FFMPEG_LIMITS };
+const TRANSPARENT_PNG_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO2JxXQAAAAASUVORK5CYII=';
 
 interface StderrRing {
   buffer: Buffer;
@@ -736,7 +737,7 @@ ipcMain.on('start-asset-file-drag', (event, payload: StartAssetFileDragPayload) 
       return;
     }
 
-    let icon = nativeImage.createEmpty();
+    let icon = nativeImage.createFromDataURL(TRANSPARENT_PNG_DATA_URL);
     if (payload.iconDataUrl) {
       const fromDataUrl = nativeImage.createFromDataURL(payload.iconDataUrl);
       if (!fromDataUrl.isEmpty()) {
@@ -748,6 +749,10 @@ ipcMain.on('start-asset-file-drag', (event, payload: StartAssetFileDragPayload) 
       if (!fromFile.isEmpty()) {
         icon = fromFile;
       }
+    }
+    if (icon.isEmpty()) {
+      // Windows can fail drag start when icon is empty; keep a guaranteed 1x1 fallback.
+      icon = nativeImage.createFromDataURL(TRANSPARENT_PNG_DATA_URL);
     }
 
     event.sender.startDrag({

@@ -916,7 +916,6 @@ export default function AssetPanel({
         window.electronAPI?.startAssetFileDrag?.({
           filePath: asset.path,
           vaultPath,
-          iconDataUrl: dragThumbnail,
         });
       } catch {
         // Ignore external drag start failure and keep in-app drag functional.
@@ -1229,7 +1228,7 @@ function AssetCard({
         {asset.type === 'audio' ? (
           <AudioPlaceholder />
         ) : thumbnail ? (
-          <img src={thumbnail} alt={asset.sourceName} />
+          <img src={thumbnail} alt={asset.sourceName} draggable={false} />
         ) : (
           <div className="asset-card-placeholder">
             {asset.type === 'video' ? <Film size={24} /> : <Image size={24} />}
