@@ -292,7 +292,7 @@ interface AppVersions {
 interface ElectronAPI {
   getVersions?: () => AppVersions;
   getPathForFile?: (file: File) => string;
-  startAssetFileDrag?: (payload: { filePath: string; vaultPath: string; iconDataUrl?: string }) => void;
+  startAssetFileDrag?: (payload: { filePath: string; vaultPath: string; iconDataUrl?: string }) => boolean;
   // Folder operations
   selectFolder: () => Promise<FolderSelection | null>;
   getFolderContents: (folderPath: string) => Promise<FileItem[]>;

@@ -303,8 +303,8 @@ const electronAPI = {
   }),
   getPathForFile: (file: File): string =>
     webUtils.getPathForFile(file),
-  startAssetFileDrag: (payload: StartAssetFileDragPayload): void => {
-    ipcRenderer.send('start-asset-file-drag', payload);
+  startAssetFileDrag: (payload: StartAssetFileDragPayload): boolean => {
+    return ipcRenderer.sendSync('start-asset-file-drag-sync', payload) as boolean;
   },
   // Folder operations
   selectFolder: (): Promise<FolderSelection | null> =>

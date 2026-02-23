@@ -764,6 +764,42 @@ ipcMain.on('start-asset-file-drag', (event, payload: StartAssetFileDragPayload) 
   }
 });
 
+ipcMain.on('start-asset-file-drag-sync', (event, payload: StartAssetFileDragPayload) => {
+  try {
+    const validated = validateStartAssetFileDragPayload(payload);
+    if (!validated.ok || !validated.filePath) {
+      event.returnValue = false;
+      return;
+    }
+
+    let icon = nativeImage.createFromDataURL(TRANSPARENT_PNG_DATA_URL);
+    if (payload.iconDataUrl) {
+      const fromDataUrl = nativeImage.createFromDataURL(payload.iconDataUrl);
+      if (!fromDataUrl.isEmpty()) {
+        icon = fromDataUrl;
+      }
+    }
+    if (icon.isEmpty()) {
+      const fromFile = nativeImage.createFromPath(validated.filePath);
+      if (!fromFile.isEmpty()) {
+        icon = fromFile;
+      }
+    }
+    if (icon.isEmpty()) {
+      icon = nativeImage.createFromDataURL(TRANSPARENT_PNG_DATA_URL);
+    }
+
+    event.sender.startDrag({
+      file: validated.filePath,
+      icon,
+    });
+    event.returnValue = true;
+  } catch (error) {
+    console.warn('[DND] start-asset-file-drag-sync failed:', error);
+    event.returnValue = false;
+  }
+});
+
 // IPC Handlers for file system operations
 
 interface FileItem {

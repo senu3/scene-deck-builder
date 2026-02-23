@@ -913,10 +913,15 @@ export default function AssetPanel({
 
     if (vaultPath && asset.path) {
       try {
-        window.electronAPI?.startAssetFileDrag?.({
+        const started = window.electronAPI?.startAssetFileDrag?.({
           filePath: asset.path,
           vaultPath,
         });
+        if (started === false) {
+          console.warn('[DND] External file drag was rejected by main process.', {
+            path: asset.path,
+          });
+        }
       } catch {
         // Ignore external drag start failure and keep in-app drag functional.
       }
