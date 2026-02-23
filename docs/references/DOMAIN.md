@@ -72,7 +72,7 @@
 | 用語 | 定義 | 境界（含む / 含まない） | 主要操作 | 関連TS型 / TSX |
 | --- | --- | --- | --- | --- |
 | **アセットドロワー** | vault のアセット一覧 Drawer。 | **含む:** vault/assets の一覧・検索・使用状況表示。 | **一覧構築:** `loadAssetIndex` / `metadataStore` 集計。 | `AssetDrawer.tsx` |
-| **アセットパネル** | アセット一覧の共通 UI。 | **含む:** 検索/フィルタ/並び替え/選択。 | **操作入口:** `assetActions`（Finalize/Reverse/Extract/Delete）。 **一覧構築:** `loadAssetIndex` / `getFolderContents`。 | `AssetPanel.tsx`, `features/asset/actions.ts` |
+| **アセットパネル** | アセット一覧の共通 UI。 | **含む:** 検索/フィルタ/並び替え/選択。 | **操作入口:** `assetActions`（Finalize/Reverse/Extract/Delete）、外部DnD開始（`window.electronAPI.startAssetFileDrag`）。 **一覧構築:** `loadAssetIndex` / `getFolderContents`。 | `AssetPanel.tsx`, `features/asset/actions.ts`, `electron/preload.ts`, `electron/main.ts` |
 | **アセットモーダル** | `AssetPanel` のモーダルラッパー。 | **含む:** オーバーレイ/ESC/閉じる挙動。 | **選択結果の返却。** | `AssetModal.tsx` |
 | **ストーリーライン** | シーン列とカットの D&D 配置を扱う編集軸（`StoryTimeline`）のUI。 | **含む:** シーン/カット D&D、外部ファイル投入。 | **ドロップ処理:** vault 取込とカット追加。 | `Storyline.tsx` |
 | **プレビュー** | `PreviewModal` が単体/シーケンス再生を行う。 | **含む:** Single/Sequence モードと再生 UI。 | **起動:** `CutCard`。 | `PreviewModal.tsx` |

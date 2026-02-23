@@ -30,6 +30,7 @@
 - 読み取り正本:
   - 動画は `media://` 経路で範囲読み取りを行う。
   - `assetId` を主キーに解決する。
+  - AssetPanel の外部DnDは main IPC で正規化済み実体パスを検証した場合のみ開始する。
   - 解決不能時の fallback は「互換維持に必要な最小経路」のみに限定する。
 - 書き込み正本:
   - asset index/trash の更新は VaultGateway 側責務。
@@ -51,6 +52,7 @@
 ## Read/Write Path Prohibitions
 - Read-path 禁止:
   - 読み取り時に write 副作用（index更新、metadata補完保存）を混在させない。
+  - 外部DnD開始で renderer 側の任意パス組み立てを許可しない（Vault解決済み path + main再検証）。
 - Write-path 禁止:
   - renderer 直書きで `.index.json` / `.trash.json` / vault 実体を更新しない。
   - queue外で ffmpeg 個別spawnを乱立させない。

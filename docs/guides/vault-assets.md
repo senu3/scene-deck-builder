@@ -52,6 +52,8 @@
 - VaultGateway が担当:
   - index/trash の更新
   - import/register/trash move の書き込み責務
+- main IPC が担当:
+  - AssetPanel からの外部DnD開始時に `vault/assets` 配下かつ実在ファイルかを検証し、OSへファイル受け渡しを開始する。
 - VaultGateway が担当しない:
   - export計画生成
   - preview制御
