@@ -302,7 +302,7 @@ export function useSequencePlaybackController(itemDurations: number[]) {
       }
     }
 
-  }, [getEffectiveRange, goToNext, seekWithIndex]);
+  }, [getEffectiveRange, seekWithIndex]);
 
   const getAbsoluteTime = useCallback(() => {
     const current = stateRef.current;
@@ -312,7 +312,7 @@ export function useSequencePlaybackController(itemDurations: number[]) {
   const getGlobalProgress = useCallback(() => {
     const current = stateRef.current;
     if (current.totalDuration <= 0) return 0;
-    return (getAbsoluteTime() / current.totalDuration) * 100;
+    return clamp((getAbsoluteTime() / current.totalDuration) * 100, 0, 100);
   }, [getAbsoluteTime]);
 
   const selectors = useMemo(() => ({
