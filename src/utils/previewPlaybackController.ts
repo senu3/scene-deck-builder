@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef } from 'react';
 import type { MediaSource } from './previewMedia';
 
 export interface PlaybackState {
@@ -114,24 +114,28 @@ function reducer(state: PlaybackState, action: PlaybackAction): PlaybackState {
 
 export function useSequencePlaybackController(itemDurations: number[]) {
   const [state, dispatch] = useReducer(reducer, itemDurations, initState);
-  const stateRef = useRef(state);
+  const committedStateRef = useRef(state);
+  const renderStateRef = useRef(state);
   const sourceRef = useRef<MediaSource | null>(null);
   const pendingSeekRef = useRef<{ index: number; localTime: number } | null>(null);
   const stoppedAtOutPointRef = useRef(false);
-  // Keep latest state available during render so stable selector callbacks read current values.
-  stateRef.current = state;
+  renderStateRef.current = state;
 
   useEffect(() => {
     dispatch({ type: 'SET_ITEMS', durations: itemDurations });
     stoppedAtOutPointRef.current = false;
   }, [itemDurations]);
 
+  useLayoutEffect(() => {
+    committedStateRef.current = state;
+  }, [state]);
+
   useEffect(() => {
     stoppedAtOutPointRef.current = false;
   }, [state.currentIndex]);
 
   const getEffectiveRange = useCallback(() => {
-    const current = stateRef.current;
+    const current = committedStateRef.current;
     if (current.inPoint === null || current.outPoint === null) {
       return { inPoint: 0, outPoint: current.totalDuration };
     }
@@ -142,7 +146,7 @@ export function useSequencePlaybackController(itemDurations: number[]) {
   }, []);
 
   const seekWithIndex = useCallback((index: number, progress: number) => {
-    const current = stateRef.current;
+    const current = committedStateRef.current;
     if (current.itemDurations.length === 0) return;
     const duration = current.itemDurations[index] ?? 0;
     const localTime = (clamp(progress, 0, 100) / 100) * duration;
@@ -162,12 +166,12 @@ export function useSequencePlaybackController(itemDurations: number[]) {
     if (!source) return;
 
     const pending = pendingSeekRef.current;
-    if (pending && pending.index === stateRef.current.currentIndex) {
+    if (pending && pending.index === committedStateRef.current.currentIndex) {
       source.seek(pending.localTime);
       pendingSeekRef.current = null;
     }
 
-    const current = stateRef.current;
+    const current = committedStateRef.current;
     if (current.isPlaying && !current.isBuffering) {
       source.play();
     } else {
@@ -206,27 +210,27 @@ export function useSequencePlaybackController(itemDurations: number[]) {
   }, [seekWithIndex]);
 
   const seekAbsolute = useCallback((time: number) => {
-    const current = stateRef.current;
+    const current = committedStateRef.current;
     const clamped = clamp(time, 0, current.totalDuration);
     const position = findPositionFromTime(clamped, current.itemDurations);
     setPosition(position.index, position.progress);
   }, [setPosition]);
 
   const seekPercent = useCallback((percent: number) => {
-    const current = stateRef.current;
+    const current = committedStateRef.current;
     if (current.totalDuration <= 0) return;
     const targetTime = (clamp(percent, 0, 100) / 100) * current.totalDuration;
     seekAbsolute(targetTime);
   }, [seekAbsolute]);
 
   const skip = useCallback((seconds: number) => {
-    const current = stateRef.current;
+    const current = committedStateRef.current;
     const absTime = calculateAbsoluteTime(current.currentIndex, current.localProgress, current.itemDurations);
     seekAbsolute(absTime + seconds);
   }, [seekAbsolute]);
 
   const goToNext = useCallback(() => {
-    const current = stateRef.current;
+    const current = committedStateRef.current;
     if (current.itemDurations.length === 0) return;
     const { inPoint, outPoint } = getEffectiveRange();
 
@@ -267,14 +271,14 @@ export function useSequencePlaybackController(itemDurations: number[]) {
 
   const goToPrev = useCallback(() => {
     stoppedAtOutPointRef.current = false;
-    const nextIndex = Math.max(0, stateRef.current.currentIndex - 1);
+    const nextIndex = Math.max(0, committedStateRef.current.currentIndex - 1);
     dispatch({ type: 'SET_POSITION', index: nextIndex, progress: 0 });
     seekWithIndex(nextIndex, 0);
   }, [seekWithIndex]);
 
   const tick = useCallback((localTime: number) => {
     // Hotpath rule (Gate 10): keep tick pure and lightweight (no I/O, process launch, analysis).
-    const current = stateRef.current;
+    const current = committedStateRef.current;
     if (current.itemDurations.length === 0) return;
     if (stoppedAtOutPointRef.current) return;
 
@@ -305,12 +309,12 @@ export function useSequencePlaybackController(itemDurations: number[]) {
   }, [getEffectiveRange, seekWithIndex]);
 
   const getAbsoluteTime = useCallback(() => {
-    const current = stateRef.current;
+    const current = renderStateRef.current;
     return calculateAbsoluteTime(current.currentIndex, current.localProgress, current.itemDurations);
   }, []);
 
   const getGlobalProgress = useCallback(() => {
-    const current = stateRef.current;
+    const current = renderStateRef.current;
     if (current.totalDuration <= 0) return 0;
     return clamp((getAbsoluteTime() / current.totalDuration) * 100, 0, 100);
   }, [getAbsoluteTime]);
@@ -321,7 +325,7 @@ export function useSequencePlaybackController(itemDurations: number[]) {
   }), [getAbsoluteTime, getGlobalProgress]);
 
   const getLiveAbsoluteTime = useCallback(() => {
-    const current = stateRef.current;
+    const current = committedStateRef.current;
     const source = sourceRef.current;
     if (!source) return getAbsoluteTime();
     const duration = current.itemDurations[current.currentIndex] ?? 0;
