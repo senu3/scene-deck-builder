@@ -72,6 +72,7 @@ export function usePreviewSingleModeSession({
   const [singleModeIsPlaying, setSingleModeIsPlaying] = useState(false);
   const [isSingleModeClipEnabled, setIsSingleModeClipEnabled] = useState(false);
   const [isSingleModeClipPending, setIsSingleModeClipPending] = useState(false);
+  const singleModeRafRef = useRef<number | null>(null);
 
   const lastCommittedClipPointsRef = useRef<{ start: number; end: number } | null>(null);
   const singleModeClipDragDirtyRef = useRef(false);
@@ -392,6 +393,31 @@ export function usePreviewSingleModeSession({
       videoRef.current.playbackRate = playbackSpeed;
     }
   }, [isSingleModeVideo, videoRef, playbackSpeed]);
+
+  useEffect(() => {
+    if (!isSingleModeVideo || !singleModeIsPlaying || !videoRef.current) {
+      if (singleModeRafRef.current !== null) {
+        window.cancelAnimationFrame(singleModeRafRef.current);
+        singleModeRafRef.current = null;
+      }
+      return;
+    }
+
+    const updateCurrentTime = () => {
+      const video = videoRef.current;
+      if (!video) return;
+      setSingleModeCurrentTime(video.currentTime);
+      singleModeRafRef.current = window.requestAnimationFrame(updateCurrentTime);
+    };
+
+    singleModeRafRef.current = window.requestAnimationFrame(updateCurrentTime);
+    return () => {
+      if (singleModeRafRef.current !== null) {
+        window.cancelAnimationFrame(singleModeRafRef.current);
+        singleModeRafRef.current = null;
+      }
+    };
+  }, [isSingleModeVideo, singleModeIsPlaying, videoRef, setSingleModeCurrentTime]);
 
   return {
     singleModeIsPlaying,
