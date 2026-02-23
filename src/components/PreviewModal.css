@@ -309,6 +309,7 @@
 }
 
 .preview-progress-fill {
+  width: 0;
   height: 100%;
   background: var(--accent-secondary);
   border-radius: 3px;
@@ -316,6 +317,7 @@
 
 .preview-progress-handle {
   position: absolute;
+  left: 0;
   top: 50%;
   width: 14px;
   height: 14px;

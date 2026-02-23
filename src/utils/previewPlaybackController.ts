@@ -44,6 +44,9 @@ function calculateAbsoluteTime(index: number, progress: number, durations: numbe
 }
 
 function findPositionFromTime(time: number, durations: number[]) {
+  if (durations.length === 0) {
+    return { index: 0, progress: 0 };
+  }
   let accumulated = 0;
   for (let i = 0; i < durations.length; i++) {
     const duration = durations[i];
@@ -74,9 +77,10 @@ function reducer(state: PlaybackState, action: PlaybackAction): PlaybackState {
   switch (action.type) {
     case 'SET_ITEMS': {
       const totalDuration = sumDurations(action.durations);
+      const resetToStart = state.itemDurations.length === 0 && action.durations.length > 0;
       const maxIndex = Math.max(0, action.durations.length - 1);
-      const nextIndex = clamp(state.currentIndex, 0, maxIndex);
-      const nextProgress = clamp(state.localProgress, 0, 100);
+      const nextIndex = resetToStart ? 0 : clamp(state.currentIndex, 0, maxIndex);
+      const nextProgress = resetToStart ? 0 : clamp(state.localProgress, 0, 100);
       return {
         ...state,
         itemDurations: action.durations,
