@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, protocol, Menu } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, protocol, Menu, nativeImage } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import { pathToFileURL } from 'url';
@@ -6,6 +6,7 @@ import { spawn } from 'child_process';
 import ffmpegPath from 'ffmpeg-static';
 import { calculateFileHashStream, getMediaType, importAssetToVaultInternal, moveToTrashInternal, registerVaultGatewayHandlers, saveAssetIndexInternal, type AssetIndex, type TrashMeta } from './vaultGateway';
 import { createSaveProjectHandler } from './handlers/saveProject';
+import { validateStartAssetFileDragPayload, type StartAssetFileDragPayload } from './handlers/assetFileDrag';
 import { createFfmpegController } from './services/ffmpegController';
 import { createThumbnailService } from './services/thumbnailService';
 import { buildFramingVideoFilter } from './framing';
@@ -726,6 +727,36 @@ ipcMain.handle(IPC_AUTOSAVE_ENABLED, async (_, enabled: boolean) => {
 
 ipcMain.on(IPC_RENDERER_ERROR_REPORT, (_event, payload: Record<string, unknown>) => {
   writeRuntimeLog('ERROR', 'renderer-error-report', payload || {});
+});
+
+ipcMain.on('start-asset-file-drag', (event, payload: StartAssetFileDragPayload) => {
+  try {
+    const validated = validateStartAssetFileDragPayload(payload);
+    if (!validated.ok || !validated.filePath) {
+      return;
+    }
+
+    let icon = nativeImage.createEmpty();
+    if (payload.iconDataUrl) {
+      const fromDataUrl = nativeImage.createFromDataURL(payload.iconDataUrl);
+      if (!fromDataUrl.isEmpty()) {
+        icon = fromDataUrl;
+      }
+    }
+    if (icon.isEmpty()) {
+      const fromFile = nativeImage.createFromPath(validated.filePath);
+      if (!fromFile.isEmpty()) {
+        icon = fromFile;
+      }
+    }
+
+    event.sender.startDrag({
+      file: validated.filePath,
+      icon,
+    });
+  } catch (error) {
+    console.warn('[DND] start-asset-file-drag failed:', error);
+  }
 });
 
 // IPC Handlers for file system operations

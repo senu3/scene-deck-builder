@@ -894,21 +894,35 @@ export default function AssetPanel({
 
   // Handle drag start - close drawer when leaving
   const handleDragStart = (e: React.DragEvent, asset: AssetInfo) => {
-    if (!effectiveEnableDragDrop || asset.type === 'audio') {
+    if (!effectiveEnableDragDrop) {
       e.preventDefault();
       return;
     }
+    const dragThumbnail = getCachedAssetThumbnail('asset-grid', { assetId: asset.id, path: asset.path }) || asset.thumbnail;
     const dragAsset: Asset = {
       id: uuidv4(),
       name: asset.sourceName, // Use source name
       path: asset.path,
       type: asset.type,
-      thumbnail: getCachedAssetThumbnail('asset-grid', { assetId: asset.id, path: asset.path }) || asset.thumbnail,
+      thumbnail: dragThumbnail,
       originalPath: asset.path,
     };
     e.dataTransfer.setData('application/json', JSON.stringify(dragAsset));
     e.dataTransfer.setData('text/scene-deck-asset', '1');
     e.dataTransfer.effectAllowed = 'copy';
+
+    if (vaultPath && asset.path) {
+      try {
+        window.electronAPI?.startAssetFileDrag?.({
+          filePath: asset.path,
+          vaultPath,
+          iconDataUrl: dragThumbnail,
+        });
+      } catch {
+        // Ignore external drag start failure and keep in-app drag functional.
+      }
+    }
+
     closeDetailsPanel();
     if (mode === 'drawer' && onClose) {
       requestAnimationFrame(() => onClose());
@@ -1116,7 +1130,7 @@ export default function AssetPanel({
                 onClick={() => handleAssetClick(asset)}
                 onDoubleClick={() => handleDoubleClick(asset)}
                 onContextMenu={effectiveEnableContextMenu ? (e) => handleAssetContextMenu(e, asset) : undefined}
-                draggable={effectiveEnableDragDrop && asset.type !== 'audio'}
+                draggable={effectiveEnableDragDrop}
               />
             ))
           )}

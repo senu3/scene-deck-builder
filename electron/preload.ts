@@ -288,6 +288,12 @@ export interface OpenFileDialogOptions {
   defaultPath?: string;
 }
 
+export interface StartAssetFileDragPayload {
+  filePath: string;
+  vaultPath: string;
+  iconDataUrl?: string;
+}
+
 const electronAPI = {
   getVersions: () => ({
     electron: process.versions.electron,
@@ -297,6 +303,9 @@ const electronAPI = {
   }),
   getPathForFile: (file: File): string =>
     webUtils.getPathForFile(file),
+  startAssetFileDrag: (payload: StartAssetFileDragPayload): void => {
+    ipcRenderer.send('start-asset-file-drag', payload);
+  },
   // Folder operations
   selectFolder: (): Promise<FolderSelection | null> =>
     ipcRenderer.invoke('select-folder'),
