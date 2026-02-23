@@ -118,15 +118,13 @@ export function useSequencePlaybackController(itemDurations: number[]) {
   const sourceRef = useRef<MediaSource | null>(null);
   const pendingSeekRef = useRef<{ index: number; localTime: number } | null>(null);
   const stoppedAtOutPointRef = useRef(false);
+  // Keep latest state available during render so stable selector callbacks read current values.
+  stateRef.current = state;
 
   useEffect(() => {
     dispatch({ type: 'SET_ITEMS', durations: itemDurations });
     stoppedAtOutPointRef.current = false;
   }, [itemDurations]);
-
-  useEffect(() => {
-    stateRef.current = state;
-  }, [state]);
 
   useEffect(() => {
     stoppedAtOutPointRef.current = false;
@@ -240,6 +238,8 @@ export function useSequencePlaybackController(itemDurations: number[]) {
         dispatch({ type: 'SET_POSITION', index: loopPosition.index, progress: loopPosition.progress });
         seekWithIndex(loopPosition.index, loopPosition.progress);
       } else {
+        const lastIndex = Math.max(0, current.itemDurations.length - 1);
+        dispatch({ type: 'SET_POSITION', index: lastIndex, progress: 100 });
         dispatch({ type: 'PAUSE' });
       }
       return;
@@ -253,6 +253,8 @@ export function useSequencePlaybackController(itemDurations: number[]) {
         dispatch({ type: 'SET_POSITION', index: loopPosition.index, progress: loopPosition.progress });
         seekWithIndex(loopPosition.index, loopPosition.progress);
       } else {
+        const endPosition = findPositionFromTime(outPoint, current.itemDurations);
+        dispatch({ type: 'SET_POSITION', index: endPosition.index, progress: endPosition.progress });
         dispatch({ type: 'PAUSE' });
       }
       return;
@@ -292,6 +294,8 @@ export function useSequencePlaybackController(itemDurations: number[]) {
           seekWithIndex(loopPosition.index, loopPosition.progress);
         } else {
           stoppedAtOutPointRef.current = true;
+          const endPosition = findPositionFromTime(outPoint, current.itemDurations);
+          dispatch({ type: 'SET_POSITION', index: endPosition.index, progress: endPosition.progress });
           dispatch({ type: 'PAUSE' });
         }
         return;
