@@ -270,3 +270,8 @@
   - `usePreviewInteractionCommands.ts` に `stepFrame` / `skip` / `setInPoint` / `setOutPoint` を集約し、`PreviewModal.tsx` から該当 handler を削除。
   - `PreviewModal.tsx` は command API 配線を正本とし、interaction handler ロジックの重複を解消。
   - `npm run build` でビルド成功、手動確認（skip/step、I/O、marker step、CLIP）OK。
+- 2026-02-23 Step 11 完了（Composition Root 責務線引き）:
+  - `usePreviewItemsState.ts` を追加し、preview items 構築と関連 resolver（asset/displayTime/lipsync）を `PreviewModal.tsx` から分離。
+  - `PreviewModal.tsx` から items 構築 effect と関連 callback 群を除去し、hook 呼び出し + View props 組み立て中心へ整理。
+  - command/view/session の束を正本として、`PreviewModal.tsx` の残責務を配線寄りに固定。
+  - `npm run build` でビルド成功、手動確認（mode切替・sequenceCuts・displayTime境界・INOUT/CLIP/MiniToast）OK。
