@@ -265,3 +265,8 @@
   - `PreviewModal.tsx` から Single 関連の条件分岐 handler/effect を削減し、hook 呼び出し + View props 組み立て中心へ整理。
   - `useClipRangeState` は range state と marker focus の責務を維持し、Single mode 専用の副作用は `usePreviewSingleModeSession` 側へ移管。
   - `npm run build` でビルド成功を確認し、手動テスト（Single再生/INOUT/CLIP/marker/frame capture）もOK。
+- 2026-02-23 Step 9 進捗（Composition Root 固定）:
+  - `clipRangeOps.ts` を追加し、Sequence の IN/OUT 更新計算（setIn/setOut）と UI playhead 解決を純関数へ集約。
+  - `usePreviewInteractionCommands.ts` に `stepFrame` / `skip` / `setInPoint` / `setOutPoint` を集約し、`PreviewModal.tsx` から該当 handler を削除。
+  - `PreviewModal.tsx` は command API 配線を正本とし、interaction handler ロジックの重複を解消。
+  - `npm run build` でビルド成功、手動確認（skip/step、I/O、marker step、CLIP）OK。
