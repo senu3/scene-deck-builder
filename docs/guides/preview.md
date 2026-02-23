@@ -4,7 +4,8 @@
 対象：Sequence Previewの再生制御
 正本：cut canonical timing
 原則：
-- 再生制御は単一コントローラ経由
+- Sequence再生制御は単一コントローラ経由
+- Preview操作は command 単一入口経由
 - 表示と出力で時間正本を分離しない
 - assetIdベースの解決整合を維持する
 詳細：再生実装は preview系実装を参照
@@ -16,14 +17,13 @@
 
 ## Must / Must Not
 - Must: Sequence 再生は `useSequencePlaybackController` を単一制御面として使う。
+- Must: Preview 操作（play/pause/seek/step/skip/in/out/loop/mute/marker）は `usePreviewInteractionCommands` を単一入口として通す。
+- Must: timing 解決は domain 正規化後の canonical cut timing を正本とする。
 - Must: `sequenceCuts` 指定時はその範囲のみで sequence を構築する。
-- Must: timing 解決は canonical cut timing を使う。
-- Must: canonical timing は domain 正規化後の値を使用する。
+- Must: `PreviewModal.tsx` は Composition Root とし、配線（hook 呼び出し＋View props 組み立て）に限定する。
 - Must: URL/asset 解決は `assetId` 整合を維持する。
-- Must: Preview は独自の時間再計算を持たない。
+- Must Not: Preview/Export で時間定義を分岐させない（ad-hoc タイマー含む）。
 - Must Not: Sequence Mode を `<video>` 直接制御へ戻さない。
-- Must Not: 画像 Sequence の時間制御を ad-hoc タイマーへ戻さない。
-- Must Not: Preview/Export で時間定義を分岐させない。
 - Must Not: Controller はドメイン構造を書き換えない。
 
 ## モード境界
@@ -38,6 +38,21 @@
 - 表示時間は cut canonical timing を正本とする。
 - AudioPlan/再生同期は cut 列由来の時間軸で扱う。
 - focus cut 不在時は曖昧なフォールバック再生を行わず、欠落状態を明示する。
+
+## 責務境界
+- 操作入口（Commands）:
+  - 対象は play/pause/seek/step/skip、IN/OUT、loop/mute/marker。
+  - 表示整形、DOM 計測、fullscreen/overlay など純UI状態は command 対象外。
+- 時間の正本（Timebase）:
+  - 正本は domain 正規化後の canonical cut timing。
+  - Preview 側の独自再計算や Preview/Export の時間定義分岐は禁止。
+- IN/OUT（Clip Range）:
+  - 更新入力は playhead、基準は canonical timing。
+  - clamp/normalize/swap/reject は `clipRangeOps` の純関数に集約し、`PreviewModal.tsx` に戻さない。
+- 表示（View）:
+  - UI playhead time の丸め/fps/表示単位は View 側の純関数で完結し、controller/domain に混ぜない。
+- Asset Identity:
+  - URL/asset 解決は `assetId` 整合を維持する。
 
 ## Export連携
 - Preview 起点 export は Export ガイドの正本ルールに従う。

@@ -46,6 +46,7 @@
   - `Asset Reference Graph`: 実行時に計算される参照集合
 - `Controller`
   - 編集文脈は `DragController`、再生文脈は `PlaybackController` / `SequenceClock` を優先する。
+  - Preview操作入口は `usePreviewInteractionCommands`（command 単一入口）を優先する。
 
 ## Core Data Model
 
@@ -75,8 +76,8 @@
 | **アセットモーダル** | `AssetPanel` のモーダルラッパー。 | **含む:** オーバーレイ/ESC/閉じる挙動。 | **選択結果の返却。** | `AssetModal.tsx` |
 | **ストーリーライン** | シーン列とカットの D&D 配置を扱う編集軸（`StoryTimeline`）のUI。 | **含む:** シーン/カット D&D、外部ファイル投入。 | **ドロップ処理:** vault 取込とカット追加。 | `Storyline.tsx` |
 | **プレビュー** | `PreviewModal` が単体/シーケンス再生を行う。 | **含む:** Single/Sequence モードと再生 UI。 | **起動:** `CutCard`。 | `PreviewModal.tsx` |
-| **プレビュー項目** | `PreviewItem` は Sequence 用の派生構造体。 | **含む:** cut/sceneName/thumbnail。 | **構築:** `PreviewModal` 内で生成。 | `PreviewModal.tsx` |
-| **プレビュー制御** | public APIは `useSequencePlaybackController`、内部概念は `SequenceClock` として再生状態を管理。 | **含む:** currentIndex/localProgress/range/loop/buffering。 | **操作:** `setSource/seek/skip` 等。 | `PlaybackState`、`previewPlaybackController.ts` |
+| **プレビュー項目** | `PreviewItem` は Sequence 用の派生構造体。 | **含む:** cut/sceneName/thumbnail。 | **構築:** `previewItemsBuilder` + `usePreviewItemsState`。 | `previewItemsBuilder.ts`、`usePreviewItemsState.ts` |
+| **プレビュー制御** | Sequence再生は `useSequencePlaybackController`、Preview操作入口は `usePreviewInteractionCommands`、内部概念は `SequenceClock`。 | **含む:** currentIndex/localProgress/range/loop/buffering。 | **操作:** command API / `setSource/seek/skip` 等。 | `PlaybackState`、`previewPlaybackController.ts`、`usePreviewInteractionCommands.ts` |
 | **プレビューメディアソース** | `MediaSource` は Preview再生専用の app-specific abstraction（Web APIの `MediaSource` とは別）。 | **含む:** play/pause/seek/setRate/getCurrentTime/dispose と JSX 要素。 | **生成:** `createVideoMediaSource` / `createImageMediaSource`。 | `previewMedia.tsx` |
 | **エクスポート実行計画** | `ExportPlan` は出力実行パラメータを保持する。 | **含む:** `Mp4ExportPlan`。**含まない:** Preview再生状態。 | **生成:** `resolveExportPlan`。 | `src/features/export/plan.ts` |
 | **エクスポート出力シーケンス** | `ExportSequenceItem` は export 実行用の時系列素材列を表す。 | **含む:** path/duration/clip/framing/lipSync payload。**含まない:** UI状態。 | **生成:** `buildSequenceItemsForCuts` / `buildSequenceItemsForExport`。 | `src/utils/exportSequence.ts` |
