@@ -910,6 +910,15 @@ export default function AssetPanel({
     e.dataTransfer.setData('application/json', JSON.stringify(dragAsset));
     e.dataTransfer.setData('text/scene-deck-asset', '1');
     e.dataTransfer.effectAllowed = 'copy';
+    try {
+      // Suppress oversized browser drag preview; OS-level file drag still uses main.startDrag.
+      const dragGhost = document.createElement('canvas');
+      dragGhost.width = 1;
+      dragGhost.height = 1;
+      e.dataTransfer.setDragImage(dragGhost, 0, 0);
+    } catch {
+      // Ignore drag preview customization errors.
+    }
 
     if (vaultPath && asset.path) {
       try {
