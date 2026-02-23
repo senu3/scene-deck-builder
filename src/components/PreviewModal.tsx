@@ -12,17 +12,11 @@ import {
   selectToggleGlobalMute,
   selectMetadataStore,
 } from '../store/selectors';
-import type { Asset, Cut } from '../types';
-import { resolveCutAsset, resolveCutThumbnail } from '../utils/assetResolve';
+import type { Cut } from '../types';
 import { useSequencePlaybackController } from '../utils/previewPlaybackController';
 import { getScenesInOrder } from '../utils/sceneOrder';
-import {
-  asCanonicalDurationSec,
-  resolveCanonicalCutDuration,
-  type CanonicalDurationSec,
-} from '../utils/storyTiming';
 import { useMiniToast } from '../ui';
-import type { PreviewItem, PreviewModalProps, ResolutionPreset } from './preview-modal/types';
+import type { PreviewModalProps, ResolutionPreset } from './preview-modal/types';
 import {
   FRAME_DURATION,
   INITIAL_PRELOAD_ITEMS,
@@ -33,7 +27,6 @@ import {
 import {
   revokeIfBlob,
 } from './preview-modal/helpers';
-import { buildPreviewItems } from './preview-modal/previewItemsBuilder';
 import { PreviewModalSequenceView } from './preview-modal/PreviewModalSequenceView';
 import { PreviewModalSingleView } from './preview-modal/PreviewModalSingleView';
 import { useClipRangeState } from './preview-modal/useClipRangeState';
@@ -49,6 +42,7 @@ import { usePreviewInputs } from './preview-modal/usePreviewInputs';
 import { usePreviewSequenceSession } from './preview-modal/usePreviewSequenceSession';
 import { resolveCutAudioBinding } from './preview-modal/audioBinding';
 import { usePreviewSingleModeSession } from './preview-modal/usePreviewSingleModeSession';
+import { usePreviewItemsState } from './preview-modal/usePreviewItemsState';
 import './PreviewModal.css';
 import './shared/playback-controls.css';
 
@@ -102,7 +96,6 @@ export default function PreviewModal({
   const isAssetOnlyPreview = isSingleMode && !hasCutContext;
   const missingFocusedCut = !isSingleMode && !!focusCutId && !focusCutData;
 
-  const [items, setItems] = useState<PreviewItem[]>([]);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [videoObjectUrl, setVideoObjectUrl] = useState<{ assetId: string; url: string } | null>(null);
   const [singleModeIsLooping, setSingleModeIsLooping] = useState(false);
@@ -113,15 +106,34 @@ export default function PreviewModal({
   const [singleModeDuration, setSingleModeDuration] = useState(0);
   const [singleModeCurrentTime, setSingleModeCurrentTime] = useState(0);
 
-  const resolveCutDisplayTimeSec = useCallback((cut: Cut | null | undefined): CanonicalDurationSec => {
-    const resolved = resolveCanonicalCutDuration(cut, getAsset, {
-      fallbackDurationSec: 1.0,
-      preferAssetDuration: true,
-    });
-    return asCanonicalDurationSec(resolved.durationSec);
-  }, [getAsset]);
+  const { isLoading, singleModeImageData } = usePreviewSingleMediaAsset({
+    isSingleMode,
+    asset,
+    videoObjectUrl,
+    setVideoObjectUrl,
+    revokeIfBlob,
+  });
 
-  const sequenceDurations = useMemo(() => items.map(item => item.normalizedDisplayTime), [items]);
+  const {
+    items,
+    sequenceDurations,
+    resolveAssetForCut,
+  } = usePreviewItemsState({
+    isSingleMode,
+    isSingleModeVideo,
+    isSingleModeImage,
+    asset,
+    singleModeImageData: null,
+    orderedScenes,
+    previewMode,
+    selectedSceneId,
+    getAsset,
+    metadataStore: metadataStore ?? null,
+    focusCutData,
+    missingFocusedCut,
+    sequenceCuts,
+    sequenceContext,
+  });
   const sequencePlayback = useSequencePlaybackController(sequenceDurations);
   const {
     state: sequenceState,
@@ -255,42 +267,11 @@ export default function PreviewModal({
     });
   }, [getAsset, globalMuted]);
 
-  const resolveAssetForCut = useCallback((cut: Cut | null | undefined): Asset | null => {
-    return resolveCutAsset(cut, getAsset);
-  }, [getAsset]);
-
-  const resolveThumbnailForCut = useCallback((cut: Cut | null | undefined): string | null => {
-    return resolveCutThumbnail(cut, getAsset);
-  }, [getAsset]);
-
   const shouldMuteEmbeddedAudio = useCallback((cut: Cut | null | undefined): boolean => {
     return resolveAudioBindingForCut(cut).muteEmbedded;
   }, [resolveAudioBindingForCut]);
 
-  const getDisplayTimeForAsset = useCallback((assetId: string): number | null => {
-    if (!metadataStore) return null;
-    const metadata = metadataStore.metadata[assetId];
-    const displayTime = metadata?.displayTime;
-    if (typeof displayTime !== 'number' || !Number.isFinite(displayTime) || displayTime <= 0) {
-      return null;
-    }
-    return displayTime;
-  }, [metadataStore]);
-
-  const getLipSyncSettingsForAsset = useCallback((assetId: string) => {
-    if (!metadataStore) return undefined;
-    return metadataStore.metadata[assetId]?.lipSync;
-  }, [metadataStore]);
-
   // ===== SINGLE MODE LOGIC =====
-
-  const { isLoading, singleModeImageData } = usePreviewSingleMediaAsset({
-    isSingleMode,
-    asset,
-    videoObjectUrl,
-    setVideoObjectUrl,
-    revokeIfBlob,
-  });
 
   usePreviewSingleAttachedAudio({
     isSingleMode,
@@ -314,56 +295,6 @@ export default function PreviewModal({
   });
 
   // ===== SEQUENCE MODE LOGIC =====
-
-  // Build preview items
-  useEffect(() => {
-    let cancelled = false;
-    void buildPreviewItems({
-      isSingleMode,
-      isSingleModeVideo,
-      isSingleModeImage,
-      asset,
-      singleModeImageData,
-      orderedScenes,
-      previewMode,
-      selectedSceneId,
-      getAsset,
-      getDisplayTimeForAsset,
-      getLipSyncSettingsForAsset,
-      focusCutData,
-      missingFocusedCut,
-      sequenceCuts,
-      sequenceContext,
-      resolveAssetForCut,
-      resolveThumbnailForCut,
-      resolveCutDisplayTimeSec,
-    }).then((nextItems) => {
-      if (cancelled) return;
-      setItems(nextItems);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    isSingleMode,
-    isSingleModeVideo,
-    isSingleModeImage,
-    asset,
-    singleModeImageData,
-    orderedScenes,
-    previewMode,
-    selectedSceneId,
-    getAsset,
-    getDisplayTimeForAsset,
-    getLipSyncSettingsForAsset,
-    focusCutData,
-    missingFocusedCut,
-    sequenceCuts,
-    sequenceContext,
-    resolveAssetForCut,
-    resolveThumbnailForCut,
-    resolveCutDisplayTimeSec,
-  ]);
 
   useEffect(() => {
     if (!isSingleModeImage || items.length === 0) return;
