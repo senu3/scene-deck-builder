@@ -2,7 +2,7 @@ import type React from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Cut } from '../../types';
 import { clampToDuration } from './helpers';
-import type { FocusedMarker } from '../shared';
+import type { FocusedMarker } from './parts/PlaybackRangeMarkers';
 
 const CLIP_POINT_EPSILON = 0.0001;
 

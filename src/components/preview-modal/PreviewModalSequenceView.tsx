@@ -1,8 +1,10 @@
 import { Download, Loader2, Maximize, Pause, Play, Repeat, SkipBack, SkipForward, X } from 'lucide-react';
 import type React from 'react';
 import type { Asset, Cut } from '../../types';
-import { PlaybackRangeMarkers, TimeDisplay, VolumeControl } from '../shared';
-import type { FocusedMarker } from '../shared';
+import { PlaybackRangeMarkers } from './parts/PlaybackRangeMarkers';
+import type { FocusedMarker } from './parts/PlaybackRangeMarkers';
+import { TimeDisplay } from './parts/TimeDisplay';
+import { VolumeControl } from './parts/VolumeControl';
 import { PreviewResolutionPicker } from './PreviewResolutionPicker';
 import { RESOLUTION_PRESETS } from './constants';
 import type { PreviewItem, ResolutionPreset } from './types';

@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import type React from 'react';
 import type { Asset } from '../../types';
 import type { PreviewItem } from './types';
-import type { FocusedMarker } from '../shared';
+import type { FocusedMarker } from './parts/PlaybackRangeMarkers';
 import { FRAME_DURATION } from './constants';
 import { clampToDuration } from './helpers';
 import {

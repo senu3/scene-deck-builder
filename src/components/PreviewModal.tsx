@@ -45,7 +45,7 @@ import { resolveCutAudioBinding } from './preview-modal/audioBinding';
 import { usePreviewSingleModeSession } from './preview-modal/usePreviewSingleModeSession';
 import { usePreviewItemsState } from './preview-modal/usePreviewItemsState';
 import './PreviewModal.css';
-import './shared/playback-controls.css';
+import './preview-modal/styles/playback-controls.css';
 
 export default function PreviewModal({
   onClose,

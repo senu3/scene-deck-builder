@@ -1,7 +1,7 @@
 import type React from 'react';
 import { useCallback, useState } from 'react';
 import { constrainMarkerTime } from './helpers';
-import type { FocusedMarker } from '../shared';
+import type { FocusedMarker } from './parts/PlaybackRangeMarkers';
 
 interface UseClipRangeStateInput {
   usesSequenceController: boolean;

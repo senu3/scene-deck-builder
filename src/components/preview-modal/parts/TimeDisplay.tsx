@@ -1,5 +1,5 @@
-import { formatTime } from '../../utils/timeUtils';
-import './playback-controls.css';
+import { formatTime } from '../../../utils/timeUtils';
+import '../styles/playback-controls.css';
 
 interface TimeDisplayProps {
   currentTime: number;

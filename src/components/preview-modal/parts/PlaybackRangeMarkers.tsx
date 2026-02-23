@@ -1,6 +1,6 @@
 import { useRef, useCallback, useState } from 'react';
-import { formatTime } from '../../utils/timeUtils';
-import './playback-controls.css';
+import { formatTime } from '../../../utils/timeUtils';
+import '../styles/playback-controls.css';
 
 export type FocusedMarker = 'in' | 'out' | null;
 
