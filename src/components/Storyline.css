@@ -5,6 +5,22 @@
   padding: 16px;
 }
 
+.storyline.storyline--pan-ready {
+  cursor: grab;
+}
+
+.storyline.storyline--panning {
+  cursor: grabbing;
+}
+
+.storyline.storyline--pan-lock {
+  user-select: none;
+}
+
+.storyline.storyline--pan-lock .storyline-content {
+  pointer-events: none;
+}
+
 .storyline-content {
   display: flex;
   gap: 16px;

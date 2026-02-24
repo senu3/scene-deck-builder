@@ -22,6 +22,7 @@ import CutCard from './CutCard';
 import CutGroupCard, { ExpandedGroupContainer } from './CutGroupCard';
 import type { Asset, CutGroup, Cut } from '../types';
 import { useStorylineDragController, type PlaceholderState } from '../hooks/useStorylineDragController';
+import { useStorylinePanTool } from '../hooks/useStorylinePanTool';
 import './Storyline.css';
 
 // Scene color palette - uses --timeline-scene-* tokens to match SceneDurationBar
@@ -59,6 +60,7 @@ export default function Storyline({
   const closeDetailsPanel = useStore(selectCloseDetailsPanel);
   const { executeCommand } = useHistoryStore();
   const storylineRef = useRef<HTMLDivElement>(null);
+  const { isPanModeReady, isPanning, bind: panBind } = useStorylinePanTool(storylineRef);
   // --- DND: dnd-kit (reorder) ---
   const { active, over } = useDndContext();
 
@@ -104,12 +106,17 @@ export default function Storyline({
   return (
     <div
       ref={storylineRef}
-      className="storyline"
+      className={[
+        'storyline',
+        isPanModeReady ? 'storyline--pan-ready storyline--pan-lock' : '',
+        isPanning ? 'storyline--panning' : '',
+      ].filter(Boolean).join(' ')}
       onClick={handleBackgroundClick}
       onDragEnter={handleStorylineDragEnter}
       onDragOver={handleStorylineDragOver}
       onDragLeave={handleStorylineDragLeave}
       onDrop={handleInboundDrop}
+      {...panBind}
     >
       <div className="storyline-content">
         {orderedScenes.map((scene, index) => (
