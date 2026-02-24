@@ -196,6 +196,39 @@ const DEFAULT_FFMPEG_LIMITS: FfmpegLimits = {
 
 let ffmpegLimits: FfmpegLimits = { ...DEFAULT_FFMPEG_LIMITS };
 const TRANSPARENT_PNG_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO2JxXQAAAAASUVORK5CYII=';
+const FILE_DRAG_ICON_SIZE_PX = 64;
+
+function createSizedDragIcon(payload: StartAssetFileDragPayload, filePath: string) {
+  let icon = nativeImage.createFromDataURL(TRANSPARENT_PNG_DATA_URL);
+
+  if (payload.iconDataUrl) {
+    try {
+      const fromDataUrl = nativeImage.createFromDataURL(payload.iconDataUrl);
+      if (!fromDataUrl.isEmpty()) {
+        icon = fromDataUrl.resize({ width: FILE_DRAG_ICON_SIZE_PX, height: FILE_DRAG_ICON_SIZE_PX });
+      }
+    } catch {
+      // Ignore iconDataUrl parsing failure and fallback to file icon.
+    }
+  }
+
+  if (icon.isEmpty() || icon.getSize().width <= 1) {
+    try {
+      const fromFile = nativeImage.createFromPath(filePath);
+      if (!fromFile.isEmpty()) {
+        icon = fromFile.resize({ width: FILE_DRAG_ICON_SIZE_PX, height: FILE_DRAG_ICON_SIZE_PX });
+      }
+    } catch {
+      // Ignore file icon failure and fallback to transparent icon.
+    }
+  }
+
+  if (icon.isEmpty()) {
+    icon = nativeImage.createFromDataURL(TRANSPARENT_PNG_DATA_URL);
+  }
+
+  return icon;
+}
 
 interface StderrRing {
   buffer: Buffer;
@@ -736,24 +769,7 @@ ipcMain.on('start-asset-file-drag', (event, payload: StartAssetFileDragPayload) 
     if (!validated.ok || !validated.filePath) {
       return;
     }
-
-    let icon = nativeImage.createFromDataURL(TRANSPARENT_PNG_DATA_URL);
-    if (payload.iconDataUrl) {
-      const fromDataUrl = nativeImage.createFromDataURL(payload.iconDataUrl);
-      if (!fromDataUrl.isEmpty()) {
-        icon = fromDataUrl;
-      }
-    }
-    if (icon.isEmpty()) {
-      const fromFile = nativeImage.createFromPath(validated.filePath);
-      if (!fromFile.isEmpty()) {
-        icon = fromFile;
-      }
-    }
-    if (icon.isEmpty()) {
-      // Windows can fail drag start when icon is empty; keep a guaranteed 1x1 fallback.
-      icon = nativeImage.createFromDataURL(TRANSPARENT_PNG_DATA_URL);
-    }
+    const icon = createSizedDragIcon(payload, validated.filePath);
 
     event.sender.startDrag({
       file: validated.filePath,
@@ -771,23 +787,7 @@ ipcMain.on('start-asset-file-drag-sync', (event, payload: StartAssetFileDragPayl
       event.returnValue = false;
       return;
     }
-
-    let icon = nativeImage.createFromDataURL(TRANSPARENT_PNG_DATA_URL);
-    if (payload.iconDataUrl) {
-      const fromDataUrl = nativeImage.createFromDataURL(payload.iconDataUrl);
-      if (!fromDataUrl.isEmpty()) {
-        icon = fromDataUrl;
-      }
-    }
-    if (icon.isEmpty()) {
-      const fromFile = nativeImage.createFromPath(validated.filePath);
-      if (!fromFile.isEmpty()) {
-        icon = fromFile;
-      }
-    }
-    if (icon.isEmpty()) {
-      icon = nativeImage.createFromDataURL(TRANSPARENT_PNG_DATA_URL);
-    }
+    const icon = createSizedDragIcon(payload, validated.filePath);
 
     event.sender.startDrag({
       file: validated.filePath,
