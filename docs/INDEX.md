@@ -36,6 +36,7 @@
 - `docs/guides/implementation/scene-duration-bar-ui.md`
 - `docs/guides/implementation/header-ui.md`
 - `docs/guides/implementation/autoclip-simple.md`
+- `docs/guides/implementation/dnd-import.md`
 
 ここには思想ではなく、実装上の判断基準・制約を記載する。
 

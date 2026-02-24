@@ -11,7 +11,7 @@
 
 **目的**: Storyline の編集責務、Command/Event 境界、禁止事項を固定する。  
 **適用範囲**: `src/components/Storyline.tsx`, `src/hooks/useStorylineDragController.ts`, `src/components/SceneDurationBar.tsx`。  
-**関連ファイル**: `docs/guides/preview.md`, `docs/guides/export.md`, `docs/guides/autoclip.md`, `docs/guides/implementation/scene-duration-bar-ui.md`, `docs/references/DOMAIN.md`, `docs/references/MAPPING.md`。  
+**関連ファイル**: `docs/guides/preview.md`, `docs/guides/export.md`, `docs/guides/autoclip.md`, `docs/guides/implementation/scene-duration-bar-ui.md`, `docs/guides/implementation/dnd-import.md`, `docs/references/DOMAIN.md`, `docs/references/MAPPING.md`。  
 **更新頻度**: 中。
 
 ## Must / Must Not
@@ -66,3 +66,4 @@
 - Export scope: `docs/guides/export.md`
 - AutoClip entry: `docs/guides/autoclip.md`
 - SceneDurationBar UI仕様: `docs/guides/implementation/scene-duration-bar-ui.md`
+- DnD/Import 実装ルール: `docs/guides/implementation/dnd-import.md`
