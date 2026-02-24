@@ -67,15 +67,32 @@ function hasUiOnlyFooter(body) {
   return /^UI-Only:\s*true\s*$/im.test(body);
 }
 
+function isGitGeneratedMergeHeader(header) {
+  return (
+    /^Merge branch '.+'(?: into .+)?$/i.test(header) ||
+    /^Merge remote-tracking branch '.+'(?: into .+)?$/i.test(header) ||
+    /^Merge pull request #\d+ from .+$/i.test(header) ||
+    /^Merge tag '.+'(?: into .+)?$/i.test(header)
+  );
+}
+
 function parseCommitHeader(header) {
   const conventional = header.match(
-    /^(feat|fix|refactor|docs|test|chore|build|ci|merge)\(([^)]+)\):\s+(.+)$/i,
+    /^(feat|fix|refactor|docs|test|chore|build|ci)\(([^)]+)\):\s+(.+)$/i,
   );
   if (conventional) {
     return {
       kind: "conventional",
       type: conventional[1].toLowerCase(),
       scope: conventional[2],
+    };
+  }
+
+  if (isGitGeneratedMergeHeader(header)) {
+    return {
+      kind: "merge-generated",
+      type: "merge",
+      scope: "",
     };
   }
 
@@ -93,12 +110,10 @@ for (const sha of shas) {
   const parsedHeader = parseCommitHeader(header);
   if (!parsedHeader) {
     warnings.push(
-      `[${sha.slice(0, 7)}] コミット件名が規約外です。許可形式: type(scope): subject または merge(scope)`,
+      `[${sha.slice(0, 7)}] コミット件名が規約外です。許可形式: type(scope): subject または Git生成のマージ定型文`,
     );
     continue;
   }
-
-  const { scope } = parsedHeader;
 
   if (hasUiOnlyFooter(body)) {
     const files = splitLines(

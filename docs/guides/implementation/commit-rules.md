@@ -25,7 +25,7 @@
 
 ## Must
 - コミット件名は `type(scope): subject` を使用する。
-- `type` は `feat` `fix` `refactor` `docs` `test` `chore` `build` `ci` `merge` のみを使用する。
+- `type` は `feat` `fix` `refactor` `docs` `test` `chore` `build` `ci` のみを使用する。
 - `scope` は必須とし、主影響範囲を 1 つ選ぶ。
 - Gate に触れる `feat`/`fix`/`refactor` は `scope=gateN` を使う。
 - 見た目のみの変更はコミット本文フッターに `UI-Only: true` を付与する。
@@ -44,6 +44,7 @@
 
 ## コミット件名ルール
 - 形式: `type(scope): subject`
+- 例外: マージコミットは Git が生成する定型文を許可する。
 - 例:
   - `feat(gate1): sceneOrder を唯一正本として enforce`
   - `fix(gate5): export の missing asset を skip + warn に統一`
@@ -52,7 +53,8 @@
   - `chore(deps): bump zustand to vX`
   - `chore(electron): bump electron to vXX`
   - `build(electron): switch packaging flow to forge`
-  - `merge(previewmodal): Merge branch 'chore/previewmodal-phase2'`
+  - `Merge branch 'feature/foo' into main`
+  - `Merge pull request #123 from org/feature/foo`
 
 ## Gate 変更時ルール
 - 対象: Gate 不変条件、`check:gate`、strict 運用、baseline、監査ロジックへの変更。
