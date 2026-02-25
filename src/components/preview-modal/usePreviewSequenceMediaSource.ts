@@ -23,7 +23,7 @@ interface UsePreviewSequenceMediaSourceInput {
   videoObjectUrl: { assetId: string; url: string } | null;
   setSequenceSource: (source: MediaSource | null) => void;
   sequenceTick: (localTime: number) => void;
-  sequenceGoToNext: () => void;
+  sequenceGoToNext: (fromIndex?: number) => void;
   previewSequenceItemByCutId: Map<string, ExportSequenceItem>;
   getSequenceLiveAbsoluteTime: () => number;
   showMiniToast: (message: string, variant?: 'success' | 'info' | 'warning' | 'error') => void;
@@ -95,7 +95,7 @@ export function usePreviewSequenceMediaSource({
             className: 'preview-media',
             duration: currentSpec.duration,
             onTimeUpdate: sequenceTick,
-            onEnded: sequenceGoToNext,
+            onEnded: () => sequenceGoToNext(currentIndex),
           });
           if (!isActive) return;
           setSequenceSource(fallbackSource);
@@ -114,7 +114,7 @@ export function usePreviewSequenceMediaSource({
           getAbsoluteTime: getSequenceLiveAbsoluteTime,
           audioOffsetSec: currentSpec.lipSync!.audioOffsetSec,
           onTimeUpdate: sequenceTick,
-          onEnded: sequenceGoToNext,
+          onEnded: () => sequenceGoToNext(currentIndex),
         });
 
         if (!isActive) return;
@@ -151,7 +151,7 @@ export function usePreviewSequenceMediaSource({
         inPoint: clipInPoint,
         outPoint: clipOutPoint,
         onTimeUpdate: sequenceTick,
-        onEnded: sequenceGoToNext,
+        onEnded: () => sequenceGoToNext(currentIndex),
       });
       setSequenceSource(source);
       setSequenceMediaElement(source.element);
@@ -165,7 +165,7 @@ export function usePreviewSequenceMediaSource({
         className: 'preview-media',
         duration: currentItem.normalizedDisplayTime,
         onTimeUpdate: sequenceTick,
-        onEnded: sequenceGoToNext,
+        onEnded: () => sequenceGoToNext(currentIndex),
       });
       setSequenceSource(source);
       setSequenceMediaElement(source.element);

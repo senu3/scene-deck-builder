@@ -229,9 +229,12 @@ export function useSequencePlaybackController(itemDurations: number[]) {
     seekAbsolute(absTime + seconds);
   }, [seekAbsolute]);
 
-  const goToNext = useCallback(() => {
+  const goToNext = useCallback((fromIndex?: number) => {
     const current = committedStateRef.current;
     if (current.itemDurations.length === 0) return;
+    if (typeof fromIndex === 'number' && fromIndex !== current.currentIndex) {
+      return;
+    }
     const { inPoint, outPoint } = getEffectiveRange();
 
     const nextIndex = current.currentIndex + 1;

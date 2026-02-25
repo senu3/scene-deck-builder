@@ -26,7 +26,7 @@ interface UsePreviewSequenceSessionInput {
   revokeIfBlob: (url: string) => void;
   setSequenceSource: (source: MediaSource | null) => void;
   sequenceTick: (localTime: number) => void;
-  sequenceGoToNext: () => void;
+  sequenceGoToNext: (fromIndex?: number) => void;
   previewSequenceItemByCutId: Map<string, ExportSequenceItem>;
   getSequenceLiveAbsoluteTime: () => number;
   showMiniToast: (message: string, variant?: 'success' | 'info' | 'warning' | 'error') => void;
