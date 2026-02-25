@@ -1182,7 +1182,6 @@ export class MergeGroupsCommand implements Command {
 /**
  * シーン単位のアタッチ音声設定コマンド
  * - scene metadata に音声を設定
- * - 同一シーン内の動画cutの attachAudio/useEmbeddedAudio を一括更新
  */
 export class SetSceneAttachAudioCommand implements Command {
   type = 'SET_SCENE_ATTACH_AUDIO';
@@ -1191,7 +1190,6 @@ export class SetSceneAttachAudioCommand implements Command {
   private sceneId: string;
   private audioAsset: Asset | null;
   private previousSceneBinding?: SceneAudioBinding;
-  private previousCuts: Array<{ cutId: string; audioBindings: Cut['audioBindings']; useEmbeddedAudio: boolean }> = [];
 
   constructor(sceneId: string, audioAsset: Asset | null) {
     this.sceneId = sceneId;
@@ -1207,16 +1205,6 @@ export class SetSceneAttachAudioCommand implements Command {
     if (!scene) return;
 
     this.previousSceneBinding = store.getSceneAudioBinding(this.sceneId);
-    this.previousCuts = scene.cuts
-      .filter((cut) => {
-        const cutAsset = resolveCutAsset(store, cut);
-        return cutAsset?.type === 'video';
-      })
-      .map((cut) => ({
-        cutId: cut.id,
-        audioBindings: cut.audioBindings?.map((binding) => ({ ...binding })) || [],
-        useEmbeddedAudio: cut.useEmbeddedAudio ?? true,
-      }));
 
     if (this.audioAsset) {
       store.cacheAsset(this.audioAsset);
@@ -1231,21 +1219,11 @@ export class SetSceneAttachAudioCommand implements Command {
     } else {
       store.setSceneAudioBinding(this.sceneId, null);
     }
-
-    for (const previousCut of this.previousCuts) {
-      store.setCutAudioBindings(this.sceneId, previousCut.cutId, []);
-      store.setCutUseEmbeddedAudio(this.sceneId, previousCut.cutId, false);
-    }
   }
 
   async undo(): Promise<void> {
     const store = useStore.getState();
     store.setSceneAudioBinding(this.sceneId, this.previousSceneBinding || null);
-
-    for (const previousCut of this.previousCuts) {
-      store.setCutAudioBindings(this.sceneId, previousCut.cutId, previousCut.audioBindings || []);
-      store.setCutUseEmbeddedAudio(this.sceneId, previousCut.cutId, previousCut.useEmbeddedAudio);
-    }
   }
 }
 

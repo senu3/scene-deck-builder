@@ -492,17 +492,11 @@ export default function DetailsPanel() {
 
   const handleSceneAttachAudio = async () => {
     if (!selectedScene) return;
-    const affectedVideoCuts = selectedScene.cuts.filter((sceneCut) => {
-      const sceneCutAsset = sceneCut.asset || (sceneCut.assetId ? getAsset(sceneCut.assetId) : undefined);
-      return sceneCutAsset?.type === "video";
-    }).length;
     const confirmed = await confirm({
       title: "Apply Scene Audio?",
       message:
         `This applies scene audio to "${selectedScene.name}".\n\n` +
-        `Affected video cuts: ${affectedVideoCuts}\n` +
-        `- Clear cut attached audio\n` +
-        `- Turn off "Audio from the video"\n\n` +
+        `Existing cut attached audio and "Audio from the video" settings are preserved.\n\n` +
         `You can undo this in one step.`,
       variant: "info",
       confirmLabel: "Continue",

@@ -329,8 +329,8 @@ describe('timeline integrity commands', () => {
 
     const videoCut = state.scenes[0]?.cuts.find((cut) => cut.id === 'cut-video');
     const imageCut = state.scenes[0]?.cuts.find((cut) => cut.id === 'cut-image');
-    expect(videoCut?.audioBindings).toEqual([]);
-    expect(videoCut?.useEmbeddedAudio).toBe(false);
+    expect(videoCut?.audioBindings).toEqual([{ id: 'b1', audioAssetId: 'audio-x', offsetSec: 0, enabled: true, kind: 'se' }]);
+    expect(videoCut?.useEmbeddedAudio).toBe(true);
     expect(imageCut?.audioBindings?.length).toBe(1);
     expect(imageCut?.useEmbeddedAudio).toBe(true);
 
