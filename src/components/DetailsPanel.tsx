@@ -490,19 +490,8 @@ export default function DetailsPanel() {
     setPendingLipSyncOpen(false);
   };
 
-  const handleSceneAttachAudio = async () => {
+  const handleSceneAttachAudio = () => {
     if (!selectedScene) return;
-    const confirmed = await confirm({
-      title: "Apply Scene Audio?",
-      message:
-        `This applies scene audio to "${selectedScene.name}".\n\n` +
-        `Existing cut attached audio and "Audio from the video" settings are preserved.\n\n` +
-        `You can undo this in one step.`,
-      variant: "info",
-      confirmLabel: "Continue",
-      cancelLabel: "Cancel",
-    });
-    if (!confirmed) return;
     setShowSceneAudioModal(true);
   };
 
