@@ -25,6 +25,7 @@
 - `docs/notes/archive/wave5-media-storyline-compression-notes-implemented-2026-02-21.md`
 - `docs/notes/archive/test-integration-startpoint-implemented-2026-02-21.md`
 - `docs/notes/archive/previewmodal-split-plan-implemented-2026-02-23.md`
+- `docs/notes/archive/group-audio-core-adapter-phase-plan-implemented-2026-02-26.md`
 
 ## ルール
 - 現在進行中の意思決定は `docs/notes/` 直下に置く。
