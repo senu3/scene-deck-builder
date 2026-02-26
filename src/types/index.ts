@@ -128,6 +128,13 @@ export type AudioTrackKind =
   | 'se'
   | 'embedded';
 
+export interface AudioBindingCore {
+  assetId: string;
+  enabled: boolean;
+  gain?: number;
+  offsetSec?: number;
+}
+
 export interface CutAudioBinding {
   id: string;
   audioAssetId: string;

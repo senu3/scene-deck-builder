@@ -1,5 +1,6 @@
 import type { Asset, Cut, MetadataStore } from '../types';
 import { resolveCutAsset } from './assetResolve';
+import { toCoreAudioBindingFromCut, toCoreAudioBindingFromScene } from './audioBindingAdapter';
 import {
   asCanonicalDurationSec,
   computeStoryTimingsForCuts,
@@ -130,16 +131,17 @@ export function buildExportAudioPlan(input: BuildExportAudioPlanInput): ExportAu
 
     const enabledBindings = (cut.audioBindings || []).filter((binding) => binding.enabled !== false);
     for (const binding of enabledBindings) {
-      const audioAsset = input.getAssetById(binding.audioAssetId);
+      const coreBinding = toCoreAudioBindingFromCut(binding);
+      const audioAsset = input.getAssetById(coreBinding.assetId);
       if (!audioAsset?.path || audioAsset.type !== 'audio') continue;
       events.push({
         assetId: audioAsset.id,
         sourcePath: audioAsset.path,
         sourceStartSec: 0,
-        sourceOffsetSec: normalizeSeconds(binding.offsetSec, 0),
+        sourceOffsetSec: normalizeSeconds(coreBinding.offsetSec, 0),
         timelineStartSec: cutTiming.startSec,
         durationSec: cutTiming.durationSec,
-        gain: Number.isFinite(binding.gain) ? binding.gain : 1,
+        gain: Number.isFinite(coreBinding.gain) ? coreBinding.gain : 1,
         sceneId: cutTiming.sceneId,
         cutId: cut.id,
         sourceType: 'cut-attach',
@@ -152,16 +154,17 @@ export function buildExportAudioPlan(input: BuildExportAudioPlanInput): ExportAu
     if (sceneTiming.durationSec <= 0) continue;
     const binding = sceneMetadata[sceneId]?.attachAudio;
     if (!binding?.audioAssetId || binding.enabled === false) continue;
-    const audioAsset = input.getAssetById(binding.audioAssetId);
+    const coreBinding = toCoreAudioBindingFromScene(binding);
+    const audioAsset = input.getAssetById(coreBinding.assetId);
     if (!audioAsset?.path || audioAsset.type !== 'audio') continue;
     events.push({
       assetId: audioAsset.id,
       sourcePath: audioAsset.path,
       sourceStartSec: 0,
-      sourceOffsetSec: 0,
+      sourceOffsetSec: normalizeSeconds(coreBinding.offsetSec, 0),
       timelineStartSec: sceneTiming.startSec,
       durationSec: sceneTiming.durationSec,
-      gain: Number.isFinite(binding.gain) ? binding.gain : 1,
+      gain: Number.isFinite(coreBinding.gain) ? coreBinding.gain : 1,
       sceneId,
       sourceType: 'scene-attach',
     });
