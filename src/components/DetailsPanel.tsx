@@ -42,6 +42,7 @@ import {
   selectAttachAudioToCut,
   selectDetachAudioFromCut,
   selectGetAttachedAudioForScene,
+  selectGetAttachedAudioForGroup,
   selectGetAttachedAudioForCut,
   selectUpdateCutAudioOffset,
   selectSetCutUseEmbeddedAudio,
@@ -58,6 +59,7 @@ import {
   CreateGroupCommand,
   DeleteGroupCommand,
   RenameGroupCommand,
+  SetGroupAttachAudioCommand,
   SetSceneAttachAudioCommand,
 } from "../store/commands";
 import { getAssetThumbnail, getCutClipThumbnail } from "../features/thumbnails/api";
@@ -94,6 +96,7 @@ export default function DetailsPanel() {
   const attachAudioToCut = useStore(selectAttachAudioToCut);
   const detachAudioFromCut = useStore(selectDetachAudioFromCut);
   const getAttachedAudioForScene = useStore(selectGetAttachedAudioForScene);
+  const getAttachedAudioForGroup = useStore(selectGetAttachedAudioForGroup);
   const getAttachedAudioForCut = useStore(selectGetAttachedAudioForCut);
   const updateCutAudioOffset = useStore(selectUpdateCutAudioOffset);
   const setCutUseEmbeddedAudio = useStore(selectSetCutUseEmbeddedAudio);
@@ -111,6 +114,7 @@ export default function DetailsPanel() {
   const [showLipSyncModal, setShowLipSyncModal] = useState(false);
   const [showAssetModal, setShowAssetModal] = useState(false);
   const [showSceneAudioModal, setShowSceneAudioModal] = useState(false);
+  const [showGroupAudioModal, setShowGroupAudioModal] = useState(false);
   const [pendingLipSyncOpen, setPendingLipSyncOpen] = useState(false);
   const [lipSyncFrames, setLipSyncFrames] = useState<string[]>([]);
   const [groupThumbnail, setGroupThumbnail] = useState<string | null>(null);
@@ -506,6 +510,30 @@ export default function DetailsPanel() {
     await executeCommand(new SetSceneAttachAudioCommand(selectedScene.id, null));
   };
 
+  const handleGroupAttachAudio = () => {
+    if (!selectedGroupData) return;
+    setShowGroupAudioModal(true);
+  };
+
+  const handleGroupAudioModalConfirm = async (selectedAsset: Asset) => {
+    if (!selectedGroupData) return;
+    await executeCommand(new SetGroupAttachAudioCommand(
+      selectedGroupData.scene.id,
+      selectedGroupData.group.id,
+      selectedAsset,
+    ));
+    setShowGroupAudioModal(false);
+  };
+
+  const handleGroupDetachAudio = async () => {
+    if (!selectedGroupData) return;
+    await executeCommand(new SetGroupAttachAudioCommand(
+      selectedGroupData.scene.id,
+      selectedGroupData.group.id,
+      null,
+    ));
+  };
+
   // Detach audio handler
   const handleDetachAudio = async () => {
     if (!cutScene || !cut) return;
@@ -757,6 +785,8 @@ export default function DetailsPanel() {
       .filter((c): c is typeof scene.cuts[0] => c !== undefined);
 
     const totalDuration = groupCuts.reduce((acc, c) => acc + c.displayTime, 0);
+    const groupAudioBinding = metadataStore?.sceneMetadata?.[scene.id]?.groupAudioBindings?.[group.id];
+    const attachedGroupAudio = getAttachedAudioForGroup(scene.id, group.id);
 
     const handleRenameGroup = async () => {
       if (!groupNameInput.trim()) return;
@@ -850,6 +880,49 @@ export default function DetailsPanel() {
             ))}
           </div>
 
+          {groupAudioBinding?.audioAssetId ? (
+            <div className="attached-audio-section">
+              <div className="attached-audio-header">
+                <Music size={14} />
+                <span>Group Audio</span>
+              </div>
+              <div className="attached-audio-info">
+                <span className="audio-name">
+                  {groupAudioBinding.sourceName || attachedGroupAudio?.name || "Unknown"}
+                </span>
+              </div>
+              <div className="attached-audio-actions">
+                <button
+                  className="audio-btn edit"
+                  onClick={handleGroupAttachAudio}
+                  title="Replace group audio"
+                >
+                  Replace
+                </button>
+                <button
+                  className="audio-btn remove"
+                  onClick={handleGroupDetachAudio}
+                  title="Clear group audio"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="scene-notes-section">
+              <div className="notes-header">
+                <Music size={16} />
+                <span>Group Audio</span>
+              </div>
+              <div className="details-actions">
+                <button className="action-btn secondary" onClick={handleGroupAttachAudio}>
+                  <Music size={16} />
+                  <span>ATTACH GROUP AUDIO</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="details-actions">
             <button
               className="action-btn secondary"
@@ -866,6 +939,15 @@ export default function DetailsPanel() {
               <span>Dissolve Group</span>
             </button>
           </div>
+
+          <AssetModal
+            open={showGroupAudioModal}
+            onClose={() => setShowGroupAudioModal(false)}
+            onConfirm={handleGroupAudioModalConfirm}
+            title="Select Group Audio"
+            initialFilterType="audio"
+            allowImport={true}
+          />
         </div>
       </aside>
     );
