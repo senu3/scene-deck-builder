@@ -95,4 +95,96 @@ describe('gate5 audio parity', () => {
     expect(sceneAttach?.timelineStartSec).toBe(0);
     expect(sceneAttach?.durationSec).toBe(6);
   });
+
+  it('keeps grouped-cut timing and group-attach events aligned', () => {
+    const rawCuts: Cut[] = [
+      {
+        id: 'cut-g1',
+        assetId: 'img-1',
+        displayTime: 1.5,
+        order: 0,
+        groupId: 'group-1',
+      },
+      {
+        id: 'cut-g2',
+        assetId: 'vid-1',
+        displayTime: 2,
+        order: 1,
+        groupId: 'group-1',
+      },
+      {
+        id: 'cut-n1',
+        assetId: 'img-2',
+        displayTime: 3,
+        order: 2,
+      },
+    ];
+
+    const assets = mapAssetsById([
+      { id: 'img-1', name: 'i1.png', path: '/vault/i1.png', type: 'image' },
+      { id: 'vid-1', name: 'v1.mp4', path: '/vault/v1.mp4', type: 'video' },
+      { id: 'img-2', name: 'i2.png', path: '/vault/i2.png', type: 'image' },
+      { id: 'aud-group', name: 'group.wav', path: '/vault/group.wav', type: 'audio' },
+    ]);
+
+    const cutSceneMap = new Map<string, string>([
+      ['cut-g1', 'scene-1'],
+      ['cut-g2', 'scene-1'],
+      ['cut-n1', 'scene-1'],
+    ]);
+
+    const canonical = computeCanonicalStoryTimingsForCuts(
+      rawCuts.map((cut) => ({ cut, sceneId: cutSceneMap.get(cut.id) || 'unknown' })),
+      (assetId) => assets.get(assetId),
+      { fallbackDurationSec: 1.0, preferAssetDuration: true }
+    );
+
+    const normalizedCuts = rawCuts.map((cut) => ({
+      ...cut,
+      displayTime: canonical.normalizedDurationByCutId.get(cut.id) ?? 1,
+    }));
+
+    const audioPlan = buildExportAudioPlan({
+      cuts: canonicalizeCutsForExportAudioPlan(normalizedCuts, (assetId) => assets.get(assetId)).cuts,
+      metadataStore: {
+        version: 1,
+        metadata: {},
+        sceneMetadata: {
+          'scene-1': {
+            id: 'scene-1',
+            name: 'Scene 1',
+            notes: [],
+            updatedAt: 't',
+            groupAudioBindings: {
+              'group-1': {
+                id: 'ga-1',
+                groupId: 'group-1',
+                audioAssetId: 'aud-group',
+                enabled: true,
+                kind: 'group',
+              },
+            },
+          },
+        },
+      },
+      getAssetById: (assetId) => assets.get(assetId),
+      resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
+    });
+
+    const groupedEvents = audioPlan.events
+      .filter((event) => event.sourceType === 'group-attach')
+      .sort((a, b) => (a.timelineStartSec - b.timelineStartSec) || (a.cutId || '').localeCompare(b.cutId || ''));
+    expect(groupedEvents).toHaveLength(2);
+    expect(groupedEvents.every((event) => event.sceneId === 'scene-1')).toBe(true);
+    expect(groupedEvents.some((event) => event.cutId === 'cut-n1')).toBe(false);
+
+    const cutG1Timing = canonical.cutTimings.get('cut-g1');
+    const cutG2Timing = canonical.cutTimings.get('cut-g2');
+    expect(groupedEvents[0]?.cutId).toBe('cut-g1');
+    expect(groupedEvents[0]?.timelineStartSec).toBe(cutG1Timing?.startSec);
+    expect(groupedEvents[0]?.durationSec).toBe(cutG1Timing?.durationSec);
+    expect(groupedEvents[1]?.cutId).toBe('cut-g2');
+    expect(groupedEvents[1]?.timelineStartSec).toBe(cutG2Timing?.startSec);
+    expect(groupedEvents[1]?.durationSec).toBe(cutG2Timing?.durationSec);
+  });
 });
