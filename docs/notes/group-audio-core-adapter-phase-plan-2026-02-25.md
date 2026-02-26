@@ -119,3 +119,33 @@
 - 回避: 初期フェーズは UI の挙動を変えず、export/preview の計画入口統一を優先する。
 3. リスク: 型追加漏れ（renderer/preload/main 間）。
 - 回避: `ExportAudioEvent` 定義の3箇所を同時更新し、型エラーで検出する。
+
+## 実装結果サマリ（2026-02-26）
+### 完了
+1. Phase 1 完了（SceneAudio Mix 化）
+- `SetSceneAttachAudioCommand` から排他処理を撤廃し、scene binding 更新のみに変更。
+- Details の SceneAudio 設定時確認ダイアログを削除。
+
+2. Phase 2 完了（共通コア + アダプタ）
+- `AudioBindingCore` を追加。
+- Cut/Scene のアダプタを追加し、export 側の変換経路を共通化。
+
+3. Phase 3 完了（GroupAudio 永続化 + Command 境界）
+- `SceneMetadata.groupAudioBindings` を追加。
+- `SetGroupAttachAudioCommand` と store API を追加。
+- group 削除/統合時の dangling binding クリーンアップを追加。
+
+4. Phase 4 完了（Export plan 統合）
+- `ExportAudioEvent.sourceType` に `group-attach` を追加。
+- GroupAudio を group 所属 cut 単位のイベントとして展開。
+
+5. Phase 5 完了（参照グラフ/削除ポリシー/テスト）
+- `AssetRefKind` に `group-audio` を追加し、参照収集と削除保護を対応。
+- metadata/load-save・command undo/redo・export/parity 系テストを追加/更新。
+
+### 追加実装（計画外だが実施済み）
+1. Group 選択時の DetailsPanel に `Group Audio` ボタン/表示を追加（SceneAudio と同デザイン）。
+2. AssetModal（audio）経由で GroupAudio の設定・置換・解除を接続。
+
+### 保留
+1. GroupAudio の `enabled/gain/offset` を操作する UI（AttachAudio 既存UIとの整合検討待ち）。
