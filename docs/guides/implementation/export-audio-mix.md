@@ -16,7 +16,7 @@
 ## 対象
 - MP4 export 実行時の分離音声レンダー
 - scene/cut の timeline 秒計算と配置
-- 映像由来音声 + Cut/Scene attachAudio の同時ミックス
+- 映像由来音声 + Cut/Scene/Group attachAudio の同時ミックス
 
 ## 基本仕様
 - 出力は `<exportBase>.audio.flac`。
@@ -43,6 +43,10 @@
 - Scene attachAudio:
   - `metadataStore.sceneMetadata[sceneId].attachAudio.enabled !== false` のとき生成。
   - `sourceStartSec=0`、`durationSec=sceneDuration`。
+- Group attachAudio:
+  - `metadataStore.sceneMetadata[sceneId].groupAudioBindings[groupId].enabled !== false` のとき生成。
+  - `cut.groupId === groupId` の cut ごとにイベントを生成する（group範囲一括ではなく cut 単位）。
+  - `sourceStartSec=0`、`durationSec=cutDuration`。
 - `useEmbeddedAudio=false` は「映像由来音声のみ無効化」であり、attachAudio には影響しない。
 
 ## main 側レンダー
@@ -56,7 +60,7 @@
 
 ## 変更時チェック
 1. `useEmbeddedAudio=false` の video cut で映像音声が混ざらないこと。
-2. attachAudio（cut/scene）は `useEmbeddedAudio` に関係なく混ざること。
+2. attachAudio（cut/scene/group）は `useEmbeddedAudio` に関係なく混ざること。
 3. 分離音声の総尺が export 対象の totalDuration と一致すること。
 4. 旧 `wav` セグメント連結経路を再導入しないこと。
 

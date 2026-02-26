@@ -24,6 +24,7 @@
 | Asset Index | `AssetIndex` / `AssetIndexEntry`。 | `loadAssetIndex` / `vaultGateway.saveAssetIndex`。 | `AssetDrawer`、`AssetPanel` |
 | Metadata Store | `MetadataStore` / `AssetMetadata` / `SceneMetadata`。 | `loadMetadataStore` / `saveMetadataStore`。 | `DetailsPanel`、`PreviewModal` |
 | Scene Audio | `SceneMetadata.attachAudio`（`SceneAudioBinding`）。 | `setSceneAudioBinding` / `SetSceneAttachAudioCommand`（更新時に `.metadata.json` へ保存）。 | `DetailsPanel`（Scene選択時） |
+| Group Audio | `SceneMetadata.groupAudioBindings[groupId]`（`GroupAudioBinding`）。 | `setGroupAudioBinding` / `SetGroupAttachAudioCommand`（更新時に `.metadata.json` へ保存）。 | `DetailsPanel`（Group選択時） |
 | アセット参照グラフ | `AssetRef` / `AssetRefKind`。 | `collectAssetRefs` / `findDanglingAssetRefs` / `getBlockingRefsForAssetIds`。 | `AssetPanel`、`Header`(save validation) |
 | アセット削除ポリシー | （store action） | `assetActions.runAssetDelete` -> `deleteAssetWithPolicy`（参照チェック + trash + index/metadata整合）。 | `AssetPanel` |
 | LipSync バンドル所有 | `LipSyncSettings.ownerAssetId` / `ownedGeneratedAssetIds` / `orphanedGeneratedAssetIds`。 | `setLipSyncForAsset`（再登録時の orphan 移行）/ `cleanupLipSyncAssetsForDeletedCut`（Relink/明示cleanup）。 | `LipSyncModal`、`PreviewModal`、`DetailsPanel` |
@@ -35,7 +36,7 @@
 | プレビューメディアソース | `MediaSource`（Preview専用 abstraction）。 | `createVideoMediaSource` / `createImageMediaSource`。 | `PreviewModal` |
 | エクスポート実行計画 | `ExportPlan` / `Mp4ExportPlan`。 | `resolveExportPlan`。 | `ExportModal`、`App` |
 | エクスポート出力シーケンス | `ExportSequenceItem`。 | `buildSequenceItemsForCuts` / `buildSequenceItemsForExport`。 | `PreviewModal`、`App` |
-| エクスポート音声計画 | `ExportAudioPlan` / `ExportAudioEvent`。 | `buildExportAudioPlan`（`useEmbeddedAudio` を含む）。 | `App`、`PreviewModal` |
+| エクスポート音声計画 | `ExportAudioPlan` / `ExportAudioEvent`。 | `buildExportAudioPlan`（`useEmbeddedAudio` と `group-attach` を含む）。 | `App`、`PreviewModal` |
 | エクスポート実行境界 | `ExportSequenceOptions` / `ExportSequenceResult`（IPC payload, `audioPlan` 含む）。 | `window.electronAPI.exportSequence`。 | `App`、`PreviewModal` |
 | カット可能メディア判定 | `CuttableMediaType`（`image`/`video`）。 | `getCuttableMediaType`（新規） / `getTimelineMediaType`（互換エイリアス・移行中）。 | `Sidebar`、`StartupModal`、`dragDrop` |
 | ソースパネル状態 | `SourcePanelState` / `SourceViewMode`。 | `initializeSourcePanel` / `getSourcePanelState`（`Project.sourcePanel` に保存）。 | `Sidebar` |
