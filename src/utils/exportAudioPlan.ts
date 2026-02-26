@@ -1,4 +1,4 @@
-import type { Asset, Cut, MetadataStore } from '../types';
+import type { Asset, AudioBindingCore, Cut, MetadataStore } from '../types';
 import { resolveCutAsset } from './assetResolve';
 import { toCoreAudioBindingFromCut, toCoreAudioBindingFromScene } from './audioBindingAdapter';
 import {
@@ -18,7 +18,7 @@ export interface ExportAudioEvent {
   gain?: number;
   sceneId?: string;
   cutId?: string;
-  sourceType: 'video' | 'cut-attach' | 'scene-attach';
+  sourceType: 'video' | 'cut-attach' | 'scene-attach' | 'group-attach';
 }
 
 export interface ExportAudioPlan {
@@ -147,6 +147,32 @@ export function buildExportAudioPlan(input: BuildExportAudioPlanInput): ExportAu
         sourceType: 'cut-attach',
       });
     }
+
+    const sceneId = cutTiming.sceneId;
+    const groupId = cut.groupId;
+    if (!sceneId || !groupId) continue;
+    const groupBinding = input.metadataStore?.sceneMetadata?.[sceneId]?.groupAudioBindings?.[groupId];
+    if (!groupBinding?.audioAssetId || groupBinding.enabled === false) continue;
+    const coreGroupBinding: AudioBindingCore = {
+      assetId: groupBinding.audioAssetId,
+      enabled: groupBinding.enabled,
+      gain: groupBinding.gain,
+      offsetSec: 0,
+    };
+    const groupAudioAsset = input.getAssetById(coreGroupBinding.assetId);
+    if (!groupAudioAsset?.path || groupAudioAsset.type !== 'audio') continue;
+    events.push({
+      assetId: groupAudioAsset.id,
+      sourcePath: groupAudioAsset.path,
+      sourceStartSec: 0,
+      sourceOffsetSec: normalizeSeconds(coreGroupBinding.offsetSec, 0),
+      timelineStartSec: cutTiming.startSec,
+      durationSec: cutTiming.durationSec,
+      gain: Number.isFinite(coreGroupBinding.gain) ? coreGroupBinding.gain : 1,
+      sceneId,
+      cutId: cut.id,
+      sourceType: 'group-attach',
+    });
   }
 
   const sceneMetadata = input.metadataStore?.sceneMetadata || {};

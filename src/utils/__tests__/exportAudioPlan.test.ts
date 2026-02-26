@@ -140,6 +140,105 @@ describe('buildExportAudioPlan', () => {
     expect(plan.events.some((event) => event.sourceType === 'scene-attach')).toBe(false);
   });
 
+  it('adds group audio events only for grouped cuts', () => {
+    const cuts: Cut[] = [
+      {
+        id: 'cut-1',
+        assetId: 'img-1',
+        displayTime: 2,
+        order: 0,
+        groupId: 'group-1',
+      },
+      {
+        id: 'cut-2',
+        assetId: 'img-1',
+        displayTime: 3,
+        order: 1,
+      },
+    ];
+    const assets = mapAssetsById([
+      { id: 'img-1', name: 'i.png', path: '/vault/i.png', type: 'image' },
+      { id: 'aud-group', name: 'group.wav', path: '/vault/group.wav', type: 'audio' },
+    ]);
+
+    const plan = buildExportAudioPlan({
+      cuts: canonicalizeCutsForExportAudioPlan(cuts, (assetId) => assets.get(assetId)).cuts,
+      metadataStore: {
+        version: 1,
+        metadata: {},
+        sceneMetadata: {
+          'scene-1': {
+            id: 'scene-1',
+            name: 'Scene 1',
+            notes: [],
+            updatedAt: 't',
+            groupAudioBindings: {
+              'group-1': {
+                id: 'ga-1',
+                groupId: 'group-1',
+                audioAssetId: 'aud-group',
+                enabled: true,
+                kind: 'group',
+              },
+            },
+          },
+        },
+      },
+      getAssetById: (assetId) => assets.get(assetId),
+      resolveSceneIdByCutId: () => 'scene-1',
+    });
+
+    const groupEvents = plan.events.filter((event) => event.sourceType === 'group-attach');
+    expect(groupEvents).toHaveLength(1);
+    expect(groupEvents[0]?.cutId).toBe('cut-1');
+    expect(groupEvents[0]?.durationSec).toBe(2);
+  });
+
+  it('excludes disabled group attachments', () => {
+    const cuts: Cut[] = [
+      {
+        id: 'cut-1',
+        assetId: 'img-1',
+        displayTime: 2,
+        order: 0,
+        groupId: 'group-1',
+      },
+    ];
+    const assets = mapAssetsById([
+      { id: 'img-1', name: 'i.png', path: '/vault/i.png', type: 'image' },
+      { id: 'aud-group', name: 'group.wav', path: '/vault/group.wav', type: 'audio' },
+    ]);
+
+    const plan = buildExportAudioPlan({
+      cuts: canonicalizeCutsForExportAudioPlan(cuts, (assetId) => assets.get(assetId)).cuts,
+      metadataStore: {
+        version: 1,
+        metadata: {},
+        sceneMetadata: {
+          'scene-1': {
+            id: 'scene-1',
+            name: 'Scene 1',
+            notes: [],
+            updatedAt: 't',
+            groupAudioBindings: {
+              'group-1': {
+                id: 'ga-1',
+                groupId: 'group-1',
+                audioAssetId: 'aud-group',
+                enabled: false,
+                kind: 'group',
+              },
+            },
+          },
+        },
+      },
+      getAssetById: (assetId) => assets.get(assetId),
+      resolveSceneIdByCutId: () => 'scene-1',
+    });
+
+    expect(plan.events.some((event) => event.sourceType === 'group-attach')).toBe(false);
+  });
+
   it('warns when non-canonical cuts are passed directly', () => {
     const cuts: Cut[] = [
       {

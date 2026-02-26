@@ -225,7 +225,7 @@ interface ExportAudioEvent {
   gain?: number;
   sceneId?: string;
   cutId?: string;
-  sourceType: 'video' | 'cut-attach' | 'scene-attach';
+  sourceType: 'video' | 'cut-attach' | 'scene-attach' | 'group-attach';
 }
 
 interface ExportAudioPlan {
