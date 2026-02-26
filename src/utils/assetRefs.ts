@@ -5,6 +5,7 @@ export type AssetRefKind =
   | 'cut'
   | 'cut-audio-binding'
   | 'scene-audio'
+  | 'group-audio'
   | 'lipsync-base'
   | 'lipsync-variant'
   | 'lipsync-mask'
@@ -18,6 +19,7 @@ export interface AssetRef {
   ownerAssetId?: string;
   sceneId?: string;
   cutId?: string;
+  groupId?: string;
 }
 
 export type AssetRefMap = Map<string, AssetRef[]>;
@@ -117,12 +119,24 @@ export function collectAudioAssetRefs(refs: AssetRefMap, metadataStore: Metadata
 
   for (const [sceneId, sceneMeta] of Object.entries(metadataStore.sceneMetadata)) {
     const binding = sceneMeta?.attachAudio;
-    if (!binding?.audioAssetId || binding.enabled === false) continue;
-    pushRef(refs, {
-      assetId: binding.audioAssetId,
-      kind: 'scene-audio',
-      sceneId,
-    });
+    if (binding?.audioAssetId && binding.enabled !== false) {
+      pushRef(refs, {
+        assetId: binding.audioAssetId,
+        kind: 'scene-audio',
+        sceneId,
+      });
+    }
+
+    const groupBindings = sceneMeta?.groupAudioBindings || {};
+    for (const [groupId, groupBinding] of Object.entries(groupBindings)) {
+      if (!groupBinding?.audioAssetId || groupBinding.enabled === false) continue;
+      pushRef(refs, {
+        assetId: groupBinding.audioAssetId,
+        kind: 'group-audio',
+        sceneId,
+        groupId,
+      });
+    }
   }
 }
 
