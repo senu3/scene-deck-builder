@@ -55,6 +55,49 @@ describe('metadataStore', () => {
     expect(synced.sceneMetadata?.['scene-1']?.attachAudio?.audioAssetId).toBe('aud-1');
   });
 
+  it('preserves valid group audio bindings and prunes missing groups on sync', () => {
+    const store = {
+      version: 1,
+      metadata: {},
+      sceneMetadata: {
+        'scene-1': {
+          id: 'scene-1',
+          name: 'Old',
+          notes: [],
+          updatedAt: 'old',
+          groupAudioBindings: {
+            'group-1': {
+              id: 'ga-1',
+              groupId: 'group-1',
+              audioAssetId: 'aud-g1',
+              enabled: true,
+              kind: 'group',
+            },
+            'group-missing': {
+              id: 'ga-2',
+              groupId: 'group-missing',
+              audioAssetId: 'aud-g2',
+              enabled: true,
+              kind: 'group',
+            },
+          },
+        },
+      },
+    };
+    const scenes = [
+      {
+        id: 'scene-1',
+        name: 'Scene 1',
+        notes: [],
+        groups: [{ id: 'group-1', cutIds: ['cut-1'], isCollapsed: true }],
+      },
+    ];
+
+    const synced = syncSceneMetadata(store as any, scenes as any);
+    expect(synced.sceneMetadata?.['scene-1']?.groupAudioBindings?.['group-1']?.audioAssetId).toBe('aud-g1');
+    expect(synced.sceneMetadata?.['scene-1']?.groupAudioBindings?.['group-missing']).toBeUndefined();
+  });
+
   it('sets and removes lip sync settings', () => {
     const settings = {
       baseImageAssetId: 'img-closed',
@@ -131,6 +174,33 @@ describe('metadataStore', () => {
 
     const cleaned = removeAssetReferences(store as any, ['audio-1']);
     expect(cleaned.sceneMetadata?.['scene-1']?.attachAudio).toBeUndefined();
+  });
+
+  it('clears group audio binding when referenced asset is removed', () => {
+    const store = {
+      version: 1,
+      metadata: {},
+      sceneMetadata: {
+        'scene-1': {
+          id: 'scene-1',
+          name: 'Scene 1',
+          notes: [],
+          updatedAt: 't',
+          groupAudioBindings: {
+            'group-1': {
+              id: 'group-audio-1',
+              groupId: 'group-1',
+              audioAssetId: 'audio-1',
+              enabled: true,
+              kind: 'group',
+            },
+          },
+        },
+      },
+    };
+
+    const cleaned = removeAssetReferences(store as any, ['audio-1']);
+    expect(cleaned.sceneMetadata?.['scene-1']?.groupAudioBindings?.['group-1']).toBeUndefined();
   });
 
   it('normalizes legacy lipSync settings to composited-frame schema on load', async () => {

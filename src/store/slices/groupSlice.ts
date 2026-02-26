@@ -118,6 +118,10 @@ export function createGroupSlice(set: SliceSet, get: SliceGet): GroupSliceContra
         selectedGroupId: currentState.selectedGroupId === groupId ? null : currentState.selectedGroupId,
       }));
 
+      if (groupToDelete) {
+        get().setGroupAudioBinding(sceneId, groupId, null);
+      }
+
       return groupToDelete;
     },
 
@@ -216,6 +220,12 @@ export function createGroupSlice(set: SliceSet, get: SliceGet): GroupSliceContra
           sceneId
         ),
       }));
+
+      const sceneAfter = get().scenes.find((s) => s.id === sceneId);
+      const stillExists = (sceneAfter?.groups || []).some((group) => group.id === groupId);
+      if (!stillExists) {
+        get().setGroupAudioBinding(sceneId, groupId, null);
+      }
     },
 
     removeCutFromGroup: (sceneId, groupId, cutId) => {
@@ -223,6 +233,7 @@ export function createGroupSlice(set: SliceSet, get: SliceGet): GroupSliceContra
     },
 
     updateGroupCutOrder: (sceneId, groupId, cutIds) => {
+      let removedGroup = false;
       set((state) => {
         const normalizedScenes = normalizeSceneById(state.scenes, sceneId);
         const scene = findSceneById(normalizedScenes, sceneId);
@@ -237,6 +248,7 @@ export function createGroupSlice(set: SliceSet, get: SliceGet): GroupSliceContra
           dedupeCutIds(cutIds).filter((id) => cutIdSet.has(id))
         );
         if (nextCutIds.length === 0) {
+          removedGroup = true;
           return {
             scenes: normalizeSceneById(
               normalizedScenes.map((s) =>
@@ -259,6 +271,9 @@ export function createGroupSlice(set: SliceSet, get: SliceGet): GroupSliceContra
         );
         return { scenes: normalizeSceneById(nextScenes, sceneId) };
       });
+      if (removedGroup) {
+        get().setGroupAudioBinding(sceneId, groupId, null);
+      }
     },
 
     splitGroup: (sceneId, groupId, pivotCutId) => {
@@ -335,6 +350,9 @@ export function createGroupSlice(set: SliceSet, get: SliceGet): GroupSliceContra
         merged = true;
         return { scenes: normalizeSceneById(nextScenes, sceneId) };
       });
+      if (merged) {
+        get().setGroupAudioBinding(sceneId, mergedGroupId, null);
+      }
       return merged;
     },
 

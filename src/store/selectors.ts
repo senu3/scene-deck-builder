@@ -59,6 +59,10 @@ export const selectAttachAudioToScene = (s: AppState) => s.attachAudioToScene;
 export const selectDetachAudioFromScene = (s: AppState) => s.detachAudioFromScene;
 export const selectGetSceneAudioBinding = (s: AppState) => s.getSceneAudioBinding;
 export const selectGetAttachedAudioForScene = (s: AppState) => s.getAttachedAudioForScene;
+export const selectAttachAudioToGroup = (s: AppState) => s.attachAudioToGroup;
+export const selectDetachAudioFromGroup = (s: AppState) => s.detachAudioFromGroup;
+export const selectGetGroupAudioBinding = (s: AppState) => s.getGroupAudioBinding;
+export const selectGetAttachedAudioForGroup = (s: AppState) => s.getAttachedAudioForGroup;
 export const selectSetCutUseEmbeddedAudio = (s: AppState) => s.setCutUseEmbeddedAudio;
 export const selectRelinkCutAsset = (s: AppState) => s.relinkCutAsset;
 

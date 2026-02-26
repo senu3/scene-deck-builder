@@ -1,6 +1,6 @@
 import { Command } from './historyStore';
 import { useStore } from './useStore';
-import type { Asset, Cut, Scene, CutGroup, SceneAudioBinding, AudioAnalysis } from '../types';
+import type { Asset, Cut, Scene, CutGroup, SceneAudioBinding, GroupAudioBinding, AudioAnalysis } from '../types';
 import { syncSceneMetadata } from '../utils/metadataStore';
 import { v4 as uuidv4 } from 'uuid';
 import { analyzeAudioRms } from '../utils/audioUtils';
@@ -1224,6 +1224,58 @@ export class SetSceneAttachAudioCommand implements Command {
   async undo(): Promise<void> {
     const store = useStore.getState();
     store.setSceneAudioBinding(this.sceneId, this.previousSceneBinding || null);
+  }
+}
+
+/**
+ * グループ単位のアタッチ音声設定コマンド
+ * - scene metadata の groupAudioBindings に音声を設定
+ */
+export class SetGroupAttachAudioCommand implements Command {
+  type = 'SET_GROUP_ATTACH_AUDIO';
+  description: string;
+
+  private sceneId: string;
+  private groupId: string;
+  private audioAsset: Asset | null;
+  private previousGroupBinding?: GroupAudioBinding;
+
+  constructor(sceneId: string, groupId: string, audioAsset: Asset | null) {
+    this.sceneId = sceneId;
+    this.groupId = groupId;
+    this.audioAsset = audioAsset;
+    this.description = audioAsset
+      ? `Set group audio: ${audioAsset.name}`
+      : 'Clear group audio';
+  }
+
+  async execute(): Promise<void> {
+    const store = useStore.getState();
+    const scene = store.scenes.find((s) => s.id === this.sceneId);
+    const group = scene?.groups?.find((g) => g.id === this.groupId);
+    if (!scene || !group) return;
+
+    this.previousGroupBinding = store.getGroupAudioBinding(this.sceneId, this.groupId);
+
+    if (this.audioAsset) {
+      store.cacheAsset(this.audioAsset);
+      store.setGroupAudioBinding(this.sceneId, this.groupId, {
+        id: this.previousGroupBinding?.id || crypto.randomUUID(),
+        groupId: this.groupId,
+        audioAssetId: this.audioAsset.id,
+        sourceName: getAssetDisplayName(this.audioAsset),
+        gain: this.previousGroupBinding?.gain ?? 1,
+        enabled: true,
+        kind: 'group',
+      });
+    } else {
+      store.setGroupAudioBinding(this.sceneId, this.groupId, null);
+    }
+  }
+
+  async undo(): Promise<void> {
+    const store = useStore.getState();
+    store.setGroupAudioBinding(this.sceneId, this.groupId, this.previousGroupBinding || null);
   }
 }
 

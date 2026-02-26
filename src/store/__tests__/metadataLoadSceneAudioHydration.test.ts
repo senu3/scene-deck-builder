@@ -68,4 +68,61 @@ describe('metadata load scene-audio hydration', () => {
     expect(attached?.type).toBe('audio');
     expect(attached?.path).toBe('C:/vault/assets/aud_1.wav');
   });
+
+  it('hydrates group audio assets into assetCache from index on load', async () => {
+    (window.electronAPI!.pathExists as any).mockResolvedValue(true);
+    (window.electronAPI!.loadProjectFromPath as any).mockResolvedValue({
+      data: {
+        version: 1,
+        metadata: {},
+        sceneMetadata: {
+          'scene-1': {
+            id: 'scene-1',
+            name: 'Scene 1',
+            notes: [],
+            updatedAt: 't',
+            groupAudioBindings: {
+              'group-1': {
+                id: 'ga-1',
+                groupId: 'group-1',
+                audioAssetId: 'aud-group-1',
+                enabled: true,
+                kind: 'group',
+              },
+            },
+          },
+        },
+      },
+      path: 'C:/vault/.metadata.json',
+    });
+    (window.electronAPI!.loadAssetIndex as any).mockResolvedValue({
+      version: 1,
+      assets: [
+        {
+          id: 'aud-group-1',
+          hash: 'hash-aud-group-1',
+          filename: 'aud_group_1.wav',
+          originalName: 'group-bgm.wav',
+          originalPath: 'imports/group-bgm.wav',
+          type: 'audio',
+          fileSize: 2048,
+          importedAt: '2026-02-20T00:00:00.000Z',
+        },
+      ],
+    });
+    (window.electronAPI!.resolveVaultPath as any).mockResolvedValue({
+      absolutePath: 'C:/vault/assets/aud_group_1.wav',
+      exists: true,
+    });
+
+    await useStore.getState().loadMetadata('C:/vault');
+
+    const state = useStore.getState();
+    const binding = state.getGroupAudioBinding('scene-1', 'group-1');
+    const attached = state.getAttachedAudioForGroup('scene-1', 'group-1');
+    expect(binding?.audioAssetId).toBe('aud-group-1');
+    expect(attached?.id).toBe('aud-group-1');
+    expect(attached?.type).toBe('audio');
+    expect(attached?.path).toBe('C:/vault/assets/aud_group_1.wav');
+  });
 });

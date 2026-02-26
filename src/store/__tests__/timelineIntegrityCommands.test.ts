@@ -4,6 +4,7 @@ import {
   RemoveCutFromGroupCommand,
   RemoveSceneCommand,
   ReorderCutsWithGroupSyncCommand,
+  SetGroupAttachAudioCommand,
   SetSceneAttachAudioCommand,
   UpdateGroupCutOrderCommand,
 } from '../commands';
@@ -32,6 +33,15 @@ const AUDIO_ASSET: Asset = {
   originalPath: 'D:/source/original-bgm.wav',
   type: 'audio',
   duration: 12,
+};
+
+const GROUP_AUDIO_ASSET: Asset = {
+  id: 'audio-group-1',
+  name: 'group-bgm.wav',
+  path: 'C:/vault/assets/group-bgm.wav',
+  originalPath: 'D:/source/group-bgm.wav',
+  type: 'audio',
+  duration: 8,
 };
 
 describe('timeline integrity commands', () => {
@@ -273,7 +283,7 @@ describe('timeline integrity commands', () => {
     expect(sceneAfterUndo?.groups?.[0]?.cutIds).toEqual(['cut-a1', 'cut-a2', 'cut-a3', 'cut-a4']);
   });
 
-  it('applies scene audio and clears only video cut audio states in one command', async () => {
+  it('applies scene audio while preserving cut audio settings in one command', async () => {
     useStore.getState().initializeProject({
       name: 'Scene Audio Test',
       vaultPath: 'C:/vault',
@@ -340,6 +350,59 @@ describe('timeline integrity commands', () => {
     const restoredVideo = restored.scenes[0]?.cuts.find((cut) => cut.id === 'cut-video');
     expect(restoredVideo?.audioBindings?.length).toBe(1);
     expect(restoredVideo?.useEmbeddedAudio).toBe(true);
+  });
+
+  it('applies and restores group audio in one command', async () => {
+    useStore.getState().initializeProject({
+      name: 'Group Audio Test',
+      vaultPath: 'C:/vault',
+      scenes: [{
+        id: 'scene-a',
+        name: 'Scene A',
+        order: 0,
+        notes: [],
+        cuts: [
+          {
+            id: 'cut-1',
+            assetId: BASE_ASSET.id,
+            asset: BASE_ASSET,
+            displayTime: 1,
+            order: 0,
+            useEmbeddedAudio: true,
+            audioBindings: [],
+          },
+        ],
+        groups: [{ id: 'group-a', name: 'GA', cutIds: ['cut-1'], isCollapsed: true }],
+      }],
+    });
+
+    useStore.setState({
+      metadataStore: {
+        version: 1,
+        metadata: {},
+        sceneMetadata: {
+          'scene-a': {
+            id: 'scene-a',
+            name: 'Scene A',
+            notes: [],
+            updatedAt: 't',
+          },
+        },
+      },
+    }, false);
+
+    const command = new SetGroupAttachAudioCommand('scene-a', 'group-a', GROUP_AUDIO_ASSET);
+    await command.execute();
+
+    const state = useStore.getState();
+    const binding = state.getGroupAudioBinding('scene-a', 'group-a');
+    expect(binding?.audioAssetId).toBe('audio-group-1');
+    expect(binding?.sourceName).toBe('group-bgm.wav');
+    expect(binding?.groupId).toBe('group-a');
+
+    await command.undo();
+    const restored = useStore.getState();
+    expect(restored.getGroupAudioBinding('scene-a', 'group-a')).toBeUndefined();
   });
 
   it('creates simple auto clips, keeps source cut as plain clips, and supports undo/redo', async () => {

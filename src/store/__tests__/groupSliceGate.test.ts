@@ -50,6 +50,36 @@ describe('group slice gate behavior', () => {
     expect(scene?.cuts.find((cut) => cut.id === 'cut-4')?.groupId).toBeUndefined();
   });
 
+  it('removes group audio binding when group is deleted', () => {
+    useStore.setState({
+      metadataStore: {
+        version: 1,
+        metadata: {},
+        sceneMetadata: {
+          'scene-1': {
+            id: 'scene-1',
+            name: 'Scene 1',
+            notes: [],
+            updatedAt: 't',
+            groupAudioBindings: {
+              'group-a': {
+                id: 'ga-1',
+                groupId: 'group-a',
+                audioAssetId: 'aud-1',
+                enabled: true,
+                kind: 'group',
+              },
+            },
+          },
+        },
+      },
+    }, false);
+
+    useStore.getState().deleteGroup('scene-1', 'group-a');
+    const binding = useStore.getState().getGroupAudioBinding('scene-1', 'group-a');
+    expect(binding).toBeUndefined();
+  });
+
   it('splits and merges groups while preserving no-overlap', () => {
     const newGroupId = useStore.getState().splitGroup('scene-1', 'group-a', 'cut-2');
     expect(newGroupId).toBeTruthy();

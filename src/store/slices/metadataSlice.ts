@@ -8,6 +8,7 @@ import {
   removeLipSyncSettings,
   syncSceneMetadata,
   updateSceneAudioBinding,
+  updateGroupAudioBinding,
   removeAssetReferences as removeAssetReferencesInStore,
 } from '../../utils/metadataStore';
 import { analyzeAudioRms } from '../../utils/audioUtils';
@@ -24,12 +25,15 @@ function getAssetDisplayName(audioAsset: { name: string; originalPath?: string }
   return audioAsset.name;
 }
 
-function collectSceneAttachAudioIds(store: MetadataStore | null): string[] {
+function collectSceneAudioAssetIds(store: MetadataStore | null): string[] {
   if (!store?.sceneMetadata) return [];
   const ids = new Set<string>();
   for (const sceneMetadata of Object.values(store.sceneMetadata)) {
-    const assetId = sceneMetadata?.attachAudio?.audioAssetId;
-    if (assetId) ids.add(assetId);
+    const sceneAssetId = sceneMetadata?.attachAudio?.audioAssetId;
+    if (sceneAssetId) ids.add(sceneAssetId);
+    for (const binding of Object.values(sceneMetadata?.groupAudioBindings || {})) {
+      if (binding?.audioAssetId) ids.add(binding.audioAssetId);
+    }
   }
   return Array.from(ids);
 }
@@ -61,7 +65,7 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
 
     loadMetadata: async (vaultPath) => {
       const store = await loadMetadataStore(vaultPath);
-      const attachAudioIds = collectSceneAttachAudioIds(store);
+      const attachAudioIds = collectSceneAudioAssetIds(store);
       if (attachAudioIds.length > 0 && window.electronAPI?.loadAssetIndex) {
         const state = get();
         const missingIds = attachAudioIds.filter((assetId) => !state.assetCache.has(assetId));
@@ -222,6 +226,53 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
     getAttachedAudioForScene: (sceneId) => {
       const state = get();
       const binding = state.metadataStore?.sceneMetadata?.[sceneId]?.attachAudio;
+      if (!binding?.audioAssetId) return undefined;
+      return state.assetCache.get(binding.audioAssetId);
+    },
+
+    setGroupAudioBinding: (sceneId, groupId, binding) => {
+      set((state) => {
+        const baseStore = state.metadataStore || { version: 1, metadata: {}, sceneMetadata: {} };
+        const store = baseStore.sceneMetadata?.[sceneId]
+          ? baseStore
+          : syncSceneMetadata(baseStore, state.scenes);
+        return {
+          metadataStore: updateGroupAudioBinding(
+            store,
+            sceneId,
+            groupId,
+            binding ? { ...binding } : null
+          ),
+        };
+      });
+      void get().saveMetadata();
+    },
+
+    attachAudioToGroup: (sceneId, groupId, audioAsset) => {
+      get().cacheAsset(audioAsset);
+      get().setGroupAudioBinding(sceneId, groupId, {
+        id: uuidv4(),
+        groupId,
+        audioAssetId: audioAsset.id,
+        sourceName: getAssetDisplayName(audioAsset),
+        gain: 1,
+        enabled: true,
+        kind: 'group',
+      });
+    },
+
+    detachAudioFromGroup: (sceneId, groupId) => {
+      get().setGroupAudioBinding(sceneId, groupId, null);
+    },
+
+    getGroupAudioBinding: (sceneId, groupId) => {
+      const state = get();
+      return state.metadataStore?.sceneMetadata?.[sceneId]?.groupAudioBindings?.[groupId];
+    },
+
+    getAttachedAudioForGroup: (sceneId, groupId) => {
+      const state = get();
+      const binding = state.metadataStore?.sceneMetadata?.[sceneId]?.groupAudioBindings?.[groupId];
       if (!binding?.audioAssetId) return undefined;
       return state.assetCache.get(binding.audioAssetId);
     },

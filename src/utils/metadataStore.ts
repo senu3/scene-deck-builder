@@ -2,7 +2,7 @@
  * Metadata store utilities for persisting asset attachments in .metadata.json
  */
 
-import type { MetadataStore, AssetMetadata, Scene, SceneMetadata, SceneAudioBinding } from '../types';
+import type { MetadataStore, AssetMetadata, Scene, SceneMetadata, SceneAudioBinding, GroupAudioBinding } from '../types';
 
 const METADATA_FILE = '.metadata.json';
 const CURRENT_VERSION = 1;
@@ -193,12 +193,20 @@ export function syncSceneMetadata(
 
   for (const scene of scenes) {
     const existing = nextSceneMetadata[scene.id];
+    const validGroupIds = new Set((scene.groups || []).map((group) => group.id));
+    const currentGroupBindings = existing?.groupAudioBindings || {};
+    const nextGroupBindings: Record<string, GroupAudioBinding> = {};
+    for (const [groupId, binding] of Object.entries(currentGroupBindings)) {
+      if (!validGroupIds.has(groupId)) continue;
+      nextGroupBindings[groupId] = { ...binding, groupId };
+    }
     nextSceneMetadata[scene.id] = {
       ...(existing || {}),
       id: scene.id,
       name: scene.name,
       notes: scene.notes,
       updatedAt: new Date().toISOString(),
+      groupAudioBindings: Object.keys(nextGroupBindings).length > 0 ? nextGroupBindings : undefined,
     };
   }
 
@@ -219,6 +227,39 @@ export function updateSceneAudioBinding(
   const nextSceneMetadata: SceneMetadata = binding
     ? { ...current, attachAudio: { ...binding }, updatedAt: new Date().toISOString() }
     : { ...current, attachAudio: undefined, updatedAt: new Date().toISOString() };
+
+  return {
+    ...store,
+    sceneMetadata: {
+      ...(store.sceneMetadata || {}),
+      [sceneId]: nextSceneMetadata,
+    },
+  };
+}
+
+export function updateGroupAudioBinding(
+  store: MetadataStore,
+  sceneId: string,
+  groupId: string,
+  binding: GroupAudioBinding | null
+): MetadataStore {
+  const current = store.sceneMetadata?.[sceneId];
+  if (!current) return store;
+
+  const currentBindings = current.groupAudioBindings || {};
+  const nextBindings = { ...currentBindings };
+
+  if (binding) {
+    nextBindings[groupId] = { ...binding, groupId };
+  } else {
+    delete nextBindings[groupId];
+  }
+
+  const nextSceneMetadata: SceneMetadata = {
+    ...current,
+    groupAudioBindings: Object.keys(nextBindings).length > 0 ? nextBindings : undefined,
+    updatedAt: new Date().toISOString(),
+  };
 
   return {
     ...store,
@@ -421,6 +462,27 @@ export function removeAssetReferences(
       updatedAt: new Date().toISOString(),
     };
     changed = true;
+  }
+
+  for (const [sceneId, sceneMeta] of Object.entries(nextSceneMetadata)) {
+    const groupBindings = sceneMeta.groupAudioBindings;
+    if (!groupBindings || Object.keys(groupBindings).length === 0) continue;
+    let sceneChanged = false;
+    const nextGroupBindings: Record<string, GroupAudioBinding> = {};
+    for (const [groupId, binding] of Object.entries(groupBindings)) {
+      if (binding?.audioAssetId && removed.has(binding.audioAssetId)) {
+        sceneChanged = true;
+        changed = true;
+        continue;
+      }
+      nextGroupBindings[groupId] = binding;
+    }
+    if (!sceneChanged) continue;
+    nextSceneMetadata[sceneId] = {
+      ...sceneMeta,
+      groupAudioBindings: Object.keys(nextGroupBindings).length > 0 ? nextGroupBindings : undefined,
+      updatedAt: new Date().toISOString(),
+    };
   }
 
   if (!changed) return store;

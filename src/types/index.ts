@@ -154,6 +154,16 @@ export interface SceneAudioBinding {
   kind: 'scene';
 }
 
+export interface GroupAudioBinding {
+  id: string;
+  audioAssetId: string;
+  groupId: string;
+  sourceName?: string;
+  gain?: number;
+  enabled: boolean;
+  kind: 'group';
+}
+
 export interface ClipData {
   sourceAssetId: string;
   inPoint: number;
@@ -277,4 +287,5 @@ export interface SceneMetadata {
   notes: SceneNote[];
   updatedAt: string;
   attachAudio?: SceneAudioBinding;
+  groupAudioBindings?: Record<string, GroupAudioBinding>;
 }
