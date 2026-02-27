@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
+import { getPathForFileBridge } from '../features/platform/electronGateway';
 import type { CutImportSource } from './cutImport';
 import { getCuttableMediaType } from './mediaType';
 
@@ -65,7 +66,7 @@ export function setDndDebugEnabled(enabled: boolean): void {
 }
 
 export function getFilePath(file: File): string | undefined {
-  const fromBridge = window.electronAPI?.getPathForFile?.(file);
+  const fromBridge = getPathForFileBridge(file);
   if (fromBridge) return fromBridge;
   return (file as File & { path?: string }).path;
 }

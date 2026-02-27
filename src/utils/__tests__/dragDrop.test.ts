@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { getDragKind, getSupportedMediaFiles, hasSupportedMediaDrag } from '../dragDrop';
+import { getDragKind, getFilePath, getSupportedMediaFiles, hasSupportedMediaDrag } from '../dragDrop';
+import { resetElectronMocks } from '../../test/setup.renderer';
 
 function createDataTransferMock({
   items,
@@ -22,6 +23,13 @@ function createDataTransferMock({
 }
 
 describe('dragDrop external file detection', () => {
+  it('resolves file path via electron bridge when available', () => {
+    resetElectronMocks();
+    (window.electronAPI!.getPathForFile as any).mockReturnValueOnce('C:/bridge/test.png');
+    const file = new File(['x'], 'test.png', { type: 'image/png' });
+    expect(getFilePath(file)).toBe('C:/bridge/test.png');
+  });
+
   it('detects external files from files list even when types does not include Files', () => {
     const file = new File(['x'], 'test.png', { type: 'image/png' });
     const dt = createDataTransferMock({

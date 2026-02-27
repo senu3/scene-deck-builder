@@ -1,4 +1,5 @@
 import type { LipSyncSettings, Asset } from '../types';
+import { hasVaultGatewayBridge, importDataUrlAssetBridge } from '../features/platform/electronGateway';
 
 export interface LipSyncThresholds {
   t1: number;
@@ -46,16 +47,14 @@ export async function importDataUrlAssetToVault(
   assetId: string,
   name: string
 ): Promise<Asset | null> {
-  if (!window.electronAPI?.vaultGateway) return null;
+  if (!hasVaultGatewayBridge()) return null;
   if (!dataUrl) return null;
 
-  const importDataUrlAsset = window.electronAPI.vaultGateway.importDataUrlAsset;
-  if (typeof importDataUrlAsset !== 'function') {
+  const result = await importDataUrlAssetBridge(dataUrl, vaultPath, assetId);
+  if (!result) {
     console.error('importDataUrlAsset is unavailable. App restart may be required.');
     return null;
   }
-
-  const result = await importDataUrlAsset(dataUrl, vaultPath, assetId);
   if (!result.success) {
     console.error('Failed to import data URL asset:', result.error);
     return null;

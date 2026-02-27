@@ -1,4 +1,16 @@
 import { Asset } from '../types';
+import {
+  calculateFileHashBridge,
+  getFileInfoBridge,
+  getRelativePathBridge,
+  hasVaultGatewayBridge,
+  importAndRegisterAssetBridge,
+  isPathInVaultBridge,
+  loadAssetIndexBridge,
+  pathExistsBridge,
+  resolveVaultPathBridge,
+  saveAssetIndexBridge,
+} from '../features/platform/electronGateway';
 
 /**
  * Asset path utilities for vault synchronization
@@ -30,10 +42,7 @@ export async function resolveAssetPath(
   vaultPath: string,
   relativePath: string
 ): Promise<{ absolutePath: string; exists: boolean }> {
-  if (!window.electronAPI) {
-    return { absolutePath: '', exists: false };
-  }
-  const result = await window.electronAPI.resolveVaultPath(vaultPath, relativePath);
+  const result = await resolveVaultPathBridge(vaultPath, relativePath);
   return {
     absolutePath: result.absolutePath || '',
     exists: result.exists,
@@ -62,13 +71,9 @@ export async function prepareAssetForLoad(
   asset: Asset,
   vaultPath: string
 ): Promise<Asset> {
-  if (!window.electronAPI) {
-    return asset;
-  }
-
   // Check if path looks like a relative vault path
   if (asset.path.startsWith('assets/')) {
-    const resolved = await window.electronAPI.resolveVaultPath(vaultPath, asset.path);
+    const resolved = await resolveVaultPathBridge(vaultPath, asset.path);
     if (resolved.exists) {
       return {
         ...asset,
@@ -80,7 +85,7 @@ export async function prepareAssetForLoad(
 
   // Check if asset already has vaultRelativePath
   if (asset.vaultRelativePath) {
-    const resolved = await window.electronAPI.resolveVaultPath(vaultPath, asset.vaultRelativePath);
+    const resolved = await resolveVaultPathBridge(vaultPath, asset.vaultRelativePath);
     if (resolved.exists) {
       return {
         ...asset,
@@ -106,11 +111,8 @@ export async function isPathInVaultAssets(
   vaultPath: string,
   checkPath: string
 ): Promise<boolean> {
-  if (!window.electronAPI) {
-    return false;
-  }
   const assetsPath = `${vaultPath}/assets`;
-  return window.electronAPI.isPathInVault(assetsPath, checkPath);
+  return isPathInVaultBridge(assetsPath, checkPath);
 }
 
 /**
@@ -122,26 +124,26 @@ export async function importFileToVault(
   assetId: string,
   existingAsset?: Partial<Asset>
 ): Promise<Asset | null> {
-  if (!window.electronAPI?.vaultGateway) {
+  if (!hasVaultGatewayBridge()) {
     return null;
   }
 
   const inVault = await isPathInVaultAssets(vaultPath, sourcePath);
 
   if (inVault) {
-    const relativePath = await window.electronAPI.getRelativePath(vaultPath, sourcePath);
+    const relativePath = await getRelativePathBridge(vaultPath, sourcePath);
     if (!relativePath) {
       return null;
     }
 
     const normalizedRelativePath = relativePath.replace(/\\/g, '/');
     const filename = normalizedRelativePath.split('/').pop() || sourcePath.split(/[/\\]/).pop() || 'Unknown';
-    const hash = (await window.electronAPI.calculateFileHash(sourcePath)) || existingAsset?.hash || '';
-    const fileSize = existingAsset?.fileSize || (await window.electronAPI.getFileInfo?.(sourcePath))?.size || 0;
+    const hash = (await calculateFileHashBridge(sourcePath)) || existingAsset?.hash || '';
+    const fileSize = existingAsset?.fileSize || (await getFileInfoBridge(sourcePath))?.size || 0;
     const mediaType = existingAsset?.type || getMediaTypeFromPath(sourcePath);
 
-    const index = await window.electronAPI.loadAssetIndex(vaultPath);
-    const nextAssets = [...(index.assets || [])];
+    const index = (await loadAssetIndexBridge(vaultPath)) || { version: 1, assets: [] as Record<string, unknown>[] };
+    const nextAssets = [...(index.assets as Record<string, unknown>[])];
     const entry = {
       id: assetId,
       hash,
@@ -159,7 +161,7 @@ export async function importFileToVault(
       nextAssets.push(entry);
     }
 
-    await window.electronAPI.vaultGateway.saveAssetIndex(vaultPath, {
+    await saveAssetIndexBridge(vaultPath, {
       version: index.version || 1,
       assets: nextAssets,
     });
@@ -178,10 +180,10 @@ export async function importFileToVault(
   }
 
   // Import to vault
-  const result = await window.electronAPI.vaultGateway.importAndRegisterAsset(sourcePath, vaultPath, assetId);
+  const result = await importAndRegisterAssetBridge(sourcePath, vaultPath, assetId);
 
-  if (!result.success) {
-    console.error('Failed to import asset to vault:', result.error);
+  if (!result?.success) {
+    console.error('Failed to import asset to vault:', result?.error);
     return null;
   }
 
@@ -216,17 +218,13 @@ export async function migrateAssetToVault(
   asset: Asset,
   vaultPath: string
 ): Promise<Asset | null> {
-  if (!window.electronAPI) {
-    return null;
-  }
-
   // Skip if already in vault
   if (asset.vaultRelativePath) {
     return asset;
   }
 
   // Check if original file exists
-  const exists = await window.electronAPI.pathExists(asset.path);
+  const exists = await pathExistsBridge(asset.path);
   if (!exists) {
     console.warn(`Cannot migrate asset: file not found at ${asset.path}`);
     return null;

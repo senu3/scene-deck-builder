@@ -3,6 +3,7 @@
  */
 
 import type { MetadataStore, AssetMetadata, Scene, SceneMetadata, SceneAudioBinding, GroupAudioBinding } from '../types';
+import { loadProjectFromPathBridge, pathExistsBridge, saveProjectBridge } from '../features/platform/electronGateway';
 
 const METADATA_FILE = '.metadata.json';
 const CURRENT_VERSION = 1;
@@ -57,18 +58,14 @@ function normalizeLoadedMetadataStore(store: MetadataStore): MetadataStore {
 export async function loadMetadataStore(vaultPath: string): Promise<MetadataStore> {
   const metadataPath = `${vaultPath}/${METADATA_FILE}`.replace(/\\/g, '/');
 
-  if (!window.electronAPI) {
-    return { version: CURRENT_VERSION, metadata: {}, sceneMetadata: {} };
-  }
-
   try {
-    const exists = await window.electronAPI.pathExists(metadataPath);
+    const exists = await pathExistsBridge(metadataPath);
     if (!exists) {
       return { version: CURRENT_VERSION, metadata: {}, sceneMetadata: {} };
     }
 
     // Load project from path returns JSON parsed data
-    const result = await window.electronAPI.loadProjectFromPath(metadataPath);
+    const result = await loadProjectFromPathBridge(metadataPath);
     if (result?.data) {
       const data = result.data as MetadataStore;
       // Ensure version compatibility
@@ -100,13 +97,9 @@ export async function saveMetadataStore(
 ): Promise<boolean> {
   const metadataPath = `${vaultPath}/${METADATA_FILE}`.replace(/\\/g, '/');
 
-  if (!window.electronAPI) {
-    return false;
-  }
-
   try {
     // Use saveProject which handles JSON stringification
-    const result = await window.electronAPI.saveProject(
+    const result = await saveProjectBridge(
       JSON.stringify(store, null, 2),
       metadataPath
     );

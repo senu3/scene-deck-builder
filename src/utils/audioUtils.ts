@@ -7,6 +7,7 @@
  * Provides features like fade in/out, precise seeking, and offset support
  */
 import type { AudioAnalysis } from '../types';
+import { readAudioPcmBridge } from '../features/platform/electronGateway';
 
 export class AudioManager {
   private audioContext: AudioContext | null = null;
@@ -61,7 +62,6 @@ export class AudioManager {
    */
   async load(filePath: string): Promise<boolean> {
     if (this.disposed) return false;
-    if (!window.electronAPI) return false;
 
     // Initialize context lazily
     if (!this.initContext() || !this.audioContext) return false;
@@ -76,7 +76,7 @@ export class AudioManager {
       this.stopPlayback();
 
       // Read audio as PCM via ffmpeg in main process
-      const pcmResult = await window.electronAPI.readAudioPcm?.(filePath);
+      const pcmResult = await readAudioPcmBridge(filePath);
       if (!pcmResult || !pcmResult.success || !pcmResult.pcm || pcmResult.pcm.byteLength === 0) {
         if (pcmResult?.error) {
           console.warn('[Audio] PCM decode failed:', pcmResult.error);
@@ -404,9 +404,7 @@ export async function analyzeAudioRms(
   fps: number = 60,
   hash?: string
 ): Promise<AudioAnalysis | null> {
-  if (!window.electronAPI?.readAudioPcm) return null;
-
-  const result = await window.electronAPI.readAudioPcm(filePath);
+  const result = await readAudioPcmBridge(filePath);
   if (!result?.success || !result.pcm) {
     if (result?.error) {
       console.warn('[Audio] RMS decode failed:', result.error);
