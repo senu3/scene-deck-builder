@@ -77,6 +77,7 @@ const gate10HotpathFiles = new Set([
   'src/utils/previewPlaybackController.ts',
   'src/utils/previewMedia.tsx',
 ]);
+const gate7UtilsPrefix = 'src/utils/';
 const gate10ForbiddenInHotpathBlock = [
   {
     pattern: /\b(readFileSync|writeFileSync|appendFileSync|openSync|statSync|spawnSync|execSync)\b/g,
@@ -207,6 +208,18 @@ for (const file of files) {
         file: r,
         line: lineOf(src, m.index),
         message: 'set(...scenes:...) outside Gate6 allowlist',
+      });
+    }
+  }
+
+  // Gate 7: utils layer should not directly reference electronAPI.
+  if (r.startsWith(gate7UtilsPrefix)) {
+    for (const m of findAll(src, /\bwindow\.electronAPI\b/g)) {
+      warnings.push({
+        gate: 'Gate7',
+        file: r,
+        line: lineOf(src, m.index),
+        message: 'window.electronAPI direct call in utils (use platform bridge)',
       });
     }
   }

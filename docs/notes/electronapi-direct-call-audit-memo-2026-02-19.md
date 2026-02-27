@@ -108,3 +108,12 @@
 - 追加で見えた点:
   - `DetailsPanel` の clipサムネ再生成が `generateVideoClipThumbnail` 直呼びだったため、`getCutClipThumbnail`（cut-derived API）に寄せて単一入口化。✅ 完了
   - `StartupModal` の `loadProject` / `loadProjectFromPath` 周辺の同型フローを `loadProjectCore` / `applyProjectLoadOutcome` へ集約。✅ 完了
+
+## Update（2026-02-27）
+- 項目3（`TODO-DEBT-006`）を実施:
+  - `src/features/platform/electronGateway.ts` を追加し、renderer 側の `window.electronAPI` 依存を bridge 入口へ集約。
+  - `src/utils/assetPath.ts` / `src/utils/metadataStore.ts` / `src/utils/audioUtils.ts` / `src/utils/lipSyncUtils.ts` / `src/utils/dragDrop.ts` の直呼びを bridge 経由へ置換。
+  - Gate7 監査として `scripts/check-gate.mjs` に `src/utils` の `window.electronAPI` 直呼び検知を追加。
+  - `docs/guides/implementation/gate-checks.md` に Gate7 監査対象を追記。
+- ステータス:
+  - `TODO-DEBT-006` は完了。`TODO-DEBT-007` は未着手のまま継続。

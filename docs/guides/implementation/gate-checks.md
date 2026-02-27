@@ -47,6 +47,8 @@
 - Gate 6:
   - `useStore.setState(` の許可リスト外検出
   - `set(...scenes:...)` の許可リスト外検出
+- Gate 7:
+  - `src/utils` 配下の `window.electronAPI` 直呼び検出（platform bridge 経由へ統一）
 - Gate 8: `cut.asset` の `assetResolve.ts` 外参照検出
 - Gate 9:
   - `getThumbnail(...)` の profile 未指定検出
@@ -69,8 +71,8 @@
 - Gate 6:
   - `useStore.setState` / `set(...scenes:...)` 以外の間接更新（helper経由やslice内派生更新）は静的に取りこぼす可能性がある。
 - Gate 7:
-  - `vaultGateway` 以外の electronAPI 直呼びの全量検出ルールは未導入。
-  - `TODO-DEBT-006` / `TODO-DEBT-007` の監査メモを作業起点にする。
+  - 現状は `src/utils` のみ監査対象。renderer 全域の直呼び検出は未導入。
+  - `TODO-DEBT-007` の横断整理時は監査対象拡張の要否を再判定する。
 - Gate 9:
   - profile指定と low-level import は検出するが、`asset.thumbnail` snapshot 利用など provider外 fallback の妥当性は手動確認が必要。
 - Gate 10:

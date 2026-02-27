@@ -13,10 +13,10 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
 ## Gate-Work Track
 - `TODO-DEBT-006` utils層の `window.electronAPI` 直呼びを provider/gateway 経由へ段階移行する
   - Track: `Gate-Work`
-  - Status: `backlog`
+  - Status: `done`
   - StartWhen: Gate 7 の移行バッチを切るとき
   - BlockedBy: なし
-  - DoneWhen: 対象 utils の直呼びを段階置換し、移行ルールを docs へ反映
+  - DoneWhen: 対象 utils の直呼びを段階置換し、移行ルールを docs へ反映 ✅ 2026-02-27 完了
   - 関連: `docs/notes/electronapi-direct-call-audit-memo-2026-02-19.md`
   - 対象例: `src/utils/assetPath.ts`, `src/utils/metadataStore.ts`, `src/utils/audioUtils.ts`, `src/utils/lipSyncUtils.ts`
 - `TODO-DEBT-007` metadata / video metadata 呼び出しを横断整理し、UI直呼びの責務を縮小する
@@ -141,5 +141,6 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
   - 関連: `docs/guides/implementation/gate-checks.md`
 
 ## Done (archive)
+- 2026-02-27 | `TODO-DEBT-006` utils層の `window.electronAPI` 直呼びを bridge 経由へ移行し、Gate7 utils監査を追加 | `docs/notes/electronapi-direct-call-audit-memo-2026-02-19.md#update-2026-02-27`
 - 2026-02-20 | `TODO-DEBT-001` Vaultガイド更新を完了し、Export/Vault仕様を固定 | `docs/notes/archive/todo-done-2026-02.md#todo-debt-001`
 - 2026-02-20 | `TODO-DEBT-005` scene attach audio 再ロード復元不具合を修正 | `docs/notes/archive/todo-done-2026-02.md#todo-debt-005`
