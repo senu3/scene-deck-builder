@@ -13,10 +13,10 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
 ## Gate-Work Track
 - `TODO-DEBT-008` Gate 8 の最終到達点（`cut.asset` snapshot seed の縮小/廃止条件）を ADR で固定する
   - Track: `Gate-Work`
-  - Status: `backlog`
-  - StartWhen: Gate 8 廃止移行の実装計画を切るとき
+  - Status: `in-progress`
+  - StartWhen: Gate 8 例外カテゴリ（UI-only / Load-Recovery / Export / Temporary）と禁止線を ADR で確定するとき
   - BlockedBy: なし
-  - DoneWhen: `cut.asset` snapshot seed/fallback 廃止のマイルストーンと完了条件が ADR で確定
+  - DoneWhen: `cut.asset` snapshot seed/fallback 廃止のマイルストーン（M1-M4）と Temporary 例外ルール（allowlist/撤去条件）が ADR で確定
   - 関連: `docs/DECISIONS/ADR-0005-asset-resolve-failure-policy.md`
 - `TODO-DEBT-010` store内 I/O 直実行の境界を再整理し、PreviewModal VideoClip の command 化計画と整合させる
   - Track: `Gate-Work`
