@@ -47,35 +47,21 @@
   - `6c04bcc`
 
 ## 今回は後回し（TODO扱い）
-1. utils層の `electronAPI` 直呼び整理
-- 対象例:
-  - `src/utils/assetPath.ts`
-  - `src/utils/metadataStore.ts`
-  - `src/utils/audioUtils.ts`
-  - `src/utils/lipSyncUtils.ts`
-- 理由:
-  - 既存機能の境界が広く、段階的な provider/gateway 化が必要。
-
-2. metadata / video metadata 呼び出しの整理
-- 対象例:
-  - `src/components/AssetPanel.tsx`（`getVideoMetadata`）
-  - metadata系呼び出し全般（横断で再設計予定）
-- 理由:
-  - 単発修正より、関連呼び出しをまとめて整理した方が差分が小さくなる。
-
-3. store内 I/O 直実行の見直し
+1. store内 I/O 直実行の見直し
 - 対象例:
   - `src/store/slices/projectSlice.ts`
   - `src/store/slices/metadataSlice.ts`
 - 現方針:
   - 現在は許容（仕様として保持）。
   - 見直し時は「store action が I/O副作用境界を持つ」前提を明示して設計する。
+  - `TODO-DEBT-010` として `docs/TODO_MASTER.md` に移管済み。
 
 ## 優先修正順（更新）
 1. `clipThumbnail` の early return見直し（provider fallbackを殺さない） ✅ 完了
 2. `StartupModal` / `useHeaderProjectController` の同型ロジックを最小差分で集約 ✅ 完了
-3. utils層の provider/gateway 抽出（段階実施） ⏸ `TODO-DEBT-006` へ移管
-4. metadata / video metadata 直呼びの横断整理 ⏸ `TODO-DEBT-007` へ移管
+3. utils層の provider/gateway 抽出（段階実施） ✅ `TODO-DEBT-006` 完了
+4. metadata / video metadata 直呼びの横断整理 ✅ `TODO-DEBT-007` 完了
+5. store内 I/O 直実行の見直し ⏸ `TODO-DEBT-010` へ移管
 
 ## 現在ステータス
 - 本メモの追加実装対応は一時停止。
@@ -127,3 +113,10 @@
   - `docs/guides/implementation/gate-checks.md` に Gate7 監査対象を追記。
 - ステータス:
   - `TODO-DEBT-007` は完了。次タスクは `TODO-DEBT-008` / `TODO-DEBT-009` を継続管理。
+
+## Update（2026-02-28 / TODO整理）
+- 監査メモの後回し項目を再整理:
+  - `TODO-DEBT-006` / `TODO-DEBT-007` 完了を反映。
+  - store内 I/O 直実行見直しを `TODO-DEBT-010` として `TODO_MASTER` に追加。
+- 補足:
+  - `TODO-DEBT-010` の着手条件は PreviewModal VideoClip の command 化方針確定後とする。

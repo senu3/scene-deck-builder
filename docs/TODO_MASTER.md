@@ -11,22 +11,6 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
 - `DoneWhen`: 完了判定条件
 
 ## Gate-Work Track
-- `TODO-DEBT-006` utils層の `window.electronAPI` 直呼びを provider/gateway 経由へ段階移行する
-  - Track: `Gate-Work`
-  - Status: `done`
-  - StartWhen: Gate 7 の移行バッチを切るとき
-  - BlockedBy: なし
-  - DoneWhen: 対象 utils の直呼びを段階置換し、移行ルールを docs へ反映 ✅ 2026-02-27 完了
-  - 関連: `docs/notes/electronapi-direct-call-audit-memo-2026-02-19.md`
-  - 対象例: `src/utils/assetPath.ts`, `src/utils/metadataStore.ts`, `src/utils/audioUtils.ts`, `src/utils/lipSyncUtils.ts`
-- `TODO-DEBT-007` metadata / video metadata 呼び出しを横断整理し、UI直呼びの責務を縮小する
-  - Track: `Gate-Work`
-  - Status: `done`
-  - StartWhen: `TODO-DEBT-006` の方針確定後
-  - BlockedBy: なし
-  - DoneWhen: UI 層の metadata/video metadata 直呼びを整理し、責務境界を docs に固定 ✅ 2026-02-28 完了
-  - 関連: `docs/notes/electronapi-direct-call-audit-memo-2026-02-19.md`
-  - 対象例: `src/components/AssetPanel.tsx` の `getVideoMetadata` と metadata 系呼び出し
 - `TODO-DEBT-008` Gate 8 の最終到達点（`cut.asset` snapshot seed の縮小/廃止条件）を ADR で固定する
   - Track: `Gate-Work`
   - Status: `backlog`
@@ -41,6 +25,14 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
   - BlockedBy: なし
   - DoneWhen: 主要経路の provider統一完了 + 新規直参照禁止ルールの監査運用が定着
   - 関連: `docs/guides/implementation/thumbnail-profiles.md`
+- `TODO-DEBT-010` store内 I/O 直実行の境界を再整理し、PreviewModal VideoClip の command 化計画と整合させる
+  - Track: `Gate-Work`
+  - Status: `backlog`
+  - StartWhen: PreviewModal VideoClip の command 化方針が確定したとき
+  - BlockedBy: `TODO-DEBT-008`, `TODO-DEBT-009`
+  - DoneWhen: store action の I/O 副作用境界が docs で固定され、対象スライスの実行経路が方針に整合
+  - 関連: `docs/notes/electronapi-direct-call-audit-memo-2026-02-19.md`
+  - 対象例: `src/store/slices/projectSlice.ts`, `src/store/slices/metadataSlice.ts`
 - `TODO-DEBT-004` Buffer/Memory ガイドを最新実装検索結果で再棚卸しする
   - Track: `Gate-Work`
   - Status: `backlog`
