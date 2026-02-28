@@ -11,18 +11,11 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
 - `DoneWhen`: 完了判定条件
 
 ## Gate-Work Track
-- `TODO-DEBT-008` Gate 8 の最終到達点（`cut.asset` snapshot seed の縮小/廃止条件）を ADR で固定する
-  - Track: `Gate-Work`
-  - Status: `in-progress`
-  - StartWhen: Gate 8 例外カテゴリ（UI-only / Load-Recovery / Export / Temporary）と禁止線を ADR で確定するとき
-  - BlockedBy: なし
-  - DoneWhen: `cut.asset` snapshot seed/fallback 廃止のマイルストーン（M1-M4）と Temporary 例外ルール（allowlist/撤去条件）が ADR で確定
-  - 関連: `docs/DECISIONS/ADR-0005-asset-resolve-failure-policy.md`
 - `TODO-DEBT-010` store内 I/O 直実行の境界を再整理し、PreviewModal VideoClip の command 化計画と整合させる
   - Track: `Gate-Work`
   - Status: `backlog`
   - StartWhen: PreviewModal VideoClip の command 化方針が確定したとき
-  - BlockedBy: `TODO-DEBT-008`
+  - BlockedBy: なし
   - DoneWhen: store action の I/O 副作用境界が docs で固定され、対象スライスの実行経路が方針に整合
   - 関連: `docs/notes/electronapi-direct-call-audit-memo-2026-02-19.md`
   - 対象例: `src/store/slices/projectSlice.ts`, `src/store/slices/metadataSlice.ts`
@@ -133,6 +126,7 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
   - 関連: `docs/guides/implementation/gate-checks.md`
 
 ## Done (archive)
+- 2026-02-28 | `TODO-DEBT-008` Gate8 例外カテゴリ/禁止線/マイルストーン（M1-M4）を ADR で固定 | `docs/DECISIONS/ADR-0005-asset-resolve-failure-policy.md`
 - 2026-02-28 | `TODO-DEBT-009` Gate9 provider統一（主要経路）と `asset.thumbnail` 直参照の監査運用を追加 | `docs/notes/gate9-provider-unification-update-2026-02-28.md`
 - 2026-02-28 | `TODO-DEBT-007` metadata/video metadata の UI直呼びを provider 経由へ整理し、Gate7 監査を拡張 | `docs/notes/electronapi-direct-call-audit-memo-2026-02-19.md#update-2026-02-28`
 - 2026-02-27 | `TODO-DEBT-006` utils層の `window.electronAPI` 直呼びを bridge 経由へ移行し、Gate7 utils監査を追加 | `docs/notes/electronapi-direct-call-audit-memo-2026-02-19.md#update-2026-02-27`
