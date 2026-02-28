@@ -55,7 +55,7 @@ export function usePreviewItemsState({
     return resolveCutAsset(cut, getAsset);
   }, [getAsset]);
 
-  const resolveThumbnailForCut = useCallback((cut: Cut | null | undefined): string | null => {
+  const resolveClipSnapshotThumbnail = useCallback((cut: Cut | null | undefined): string | null => {
     return resolveCutThumbnail(cut, getAsset);
   }, [getAsset]);
 
@@ -101,7 +101,7 @@ export function usePreviewItemsState({
       sequenceCuts,
       sequenceContext,
       resolveAssetForCut,
-      resolveThumbnailForCut,
+      resolveClipSnapshotThumbnail,
       resolveCutDisplayTimeSec,
     }).then((nextItems) => {
       if (cancelled) return;
@@ -127,7 +127,7 @@ export function usePreviewItemsState({
     sequenceCuts,
     sequenceContext,
     resolveAssetForCut,
-    resolveThumbnailForCut,
+    resolveClipSnapshotThumbnail,
     resolveCutDisplayTimeSec,
   ]);
 

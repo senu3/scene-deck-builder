@@ -1,5 +1,5 @@
 import type { Asset, Cut, LipSyncSettings, Scene } from '../../types';
-import { getAssetThumbnail } from '../../features/thumbnails/api';
+import { resolveAssetThumbnailSource } from '../../features/thumbnails/api';
 import { getLipSyncFrameAssetIds } from '../../utils/lipSyncUtils';
 import { computeCanonicalStoryTimingsForCuts, type CanonicalDurationSec } from '../../utils/storyTiming';
 import { FALLBACK_CANONICAL_DURATION_SEC } from './constants';
@@ -29,7 +29,7 @@ interface BuildPreviewItemsInput {
   sequenceCuts?: Cut[];
   sequenceContext?: { kind: 'scene'; sceneId: string; sceneName?: string };
   resolveAssetForCut: (cut: Cut | null | undefined) => Asset | null;
-  resolveThumbnailForCut: (cut: Cut | null | undefined) => string | null;
+  resolveClipSnapshotThumbnail: (cut: Cut | null | undefined) => string | null;
   resolveCutDisplayTimeSec: (cut: Cut | null | undefined) => CanonicalDurationSec;
 }
 
@@ -38,22 +38,18 @@ async function resolvePreviewThumbnail(
   cutAsset: Asset | null,
   getAsset: (assetId: string) => Asset | undefined,
   getLipSyncSettingsForAsset: (assetId: string) => LipSyncSettings | undefined,
-  resolveThumbnailForCut: (cut: Cut | null | undefined) => string | null,
+  resolveClipSnapshotThumbnail: (cut: Cut | null | undefined) => string | null,
 ): Promise<string | null> {
   const lipSyncSettings = cut.isLipSync && cutAsset?.id
     ? getLipSyncSettingsForAsset(cutAsset.id)
     : undefined;
 
-  let thumbnail: string | null = resolveThumbnailForCut(cut) ?? null;
+  let thumbnail: string | null = resolveClipSnapshotThumbnail(cut) ?? null;
 
-  if (cutAsset?.type === 'image' && cutAsset.path) {
+  if (cutAsset) {
     try {
-      const cached = await getAssetThumbnail('sequence-preview', {
-        assetId: cutAsset.id,
-        path: cutAsset.path,
-        type: 'image',
-      });
-      if (cached) thumbnail = cached;
+      const resolved = await resolveAssetThumbnailSource('sequence-preview', cutAsset);
+      if (resolved) thumbnail = resolved;
     } catch {
       // ignore
     }
@@ -62,39 +58,13 @@ async function resolvePreviewThumbnail(
   if (lipSyncSettings) {
     const firstFrameAssetId = getLipSyncFrameAssetIds(lipSyncSettings)[0];
     const baseAsset = firstFrameAssetId ? getAsset(firstFrameAssetId) : undefined;
-    if (baseAsset?.thumbnail) {
-      thumbnail = baseAsset.thumbnail;
-    } else if (baseAsset?.path) {
+    if (baseAsset) {
       try {
-        const cached = await getAssetThumbnail('sequence-preview', {
-          assetId: baseAsset.id,
-          path: baseAsset.path,
-          type: 'image',
-        });
-        if (cached) thumbnail = cached;
+        const resolved = await resolveAssetThumbnailSource('sequence-preview', baseAsset);
+        if (resolved) thumbnail = resolved;
       } catch {
         // ignore
       }
-    }
-  }
-
-  if (!thumbnail && cutAsset?.path) {
-    try {
-      if (cutAsset.type === 'video') {
-        thumbnail = await getAssetThumbnail('sequence-preview', {
-          assetId: cutAsset.id,
-          path: cutAsset.path,
-          type: 'video',
-        });
-      } else {
-        thumbnail = await getAssetThumbnail('sequence-preview', {
-          assetId: cutAsset.id,
-          path: cutAsset.path,
-          type: 'image',
-        });
-      }
-    } catch {
-      // Failed to load
     }
   }
 
@@ -119,7 +89,7 @@ export async function buildPreviewItems(input: BuildPreviewItemsInput): Promise<
     sequenceCuts,
     sequenceContext,
     resolveAssetForCut,
-    resolveThumbnailForCut,
+    resolveClipSnapshotThumbnail,
     resolveCutDisplayTimeSec,
   } = input;
 
@@ -139,7 +109,7 @@ export async function buildPreviewItems(input: BuildPreviewItemsInput): Promise<
       isLipSync: !!lipSyncSettings,
       lipSyncFrameCount: lipSyncSettings ? getLipSyncFrameAssetIds(lipSyncSettings).length : undefined,
     };
-    const thumbnail = singleModeImageData ?? resolveThumbnailForCut(singleCut) ?? null;
+    const thumbnail = singleModeImageData ?? resolveClipSnapshotThumbnail(singleCut) ?? null;
 
     return [{
       cut: singleCut,
@@ -174,7 +144,7 @@ export async function buildPreviewItems(input: BuildPreviewItemsInput): Promise<
         cutAsset,
         getAsset,
         getLipSyncSettingsForAsset,
-        resolveThumbnailForCut,
+        resolveClipSnapshotThumbnail,
       );
 
       newItems.push({
@@ -216,7 +186,7 @@ export async function buildPreviewItems(input: BuildPreviewItemsInput): Promise<
       cutAsset,
       getAsset,
       getLipSyncSettingsForAsset,
-      resolveThumbnailForCut,
+      resolveClipSnapshotThumbnail,
     );
 
     return [{
@@ -257,7 +227,7 @@ export async function buildPreviewItems(input: BuildPreviewItemsInput): Promise<
         cutAsset,
         getAsset,
         getLipSyncSettingsForAsset,
-        resolveThumbnailForCut,
+        resolveClipSnapshotThumbnail,
       );
 
       newItems.push({

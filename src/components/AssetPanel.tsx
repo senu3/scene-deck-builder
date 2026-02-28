@@ -36,6 +36,7 @@ import {
   getAssetThumbnail,
   getCachedAssetThumbnail,
   removeAssetThumbnail,
+  resolveAssetThumbnailFromCache,
 } from '../features/thumbnails/api';
 import { getMediaType as getAnyMediaType } from '../utils/mediaType';
 import { collectAssetRefs, type AssetRefMap } from '../utils/assetRefs';
@@ -892,7 +893,7 @@ export default function AssetPanel({
       e.preventDefault();
       return;
     }
-    const dragThumbnail = getCachedAssetThumbnail('asset-grid', { assetId: asset.id, path: asset.path }) || asset.thumbnail;
+    const dragThumbnail = resolveAssetThumbnailFromCache('asset-grid', asset) || undefined;
     const dragAsset: Asset = {
       id: uuidv4(),
       name: asset.sourceName, // Use source name
@@ -961,7 +962,7 @@ export default function AssetPanel({
         name: asset.sourceName, // Use source name
         sourcePath: asset.path,
         type: asset.type,
-        preferredThumbnail: getCachedAssetThumbnail('asset-grid', { assetId: asset.id, path: asset.path }) || asset.thumbnail,
+        preferredThumbnail: resolveAssetThumbnailFromCache('asset-grid', asset) || undefined,
       });
     } catch (error) {
       console.error('Failed to add asset to timeline:', error);
@@ -1130,7 +1131,7 @@ export default function AssetPanel({
               <AssetCard
                 key={asset.path}
                 asset={asset}
-                thumbnail={getCachedAssetThumbnail('asset-grid', { assetId: asset.id, path: asset.path }) || asset.thumbnail}
+                thumbnail={resolveAssetThumbnailFromCache('asset-grid', asset) || undefined}
                 isSelected={selectedAsset?.id === asset.id}
                 onLoadThumbnail={() => loadThumbnail(asset)}
                 onDragStart={effectiveEnableDragDrop ? (e) => handleDragStart(e, asset) : undefined}

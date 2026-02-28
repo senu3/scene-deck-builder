@@ -16,7 +16,7 @@ import { useToast } from "../ui";
 import { generateAssetId } from "../utils/assetPath";
 import { getLipSyncFrameAssetIds, importDataUrlAssetToVault } from "../utils/lipSyncUtils";
 import { getMediaUrl } from "../utils/videoUtils";
-import { getAssetThumbnail } from "../features/thumbnails/api";
+import { resolveAssetThumbnailSource } from "../features/thumbnails/api";
 import { useLipSyncPreview } from "../hooks/useLipSyncPreview";
 import AssetModal from "./AssetModal";
 import "./LipSyncModal.css";
@@ -75,14 +75,8 @@ async function imageSrcToDataUrl(src: string): Promise<string | null> {
 }
 
 async function resolveAssetPreviewSource(asset: Asset): Promise<string | null> {
-  if (asset.thumbnail) return asset.thumbnail;
-  if (!asset.path) return null;
   try {
-    return await getAssetThumbnail('sequence-preview', {
-      assetId: asset.id,
-      path: asset.path,
-      type: 'image',
-    });
+    return await resolveAssetThumbnailSource('sequence-preview', asset);
   } catch {
     return null;
   }
@@ -199,6 +193,7 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
   const audioOffset = primaryAudioBinding?.offsetSec ?? 0;
   const [previewSources, setPreviewSources] = useState<string[]>([]);
   const [isPreviewReady, setIsPreviewReady] = useState(false);
+  const [assetThumbnailSrc, setAssetThumbnailSrc] = useState<string | null>(null);
   const hasLipSyncPreview = !!lipSyncSettings && !!rmsAnalysis?.rms?.length;
 
   const previewVariantIndex = useLipSyncPreview({
@@ -248,6 +243,19 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
 
   useEffect(() => {
     let isActive = true;
+    const loadAssetThumbnail = async () => {
+      const resolved = await resolveAssetPreviewSource(asset);
+      if (!isActive) return;
+      setAssetThumbnailSrc(resolved);
+    };
+    void loadAssetThumbnail();
+    return () => {
+      isActive = false;
+    };
+  }, [asset]);
+
+  useEffect(() => {
+    let isActive = true;
 
     const loadPreviewSources = async () => {
       if (!lipSyncSettings) {
@@ -262,25 +270,15 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
       for (const frameAssetId of frameAssetIds) {
         let src = '';
         const frameAsset = getAsset(frameAssetId);
-        if (frameAsset?.thumbnail) {
-          src = frameAsset.thumbnail;
-        } else if (frameAsset?.path) {
-          try {
-            const thumb = await getAssetThumbnail('sequence-preview', {
-              assetId: frameAsset.id,
-              path: frameAsset.path,
-              type: 'image',
-            });
-            if (thumb) src = thumb;
-          } catch {
-            // ignore
-          }
+        if (frameAsset) {
+          const resolved = await resolveAssetPreviewSource(frameAsset);
+          if (resolved) src = resolved;
         }
         sources.push(src);
       }
 
       if (!isActive) return;
-      const fallback = sources[0] || asset.thumbnail || '';
+      const fallback = sources[0] || assetThumbnailSrc || '';
       const resolved = sources.map((src) => src || fallback);
       setPreviewSources(resolved);
       setIsPreviewReady(true);
@@ -290,7 +288,7 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
     return () => {
       isActive = false;
     };
-  }, [lipSyncSettings, getAsset, asset.thumbnail]);
+  }, [lipSyncSettings, getAsset, assetThumbnailSrc]);
 
   useEffect(() => {
     let isActive = true;
@@ -654,7 +652,7 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
   // Open mask editor - requires a base image (closed frame or thumbnail for testing)
   const handleOpenMaskEditor = () => {
     // Use selected/captured closed frame as base image, or fall back to thumbnail for testing
-    const baseFrame = getFrameValue("closed") || asset.thumbnail;
+    const baseFrame = getFrameValue("closed") || assetThumbnailSrc;
     if (!baseFrame) {
       alert("No base image available. Please capture the 'Closed' frame or ensure asset has a thumbnail.");
       return;
@@ -689,21 +687,9 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
       cacheAsset(selectedAsset);
     }
     setFrameAssetIds((prev) => ({ ...prev, [pendingFrameSlot]: assetToUse.id }));
-    if (!assetToUse.thumbnail && assetToUse.path) {
-      try {
-        const thumb = await getAssetThumbnail('sequence-preview', {
-          assetId: assetToUse.id,
-          path: assetToUse.path,
-          type: 'image',
-        });
-        if (thumb) {
-          setFramePreviews((prev) => ({ ...prev, [pendingFrameSlot]: thumb }));
-        }
-      } catch {
-        // ignore
-      }
-    } else {
-      setFramePreviews((prev) => ({ ...prev, [pendingFrameSlot]: assetToUse.thumbnail || null }));
+    const preview = await resolveAssetPreviewSource(assetToUse);
+    if (preview) {
+      setFramePreviews((prev) => ({ ...prev, [pendingFrameSlot]: preview }));
     }
 
     setActiveFrameSlot(pendingFrameSlot);
@@ -752,12 +738,12 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
             )}
             {!previewVideoAsset?.path && hasLipSyncPreview && isPreviewReady ? (
               <img
-                src={previewSources[previewVariantIndex] || previewSources[0] || asset.thumbnail}
+                src={previewSources[previewVariantIndex] || previewSources[0] || assetThumbnailSrc || ""}
                 alt={asset.name}
                 className="lipsync-image"
               />
-            ) : !isVideo && asset.thumbnail ? (
-              <img src={asset.thumbnail} alt={asset.name} className="lipsync-image" />
+            ) : !isVideo && assetThumbnailSrc ? (
+              <img src={assetThumbnailSrc} alt={asset.name} className="lipsync-image" />
             ) : !isVideo ? (
               <div className="lipsync-preview-placeholder">
                 <Film size={64} />
@@ -878,7 +864,7 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
                       <button
                         className="mask-edit-btn"
                         onClick={handleOpenMaskEditor}
-                        disabled={!getFrameValue("closed") && !asset.thumbnail}
+                        disabled={!getFrameValue("closed") && !assetThumbnailSrc}
                       >
                         Edit Mask
                       </button>
@@ -888,16 +874,16 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
                   <button
                     className="lipsync-create-mask-btn"
                     onClick={handleOpenMaskEditor}
-                    disabled={!getFrameValue("closed") && !asset.thumbnail}
+                    disabled={!getFrameValue("closed") && !assetThumbnailSrc}
                   >
                     <Brush size={16} />
                     Create Mouth Mask
                   </button>
                 )}
-                {!getFrameValue("closed") && !asset.thumbnail && (
+                {!getFrameValue("closed") && !assetThumbnailSrc && (
                   <p className="mask-hint">Capture "Closed" frame first</p>
                 )}
-                {!getFrameValue("closed") && asset.thumbnail && (
+                {!getFrameValue("closed") && assetThumbnailSrc && (
                   <p className="mask-hint">Using thumbnail as base (dev mode)</p>
                 )}
               </div>
@@ -970,9 +956,9 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
       </div>
 
       {/* Mask Paint Modal */}
-      {showMaskEditor && (getFrameValue("closed") || asset.thumbnail) && (
+      {showMaskEditor && (getFrameValue("closed") || assetThumbnailSrc) && (
         <MaskPaintModal
-          baseImage={getFrameValue("closed") || asset.thumbnail!}
+          baseImage={getFrameValue("closed") || assetThumbnailSrc || ""}
           imageWidth={baseImageSize.width}
           imageHeight={baseImageSize.height}
           existingMask={maskDataUrl || undefined}
