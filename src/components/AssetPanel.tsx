@@ -50,6 +50,10 @@ import {
   runAssetExtractAudio,
   runAssetFinalize,
 } from '../features/asset/actions';
+import {
+  loadAssetIndexEntries,
+  resolveVideoDurationForPath,
+} from '../features/metadata/provider';
 import './AssetPanel.css';
 
 export type SortMode = 'name' | 'type' | 'used' | 'unused';
@@ -260,19 +264,17 @@ export default function AssetPanel({
   // Load asset index from .index.json
   const loadAssetIndex = useCallback(async (): Promise<Map<string, AssetIndexEntry[]>> => {
     const indexMap = new Map<string, AssetIndexEntry[]>();
-    if (!vaultPath || !window.electronAPI) return indexMap;
+    if (!vaultPath) return indexMap;
 
     try {
-      const index = await window.electronAPI.loadAssetIndex(vaultPath);
-      if (index && index.assets) {
-        for (const entry of index.assets) {
-          // Group by filename for duplicate support
-          const existing = indexMap.get(entry.filename);
-          if (existing) {
-            existing.push(entry);
-          } else {
-            indexMap.set(entry.filename, [entry]);
-          }
+      const entries = await loadAssetIndexEntries(vaultPath);
+      for (const entry of entries) {
+        // Group by filename for duplicate support
+        const existing = indexMap.get(entry.filename);
+        if (existing) {
+          existing.push(entry as AssetIndexEntry);
+        } else {
+          indexMap.set(entry.filename, [entry as AssetIndexEntry]);
         }
       }
     } catch (error) {
@@ -626,15 +628,7 @@ export default function AssetPanel({
       .map((id) => assetCache.get(id)?.duration)
       .find((duration) => typeof duration === 'number' && Number.isFinite(duration) && duration > 0);
     if (typeof linkedDuration === 'number') return linkedDuration;
-    if (typeof window.electronAPI?.getVideoMetadata !== 'function') return null;
-    try {
-      const meta = await window.electronAPI.getVideoMetadata(assetPath);
-      return typeof meta?.duration === 'number' && Number.isFinite(meta.duration) && meta.duration > 0
-        ? meta.duration
-        : null;
-    } catch {
-      return null;
-    }
+    return resolveVideoDurationForPath(assetPath);
   }, [assetCache]);
 
   const reportFinalizeResult = (

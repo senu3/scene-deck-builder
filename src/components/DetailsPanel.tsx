@@ -63,6 +63,7 @@ import {
   SetSceneAttachAudioCommand,
 } from "../store/commands";
 import { getAssetThumbnail, getCutClipThumbnail } from "../features/thumbnails/api";
+import { readImageMetadataForPath } from "../features/metadata/provider";
 import { resolveCutAsset, resolveCutThumbnail } from "../utils/assetResolve";
 import { extractVideoMetadata } from "../utils/videoUtils";
 import { getLipSyncFrameAssetIds } from "../utils/lipSyncUtils";
@@ -282,10 +283,10 @@ export default function DetailsPanel() {
       // Load metadata - use asset.metadata if available (for videos)
       if (asset.metadata) {
         setMetadata(asset.metadata);
-      } else if (window.electronAPI && asset.type === "image") {
+      } else if (asset.type === "image") {
         // Only call readImageMetadata for images without existing metadata
         try {
-          const meta = await window.electronAPI.readImageMetadata(asset.path);
+          const meta = await readImageMetadataForPath(asset.path);
           if (meta) {
             setMetadata(meta);
           }
@@ -699,13 +700,11 @@ export default function DetailsPanel() {
 
       // Load image metadata if available
       let imageMetadata: ImageMetadata | undefined;
-      if (window.electronAPI.readImageMetadata) {
-        try {
-          const meta = await window.electronAPI.readImageMetadata(outputPath);
-          imageMetadata = meta ?? undefined;
-        } catch {
-          // Metadata not critical
-        }
+      try {
+        const meta = await readImageMetadataForPath(outputPath);
+        imageMetadata = meta ?? undefined;
+      } catch {
+        // Metadata not critical
       }
 
       let fileSize: number | undefined;
