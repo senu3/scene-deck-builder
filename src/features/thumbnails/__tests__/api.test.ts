@@ -8,6 +8,8 @@ import {
   getAssetThumbnail,
   getCutClipThumbnail,
   getCutDerivedThumbnail,
+  resolveAssetThumbnailFromCache,
+  resolveAssetThumbnailSource,
   removeAssetThumbnail,
 } from '../api';
 
@@ -160,6 +162,50 @@ describe('thumbnails api key strategy', () => {
       timeOffset: 0,
     });
     const [, options] = vi.mocked(removeThumbnailCache).mock.calls[0];
+    expect(options.key).toBe('asset:asset-1:asset-grid:0');
+  });
+
+  it('resolves asset thumbnail from cache before snapshot fallback', () => {
+    const resolved = resolveAssetThumbnailFromCache('asset-grid', {
+      id: 'asset-1',
+      path: '/vault/assets/a.png',
+      type: 'image',
+      thumbnail: 'snapshot-thumb',
+    });
+
+    expect(resolved).toBe('cached-thumb');
+    const [, options] = vi.mocked(getCachedThumbnail).mock.calls[0];
+    expect(options.key).toBe('asset:asset-1:asset-grid:0');
+  });
+
+  it('returns snapshot fallback from cache resolver when cache misses', () => {
+    vi.mocked(getCachedThumbnail).mockReturnValueOnce(null);
+
+    const resolved = resolveAssetThumbnailFromCache('asset-grid', {
+      id: 'asset-1',
+      path: '/vault/assets/a.png',
+      type: 'image',
+      thumbnail: 'snapshot-thumb',
+    });
+
+    expect(resolved).toBe('snapshot-thumb');
+    const [, options] = vi.mocked(getCachedThumbnail).mock.calls[0];
+    expect(options.key).toBe('asset:asset-1:asset-grid:0');
+  });
+
+  it('keeps asset key namespace even when source resolver falls back to snapshot', async () => {
+    vi.mocked(getCachedThumbnail).mockReturnValueOnce(null);
+    vi.mocked(getThumbnail).mockResolvedValueOnce(null);
+
+    const resolved = await resolveAssetThumbnailSource('asset-grid', {
+      id: 'asset-1',
+      path: '/vault/assets/a.png',
+      type: 'image',
+      thumbnail: 'snapshot-thumb',
+    });
+
+    expect(resolved).toBe('snapshot-thumb');
+    const [, , options] = vi.mocked(getThumbnail).mock.calls[0];
     expect(options.key).toBe('asset:asset-1:asset-grid:0');
   });
 });

@@ -34,6 +34,19 @@ export interface CutClipThumbnailParams {
   key?: string;
 }
 
+export interface AssetThumbnailSource {
+  id?: string;
+  path?: string;
+  type?: string;
+  thumbnail?: string;
+}
+
+export interface ResolveAssetThumbnailSourceOptions {
+  timeOffset?: number;
+  preferCache?: boolean;
+  includeSnapshotFallback?: boolean;
+}
+
 function normalizeTimeOffset(timeOffset: number | undefined): number {
   if (!Number.isFinite(timeOffset)) return 0;
   return Math.max(0, timeOffset ?? 0);
@@ -46,6 +59,10 @@ function toMillis(value: number | undefined): number {
 
 function encodePart(value: string): string {
   return encodeURIComponent(value);
+}
+
+function isThumbnailMediaType(value: string | undefined): value is ThumbnailMediaType {
+  return value === 'image' || value === 'video';
 }
 
 export function buildAssetThumbnailKey(params: {
@@ -159,4 +176,71 @@ export async function getCutClipThumbnail(
     timeOffset: params.inPointSec,
     key: params.key,
   });
+}
+
+export function resolveAssetThumbnailFromCache(
+  profile: ThumbnailProfile,
+  asset: AssetThumbnailSource,
+  options: ResolveAssetThumbnailSourceOptions = {}
+): string | null {
+  const includeSnapshotFallback = options.includeSnapshotFallback !== false;
+  if (!asset.path) return includeSnapshotFallback ? (asset.thumbnail ?? null) : null;
+
+  const normalizedOffset = normalizeTimeOffset(options.timeOffset);
+  const key = buildAssetThumbnailKey({
+    assetId: asset.id,
+    path: asset.path,
+    profile,
+    timeOffset: normalizedOffset,
+  });
+  const cached = getCachedAssetThumbnail(profile, {
+    assetId: asset.id,
+    path: asset.path,
+    timeOffset: normalizedOffset,
+    key,
+  });
+  if (cached) return cached;
+  return includeSnapshotFallback ? (asset.thumbnail ?? null) : null;
+}
+
+export async function resolveAssetThumbnailSource(
+  profile: ThumbnailProfile,
+  asset: AssetThumbnailSource,
+  options: ResolveAssetThumbnailSourceOptions = {}
+): Promise<string | null> {
+  const includeSnapshotFallback = options.includeSnapshotFallback !== false;
+  const preferCache = options.preferCache !== false;
+
+  if (!asset.path || !isThumbnailMediaType(asset.type)) {
+    return includeSnapshotFallback ? (asset.thumbnail ?? null) : null;
+  }
+
+  const normalizedOffset = normalizeTimeOffset(options.timeOffset);
+  const key = buildAssetThumbnailKey({
+    assetId: asset.id,
+    path: asset.path,
+    profile,
+    timeOffset: normalizedOffset,
+  });
+
+  if (preferCache) {
+    const cached = getCachedAssetThumbnail(profile, {
+      assetId: asset.id,
+      path: asset.path,
+      timeOffset: normalizedOffset,
+      key,
+    });
+    if (cached) return cached;
+  }
+
+  const loaded = await getAssetThumbnail(profile, {
+    assetId: asset.id,
+    path: asset.path,
+    type: asset.type,
+    timeOffset: normalizedOffset,
+    key,
+  });
+  if (loaded) return loaded;
+
+  return includeSnapshotFallback ? (asset.thumbnail ?? null) : null;
 }
