@@ -18,21 +18,21 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
   - BlockedBy: なし
   - DoneWhen: `cut.asset` snapshot seed/fallback 廃止のマイルストーンと完了条件が ADR で確定
   - 関連: `docs/DECISIONS/ADR-0005-asset-resolve-failure-policy.md`
-- `TODO-DEBT-009` Gate 9 の provider統一を段階実施し、`asset.thumbnail` 直参照を新規コード禁止ルールとして運用する
-  - Track: `Gate-Work`
-  - Status: `backlog`
-  - StartWhen: Gate 9 の移行バッチを切るとき
-  - BlockedBy: なし
-  - DoneWhen: 主要経路の provider統一完了 + 新規直参照禁止ルールの監査運用が定着
-  - 関連: `docs/guides/implementation/thumbnail-profiles.md`
 - `TODO-DEBT-010` store内 I/O 直実行の境界を再整理し、PreviewModal VideoClip の command 化計画と整合させる
   - Track: `Gate-Work`
   - Status: `backlog`
   - StartWhen: PreviewModal VideoClip の command 化方針が確定したとき
-  - BlockedBy: `TODO-DEBT-008`, `TODO-DEBT-009`
+  - BlockedBy: `TODO-DEBT-008`
   - DoneWhen: store action の I/O 副作用境界が docs で固定され、対象スライスの実行経路が方針に整合
   - 関連: `docs/notes/electronapi-direct-call-audit-memo-2026-02-19.md`
   - 対象例: `src/store/slices/projectSlice.ts`, `src/store/slices/metadataSlice.ts`
+- `TODO-DEBT-011` Gate9 の LipSync サムネ解決を `asset.thumbnail` fallback なしで完了させる
+  - Track: `Gate-Work`
+  - Status: `backlog`
+  - StartWhen: LipSyncModal の provider 完全置換バッチを切るとき
+  - BlockedBy: なし
+  - DoneWhen: LipSyncModal のサムネ解決が resolver API のみになり、snapshot fallback 依存が撤去される
+  - 関連: `docs/notes/gate9-provider-unification-update-2026-02-28.md`
 - `TODO-DEBT-004` Buffer/Memory ガイドを最新実装検索結果で再棚卸しする
   - Track: `Gate-Work`
   - Status: `backlog`
@@ -133,6 +133,7 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
   - 関連: `docs/guides/implementation/gate-checks.md`
 
 ## Done (archive)
+- 2026-02-28 | `TODO-DEBT-009` Gate9 provider統一（主要経路）と `asset.thumbnail` 直参照の監査運用を追加 | `docs/notes/gate9-provider-unification-update-2026-02-28.md`
 - 2026-02-28 | `TODO-DEBT-007` metadata/video metadata の UI直呼びを provider 経由へ整理し、Gate7 監査を拡張 | `docs/notes/electronapi-direct-call-audit-memo-2026-02-19.md#update-2026-02-28`
 - 2026-02-27 | `TODO-DEBT-006` utils層の `window.electronAPI` 直呼びを bridge 経由へ移行し、Gate7 utils監査を追加 | `docs/notes/electronapi-direct-call-audit-memo-2026-02-19.md#update-2026-02-27`
 - 2026-02-20 | `TODO-DEBT-001` Vaultガイド更新を完了し、Export/Vault仕様を固定 | `docs/notes/archive/todo-done-2026-02.md#todo-debt-001`

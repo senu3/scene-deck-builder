@@ -54,6 +54,7 @@
 - Gate 9:
   - `getThumbnail(...)` の profile 未指定検出
   - `thumbnailCache` 低レベルAPI（`getThumbnail/getCachedThumbnail/removeThumbnailCache`）のFacade外import検出
+  - 主要UI（`AssetPanel` / `Sidebar` / `previewItemsBuilder` / `LipSyncModal`）の `asset.thumbnail` 直参照検出
 - Gate 10:
   - ホットパスファイルでの node/fs/process import 検出
   - `tick`/`update` ブロック内の重処理API検出
@@ -75,7 +76,7 @@
   - 現状は `src/utils` + metadata対象UIの限定監査。renderer 全域の直呼び検出は未導入。
   - `TODO-DEBT-007` 完了後も、他UI経路への監査拡張は必要時に別途判断する。
 - Gate 9:
-  - profile指定と low-level import は検出するが、`asset.thumbnail` snapshot 利用など provider外 fallback の妥当性は手動確認が必要。
+  - profile指定・low-level import・主要UIでの `asset.thumbnail` 直参照は検出するが、対象外ファイルの snapshot fallback 妥当性は手動確認が必要。
 - Gate 10:
   - 再生ループ外の重処理（`useEffect` やイベント連鎖）は strict 監査対象外。
   - 監査は「tick/updateホットパスを汚さない」ことに限定する。

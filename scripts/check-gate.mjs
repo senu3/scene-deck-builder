@@ -108,6 +108,12 @@ const gate9AllowedLowLevelThumbnailImportFiles = new Set([
   'src/features/thumbnails/api.ts',
   'src/utils/thumbnailCache.ts',
 ]);
+const gate9AssetThumbnailDirectRefFiles = new Set([
+  'src/components/AssetPanel.tsx',
+  'src/components/Sidebar.tsx',
+  'src/components/preview-modal/previewItemsBuilder.ts',
+  'src/components/LipSyncModal.tsx',
+]);
 const gate9LowLevelThumbnailApis = new Set([
   'getThumbnail',
   'getCachedThumbnail',
@@ -160,6 +166,18 @@ for (const file of files) {
         file: r,
         line: lineOf(src, m.index),
         message: 'low-level thumbnailCache API import outside thumbnails facade',
+      });
+    }
+  }
+
+  // Gate 9: key UI routes must not directly rely on asset.thumbnail.
+  if (gate9AssetThumbnailDirectRefFiles.has(r)) {
+    for (const m of findAll(src, /\basset\??\.thumbnail\b/g)) {
+      warnings.push({
+        gate: 'Gate9',
+        file: r,
+        line: lineOf(src, m.index),
+        message: 'asset.thumbnail direct reference in UI route (use thumbnails api resolver)',
       });
     }
   }
