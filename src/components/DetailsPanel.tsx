@@ -62,7 +62,7 @@ import {
   SetGroupAttachAudioCommand,
   SetSceneAttachAudioCommand,
 } from "../store/commands";
-import { getAssetThumbnail, getCutClipThumbnail } from "../features/thumbnails/api";
+import { getAssetThumbnail, getCutClipThumbnail, resolveAssetThumbnailFromCache } from "../features/thumbnails/api";
 import { readImageMetadataForPath } from "../features/metadata/provider";
 import { resolveCutAsset, resolveCutThumbnail } from "../utils/assetResolve";
 import { extractVideoMetadata } from "../utils/videoUtils";
@@ -146,8 +146,12 @@ export default function DetailsPanel() {
   const cut = selectedCutData?.cut;
   const cutScene = selectedCutData?.scene;
   const asset = cut ? resolveCutAsset(cut, getAsset) : null;
-  // GATE8-LEGACY-THUMBNAIL: legacy clip snapshot fallback path (allowlisted).
-  const preferredThumbnail = cut ? resolveCutThumbnail(cut, getAsset) : null;
+  // Keep clip path on legacy snapshot fallback; use resolver API for non-clip paths.
+  const preferredThumbnail = cut
+    ? (cut.isClip
+      ? resolveCutThumbnail(cut, getAsset)
+      : (asset ? resolveAssetThumbnailFromCache('details-panel', asset) : null))
+    : null;
   const primaryAudioBinding = cut?.audioBindings?.[0];
   const useEmbeddedAudio = cut?.useEmbeddedAudio ?? true;
   const attachedAudioSourceName =
@@ -181,8 +185,9 @@ export default function DetailsPanel() {
       if (!firstCut) return;
 
       const firstAsset = resolveCutAsset(firstCut, getAsset);
-      // GATE8-LEGACY-THUMBNAIL: legacy clip snapshot fallback path (allowlisted).
-      const firstThumbnail = resolveCutThumbnail(firstCut, getAsset);
+      const firstThumbnail = firstCut.isClip
+        ? resolveCutThumbnail(firstCut, getAsset)
+        : (firstAsset ? resolveAssetThumbnailFromCache('details-panel', firstAsset) : null);
       if (firstThumbnail) {
         if (isActive) setGroupThumbnail(firstThumbnail);
         return;

@@ -26,7 +26,7 @@ import { getScenesInOrder } from '../utils/sceneOrder';
 import { useHistoryStore } from '../store/historyStore';
 import type { Asset, CutAudioBinding } from '../types';
 import './CutCard.css';
-import { getAssetThumbnail } from '../features/thumbnails/api';
+import { getAssetThumbnail, resolveAssetThumbnailFromCache } from '../features/thumbnails/api';
 import { resolveCutAsset, resolveCutThumbnail } from '../utils/assetResolve';
 import { CutContextMenu } from './context-menus';
 import ImageCropModal, { type ImageCropConfig } from './ImageCropModal';
@@ -156,8 +156,10 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
   };
 
   const asset = resolveCutAsset(cut, getAsset);
-  // GATE8-LEGACY-THUMBNAIL: legacy clip snapshot fallback path (allowlisted).
-  const preferredThumbnail = resolveCutThumbnail(cut, getAsset);
+  // Keep clip path on legacy snapshot fallback; use resolver API for non-clip paths.
+  const preferredThumbnail = cut.isClip
+    ? resolveCutThumbnail(cut, getAsset)
+    : (asset ? resolveAssetThumbnailFromCache('timeline-card', asset) : null);
   const isSelected = selectedCutIds.has(cut.id) || selectedCutId === cut.id;
   const isMultiSelected = selectedCutIds.size > 1 && selectedCutIds.has(cut.id);
   const isVideo = asset?.type === 'video';
