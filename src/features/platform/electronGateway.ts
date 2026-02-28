@@ -28,6 +28,27 @@ type VaultImportResult = {
   error?: string;
 };
 
+type VideoMetadataLike = {
+  duration?: number;
+  width?: number;
+  height?: number;
+};
+
+type ImageMetadataLike = {
+  width?: number;
+  height?: number;
+  format?: string;
+  prompt?: string;
+  negativePrompt?: string;
+  model?: string;
+  seed?: number;
+  steps?: number;
+  sampler?: string;
+  cfg?: number;
+  software?: string;
+  fileSize?: number;
+};
+
 function getElectronAPI(): BridgeElectronAPI | null {
   if (typeof window === 'undefined' || !window.electronAPI) return null;
   return window.electronAPI;
@@ -77,6 +98,14 @@ export async function getFileInfoBridge(filePath: string): Promise<{ size?: numb
 
 export async function loadAssetIndexBridge(vaultPath: string): Promise<AssetIndexLike | null> {
   return getElectronAPI()?.loadAssetIndex?.(vaultPath) ?? null;
+}
+
+export async function getVideoMetadataBridge(filePath: string): Promise<VideoMetadataLike | null> {
+  return getElectronAPI()?.getVideoMetadata?.(filePath) ?? null;
+}
+
+export async function readImageMetadataBridge(filePath: string): Promise<ImageMetadataLike | null> {
+  return getElectronAPI()?.readImageMetadata?.(filePath) ?? null;
 }
 
 export function hasVaultGatewayBridge(): boolean {
