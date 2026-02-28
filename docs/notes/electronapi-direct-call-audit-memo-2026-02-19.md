@@ -117,3 +117,13 @@
   - `docs/guides/implementation/gate-checks.md` に Gate7 監査対象を追記。
 - ステータス:
   - `TODO-DEBT-006` は完了。`TODO-DEBT-007` は未着手のまま継続。
+
+## Update（2026-02-28）
+- 項目4（`TODO-DEBT-007`）を実施:
+  - `src/features/metadata/provider.ts` を追加し、metadata / video metadata の UI利用入口を provider 化。
+  - `src/components/AssetPanel.tsx` の `loadAssetIndex` / `getVideoMetadata` 直呼びを provider 経由へ置換。
+  - `src/components/DetailsPanel.tsx` の `readImageMetadata` 直呼びを provider 経由へ置換。
+  - Gate7 監査として `scripts/check-gate.mjs` に `AssetPanel` / `DetailsPanel` の metadata API 直呼び検知を追加。
+  - `docs/guides/implementation/gate-checks.md` に Gate7 監査対象を追記。
+- ステータス:
+  - `TODO-DEBT-007` は完了。次タスクは `TODO-DEBT-008` / `TODO-DEBT-009` を継続管理。

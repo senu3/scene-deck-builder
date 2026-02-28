@@ -78,6 +78,10 @@ const gate10HotpathFiles = new Set([
   'src/utils/previewMedia.tsx',
 ]);
 const gate7UtilsPrefix = 'src/utils/';
+const gate7MetadataUiFiles = new Set([
+  'src/components/AssetPanel.tsx',
+  'src/components/DetailsPanel.tsx',
+]);
 const gate10ForbiddenInHotpathBlock = [
   {
     pattern: /\b(readFileSync|writeFileSync|appendFileSync|openSync|statSync|spawnSync|execSync)\b/g,
@@ -220,6 +224,18 @@ for (const file of files) {
         file: r,
         line: lineOf(src, m.index),
         message: 'window.electronAPI direct call in utils (use platform bridge)',
+      });
+    }
+  }
+
+  // Gate 7: metadata/video metadata APIs should not be called directly from target UI files.
+  if (gate7MetadataUiFiles.has(r)) {
+    for (const m of findAll(src, /\bwindow\.electronAPI\??\.(getVideoMetadata|readImageMetadata|loadAssetIndex)\b/g)) {
+      warnings.push({
+        gate: 'Gate7',
+        file: r,
+        line: lineOf(src, m.index),
+        message: 'metadata/video metadata electronAPI direct call in UI (use metadata provider)',
       });
     }
   }

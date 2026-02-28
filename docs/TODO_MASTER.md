@@ -21,10 +21,10 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
   - 対象例: `src/utils/assetPath.ts`, `src/utils/metadataStore.ts`, `src/utils/audioUtils.ts`, `src/utils/lipSyncUtils.ts`
 - `TODO-DEBT-007` metadata / video metadata 呼び出しを横断整理し、UI直呼びの責務を縮小する
   - Track: `Gate-Work`
-  - Status: `backlog`
+  - Status: `done`
   - StartWhen: `TODO-DEBT-006` の方針確定後
   - BlockedBy: なし
-  - DoneWhen: UI 層の metadata/video metadata 直呼びを整理し、責務境界を docs に固定
+  - DoneWhen: UI 層の metadata/video metadata 直呼びを整理し、責務境界を docs に固定 ✅ 2026-02-28 完了
   - 関連: `docs/notes/electronapi-direct-call-audit-memo-2026-02-19.md`
   - 対象例: `src/components/AssetPanel.tsx` の `getVideoMetadata` と metadata 系呼び出し
 - `TODO-DEBT-008` Gate 8 の最終到達点（`cut.asset` snapshot seed の縮小/廃止条件）を ADR で固定する
@@ -141,6 +141,7 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
   - 関連: `docs/guides/implementation/gate-checks.md`
 
 ## Done (archive)
+- 2026-02-28 | `TODO-DEBT-007` metadata/video metadata の UI直呼びを provider 経由へ整理し、Gate7 監査を拡張 | `docs/notes/electronapi-direct-call-audit-memo-2026-02-19.md#update-2026-02-28`
 - 2026-02-27 | `TODO-DEBT-006` utils層の `window.electronAPI` 直呼びを bridge 経由へ移行し、Gate7 utils監査を追加 | `docs/notes/electronapi-direct-call-audit-memo-2026-02-19.md#update-2026-02-27`
 - 2026-02-20 | `TODO-DEBT-001` Vaultガイド更新を完了し、Export/Vault仕様を固定 | `docs/notes/archive/todo-done-2026-02.md#todo-debt-001`
 - 2026-02-20 | `TODO-DEBT-005` scene attach audio 再ロード復元不具合を修正 | `docs/notes/archive/todo-done-2026-02.md#todo-debt-005`
