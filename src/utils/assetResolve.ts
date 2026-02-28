@@ -98,6 +98,7 @@ export function resolveNormalizedCutDisplayTime(
 }
 
 export function resolveCutThumbnail(cut: CutLike | null | undefined, getAsset: GetAssetById): string | null {
+  // GATE8-LEGACY-THUMBNAIL: keep clip snapshot fallback until Gate8 migration completes.
   if (!cut) return null;
   if (cut.isClip && cut.asset?.thumbnail) {
     return cut.asset.thumbnail;

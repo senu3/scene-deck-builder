@@ -56,6 +56,7 @@ export function usePreviewItemsState({
   }, [getAsset]);
 
   const resolveClipSnapshotThumbnail = useCallback((cut: Cut | null | undefined): string | null => {
+    // GATE8-LEGACY-THUMBNAIL: legacy clip snapshot fallback path (allowlisted).
     return resolveCutThumbnail(cut, getAsset);
   }, [getAsset]);
 

@@ -146,6 +146,7 @@ export default function DetailsPanel() {
   const cut = selectedCutData?.cut;
   const cutScene = selectedCutData?.scene;
   const asset = cut ? resolveCutAsset(cut, getAsset) : null;
+  // GATE8-LEGACY-THUMBNAIL: legacy clip snapshot fallback path (allowlisted).
   const preferredThumbnail = cut ? resolveCutThumbnail(cut, getAsset) : null;
   const primaryAudioBinding = cut?.audioBindings?.[0];
   const useEmbeddedAudio = cut?.useEmbeddedAudio ?? true;
@@ -180,6 +181,7 @@ export default function DetailsPanel() {
       if (!firstCut) return;
 
       const firstAsset = resolveCutAsset(firstCut, getAsset);
+      // GATE8-LEGACY-THUMBNAIL: legacy clip snapshot fallback path (allowlisted).
       const firstThumbnail = resolveCutThumbnail(firstCut, getAsset);
       if (firstThumbnail) {
         if (isActive) setGroupThumbnail(firstThumbnail);

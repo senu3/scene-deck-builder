@@ -51,6 +51,7 @@
   - `src/utils` 配下の `window.electronAPI` 直呼び検出（platform bridge 経由へ統一）
   - `AssetPanel` / `DetailsPanel` の metadata API（`getVideoMetadata` / `readImageMetadata` / `loadAssetIndex`）直呼び検出
 - Gate 8: `cut.asset` の `assetResolve.ts` 外参照検出
+  - `resolveCutThumbnail(...)` の legacy allowlist 外使用検出（`CutCard` / `DetailsPanel` / `usePreviewItemsState` 以外を禁止）
 - Gate 9:
   - `getThumbnail(...)` の profile 未指定検出
   - `thumbnailCache` 低レベルAPI（`getThumbnail/getCachedThumbnail/removeThumbnailCache`）のFacade外import検出

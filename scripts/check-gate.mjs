@@ -119,6 +119,11 @@ const gate9LowLevelThumbnailApis = new Set([
   'getCachedThumbnail',
   'removeThumbnailCache',
 ]);
+const gate8LegacyCutThumbnailAllowedFiles = new Set([
+  'src/components/CutCard.tsx',
+  'src/components/DetailsPanel.tsx',
+  'src/components/preview-modal/usePreviewItemsState.ts',
+]);
 
 for (const file of files) {
   const r = rel(file);
@@ -133,6 +138,18 @@ for (const file of files) {
         file: r,
         line: lineOf(src, m.index),
         message: 'cut.asset usage outside assetResolve.ts',
+      });
+    }
+  }
+
+  // Gate 8: resolveCutThumbnail is a temporary legacy bridge and should not spread.
+  if (r !== 'src/utils/assetResolve.ts' && !gate8LegacyCutThumbnailAllowedFiles.has(r)) {
+    for (const m of findAll(src, /\bresolveCutThumbnail\s*\(/g)) {
+      warnings.push({
+        gate: 'Gate8',
+        file: r,
+        line: lineOf(src, m.index),
+        message: 'resolveCutThumbnail usage outside legacy allowlist',
       });
     }
   }

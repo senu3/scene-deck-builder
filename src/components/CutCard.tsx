@@ -156,6 +156,7 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
   };
 
   const asset = resolveCutAsset(cut, getAsset);
+  // GATE8-LEGACY-THUMBNAIL: legacy clip snapshot fallback path (allowlisted).
   const preferredThumbnail = resolveCutThumbnail(cut, getAsset);
   const isSelected = selectedCutIds.has(cut.id) || selectedCutId === cut.id;
   const isMultiSelected = selectedCutIds.size > 1 && selectedCutIds.has(cut.id);
