@@ -49,6 +49,34 @@
 - 直接他sliceの内部実装へ依存しない。
 - event は派生状態の更新のみを行う。
 
+### `CUT_RELINKED` 購読仕様（frozen）
+- 目的:
+  - Cut の `assetId` 参照変更を通知する。
+  - 購読側は派生状態のみ更新し、ドメイン状態は更新しない。
+- 発火境界:
+  - `assetId` が変わる経路はすべて `CUT_RELINKED` を emit する。
+  - 通常操作 / Undo / Redo / Recovery / Import を対象にする。
+- 順序:
+  - 相対順序は command 内の実処理順に従う（固定順は持たない）。
+  - 同一 `opId` 内では emit 順を保持する。
+- payload:
+  - 必須: `sceneId`, `cutId`, `previousAssetId?`, `nextAssetId`, `origin`, `opId`, `occurredAt`
+  - `origin`: `user` | `undo` | `redo` | `recovery` | `import`
+  - `opId`: 同一操作単位の識別子（重複耐性・ログ相関用）
+  - `opId` 生成は固定方式ではないが、UUID v4 を推奨実装とする。
+- 購読者 allowlist:
+  - `SubscriberName` は `ui` | `preview-cache` | `telemetry` を正規値とする。
+  - 購読登録は集中 `registerSubscriber` API 経由に限定し、allowlist 外は reject する。
+- emitter API 配置:
+  - `CUT_RELINKED` emit の共通 API は store 層（イベント基盤側）に配置する。
+  - 呼び出しは command 実行器と recovery/import 実行器から同一 API を通して行う。
+- UI 表示:
+  - toast 通知は `origin=user` のみ許可する。
+  - `origin` がそれ以外のときは表示せず、同期のみ行う。
+- 失敗時:
+  - 購読側例外は握りつぶして継続し、ログを残す。
+  - ログ項目は固定契約にせず、`eventType, cutId, opId, origin, subscriberName, error` を推奨テンプレとする。
+
 ## Asset参照ルール
 - Cut の read-path 参照は `assetId` を主経路にする。
 - write-path で `cut.asset` 前提の更新を増やさない。

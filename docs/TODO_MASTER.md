@@ -94,13 +94,6 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
   - BlockedBy: なし
   - DoneWhen: 保存形式/保持数/復元UXの仕様が確定
   - 関連: `docs/guides/implementation/autosave-snapshots.md`
-- `TODO-INVEST-003` `CUT_RELINKED` の購読側（通知/表示/同期）仕様を確定する
-  - Track: `Investigation`
-  - Status: `backlog`
-  - StartWhen: relink通知の利用箇所拡張時
-  - BlockedBy: なし
-  - DoneWhen: 購読仕様と表示仕様が docs で確定
-  - 関連: `docs/guides/cut-history.md`
 - `TODO-INVEST-004` `media-handling.md` の肥大化を監視し、`protocol` / `ffmpeg-queue` / `audio-pcm` 分割の実施条件を確定する
   - Track: `Investigation`
   - Status: `backlog`
@@ -126,6 +119,7 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
   - 関連: `docs/guides/implementation/gate-checks.md`
 
 ## Done (archive)
+- 2026-03-01 | `TODO-INVEST-003` `CUT_RELINKED` の購読側（通知/表示/同期）仕様を凍結（origin/opId/allowlist/表示境界） | `docs/guides/cut-history.md`
 - 2026-02-28 | `TODO-DEBT-008` Gate8 例外カテゴリ/禁止線/マイルストーン（M1-M4）を ADR で固定 | `docs/DECISIONS/ADR-0005-asset-resolve-failure-policy.md`
 - 2026-02-28 | `TODO-DEBT-009` Gate9 provider統一（主要経路）と `asset.thumbnail` 直参照の監査運用を追加 | `docs/notes/gate9-provider-unification-update-2026-02-28.md`
 - 2026-02-28 | `TODO-DEBT-007` metadata/video metadata の UI直呼びを provider 経由へ整理し、Gate7 監査を拡張 | `docs/notes/electronapi-direct-call-audit-memo-2026-02-19.md#update-2026-02-28`
