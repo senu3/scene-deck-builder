@@ -9,6 +9,33 @@ import { createCutTimelineSlice } from './slices/cutTimelineSlice';
 import { createSelectionUiSlice } from './slices/selectionUiSlice';
 import { createMetadataSlice } from './slices/metadataSlice';
 import { createGroupSlice } from './slices/groupSlice';
+import type { StoreEvent, StoreEventOperationContext, StoreEventSubscriberName } from './events';
+
+const ALLOWED_STORE_EVENT_SUBSCRIBERS: ReadonlySet<StoreEventSubscriberName> = new Set([
+  'ui',
+  'preview-cache',
+  'telemetry',
+]);
+
+const storeEventSubscribers = new Map<StoreEventSubscriberName, (event: StoreEvent) => void>();
+const storeEventContextStack: StoreEventOperationContext[] = [];
+
+const dispatchStoreEvent = (event: StoreEvent) => {
+  for (const [name, onEvent] of storeEventSubscribers) {
+    try {
+      onEvent(event);
+    } catch (error) {
+      console.warn('[StoreEvents] subscriber failure', {
+        eventType: event.type,
+        cutId: event.type === 'CUT_RELINKED' ? event.cutId : undefined,
+        opId: event.type === 'CUT_RELINKED' ? event.opId : undefined,
+        origin: event.type === 'CUT_RELINKED' ? event.origin : undefined,
+        subscriberName: name,
+        error,
+      });
+    }
+  }
+};
 
 export const useStore = create<AppState>((set, get) => ({
   projectLoaded: false,
@@ -62,10 +89,78 @@ export const useStore = create<AppState>((set, get) => ({
   ...createMetadataSlice(set, get),
   ...createGroupSlice(set, get),
 
-  emitStoreEvent: (event) =>
+  emitStoreEvent: (event) => {
+    const now = new Date().toISOString();
+    const normalized: StoreEvent =
+      event.type === 'CUT_RELINKED'
+        ? {
+            ...event,
+            origin: event.origin ?? storeEventContextStack.at(-1)?.origin ?? 'user',
+            opId: event.opId ?? storeEventContextStack.at(-1)?.opId ?? uuidv4(),
+            occurredAt: now,
+          }
+        : {
+            ...event,
+            occurredAt: now,
+          };
     set((state) => ({
-      storeEvents: [...state.storeEvents, { ...event, occurredAt: new Date().toISOString() }],
-    })),
+      storeEvents: [...state.storeEvents, normalized],
+    }));
+    dispatchStoreEvent(normalized);
+  },
+
+  emitCutRelinked: ({ sceneId, cutId, previousAssetId, nextAssetId }) => {
+    const activeContext = storeEventContextStack.at(-1);
+    const context = activeContext ?? {
+      origin: 'user',
+      opId: uuidv4(),
+    };
+    const event: StoreEvent = {
+      type: 'CUT_RELINKED',
+      sceneId,
+      cutId,
+      previousAssetId,
+      nextAssetId,
+      origin: context.origin,
+      opId: context.opId,
+      occurredAt: new Date().toISOString(),
+    };
+    get().emitStoreEvent(event);
+  },
+
+  createStoreEventOperation: (origin, opId) => ({
+    origin,
+    opId: opId ?? uuidv4(),
+  }),
+
+  runWithStoreEventContext: async (context, run) => {
+    storeEventContextStack.push(context);
+    try {
+      await run();
+    } finally {
+      const popped = storeEventContextStack.pop();
+      if (!popped) return;
+      if (popped.opId !== context.opId || popped.origin !== context.origin) {
+        console.warn('[StoreEvents] context stack order mismatch', {
+          expected: context,
+          actual: popped,
+        });
+      }
+    }
+  },
+
+  registerStoreEventSubscriber: ({ name, onEvent }) => {
+    if (!ALLOWED_STORE_EVENT_SUBSCRIBERS.has(name)) {
+      throw new Error(`Unsupported store event subscriber: ${String(name)}`);
+    }
+    storeEventSubscribers.set(name, onEvent);
+    return () => {
+      const current = storeEventSubscribers.get(name);
+      if (current === onEvent) {
+        storeEventSubscribers.delete(name);
+      }
+    };
+  },
 
   drainStoreEvents: () => {
     const events = get().storeEvents;

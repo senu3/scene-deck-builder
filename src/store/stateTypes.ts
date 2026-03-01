@@ -13,13 +13,14 @@ import type {
   MetadataStore,
   CutRuntimeState,
 } from '../types';
-import type { StoreEvent, StoreEventInput } from './events';
+import type { StoreEvent } from './events';
 import type {
   CutTimelineSliceContract,
   GroupSliceContract,
   MetadataSliceContract,
   ProjectSliceContract,
   SelectionUiSliceContract,
+  StoreEventContract,
   SourceFolderContract,
 } from './contracts';
 
@@ -38,7 +39,13 @@ export interface ClipboardCut {
   lipSyncFrameCount?: number;
 }
 
-export interface AppState extends ProjectSliceContract, CutTimelineSliceContract, SelectionUiSliceContract, MetadataSliceContract, GroupSliceContract {
+export interface AppState
+  extends ProjectSliceContract,
+    CutTimelineSliceContract,
+    SelectionUiSliceContract,
+    MetadataSliceContract,
+    GroupSliceContract,
+    StoreEventContract {
   projectLoaded: boolean;
   projectPath: string | null;
   vaultPath: string | null;
@@ -84,10 +91,6 @@ export interface AppState extends ProjectSliceContract, CutTimelineSliceContract
   sidebarOpen: boolean;
   detailsPanelOpen: boolean;
   storeEvents: StoreEvent[];
-
-  emitStoreEvent: (event: StoreEventInput) => void;
-  drainStoreEvents: () => StoreEvent[];
-  applyStoreEvents: () => void;
 
   getSelectedCut: () => { scene: Scene; cut: Cut } | null;
   getSelectedScene: () => Scene | null;

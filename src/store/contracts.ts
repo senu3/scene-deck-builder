@@ -19,6 +19,12 @@ import type {
 } from '../types';
 import type { CutImportSource } from '../utils/cutImport';
 import type { AssetRef } from '../utils/assetRefs';
+import type {
+  StoreEvent,
+  StoreEventInput,
+  StoreEventOperationContext,
+  StoreEventSubscriber,
+} from './events';
 
 export interface SourceFolderContract {
   path: string;
@@ -148,7 +154,33 @@ export interface MetadataSliceContract {
     assetIds: string[];
     reason?: string;
   }) => Promise<{ success: boolean; reason?: string; blockingRefs?: AssetRef[] }>;
-  relinkCutAsset: (sceneId: string, cutId: string, newAsset: Asset) => void;
+  relinkCutAsset: (
+    sceneId: string,
+    cutId: string,
+    newAsset: Asset,
+    options?: { eventContext?: StoreEventOperationContext }
+  ) => void;
+}
+
+export interface StoreEventContract {
+  emitStoreEvent: (event: StoreEventInput) => void;
+  emitCutRelinked: (input: {
+    sceneId: string;
+    cutId: string;
+    previousAssetId?: string;
+    nextAssetId: string;
+  }) => void;
+  createStoreEventOperation: (
+    origin: StoreEventOperationContext['origin'],
+    opId?: string
+  ) => StoreEventOperationContext;
+  runWithStoreEventContext: (
+    context: StoreEventOperationContext,
+    run: () => void | Promise<void>
+  ) => Promise<void>;
+  registerStoreEventSubscriber: (subscriber: StoreEventSubscriber) => () => void;
+  drainStoreEvents: () => StoreEvent[];
+  applyStoreEvents: () => void;
 }
 
 export interface GroupSliceContract {

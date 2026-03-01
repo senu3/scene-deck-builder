@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useStore } from './useStore';
 
 /**
  * Command Pattern Interface
@@ -43,8 +44,11 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
    */
   executeCommand: async (command: Command) => {
     try {
-      // コマンドを実行
-      await command.execute();
+      const store = useStore.getState();
+      const context = store.createStoreEventOperation('user');
+      await store.runWithStoreEventContext(context, async () => {
+        await command.execute();
+      });
 
       // 履歴に追加
       set((state) => {
@@ -80,8 +84,11 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
     const command = past[past.length - 1];
 
     try {
-      // Undoを実行
-      await command.undo();
+      const store = useStore.getState();
+      const context = store.createStoreEventOperation('undo');
+      await store.runWithStoreEventContext(context, async () => {
+        await command.undo();
+      });
 
       // 履歴を更新
       set((state) => ({
@@ -108,8 +115,11 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
     const command = future[0];
 
     try {
-      // Redoを実行
-      await command.execute();
+      const store = useStore.getState();
+      const context = store.createStoreEventOperation('redo');
+      await store.runWithStoreEventContext(context, async () => {
+        await command.execute();
+      });
 
       // 履歴を更新
       set((state) => ({

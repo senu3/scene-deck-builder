@@ -469,7 +469,7 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
       return { success: true };
     },
 
-    relinkCutAsset: (sceneId, cutId, newAsset) => {
+    relinkCutAsset: (sceneId, cutId, newAsset, options) => {
       const state = get();
       const previousCut = state.scenes
         .find((s) => s.id === sceneId)
@@ -484,13 +484,19 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
         get().updateCutLipSync(sceneId, cutId, false);
       }
 
-      get().emitStoreEvent({
-        type: 'CUT_RELINKED',
-        sceneId,
-        cutId,
-        previousAssetId,
-        nextAssetId: newAsset.id,
-      });
+      const emit = () =>
+        get().emitCutRelinked({
+          sceneId,
+          cutId,
+          previousAssetId,
+          nextAssetId: newAsset.id,
+        });
+      const context = options?.eventContext;
+      if (context) {
+        void get().runWithStoreEventContext(context, emit);
+      } else {
+        emit();
+      }
 
       if (hadLipSyncSettings && previousAssetId && previousAssetId !== newAsset.id) {
         void get().cleanupLipSyncAssetsForDeletedCut(previousAssetId);

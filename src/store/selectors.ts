@@ -35,6 +35,7 @@ export const selectCopySelectedCuts = (s: AppState) => s.copySelectedCuts;
 export const selectCanPaste = (s: AppState) => s.canPaste;
 export const selectPasteCuts = (s: AppState) => s.pasteCuts;
 export const selectGetCutRuntime = (s: AppState) => s.getCutRuntime;
+export const selectClearCutRuntime = (s: AppState) => s.clearCutRuntime;
 export const selectOpenVideoPreview = (s: AppState) => s.openVideoPreview;
 export const selectOpenSequencePreview = (s: AppState) => s.openSequencePreview;
 export const selectCreateGroup = (s: AppState) => s.createGroup;
@@ -65,6 +66,10 @@ export const selectGetGroupAudioBinding = (s: AppState) => s.getGroupAudioBindin
 export const selectGetAttachedAudioForGroup = (s: AppState) => s.getAttachedAudioForGroup;
 export const selectSetCutUseEmbeddedAudio = (s: AppState) => s.setCutUseEmbeddedAudio;
 export const selectRelinkCutAsset = (s: AppState) => s.relinkCutAsset;
+export const selectCreateStoreEventOperation = (s: AppState) => s.createStoreEventOperation;
+export const selectRunWithStoreEventContext = (s: AppState) => s.runWithStoreEventContext;
+export const selectRegisterStoreEventSubscriber = (s: AppState) => s.registerStoreEventSubscriber;
+export const selectEmitCutRelinked = (s: AppState) => s.emitCutRelinked;
 
 export const selectSetGlobalVolume = (s: AppState) => s.setGlobalVolume;
 export const selectToggleGlobalMute = (s: AppState) => s.toggleGlobalMute;
