@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { DevOverlayPanel } from '../overlay/DevOverlayHost';
+import type { DevOverlayPanel } from '../DevOverlayHost';
 import { DND_DEBUG_EVENT_NAME, logDragDebug } from '../../utils/dragDrop';
 import type { DragDebugEventDetail } from '../../utils/dragDrop';
 

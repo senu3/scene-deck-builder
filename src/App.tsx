@@ -78,7 +78,7 @@ const PreviewModal = lazy(() => import('./components/PreviewModal'));
 const ExportModal = lazy(() => import('./components/ExportModal'));
 const EnvironmentSettingsModal = lazy(() => import('./components/EnvironmentSettingsModal'));
 const NotificationTestModal = lazy(() => import('./components/NotificationTestModal'));
-const DevOverlayHost = lazy(() => import('./debug/overlay/DevOverlayHost'));
+const DevOverlayHost = lazy(() => import('./debug/DevOverlayHost'));
 
 function DndMonitorShim({ onDragStart }: { onDragStart: () => void }) {
   useDndMonitor({
