@@ -23,7 +23,7 @@ import {
   regenerateCutClipThumbnails,
   resolveLoadedVaultPath,
   resolveScenesAssets,
-} from '../features/projectLoad/shared';
+} from '../features/project/load';
 
 // Pending project data for recovery dialog
 interface PendingProject {

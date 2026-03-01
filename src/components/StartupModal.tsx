@@ -31,7 +31,7 @@ import {
   regenerateCutClipThumbnails,
   resolveLoadedVaultPath,
   resolveScenesAssets,
-} from '../features/projectLoad/shared';
+} from '../features/project/load';
 import './StartupModal.css';
 
 interface RecentProject {

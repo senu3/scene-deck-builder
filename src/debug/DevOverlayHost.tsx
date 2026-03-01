@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import type { CSSProperties } from 'react';
-import { useDragDropDebugModule } from '../modules/dragDropDebug';
-import { usePreviewDebugModule } from '../modules/previewDebug';
+import { useDragDropDebugModule } from './modules/dragDropDebug';
+import { usePreviewDebugModule } from './modules/previewDebug';
 
 export interface DevOverlayPanel {
   id: string;
