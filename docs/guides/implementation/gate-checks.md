@@ -20,8 +20,7 @@
 - Gate 監査の「検出できること / できないこと」を本書で明示し、`Ready` 判定を script 検出だけに過大解釈しない。
 - Gate 6 例外は `load` / `migrate` / `init` / `normalize` の4カテゴリに固定し、それ以外を例外として追加しない。
 - Gate 2 では `safeOrder` のような順序 fallback を再導入しない。
-- Gate 8 の Temporary 例外（legacy allowlist）は `TODO-DEBT-008` で固定した範囲のみ許可し、新規追加を禁止する。
-- Gate 8 Temporary 例外の共通期限は `M2` 完了時までとし、期限超過fail判定は `M2` 完了後に定義する。
+- Gate 9 では cut サムネ解決の正規入口を `src/features/thumbnails/api.ts` に固定し、`assetResolve` 由来の入口を再導入しない。
 - baseline 更新は専用コミット（または PR 内の専用コミット）に分離する。
 
 ## Must Not
@@ -53,11 +52,10 @@
   - `src/utils` 配下の `window.electronAPI` 直呼び検出（platform bridge 経由へ統一）
   - `AssetPanel` / `DetailsPanel` の metadata API（`getVideoMetadata` / `readImageMetadata` / `loadAssetIndex`）直呼び検出
 - Gate 8: `cut.asset` の `assetResolve.ts` 外参照検出
-  - `resolveCutThumbnail(...)` の legacy allowlist 外使用検出（`CutCard` / `DetailsPanel` / `usePreviewItemsState` 以外を禁止）
-  - Temporary 例外の allowlist 増加は運用上禁止（増加時は gate fail として扱う）
 - Gate 9:
   - `getThumbnail(...)` の profile 未指定検出
   - `thumbnailCache` 低レベルAPI（`getThumbnail/getCachedThumbnail/removeThumbnailCache`）のFacade外import検出
+  - `assetResolve` からの `resolveCutThumbnail` import 検出（cutサムネは api.ts 正規入口へ統一）
   - 主要UI（`AssetPanel` / `Sidebar` / `previewItemsBuilder` / `LipSyncModal`）の `asset.thumbnail` 直参照検出
 - Gate 10:
   - ホットパスファイルでの node/fs/process import 検出
@@ -82,8 +80,7 @@
 - Gate 9:
   - profile指定・low-level import・主要UIでの `asset.thumbnail` 直参照は検出するが、対象外ファイルの snapshot fallback 妥当性は手動確認が必要。
 - Gate 8:
-  - `resolveCutThumbnail` は Temporary legacy bridge として段階撤去対象。
-  - 最終撤去条件・例外カテゴリは `ADR-0005` と `TODO-DEBT-008` を正本として判断する。
+  - `cut.asset` の fallback 妥当性（表示互換・復旧の境界）は手動確認が必要。
 - Gate 10:
   - 再生ループ外の重処理（`useEffect` やイベント連鎖）は strict 監査対象外。
   - 監査は「tick/updateホットパスを汚さない」ことに限定する。

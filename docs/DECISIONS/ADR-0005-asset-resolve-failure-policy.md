@@ -37,7 +37,7 @@ Amended (2026-02-28, TODO-DEBT-008 方針反映)
 
 - `cut.asset` 直接参照は `src/utils/assetResolve.ts` の fallback に限定し、それ以外の層で増やさない。
 - `cut.asset` snapshot seed / fallback は互換期間の暫定扱いとし、段階的に完全廃止する。
-- `resolveCutThumbnail` は Temporary legacy bridge として allowlist 管理し、増加を禁止する。
+- cut派生サムネ解決の正規入口は `src/features/thumbnails/api.ts` に統一する。
 
 ### 禁止線（Gate8）
 - `cut.asset` の直接参照は `src/utils/assetResolve.ts` の内部だけとする。
@@ -51,10 +51,10 @@ Amended (2026-02-28, TODO-DEBT-008 方針反映)
 - `M4`: `cut.asset` snapshot seed / fallback を完全廃止する（最終到達点）。
 
 #### M2 達成チェック項目（定義）
-- `CutCard` のサムネ解決が `assetId` 主経路で完結し、`resolveCutThumbnail` は clip Temporary 以外で使われていない。
+- `CutCard` のサムネ解決が `assetId` 主経路で完結し、cut派生の解決は `features/thumbnails/api.ts` の正規入口を使う。
 - `DetailsPanel`（単体cut/Group先頭cut）のサムネ解決が `assetId` 主経路で完結し、表示互換 fallback が残っていない。
-- `Preview`（`usePreviewItemsState` / `previewItemsBuilder`）の非clip経路で `resolveCutThumbnail` に依存しない。
-- Gate監査で `cut.asset` 直接参照と `resolveCutThumbnail` allowlist 外使用が 0 件である（`check:gate:strict`）。
+- `Preview`（`usePreviewItemsState` / `previewItemsBuilder`）の非clip経路で `assetResolve` 由来のサムネ解決に依存しない。
+- Gate監査で `cut.asset` 直接参照と `assetResolve` 由来の cutサムネ入口再導入が 0 件である（`check:gate:strict`）。
 
 ## Consequences
 - 失敗時挙動が機能面ごとに一貫する。

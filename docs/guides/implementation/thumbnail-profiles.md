@@ -10,6 +10,7 @@
 - Must: profile 追加時は main/renderer の型と map を同時更新する。
 - Must: サムネイル取得入口は `src/features/thumbnails/api.ts`（Facade / provider）へ段階的に統一する。
 - Must: `asset.thumbnail` fallback を使う場合も `src/features/thumbnails/api.ts` の resolver 経由にし、Asset key namespace（`asset:${assetId|path}:${profile}:${timeOffset}`）を維持する。
+- Must: cut派生サムネ解決は `src/features/thumbnails/api.ts` の cut resolver を正規入口とし、`cut:${kind}:${cutId}:${fingerprint}:${profile}` namespace を維持する。
 - Must Not: `asset-grid` / `sequence-preview` / `details-panel` を相互流用しない。
 - Must Not: profile 変更時に cache key の `profile` 要素を外さない。
 - Must Not: 新規コードで `asset.thumbnail` をサムネイル解決の主経路として直参照しない（provider経由で解決する）。
@@ -50,6 +51,7 @@
 - 入口統一の実装記録は `docs/notes/archive/gate9-thumbnail-unification-plan-implemented-2026-02-19.md` を参照する。
 - 目標: 呼び出し面から `thumbnailCache` / IPC を直接触らず、`features/thumbnails` のFacade経由へ統一する。
 - 目標: Asset と Cut派生（`cut:${kind}:...`）の key namespace を分離する。
+- 目標: `resolveCutThumbnail` 相当の責務を `api.ts` 側へ統一し、UI から `assetResolve` 経由を再導入しない。
 - Cut派生キャッシュ規約:
   - Key は `cut:${kind}:${cutId}:${fingerprint}:${profile}` を使う。
   - `kind=clip` の fingerprint は `inMs-outMs`（ミリ秒丸め）を使う。

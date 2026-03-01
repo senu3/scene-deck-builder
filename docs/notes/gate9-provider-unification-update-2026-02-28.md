@@ -3,8 +3,7 @@
 ## TL;DR
 - `TODO-DEBT-009` の主要経路（AssetPanel / Sidebar / Preview / LipSyncModal入口集約）を `src/features/thumbnails/api.ts` 経由へ統一。
 - Gate9 監査に `asset.thumbnail` 直参照検知（主要UI限定）を追加。
-- `resolveCutThumbnail` は legacy bridge として隔離し、allowlist 外利用を Gate8 監査で禁止。
-- non-clip 経路は段階的に `api.ts` resolver へ縮退済み。
+- cut派生サムネ解決は `src/features/thumbnails/api.ts` の正規入口（`resolveCutThumbnailFromCache` / `resolveCutThumbnailSource`）へ移行。
 - LipSync の完全置換は `TODO-DEBT-011` として分離。
 
 ## 目的
@@ -29,21 +28,17 @@
 - `src/features/thumbnails/__tests__/api.test.ts`
 - fallback 時も Asset key を使い続けることを検証。
 
-5. 追加整理（legacy 隔離 + 段階縮退）。
-- `resolveCutThumbnail` を legacy bridge として扱い、以下3箇所のみ allowlist 化:
-  - `src/components/CutCard.tsx`
-  - `src/components/DetailsPanel.tsx`
-  - `src/components/preview-modal/usePreviewItemsState.ts`
-- `scripts/check-gate.mjs` に `resolveCutThumbnail` allowlist 外使用検知（Gate8）を追加。
-- `CutCard` / `DetailsPanel` の non-clip サムネ経路を
-  `resolveAssetThumbnailFromCache(...)` へ移行。
-- `usePreviewItemsState` では legacy 呼び出しを clip のみに限定。
+5. 追加整理（正規ルート化）。
+- `src/features/thumbnails/api.ts` に cut派生 resolver を追加:
+  - `resolveCutThumbnailFromCache`
+  - `resolveCutThumbnailSource`
+- `CutCard` / `DetailsPanel` / `usePreviewItemsState` の `resolveCutThumbnail` 呼び出しを廃止し、
+  cut resolver へ移行。
+- `scripts/check-gate.mjs` は `assetResolve` からの `resolveCutThumbnail` import を Gate9 で検知する運用へ更新。
 
 ## 未完了（次バッチ）
 - LipSyncModal 内の snapshot fallback（`asset.thumbnail` 相当）を撤去し、resolver のみで完結させる。
 - 本残件は `TODO-DEBT-011` で管理する。
-- `resolveCutThumbnail` の最終撤去は Gate8 側の例外ポリシー確定後に実施する。
-  例外の扱いは `TODO-DEBT-008` で決定する。
 
 ## 検証
 - `npm test -- src/features/thumbnails/__tests__/api.test.ts`
