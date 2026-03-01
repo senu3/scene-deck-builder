@@ -26,7 +26,7 @@
   - `e3c9012`
 
 3. `StartupModal` / `useHeaderProjectController` の同型ロジック集約
-- project-load/recovery の重複を `src/features/projectLoad/shared.ts` に集約。
+- project-load/recovery の重複を `src/features/project/load.ts` に集約。
 - 集約対象:
   - `resolveScenesAssets`
   - `normalizeLoadedProjectVersion`
