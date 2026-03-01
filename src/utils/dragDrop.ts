@@ -6,6 +6,7 @@ import { getCuttableMediaType } from './mediaType';
 export type CuttableMediaType = 'image' | 'video';
 export type DragKind = 'asset' | 'externalFiles' | 'none';
 const DND_DEBUG_STORAGE_KEY = 'sceneDeck:dndDebug';
+export const DND_DEBUG_EVENT_NAME = 'scene-deck-dnd-debug';
 
 interface DragDebugItemSnapshot {
   kind: string;
@@ -161,7 +162,7 @@ export function logDragDebug(
     ts: new Date().toISOString(),
   };
   console.warn(`[DND] ${label}`, payload);
-  window.dispatchEvent(new CustomEvent<DragDebugEventDetail>('scene-deck-dnd-debug', {
+  window.dispatchEvent(new CustomEvent<DragDebugEventDetail>(DND_DEBUG_EVENT_NAME, {
     detail: payload,
   }));
 }
