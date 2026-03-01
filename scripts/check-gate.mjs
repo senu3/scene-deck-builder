@@ -119,11 +119,6 @@ const gate9LowLevelThumbnailApis = new Set([
   'getCachedThumbnail',
   'removeThumbnailCache',
 ]);
-const gate8LegacyCutThumbnailAllowedFiles = new Set([
-  'src/components/CutCard.tsx',
-  'src/components/DetailsPanel.tsx',
-  'src/components/preview-modal/usePreviewItemsState.ts',
-]);
 
 for (const file of files) {
   const r = rel(file);
@@ -138,18 +133,6 @@ for (const file of files) {
         file: r,
         line: lineOf(src, m.index),
         message: 'cut.asset usage outside assetResolve.ts',
-      });
-    }
-  }
-
-  // Gate 8: resolveCutThumbnail is a temporary legacy bridge and should not spread.
-  if (r !== 'src/utils/assetResolve.ts' && !gate8LegacyCutThumbnailAllowedFiles.has(r)) {
-    for (const m of findAll(src, /\bresolveCutThumbnail\s*\(/g)) {
-      warnings.push({
-        gate: 'Gate8',
-        file: r,
-        line: lineOf(src, m.index),
-        message: 'resolveCutThumbnail usage outside legacy allowlist',
       });
     }
   }
@@ -185,6 +168,21 @@ for (const file of files) {
         message: 'low-level thumbnailCache API import outside thumbnails facade',
       });
     }
+  }
+
+  // Gate 9: cut thumbnail resolution should use thumbnails api canonical route.
+  for (const m of findAll(src, /import\s*\{([^}]*)\}\s*from\s*['"][^'"]*assetResolve['"]/g)) {
+    const imported = (m.text.match(/\{([^}]*)\}/)?.[1] || '')
+      .split(',')
+      .map((token) => token.trim().split(/\s+as\s+/i)[0]?.trim())
+      .filter(Boolean);
+    if (!imported.includes('resolveCutThumbnail')) continue;
+    warnings.push({
+      gate: 'Gate9',
+      file: r,
+      line: lineOf(src, m.index),
+      message: 'resolveCutThumbnail import from assetResolve (use thumbnails api cut resolver)',
+    });
   }
 
   // Gate 9: key UI routes must not directly rely on asset.thumbnail.
