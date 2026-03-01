@@ -73,7 +73,7 @@ DevOverlayHost
 ```
 
 ### モジュール配置
-- `debug/overlay/DevOverlayHost.tsx`
+- `debug/DevOverlayHost.tsx`
 - `debug/modules/previewDebug.ts`
 - `debug/modules/dragDropDebug.ts`
 
