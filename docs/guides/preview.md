@@ -12,7 +12,7 @@
 
 **目的**: Preview 再生の責務境界と変更禁止点を固定する。  
 **適用範囲**: `PreviewModal` / 再生コントローラ / Preview media source。  
-**関連ファイル**: `docs/guides/export.md`, `docs/guides/media-handling.md`, `docs/guides/implementation/thumbnail-profiles.md`。  
+**関連ファイル**: `docs/guides/export.md`, `docs/guides/media-handling.md`, `docs/guides/implementation/thumbnail-profiles.md`, `docs/guides/implementation/debug-overlay.md`。  
 **更新頻度**: 中。
 
 ## Must / Must Not
@@ -22,9 +22,11 @@
 - Must: `sequenceCuts` 指定時はその範囲のみで sequence を構築する。
 - Must: `PreviewModal.tsx` は Composition Root とし、配線（hook 呼び出し＋View props 組み立て）に限定する。
 - Must: URL/asset 解決は `assetId` 整合を維持する。
+- Must: Debug Overlay は Preview の時間正本を変更しない。
 - Must Not: Preview/Export で時間定義を分岐させない（ad-hoc タイマー含む）。
 - Must Not: Sequence Mode を `<video>` 直接制御へ戻さない。
 - Must Not: Controller はドメイン構造を書き換えない。
+- Must Not: Debug Overlay が state 更新・command 発行・永続化を行う。
 
 ## モード境界
 - Single Mode:
@@ -57,6 +59,10 @@
 ## Export連携
 - Preview 起点 export は Export ガイドの正本ルールに従う。
 - Preview 側で独自の export 時間定義を持たない。
+
+## Debug Overlay Boundary
+- Debug Overlay の正本は `docs/guides/implementation/debug-overlay.md` とする。
+- Preview の時間正本・ドメイン構造に干渉してはならない。
 
 ## 運用メモ
 - UI文言の未確定事項は `docs/TODO_MASTER.md` で管理する。

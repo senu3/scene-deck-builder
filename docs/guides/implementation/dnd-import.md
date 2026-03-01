@@ -10,7 +10,7 @@
 
 **目的**: DnD と import の実装判断を統一し、UI差分追加時の逸脱を防ぐ。  
 **適用範囲**: `src/components/AssetPanel.tsx`, `src/components/Sidebar.tsx`, `src/hooks/useStorylineDragController.ts`, `src/utils/dragDrop.ts`, `electron/preload.ts`, `electron/main.ts`, `electron/handlers/assetFileDrag.ts`。  
-**関連ファイル**: `docs/guides/storyline.md`, `docs/guides/vault-assets.md`, `docs/guides/media-handling.md`, `docs/references/DOMAIN.md`, `docs/references/MAPPING.md`。  
+**関連ファイル**: `docs/guides/storyline.md`, `docs/guides/vault-assets.md`, `docs/guides/media-handling.md`, `docs/guides/implementation/debug-overlay.md`, `docs/references/DOMAIN.md`, `docs/references/MAPPING.md`。  
 **更新頻度**: 中。
 
 ## Must / Must Not
@@ -24,6 +24,7 @@
 - Must Not: drag kind 判定を各コンポーネントで個別実装しない。
 - Must Not: renderer で任意パスを組み立てて外部DnDへ渡さない。
 - Must Not: 外部持ち出し失敗時にクラッシュや強制例外を起こさない。
+- Must Not: dragDrop 層が HUD 実装を import しない。
 
 ## Canonical Data Flow
 
@@ -43,6 +44,10 @@
 - renderer `dragstart` 中に `startAssetFileDrag`（sync）を呼ぶ。
 - main で `validateStartAssetFileDragPayload` を通過した場合のみ `startDrag({ file, icon })` を実行する。
 - icon は `createSizedDragIcon` で縮小済み画像を使う（巨大サムネイル追従を抑止）。
+
+### 4) DnD Debug Overlay 連携（DEV専用）
+- DnD debug仕様は `debug-overlay.md` に従う。
+- DnD層は log APIのみを呼び、HUD存在を前提にしない。
 
 ## UI Behavior Rules
 - `AssetPanel` のサムネイル `<img>` は `draggable={false}` を維持する（HTML画像DnDへの誤フォールバック防止）。
