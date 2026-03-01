@@ -101,15 +101,6 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
   - BlockedBy: なし
   - DoneWhen: 分割条件が定義され、必要に応じて docs 分割
   - 関連: `docs/guides/media-handling.md`
-- `TODO-INVEST-005` Preview Debug Overlay HUD（表示専用）を設計する
-  - Track: `Investigation`
-  - Status: `backlog`
-  - StartWhen: デバッグ可視化改善の着手時
-  - BlockedBy: なし
-  - DoneWhen: HUD 仕様が確定し、state/export 非干渉ルールが明文化
-  - 表示候補: `sceneId/cutId/sceneIndex/cutIndex`、`cut.displayTime`（正本値）、再生状態、`sequenceState.localProgress`（参考値）
-  - ルール: HUD は state を変更しない / Export に影響させない / 永続化しない
-  - 関連: `docs/guides/preview.md`
 - `TODO-INVEST-007` Gate 10 の「再生ループ外の重処理」監視方針（計測点・しきい値）を定義する
   - Track: `Investigation`
   - Status: `backlog`
@@ -119,6 +110,7 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
   - 関連: `docs/guides/implementation/gate-checks.md`
 
 ## Done (archive)
+- 2026-03-01 | `TODO-INVEST-005` Preview Debug Overlay HUD（表示専用）仕様を確定し、DevOverlayHost へ DnD debug HUD を分離 | `docs/guides/implementation/debug-overlay.md` (`309b95e`, `7514b0b`)
 - 2026-03-01 | `TODO-INVEST-003` `CUT_RELINKED` の購読側（通知/表示/同期）仕様を凍結（origin/opId/allowlist/表示境界） | `docs/guides/cut-history.md`
 - 2026-02-28 | `TODO-DEBT-008` Gate8 例外カテゴリ/禁止線/マイルストーン（M1-M4）を ADR で固定 | `docs/DECISIONS/ADR-0005-asset-resolve-failure-policy.md`
 - 2026-02-28 | `TODO-DEBT-009` Gate9 provider統一（主要経路）と `asset.thumbnail` 直参照の監査運用を追加 | `docs/notes/gate9-provider-unification-update-2026-02-28.md`
