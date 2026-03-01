@@ -17,6 +17,7 @@ import {
 } from '../utils/projectSave';
 import {
   applyRecoveryDecisionsToScenes,
+  collectRecoveryRelinkEventCandidates,
   hasLegacyRelativeAssetPaths,
   normalizeLoadedProjectVersion,
   regenerateCutClipThumbnails,
@@ -54,6 +55,9 @@ export function useHeaderProjectController() {
     initializeSourcePanel,
     loadMetadata,
     loadProject,
+    createStoreEventOperation,
+    runWithStoreEventContext,
+    emitCutRelinked,
   } = useStore();
   const { alert: dialogAlert, confirm: dialogConfirm } = useDialog();
   const { toast } = useToast();
@@ -178,11 +182,13 @@ export function useHeaderProjectController() {
   }, [saveProjectInternal, vaultPath]);
 
   const finalizeProjectLoad = useCallback(async (project: PendingProject, recoveryDecisions?: RecoveryDecision[]) => {
+    const beforeRecoveryScenes = project.scenes;
     let finalScenes = await applyRecoveryDecisionsToScenes(
       project.scenes,
       project.vaultPath,
       recoveryDecisions
     );
+    const recoveryRelinks = collectRecoveryRelinkEventCandidates(beforeRecoveryScenes, finalScenes, recoveryDecisions);
     finalScenes = await regenerateCutClipThumbnails(finalScenes);
 
     initializeProject({
@@ -199,6 +205,15 @@ export function useHeaderProjectController() {
 
     // Initialize source panel state
     await initializeSourcePanel(project.sourcePanelState, project.vaultPath);
+
+    if (recoveryRelinks.length > 0) {
+      const context = createStoreEventOperation('recovery');
+      await runWithStoreEventContext(context, async () => {
+        for (const relink of recoveryRelinks) {
+          emitCutRelinked(relink);
+        }
+      });
+    }
 
     // Update recent projects
     const recentProjects = await window.electronAPI?.getRecentProjects() || [];
@@ -244,7 +259,15 @@ export function useHeaderProjectController() {
     setShowRecoveryDialog(false);
     setPendingProject(null);
     setMissingAssets([]);
-  }, [initializeProject, initializeSourcePanel, loadMetadata, setProjectPath]);
+  }, [
+    createStoreEventOperation,
+    emitCutRelinked,
+    initializeProject,
+    initializeSourcePanel,
+    loadMetadata,
+    runWithStoreEventContext,
+    setProjectPath,
+  ]);
 
   const handleRecoveryComplete = useCallback(async (decisions: RecoveryDecision[]) => {
     if (!pendingProject) return;

@@ -25,6 +25,7 @@ import {
 } from '../utils/projectSave';
 import {
   applyRecoveryDecisionsToScenes,
+  collectRecoveryRelinkEventCandidates,
   hasLegacyRelativeAssetPaths,
   normalizeLoadedProjectVersion,
   regenerateCutClipThumbnails,
@@ -66,7 +67,16 @@ type ProjectLoadOutcome =
   | { kind: 'ready'; payload: PendingProject };
 
 export default function StartupModal() {
-  const { initializeProject, setRootFolder, initializeSourcePanel, loadMetadata, setProjectPath } = useStore();
+  const {
+    initializeProject,
+    setRootFolder,
+    initializeSourcePanel,
+    loadMetadata,
+    setProjectPath,
+    createStoreEventOperation,
+    runWithStoreEventContext,
+    emitCutRelinked,
+  } = useStore();
   const [step, setStep] = useState<'choice' | 'new-project'>('choice');
   const [projectName, setProjectName] = useState('');
   const [vaultPath, setVaultPath] = useState('');
@@ -222,11 +232,13 @@ export default function StartupModal() {
 
   // Finalize project loading after recovery decisions (if any)
   const finalizeProjectLoad = async (project: PendingProject, recoveryDecisions?: RecoveryDecision[]) => {
+    const beforeRecoveryScenes = project.scenes;
     let finalScenes = await applyRecoveryDecisionsToScenes(
       project.scenes,
       project.vaultPath,
       recoveryDecisions
     );
+    const recoveryRelinks = collectRecoveryRelinkEventCandidates(beforeRecoveryScenes, finalScenes, recoveryDecisions);
     finalScenes = await regenerateCutClipThumbnails(finalScenes);
 
     initializeProject({
@@ -243,6 +255,15 @@ export default function StartupModal() {
 
     // Initialize source panel state
     await initializeSourcePanel(project.sourcePanelState, project.vaultPath);
+
+    if (recoveryRelinks.length > 0) {
+      const context = createStoreEventOperation('recovery');
+      await runWithStoreEventContext(context, async () => {
+        for (const relink of recoveryRelinks) {
+          emitCutRelinked(relink);
+        }
+      });
+    }
 
     // Update recent projects
     const newRecent: RecentProject = {

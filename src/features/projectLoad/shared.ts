@@ -7,6 +7,13 @@ import { generateVideoClipThumbnail } from '../cut/clipThumbnail';
 import { getCuttableMediaType } from '../../utils/mediaType';
 import { cutAssetPathStartsWith, resolveCutAsset, resolveCutAssetId } from '../../utils/assetResolve';
 
+export interface CutRelinkEventCandidate {
+  sceneId: string;
+  cutId: string;
+  previousAssetId?: string;
+  nextAssetId: string;
+}
+
 async function resolveAssetPath(asset: Asset, vaultPath: string): Promise<Asset> {
   if (asset.path.startsWith('assets/')) {
     const result = await window.electronAPI?.resolveVaultPath(vaultPath, asset.path);
@@ -276,6 +283,54 @@ export async function applyRecoveryDecisionsToScenes(
   }
 
   return finalScenes;
+}
+
+export function collectRecoveryRelinkEventCandidates(
+  beforeScenes: Scene[],
+  afterScenes: Scene[],
+  recoveryDecisions?: RecoveryDecision[]
+): CutRelinkEventCandidate[] {
+  if (!recoveryDecisions || recoveryDecisions.length === 0) {
+    return [];
+  }
+
+  const beforeAssetIdByCut = new Map<string, string | undefined>();
+  const afterAssetIdByCut = new Map<string, string | undefined>();
+
+  const toKey = (sceneId: string, cutId: string) => `${sceneId}::${cutId}`;
+
+  for (const scene of beforeScenes) {
+    for (const cut of scene.cuts) {
+      beforeAssetIdByCut.set(toKey(scene.id, cut.id), resolveCutAssetId(cut, () => undefined) ?? undefined);
+    }
+  }
+
+  for (const scene of afterScenes) {
+    for (const cut of scene.cuts) {
+      afterAssetIdByCut.set(toKey(scene.id, cut.id), resolveCutAssetId(cut, () => undefined) ?? undefined);
+    }
+  }
+
+  const candidates: CutRelinkEventCandidate[] = [];
+  for (const decision of recoveryDecisions) {
+    if (decision.action !== 'relink') {
+      continue;
+    }
+    const key = toKey(decision.sceneId, decision.cutId);
+    const previousAssetId = beforeAssetIdByCut.get(key);
+    const nextAssetId = afterAssetIdByCut.get(key);
+    if (!nextAssetId || previousAssetId === nextAssetId) {
+      continue;
+    }
+    candidates.push({
+      sceneId: decision.sceneId,
+      cutId: decision.cutId,
+      previousAssetId,
+      nextAssetId,
+    });
+  }
+
+  return candidates;
 }
 
 export async function regenerateCutClipThumbnails(scenes: Scene[]): Promise<Scene[]> {

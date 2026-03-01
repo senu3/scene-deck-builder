@@ -47,6 +47,7 @@ import {
   selectUpdateCutAudioOffset,
   selectSetCutUseEmbeddedAudio,
   selectRelinkCutAsset,
+  selectCreateStoreEventOperation,
 } from "../store/selectors";
 import { useHistoryStore } from "../store/historyStore";
 import {
@@ -106,6 +107,7 @@ export default function DetailsPanel() {
   const updateCutAudioOffset = useStore(selectUpdateCutAudioOffset);
   const setCutUseEmbeddedAudio = useStore(selectSetCutUseEmbeddedAudio);
   const relinkCutAsset = useStore(selectRelinkCutAsset);
+  const createStoreEventOperation = useStore(selectCreateStoreEventOperation);
 
   const { executeCommand } = useHistoryStore();
   const { confirm } = useDialog();
@@ -655,7 +657,9 @@ export default function DetailsPanel() {
       }
 
       // Relink cut to new asset
-      relinkCutAsset(cutScene.id, cut.id, newAsset);
+      relinkCutAsset(cutScene.id, cut.id, newAsset, {
+        eventContext: createStoreEventOperation('user'),
+      });
     } catch (error) {
       console.error('Failed to relink file:', error);
       alert(`Failed to relink file: ${error}`);

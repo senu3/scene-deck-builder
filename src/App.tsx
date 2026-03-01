@@ -24,12 +24,14 @@ import {
   selectToggleSidebar,
   selectGetCutGroup,
   selectGetAsset,
+  selectClearCutRuntime,
   selectMetadataStore,
-    selectSelectionType,
-    selectDetailsPanelOpen,
-    selectCloseDetailsPanel,
-    selectProjectName,
-  } from './store/selectors';
+  selectSelectionType,
+  selectDetailsPanelOpen,
+  selectCloseDetailsPanel,
+  selectProjectName,
+  selectRegisterStoreEventSubscriber,
+} from './store/selectors';
 import { useHistoryStore } from './store/historyStore';
 import {
   AddCutCommand,
@@ -108,11 +110,13 @@ function App() {
   const toggleSidebar = useStore(selectToggleSidebar);
   const getCutGroup = useStore(selectGetCutGroup);
   const getAsset = useStore(selectGetAsset);
+  const clearCutRuntime = useStore(selectClearCutRuntime);
   const metadataStore = useStore(selectMetadataStore);
   const selectionType = useStore(selectSelectionType);
   const detailsPanelOpen = useStore(selectDetailsPanelOpen);
   const closeDetailsPanel = useStore(selectCloseDetailsPanel);
   const projectName = useStore(selectProjectName);
+  const registerStoreEventSubscriber = useStore(selectRegisterStoreEventSubscriber);
   const orderedScenes = getScenesInOrder(scenes, sceneOrder);
 
   const { executeCommand, undo, redo } = useHistoryStore();
@@ -262,6 +266,43 @@ function App() {
     });
     return () => unsubscribe();
   }, [toggleSidebar]);
+
+  useEffect(() => {
+    const unsubUi = registerStoreEventSubscriber({
+      name: 'ui',
+      onEvent: (event) => {
+        if (event.type !== 'CUT_RELINKED') return;
+        if (event.origin !== 'user') return;
+        toast.info('Cut relinked', `Cut ${event.cutId} was relinked.`);
+      },
+    });
+    const unsubPreviewCache = registerStoreEventSubscriber({
+      name: 'preview-cache',
+      onEvent: (event) => {
+        if (event.type !== 'CUT_RELINKED') return;
+        clearCutRuntime(event.cutId);
+      },
+    });
+    const unsubTelemetry = registerStoreEventSubscriber({
+      name: 'telemetry',
+      onEvent: (event) => {
+        if (event.type !== 'CUT_RELINKED') return;
+        console.info('[Telemetry] CUT_RELINKED', {
+          sceneId: event.sceneId,
+          cutId: event.cutId,
+          previousAssetId: event.previousAssetId,
+          nextAssetId: event.nextAssetId,
+          origin: event.origin,
+          opId: event.opId,
+        });
+      },
+    });
+    return () => {
+      unsubUi();
+      unsubPreviewCache();
+      unsubTelemetry();
+    };
+  }, [clearCutRuntime, registerStoreEventSubscriber, toast]);
 
   // Debug probe for native external DnD delivery (capture phase)
   useEffect(() => {
