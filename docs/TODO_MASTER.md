@@ -19,12 +19,12 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
   - DoneWhen: store action の I/O 副作用境界が docs で固定され、対象スライスの実行経路が方針に整合
   - 関連: `docs/notes/electronapi-direct-call-audit-memo-2026-02-19.md`
   - 対象例: `src/store/slices/projectSlice.ts`, `src/store/slices/metadataSlice.ts`
-- `TODO-DEBT-011` Gate9 の LipSync サムネ解決を `asset.thumbnail` fallback なしで完了させる
+- `TODO-DEBT-011` Gate9 の LipSync サムネ解決を resolver-only 経路へ統一し、snapshot fallback を撤去する
   - Track: `Gate-Work`
   - Status: `backlog`
-  - StartWhen: LipSyncModal の provider 完全置換バッチを切るとき
+  - StartWhen: cut resolver 正規化（`features/thumbnails/api.ts`）が main に反映されたとき
   - BlockedBy: なし
-  - DoneWhen: LipSyncModal のサムネ解決が resolver API のみになり、snapshot fallback 依存が撤去される
+  - DoneWhen: LipSync サムネ解決の実行経路が `features/thumbnails/api.ts` に統一され、snapshot fallback の直接依存が撤去される
   - 関連: `docs/notes/gate9-provider-unification-update-2026-02-28.md`
 - `TODO-DEBT-004` Buffer/Memory ガイドを最新実装検索結果で再棚卸しする
   - Track: `Gate-Work`
