@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Asset, Cut, MetadataStore, Scene } from '../../types';
-import { resolveCutAsset, resolveCutThumbnail } from '../../utils/assetResolve';
+import { resolveCutThumbnailFromCache } from '../../features/thumbnails/api';
+import { resolveCutAsset } from '../../utils/assetResolve';
 import {
   asCanonicalDurationSec,
   resolveCanonicalCutDuration,
@@ -57,8 +58,16 @@ export function usePreviewItemsState({
 
   const resolveClipSnapshotThumbnail = useCallback((cut: Cut | null | undefined): string | null => {
     if (!cut?.isClip) return null;
-    // GATE8-LEGACY-THUMBNAIL: clip snapshot fallback path only.
-    return resolveCutThumbnail(cut, getAsset);
+    const asset = resolveCutAsset(cut, getAsset);
+    return resolveCutThumbnailFromCache('sequence-preview', {
+      cutId: cut.id,
+      kind: 'clip',
+      assetId: asset?.id ?? cut.assetId,
+      assetPath: asset?.path,
+      assetType: asset?.type,
+      inPointSec: cut.inPoint,
+      outPointSec: cut.outPoint,
+    });
   }, [getAsset]);
 
   const resolveCutDisplayTimeSec = useCallback((cut: Cut | null | undefined): CanonicalDurationSec => {

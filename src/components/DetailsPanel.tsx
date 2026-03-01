@@ -62,9 +62,13 @@ import {
   SetGroupAttachAudioCommand,
   SetSceneAttachAudioCommand,
 } from "../store/commands";
-import { getAssetThumbnail, getCutClipThumbnail, resolveAssetThumbnailFromCache } from "../features/thumbnails/api";
+import {
+  getAssetThumbnail,
+  getCutClipThumbnail,
+  resolveCutThumbnailFromCache,
+} from "../features/thumbnails/api";
 import { readImageMetadataForPath } from "../features/metadata/provider";
-import { resolveCutAsset, resolveCutThumbnail } from "../utils/assetResolve";
+import { resolveCutAsset } from "../utils/assetResolve";
 import { extractVideoMetadata } from "../utils/videoUtils";
 import { getLipSyncFrameAssetIds } from "../utils/lipSyncUtils";
 import { importFileToVault } from "../utils/assetPath";
@@ -146,11 +150,19 @@ export default function DetailsPanel() {
   const cut = selectedCutData?.cut;
   const cutScene = selectedCutData?.scene;
   const asset = cut ? resolveCutAsset(cut, getAsset) : null;
-  // Keep clip path on legacy snapshot fallback; use resolver API for non-clip paths.
   const preferredThumbnail = cut
-    ? (cut.isClip
-      ? resolveCutThumbnail(cut, getAsset)
-      : (asset ? resolveAssetThumbnailFromCache('details-panel', asset) : null))
+    ? resolveCutThumbnailFromCache('details-panel', {
+      cutId: cut.id,
+      kind: cut.isClip ? 'clip' : 'cut',
+      assetId: asset?.id ?? cut.assetId,
+      assetPath: asset?.path,
+      assetType: asset?.type,
+      inPointSec: cut.inPoint,
+      outPointSec: cut.outPoint,
+      assetSnapshotThumbnail: asset?.thumbnail,
+    }, {
+      includeAssetSnapshotFallback: !cut.isClip,
+    })
     : null;
   const primaryAudioBinding = cut?.audioBindings?.[0];
   const useEmbeddedAudio = cut?.useEmbeddedAudio ?? true;
@@ -185,9 +197,18 @@ export default function DetailsPanel() {
       if (!firstCut) return;
 
       const firstAsset = resolveCutAsset(firstCut, getAsset);
-      const firstThumbnail = firstCut.isClip
-        ? resolveCutThumbnail(firstCut, getAsset)
-        : (firstAsset ? resolveAssetThumbnailFromCache('details-panel', firstAsset) : null);
+      const firstThumbnail = resolveCutThumbnailFromCache('details-panel', {
+        cutId: firstCut.id,
+        kind: firstCut.isClip ? 'clip' : 'cut',
+        assetId: firstAsset?.id ?? firstCut.assetId,
+        assetPath: firstAsset?.path,
+        assetType: firstAsset?.type,
+        inPointSec: firstCut.inPoint,
+        outPointSec: firstCut.outPoint,
+        assetSnapshotThumbnail: firstAsset?.thumbnail,
+      }, {
+        includeAssetSnapshotFallback: !firstCut.isClip,
+      });
       if (firstThumbnail) {
         if (isActive) setGroupThumbnail(firstThumbnail);
         return;

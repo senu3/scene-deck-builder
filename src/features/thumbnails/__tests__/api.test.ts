@@ -8,6 +8,8 @@ import {
   getAssetThumbnail,
   getCutClipThumbnail,
   getCutDerivedThumbnail,
+  resolveCutThumbnailFromCache,
+  resolveCutThumbnailSource,
   resolveAssetThumbnailFromCache,
   resolveAssetThumbnailSource,
   removeAssetThumbnail,
@@ -207,5 +209,51 @@ describe('thumbnails api key strategy', () => {
     expect(resolved).toBe('snapshot-thumb');
     const [, , options] = vi.mocked(getThumbnail).mock.calls[0];
     expect(options.key).toBe('asset:asset-1:asset-grid:0');
+  });
+
+  it('resolves cut thumbnail from cache with cut namespace key', () => {
+    const resolved = resolveCutThumbnailFromCache('timeline-card', {
+      cutId: 'cut-1',
+      kind: 'clip',
+      assetId: 'asset-1',
+      assetPath: '/vault/assets/a.mp4',
+      assetType: 'video',
+      inPointSec: 1.2,
+      outPointSec: 2.5,
+    });
+
+    expect(resolved).toBe('cached-thumb');
+    const [, options] = vi.mocked(getCachedThumbnail).mock.calls[0];
+    expect(options.key).toBe('cut:clip:cut-1:1200-2500:timeline-card');
+  });
+
+  it('uses stable cut namespace for non-clip requests', () => {
+    resolveCutThumbnailFromCache('details-panel', {
+      cutId: 'cut-2',
+      kind: 'cut',
+      assetId: 'asset-2',
+      assetPath: '/vault/assets/b.png',
+      assetType: 'image',
+    });
+
+    const [, options] = vi.mocked(getCachedThumbnail).mock.calls[0];
+    expect(String(options.key).startsWith('cut:cut:cut-2:asset%3Aasset-2%3At0:details-panel')).toBe(true);
+  });
+
+  it('resolves cut thumbnail source via thumbnail cache APIs with cut namespace', async () => {
+    await resolveCutThumbnailSource('sequence-preview', {
+      cutId: 'cut-3',
+      kind: 'clip',
+      assetId: 'asset-3',
+      assetPath: '/vault/assets/c.mp4',
+      assetType: 'video',
+      inPointSec: 0.5,
+      outPointSec: 1.0,
+    }, {
+      preferCache: false,
+    });
+
+    const [, , options] = vi.mocked(getThumbnail).mock.calls[0];
+    expect(options.key).toBe('cut:clip:cut-3:500-1000:sequence-preview');
   });
 });

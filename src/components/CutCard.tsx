@@ -26,8 +26,11 @@ import { getScenesInOrder } from '../utils/sceneOrder';
 import { useHistoryStore } from '../store/historyStore';
 import type { Asset, CutAudioBinding } from '../types';
 import './CutCard.css';
-import { getAssetThumbnail, resolveAssetThumbnailFromCache } from '../features/thumbnails/api';
-import { resolveCutAsset, resolveCutThumbnail } from '../utils/assetResolve';
+import {
+  getAssetThumbnail,
+  resolveCutThumbnailFromCache,
+} from '../features/thumbnails/api';
+import { resolveCutAsset } from '../utils/assetResolve';
 import { CutContextMenu } from './context-menus';
 import ImageCropModal, { type ImageCropConfig } from './ImageCropModal';
 import { useBanner, useToast } from '../ui';
@@ -156,10 +159,18 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
   };
 
   const asset = resolveCutAsset(cut, getAsset);
-  // Keep clip path on legacy snapshot fallback; use resolver API for non-clip paths.
-  const preferredThumbnail = cut.isClip
-    ? resolveCutThumbnail(cut, getAsset)
-    : (asset ? resolveAssetThumbnailFromCache('timeline-card', asset) : null);
+  const preferredThumbnail = resolveCutThumbnailFromCache('timeline-card', {
+    cutId: cut.id,
+    kind: cut.isClip ? 'clip' : 'cut',
+    assetId: asset?.id ?? cut.assetId,
+    assetPath: asset?.path,
+    assetType: asset?.type,
+    inPointSec: cut.inPoint,
+    outPointSec: cut.outPoint,
+    assetSnapshotThumbnail: asset?.thumbnail,
+  }, {
+    includeAssetSnapshotFallback: !cut.isClip,
+  });
   const isSelected = selectedCutIds.has(cut.id) || selectedCutId === cut.id;
   const isMultiSelected = selectedCutIds.size > 1 && selectedCutIds.has(cut.id);
   const isVideo = asset?.type === 'video';
