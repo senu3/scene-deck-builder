@@ -4,6 +4,10 @@ import { clearThumbnailCache } from '../../utils/thumbnailCache';
 import { normalizeSceneOrder } from '../../utils/sceneOrder';
 import { resolveCutAssetId } from '../../utils/assetResolve';
 import { normalizeGroupsInScenes } from '../../utils/cutGroupOps';
+import {
+  checkPathExistsForSourcePanel,
+  readFolderContentsForSourcePanel,
+} from '../../features/project/sourcePanelProvider';
 import type { SourceFolder } from '../stateTypes';
 import type { ProjectSliceContract } from '../contracts';
 import type { SliceGet, SliceSet } from './sliceTypes';
@@ -163,11 +167,13 @@ export function createProjectSlice(set: SliceSet, get: SliceGet): ProjectSliceCo
 
     refreshAllSourceFolders: async () => {
       const state = get();
-      if (!window.electronAPI) return;
 
       for (const folder of state.sourceFolders) {
         try {
-          const structure = await window.electronAPI.getFolderContents(folder.path);
+          const structure = await readFolderContentsForSourcePanel(folder.path);
+          if (!structure) {
+            throw new Error('Folder read failed');
+          }
           set((currentState) => ({
             sourceFolders: currentState.sourceFolders.map((f) =>
               f.path === folder.path ? { ...f, structure } : f
@@ -215,17 +221,16 @@ export function createProjectSlice(set: SliceSet, get: SliceGet): ProjectSliceCo
             continue;
           }
 
-          if (window.electronAPI) {
-            try {
-              const structure = await window.electronAPI.getFolderContents(folderState.path);
-              folders.push({
-                path: folderState.path,
-                name: folderState.name,
-                structure,
-              });
-            } catch {
-              // Folder may not exist anymore.
-            }
+          try {
+            const structure = await readFolderContentsForSourcePanel(folderState.path);
+            if (!structure) continue;
+            folders.push({
+              path: folderState.path,
+              name: folderState.name,
+              structure,
+            });
+          } catch {
+            // Folder may not exist anymore.
           }
         }
         set({
@@ -240,12 +245,10 @@ export function createProjectSlice(set: SliceSet, get: SliceGet): ProjectSliceCo
           sourceViewMode: 'list',
         });
         const assetsPath = `${vaultPath}/assets`.replace(/\\/g, '/');
-        if (window.electronAPI) {
-          try {
-            await window.electronAPI.pathExists(assetsPath);
-          } catch {
-            // Ignore errors.
-          }
+        try {
+          await checkPathExistsForSourcePanel(assetsPath);
+        } catch {
+          // Ignore errors.
         }
       }
     },

@@ -1,3 +1,5 @@
+import type { FileItem } from '../../types';
+
 type BridgeElectronAPI = NonNullable<Window['electronAPI']>;
 
 type AudioPcmResult = {
@@ -74,6 +76,10 @@ export async function isPathInVaultBridge(vaultPath: string, checkPath: string):
 
 export async function pathExistsBridge(checkPath: string): Promise<boolean> {
   return (await getElectronAPI()?.pathExists?.(checkPath)) ?? false;
+}
+
+export async function getFolderContentsBridge(folderPath: string): Promise<FileItem[] | null> {
+  return (await getElectronAPI()?.getFolderContents?.(folderPath)) ?? null;
 }
 
 export async function loadProjectFromPathBridge(projectPath: string): Promise<{ data: unknown; path: string } | null> {
