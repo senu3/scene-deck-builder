@@ -13,7 +13,8 @@ import {
 } from '../../utils/metadataStore';
 import { analyzeAudioRms } from '../../utils/audioUtils';
 import { collectAssetRefs, getBlockingRefsForAssetIds } from '../../utils/assetRefs';
-import type { Asset, AssetIndexEntry, MetadataStore } from '../../types';
+import { hydrateAssetsByIdsFromIndex } from '../../features/metadata/provider';
+import type { MetadataStore } from '../../types';
 import type { MetadataSliceContract } from '../contracts';
 import type { SliceGet, SliceSet } from './sliceTypes';
 
@@ -38,20 +39,6 @@ function collectSceneAudioAssetIds(store: MetadataStore | null): string[] {
   return Array.from(ids);
 }
 
-function toAssetFromIndexEntry(vaultPath: string, entry: AssetIndexEntry, absolutePath?: string): Asset {
-  const vaultRelativePath = `assets/${entry.filename}`.replace(/\\/g, '/');
-  return {
-    id: entry.id,
-    name: entry.originalName || entry.filename || entry.id,
-    path: absolutePath || `${vaultPath}/${vaultRelativePath}`.replace(/\\/g, '/'),
-    type: entry.type,
-    vaultRelativePath,
-    originalPath: entry.originalPath,
-    hash: entry.hash,
-    fileSize: entry.fileSize,
-  };
-}
-
 export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSliceContract {
   return {
     cacheAsset: (asset) =>
@@ -66,32 +53,12 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
     loadMetadata: async (vaultPath) => {
       const store = await loadMetadataStore(vaultPath);
       const attachAudioIds = collectSceneAudioAssetIds(store);
-      if (attachAudioIds.length > 0 && window.electronAPI?.loadAssetIndex) {
+      if (attachAudioIds.length > 0) {
         const state = get();
         const missingIds = attachAudioIds.filter((assetId) => !state.assetCache.has(assetId));
         if (missingIds.length > 0) {
           try {
-            const index = await window.electronAPI.loadAssetIndex(vaultPath);
-            const entryById = new Map((index.assets || []).map((entry) => [entry.id, entry] as const));
-            const hydratedAssets: Asset[] = [];
-
-            for (const assetId of missingIds) {
-              const entry = entryById.get(assetId);
-              if (!entry) continue;
-
-              let absolutePath: string | undefined;
-              if (window.electronAPI.resolveVaultPath) {
-                try {
-                  const resolved = await window.electronAPI.resolveVaultPath(vaultPath, `assets/${entry.filename}`);
-                  if (resolved?.exists && resolved.absolutePath) {
-                    absolutePath = resolved.absolutePath;
-                  }
-                } catch {
-                  // Keep best-effort fallback path below.
-                }
-              }
-              hydratedAssets.push(toAssetFromIndexEntry(vaultPath, entry, absolutePath));
-            }
+            const hydratedAssets = await hydrateAssetsByIdsFromIndex(vaultPath, missingIds);
 
             if (hydratedAssets.length > 0) {
               set((currentState) => {

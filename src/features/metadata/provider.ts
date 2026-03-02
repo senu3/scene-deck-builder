@@ -2,7 +2,9 @@ import {
   getVideoMetadataBridge,
   loadAssetIndexBridge,
   readImageMetadataBridge,
+  resolveVaultPathBridge,
 } from '../platform/electronGateway';
+import type { Asset } from '../../types';
 
 type AssetIndexEntryLike = {
   id: string;
@@ -54,6 +56,55 @@ export async function loadAssetIndexEntries(vaultPath: string): Promise<AssetInd
   } catch {
     return [];
   }
+}
+
+function toAssetFromIndexEntry(vaultPath: string, entry: AssetIndexEntryLike, absolutePath?: string): Asset {
+  const vaultRelativePath = `assets/${entry.filename}`.replace(/\\/g, '/');
+  return {
+    id: entry.id,
+    name: entry.originalName || entry.filename || entry.id,
+    path: absolutePath || `${vaultPath}/${vaultRelativePath}`.replace(/\\/g, '/'),
+    type: entry.type,
+    vaultRelativePath,
+    originalPath: entry.originalPath,
+    hash: entry.hash,
+    fileSize: entry.fileSize,
+  };
+}
+
+async function resolveVaultAssetPath(
+  vaultPath: string,
+  entry: AssetIndexEntryLike
+): Promise<string | undefined> {
+  try {
+    const resolved = await resolveVaultPathBridge(vaultPath, `assets/${entry.filename}`);
+    if (resolved.exists && resolved.absolutePath) {
+      return resolved.absolutePath;
+    }
+  } catch {
+    // best effort only
+  }
+  return undefined;
+}
+
+export async function hydrateAssetsByIdsFromIndex(
+  vaultPath: string,
+  assetIds: string[],
+): Promise<Asset[]> {
+  if (!vaultPath || assetIds.length === 0) return [];
+  const entries = await loadAssetIndexEntries(vaultPath);
+  if (entries.length === 0) return [];
+  const entryById = new Map(entries.map((entry) => [entry.id, entry] as const));
+  const hydratedAssets: Asset[] = [];
+
+  for (const assetId of assetIds) {
+    const entry = entryById.get(assetId);
+    if (!entry) continue;
+    const absolutePath = await resolveVaultAssetPath(vaultPath, entry);
+    hydratedAssets.push(toAssetFromIndexEntry(vaultPath, entry, absolutePath));
+  }
+
+  return hydratedAssets;
 }
 
 export async function readImageMetadataForPath(path: string): Promise<ImageMetadataLike | null> {
