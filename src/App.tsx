@@ -35,14 +35,12 @@ import {
 import { useHistoryStore } from './store/historyStore';
 import {
   AddCutCommand,
-  ClearClipPointsCommand,
   MoveCutBetweenScenesCommand,
   MoveCutsToSceneCommand,
   PasteCutsCommand,
   RemoveCutCommand,
   RemoveCutFromGroupCommand,
   ReorderCutsWithGroupSyncCommand,
-  UpdateClipPointsCommand,
   UpdateGroupCutOrderCommand,
 } from './store/commands';
 import AssetDrawer from './components/AssetDrawer';
@@ -52,7 +50,7 @@ import Header from './components/Header';
 import { v4 as uuidv4 } from 'uuid';
 import type { Asset, Cut } from './types';
 import { getAssetThumbnail } from './features/thumbnails/api';
-import { generateVideoClipThumbnail } from './features/cut/clipThumbnail';
+import { clearPreviewClipPoints, savePreviewClipPoints } from './features/cut/previewClipUpdate';
 import { importFileToVault } from './utils/assetPath';
 import { getDragKind, isDndDebugEnabled, logDragDebug, queueExternalFilesToScene, setDndDebugEnabled } from './utils/dragDrop';
 import { buildSequenceItemsForCuts } from './utils/exportSequence';
@@ -856,31 +854,39 @@ function App() {
   const handleVideoPreviewClipSave = useCallback(async (inPoint: number, outPoint: number) => {
     if (!previewData) return;
     const { scene, cut, asset } = previewData;
-    await executeCommand(new UpdateClipPointsCommand(scene.id, cut.id, inPoint, outPoint));
-
-    // Regenerate thumbnail at IN point
-    if (asset.path) {
-      const newThumbnail = await generateVideoClipThumbnail(cut.id, asset.path, inPoint, outPoint);
-      if (newThumbnail) {
-        // Clip thumbnail is cut-specific; do not mutate shared asset cache thumbnail.
-        updateCutAsset(scene.id, cut.id, { thumbnail: newThumbnail });
-      }
-    }
+    await savePreviewClipPoints(
+      {
+        sceneId: scene.id,
+        cutId: cut.id,
+        isClip: !!cut.isClip,
+        asset,
+      },
+      inPoint,
+      outPoint,
+      {
+        executeCommand,
+        updateCutAsset,
+        thumbnailProfile: 'timeline-card',
+      },
+    );
   }, [previewData, executeCommand, updateCutAsset]);
 
   const handleVideoPreviewClipClear = useCallback(async () => {
     if (!previewData) return;
     const { scene, cut, asset } = previewData;
-    if (!cut.isClip) return;
-
-    await executeCommand(new ClearClipPointsCommand(scene.id, cut.id));
-
-    if (asset.path) {
-      const newThumbnail = await generateVideoClipThumbnail(cut.id, asset.path, 0);
-      if (newThumbnail) {
-        updateCutAsset(scene.id, cut.id, { thumbnail: newThumbnail });
-      }
-    }
+    await clearPreviewClipPoints(
+      {
+        sceneId: scene.id,
+        cutId: cut.id,
+        isClip: !!cut.isClip,
+        asset,
+      },
+      {
+        executeCommand,
+        updateCutAsset,
+        thumbnailProfile: 'timeline-card',
+      },
+    );
   }, [previewData, executeCommand, updateCutAsset]);
 
   // Handle frame capture from video preview modal

@@ -54,8 +54,6 @@ import {
   UpdateDisplayTimeCommand,
   RemoveCutCommand,
   BatchUpdateDisplayTimeCommand,
-  UpdateClipPointsCommand,
-  ClearClipPointsCommand,
   AddCutCommand,
   CreateGroupCommand,
   DeleteGroupCommand,
@@ -65,10 +63,10 @@ import {
 } from "../store/commands";
 import {
   getAssetThumbnail,
-  getCutClipThumbnail,
   resolveCutThumbnailFromCache,
 } from "../features/thumbnails/api";
 import { readImageMetadataForPath } from "../features/metadata/provider";
+import { clearPreviewClipPoints, savePreviewClipPoints } from "../features/cut/previewClipUpdate";
 import { resolveCutAsset } from "../utils/assetResolve";
 import { extractVideoMetadata } from "../utils/videoUtils";
 import { getLipSyncFrameAssetIds } from "../utils/lipSyncUtils";
@@ -444,44 +442,41 @@ export default function DetailsPanel() {
 
   const handleSaveClip = async (inPoint: number, outPoint: number) => {
     if (cutScene && cut && asset) {
-      await executeCommand(
-        new UpdateClipPointsCommand(cutScene.id, cut.id, inPoint, outPoint),
-      );
-
-      // Regenerate thumbnail at IN point
-      if (asset.path && asset.type === "video") {
-        const newThumbnail = await getCutClipThumbnail('details-panel', {
+      await savePreviewClipPoints(
+        {
+          sceneId: cutScene.id,
           cutId: cut.id,
-          path: asset.path,
-          inPointSec: inPoint,
-          outPointSec: outPoint,
-        });
-        if (newThumbnail) {
-          // Clip thumbnail is cut-specific; do not mutate shared asset cache thumbnail.
-          updateCutAsset(cutScene.id, cut.id, { thumbnail: newThumbnail });
-          setThumbnail(newThumbnail);
-        }
-      }
+          isClip: !!cut.isClip,
+          asset,
+        },
+        inPoint,
+        outPoint,
+        {
+          executeCommand,
+          updateCutAsset,
+          thumbnailProfile: "details-panel",
+          onThumbnailUpdated: setThumbnail,
+        },
+      );
     }
   };
 
   const handleClearClip = async () => {
     if (cutScene && cut && asset) {
-      await executeCommand(new ClearClipPointsCommand(cutScene.id, cut.id));
-
-      // Regenerate thumbnail at time 0
-      if (asset.path && asset.type === "video") {
-        const newThumbnail = await getCutClipThumbnail('details-panel', {
+      await clearPreviewClipPoints(
+        {
+          sceneId: cutScene.id,
           cutId: cut.id,
-          path: asset.path,
-          inPointSec: 0,
-        });
-        if (newThumbnail) {
-          // Clip clear thumbnail is cut-specific; do not mutate shared asset cache thumbnail.
-          updateCutAsset(cutScene.id, cut.id, { thumbnail: newThumbnail });
-          setThumbnail(newThumbnail);
-        }
-      }
+          isClip: !!cut.isClip,
+          asset,
+        },
+        {
+          executeCommand,
+          updateCutAsset,
+          thumbnailProfile: "details-panel",
+          onThumbnailUpdated: setThumbnail,
+        },
+      );
     }
   };
 
