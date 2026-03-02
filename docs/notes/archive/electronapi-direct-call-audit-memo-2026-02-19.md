@@ -120,3 +120,7 @@
   - store内 I/O 直実行見直しを `TODO-DEBT-010` として `TODO_MASTER` に追加。
 - 補足:
   - `TODO-DEBT-010` の着手条件は PreviewModal VideoClip の command 化方針確定後とする。
+
+## Update（2026-03-02 / Close）
+- `TODO-DEBT-010` の M2/M3/M4 と残存直呼び移管が完了。
+- 本メモは調査履歴として `docs/notes/archive/` へ移動する。

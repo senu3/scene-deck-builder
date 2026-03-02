@@ -14,10 +14,10 @@
 
 ## TODO-DEBT-010 進行メモ
 - ID: `TODO-DEBT-010`
-- 現在ステータス: `in-progress`
+- 現在ステータス: `done`
 - 現在地:
   - Preview VideoClip の Save/Clear 更新経路は共通ユースケース化済み。
-  - 次段階は slice 内 I/O の provider/gateway 移管。
+  - slice 内 I/O の provider/gateway 移管と Gate7 監査拡張を完了。
 
 ## Progress Log
 - 2026-03-02 (M2):
@@ -71,4 +71,4 @@
 ## Related
 - `docs/DECISIONS/ADR-0006-store-io-boundary-policy.md`
 - `docs/TODO_MASTER.md` (`TODO-DEBT-010`)
-- `docs/notes/electronapi-direct-call-audit-memo-2026-02-19.md`
+- `docs/notes/archive/electronapi-direct-call-audit-memo-2026-02-19.md`

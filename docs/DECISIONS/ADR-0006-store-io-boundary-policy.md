@@ -50,6 +50,6 @@ Accepted (2026-03-02)
 - 一方、移行期間は adapter 層が増えるため、段階的移管とテスト補強が前提になる。
 
 ## Related
-- `docs/notes/store-io-boundary-migration-plan-2026-03-02.md`
-- `docs/notes/electronapi-direct-call-audit-memo-2026-02-19.md`
+- `docs/notes/archive/store-io-boundary-migration-plan-2026-03-02.md`
+- `docs/notes/archive/electronapi-direct-call-audit-memo-2026-02-19.md`
 - `docs/DECISIONS/ADR-0003-command-boundary.md`
