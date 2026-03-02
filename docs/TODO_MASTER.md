@@ -13,7 +13,7 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
 ## Gate-Work Track
 - `TODO-DEBT-010` store内 I/O 直実行の境界を再整理し、PreviewModal VideoClip の command 化計画と整合させる
   - Track: `Gate-Work`
-  - Status: `backlog`
+  - Status: `in-progress`
   - StartWhen: PreviewModal VideoClip の command 化方針が確定したとき
   - BlockedBy: なし
   - DoneWhen: store action の I/O 副作用境界が docs で固定され、対象スライスの実行経路が方針に整合
