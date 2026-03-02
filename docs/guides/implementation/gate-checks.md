@@ -51,6 +51,7 @@
 - Gate 7:
   - `src/utils` 配下の `window.electronAPI` 直呼び検出（platform bridge 経由へ統一）
   - `AssetPanel` / `DetailsPanel` の metadata API（`getVideoMetadata` / `readImageMetadata` / `loadAssetIndex`）直呼び検出
+  - `src/store/slices` 配下の `window.electronAPI` 直呼び検出（provider/gateway 境界へ統一、期限付きallowlistのみ許可）
 - Gate 8: `cut.asset` の `assetResolve.ts` 外参照検出
 - Gate 9:
   - `getThumbnail(...)` の profile 未指定検出
@@ -75,7 +76,8 @@
 - Gate 6:
   - `useStore.setState` / `set(...scenes:...)` 以外の間接更新（helper経由やslice内派生更新）は静的に取りこぼす可能性がある。
 - Gate 7:
-  - 現状は `src/utils` + metadata対象UIの限定監査。renderer 全域の直呼び検出は未導入。
+  - 現状は `src/utils` + metadata対象UI + `src/store/slices` の限定監査。renderer 全域の直呼び検出は未導入。
+  - `src/store/slices` は期限付きallowlist運用のため、許可項目の撤去/縮小を継続する。
   - `TODO-DEBT-007` 完了後も、他UI経路への監査拡張は必要時に別途判断する。
 - Gate 9:
   - profile指定・low-level import・主要UIでの `asset.thumbnail` 直参照は検出するが、対象外ファイルの snapshot fallback 妥当性は手動確認が必要。

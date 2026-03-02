@@ -26,6 +26,9 @@
 - 2026-03-02 (M3):
   - `metadataSlice.loadMetadata` の `loadAssetIndex` / `resolveVaultPath` 直呼びを撤去し、`features/metadata/provider.ts` の hydration API へ移管。
   - metadata provider テストを拡張し、既存 hydration 結合テストの回帰を確認。
+- 2026-03-02 (M4):
+  - `scripts/check-gate.mjs` の Gate7 監査を拡張し、`src/store/slices` 配下の `window.electronAPI` 直呼びを fail 対象に追加。
+  - `metadataSlice` に残る既存経路は期限付き allowlist として明示し、新規流入を strict で検知できる状態へ更新。
 
 ## Implementation Policy
 1. `projectSlice` の移管
