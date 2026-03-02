@@ -2,6 +2,7 @@ import type React from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Cut } from '../../types';
 import { clampToDuration } from './helpers';
+import { computeNextRangeForSetIn, computeNextRangeForSetOut } from './clipRangeOps';
 import type { FocusedMarker } from './parts/PlaybackRangeMarkers';
 
 const CLIP_POINT_EPSILON = 0.0001;
@@ -22,7 +23,7 @@ interface UsePreviewSingleModeSessionInput {
   setSingleModeInPoint: (value: number | null) => void;
   setSingleModeOutPoint: (value: number | null) => void;
   notifyRangeChange: (inPoint: number | null, outPoint: number | null) => void;
-  setMarkerTimeAndSeek: (marker: 'in' | 'out', newTime: number) => void;
+  setMarkerTime: (marker: 'in' | 'out', newTime: number) => number;
   seekSequenceAbsolute: (time: number) => void;
   sequenceTotalDuration: number;
   progressBarRef: React.RefObject<HTMLDivElement>;
@@ -54,7 +55,7 @@ export function usePreviewSingleModeSession({
   setSingleModeInPoint,
   setSingleModeOutPoint,
   notifyRangeChange,
-  setMarkerTimeAndSeek,
+  setMarkerTime,
   seekSequenceAbsolute,
   sequenceTotalDuration,
   progressBarRef,
@@ -169,13 +170,14 @@ export function usePreviewSingleModeSession({
 
   const handleSingleModeSetInPoint = useCallback(() => {
     if (!isSingleModeVideo) return;
-    const candidateInPoint = clampToDuration(singleModeCurrentTime, singleModeDuration);
-    const nextInPoint = isSingleModeClipEnabled && outPoint !== null
-      ? Math.min(candidateInPoint, outPoint)
-      : candidateInPoint;
-    const nextOutPoint = isSingleModeClipEnabled
-      ? outPoint
-      : (outPoint !== null && nextInPoint >= outPoint ? null : outPoint);
+    const nextRange = computeNextRangeForSetIn({
+      playheadTime: singleModeCurrentTime,
+      duration: singleModeDuration,
+      inPoint,
+      outPoint,
+      keepOppositeWhenCrossed: isSingleModeClipEnabled,
+    });
+    const { inPoint: nextInPoint, outPoint: nextOutPoint } = nextRange;
     setSingleModeRange(nextInPoint, nextOutPoint);
     if (focusedMarker === 'out' && nextOutPoint === null) {
       setFocusedMarker(null);
@@ -199,13 +201,14 @@ export function usePreviewSingleModeSession({
 
   const handleSingleModeSetOutPoint = useCallback(() => {
     if (!isSingleModeVideo) return;
-    const candidateOutPoint = clampToDuration(singleModeCurrentTime, singleModeDuration);
-    const nextOutPoint = isSingleModeClipEnabled && inPoint !== null
-      ? Math.max(candidateOutPoint, inPoint)
-      : candidateOutPoint;
-    const nextInPoint = isSingleModeClipEnabled
-      ? inPoint
-      : (inPoint !== null && nextOutPoint <= inPoint ? null : inPoint);
+    const nextRange = computeNextRangeForSetOut({
+      playheadTime: singleModeCurrentTime,
+      duration: singleModeDuration,
+      inPoint,
+      outPoint,
+      keepOppositeWhenCrossed: isSingleModeClipEnabled,
+    });
+    const { inPoint: nextInPoint, outPoint: nextOutPoint } = nextRange;
     setSingleModeRange(nextInPoint, nextOutPoint);
     if (focusedMarker === 'in' && nextInPoint === null) {
       setFocusedMarker(null);
@@ -372,12 +375,12 @@ export function usePreviewSingleModeSession({
     seekSequenceAbsolute,
   ]);
 
-  const handleMarkerDrag = useCallback((marker: 'in' | 'out', newTime: number) => {
+  const handleMarkerDrag = useCallback((marker: 'in' | 'out', newTime: number): number => {
     if (isSingleModeVideo && isSingleModeClipEnabled) {
       singleModeClipDragDirtyRef.current = true;
     }
-    setMarkerTimeAndSeek(marker, newTime);
-  }, [setMarkerTimeAndSeek, isSingleModeVideo, isSingleModeClipEnabled]);
+    return setMarkerTime(marker, newTime);
+  }, [setMarkerTime, isSingleModeVideo, isSingleModeClipEnabled]);
 
   const handleMarkerDragEnd = useCallback(async () => {
     if (isSingleModeVideo && isSingleModeClipEnabled && singleModeClipDragDirtyRef.current) {

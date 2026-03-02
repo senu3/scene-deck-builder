@@ -6,9 +6,9 @@ interface UsePreviewInputsInput {
   progressBarRef: React.RefObject<HTMLDivElement>;
   itemsLength: number;
   totalDuration: number;
-  sequencePause: () => void;
-  seekSequenceAbsolute: (time: number) => void;
-  seekSequencePercent: (percent: number) => void;
+  onPauseBeforeSeek: () => void;
+  onSeekAbsolute: (time: number) => void;
+  onSeekPercent: (percent: number) => void;
   onClose: () => void;
   onPlayPause: () => void;
   onSkipBack: () => void;
@@ -26,9 +26,9 @@ export function usePreviewInputs({
   progressBarRef,
   itemsLength,
   totalDuration,
-  sequencePause,
-  seekSequenceAbsolute,
-  seekSequencePercent,
+  onPauseBeforeSeek,
+  onSeekAbsolute,
+  onSeekPercent,
   onClose,
   onPlayPause,
   onSkipBack,
@@ -51,9 +51,9 @@ export function usePreviewInputs({
     progressBarRef,
     itemsLength,
     totalDuration,
-    sequencePause,
-    seekSequenceAbsolute,
-    seekSequencePercent,
+    onPauseBeforeSeek,
+    onSeekAbsolute,
+    onSeekPercent,
   });
 
   usePreviewKeyboardShortcuts({

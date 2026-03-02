@@ -6,18 +6,18 @@ interface UseSequenceProgressInteractionsInput {
   progressBarRef: React.RefObject<HTMLDivElement>;
   itemsLength: number;
   totalDuration: number;
-  sequencePause: () => void;
-  seekSequenceAbsolute: (time: number) => void;
-  seekSequencePercent: (percent: number) => void;
+  onPauseBeforeSeek: () => void;
+  onSeekAbsolute: (time: number) => void;
+  onSeekPercent: (percent: number) => void;
 }
 
 export function useSequenceProgressInteractions({
   progressBarRef,
   itemsLength,
   totalDuration,
-  sequencePause,
-  seekSequenceAbsolute,
-  seekSequencePercent,
+  onPauseBeforeSeek,
+  onSeekAbsolute,
+  onSeekPercent,
 }: UseSequenceProgressInteractionsInput) {
   const [isDragging, setIsDragging] = useState(false);
   const [hoverTime, setHoverTime] = useState<string | null>(null);
@@ -31,14 +31,14 @@ export function useSequenceProgressInteractions({
 
     if (totalDuration <= 0) return;
     const newTime = (progressPercent / 100) * totalDuration;
-    seekSequenceAbsolute(newTime);
-  }, [progressBarRef, itemsLength, totalDuration, seekSequenceAbsolute]);
+    onSeekAbsolute(newTime);
+  }, [progressBarRef, itemsLength, totalDuration, onSeekAbsolute]);
 
   const handleProgressBarMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     setIsDragging(true);
-    sequencePause();
+    onPauseBeforeSeek();
     handleProgressBarClick(e);
-  }, [handleProgressBarClick, sequencePause]);
+  }, [handleProgressBarClick, onPauseBeforeSeek]);
 
   const handleProgressBarMouseMove = useCallback((e: MouseEvent) => {
     if (!isDragging || !progressBarRef.current || itemsLength === 0) return;
@@ -46,8 +46,8 @@ export function useSequenceProgressInteractions({
     const rect = progressBarRef.current.getBoundingClientRect();
     const clickX = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
     const progressPercent = (clickX / rect.width) * 100;
-    seekSequencePercent(progressPercent);
-  }, [isDragging, progressBarRef, itemsLength, seekSequencePercent]);
+    onSeekPercent(progressPercent);
+  }, [isDragging, progressBarRef, itemsLength, onSeekPercent]);
 
   const handleProgressBarMouseUp = useCallback(() => {
     setIsDragging(false);

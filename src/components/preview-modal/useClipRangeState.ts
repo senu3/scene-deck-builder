@@ -9,14 +9,10 @@ interface UseClipRangeStateInput {
   sequenceOutPoint: number | null;
   sequenceTotalDuration: number;
   singleModeDuration: number;
-  itemsLength: number;
   initialInPoint?: number;
   initialOutPoint?: number;
   onRangeChange?: (range: { inPoint: number | null; outPoint: number | null }) => void;
   setSequenceRange: (inPoint: number | null, outPoint: number | null) => void;
-  seekSequenceAbsolute: (time: number) => void;
-  setSingleModeCurrentTime: (time: number) => void;
-  videoRef: React.RefObject<HTMLVideoElement>;
   frameDuration: number;
 }
 
@@ -26,14 +22,10 @@ export function useClipRangeState({
   sequenceOutPoint,
   sequenceTotalDuration,
   singleModeDuration,
-  itemsLength,
   initialInPoint,
   initialOutPoint,
   onRangeChange,
   setSequenceRange,
-  seekSequenceAbsolute,
-  setSingleModeCurrentTime,
-  videoRef,
   frameDuration,
 }: UseClipRangeStateInput) {
   const [singleModeInPoint, setSingleModeInPoint] = useState<number | null>(initialInPoint ?? null);
@@ -47,7 +39,7 @@ export function useClipRangeState({
     onRangeChange?.({ inPoint: nextInPoint, outPoint: nextOutPoint });
   }, [onRangeChange]);
 
-  const setMarkerTimeAndSeek = useCallback((marker: 'in' | 'out', newTime: number) => {
+  const setMarkerTime = useCallback((marker: 'in' | 'out', newTime: number): number => {
     const duration = usesSequenceController
       ? sequenceTotalDuration
       : singleModeDuration;
@@ -71,12 +63,7 @@ export function useClipRangeState({
       }
     }
 
-    if (!usesSequenceController && videoRef.current) {
-      videoRef.current.currentTime = constrainedTime;
-      setSingleModeCurrentTime(constrainedTime);
-    } else if (usesSequenceController && itemsLength > 0) {
-      seekSequenceAbsolute(constrainedTime);
-    }
+    return constrainedTime;
   }, [
     usesSequenceController,
     sequenceTotalDuration,
@@ -85,26 +72,22 @@ export function useClipRangeState({
     outPoint,
     notifyRangeChange,
     setSequenceRange,
-    videoRef,
-    setSingleModeCurrentTime,
-    itemsLength,
-    seekSequenceAbsolute,
   ]);
 
-  const stepFocusedMarker = useCallback((direction: number) => {
-    if (!focusedMarker) return;
+  const stepFocusedMarker = useCallback((direction: number): number | null => {
+    if (!focusedMarker) return null;
     const currentMarkerTime = focusedMarker === 'in' ? inPoint : outPoint;
-    if (currentMarkerTime === null) return;
-    setMarkerTimeAndSeek(focusedMarker, currentMarkerTime + (direction * frameDuration));
-  }, [focusedMarker, inPoint, outPoint, setMarkerTimeAndSeek, frameDuration]);
+    if (currentMarkerTime === null) return null;
+    return setMarkerTime(focusedMarker, currentMarkerTime + (direction * frameDuration));
+  }, [focusedMarker, inPoint, outPoint, setMarkerTime, frameDuration]);
 
   const handleMarkerFocus = useCallback((marker: FocusedMarker) => {
     setFocusedMarker(marker);
   }, []);
 
-  const handleMarkerDrag = useCallback((marker: 'in' | 'out', newTime: number) => {
-    setMarkerTimeAndSeek(marker, newTime);
-  }, [setMarkerTimeAndSeek]);
+  const handleMarkerDrag = useCallback((marker: 'in' | 'out', newTime: number): number => {
+    return setMarkerTime(marker, newTime);
+  }, [setMarkerTime]);
 
   const handleMarkerDragEnd = useCallback(() => {
     setFocusedMarker(null);
@@ -129,7 +112,7 @@ export function useClipRangeState({
     inPoint,
     outPoint,
     notifyRangeChange,
-    setMarkerTimeAndSeek,
+    setMarkerTime,
     stepFocusedMarker,
     handleMarkerFocus,
     handleMarkerDrag,
