@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  hydrateAssetsByIdsFromIndex,
   loadAssetIndexEntries,
   readImageMetadataForPath,
   readVideoMetadataForPath,
@@ -35,6 +36,37 @@ describe('metadata provider', () => {
     (window.electronAPI!.loadAssetIndex as any).mockRejectedValueOnce(new Error('fail'));
     const entries = await loadAssetIndexEntries('C:/vault');
     expect(entries).toEqual([]);
+  });
+
+  it('hydrates assets by id from index and resolves absolute path', async () => {
+    resetElectronMocks();
+    (window.electronAPI!.loadAssetIndex as any).mockResolvedValueOnce({
+      version: 1,
+      assets: [
+        {
+          id: 'aud-1',
+          hash: 'hash-aud-1',
+          filename: 'aud_1.wav',
+          originalName: 'bgm.wav',
+          originalPath: 'imports/bgm.wav',
+          type: 'audio',
+          fileSize: 1024,
+          importedAt: '2026-02-20T00:00:00.000Z',
+        },
+      ],
+    });
+    (window.electronAPI!.resolveVaultPath as any).mockResolvedValueOnce({
+      absolutePath: 'C:/vault/assets/aud_1.wav',
+      exists: true,
+    });
+
+    const hydrated = await hydrateAssetsByIdsFromIndex('C:/vault', ['aud-1', 'missing-id']);
+    expect(hydrated).toHaveLength(1);
+    expect(hydrated[0]).toMatchObject({
+      id: 'aud-1',
+      path: 'C:/vault/assets/aud_1.wav',
+      type: 'audio',
+    });
   });
 
   it('loads image metadata via bridge', async () => {
