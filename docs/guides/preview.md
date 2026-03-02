@@ -44,6 +44,7 @@
 ## 責務境界
 - 操作入口（Commands）:
   - 対象は play/pause/seek/step/skip、IN/OUT、loop/mute/marker。
+  - progress bar click/drag や marker drag による seek も command 入口で処理する。
   - 表示整形、DOM 計測、fullscreen/overlay など純UI状態は command 対象外。
 - 時間の正本（Timebase）:
   - 正本は domain 正規化後の canonical cut timing。

@@ -17,6 +17,7 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
   - StartWhen: PreviewModal VideoClip の command 化方針が確定したとき
   - BlockedBy: なし
   - DoneWhen: store action の I/O 副作用境界が docs で固定され、対象スライスの実行経路が方針に整合
+  - Progress: Preview VideoClip の Save/Clear 更新経路は共通ユースケース化済み（次は store I/O 境界の再整理）
   - 関連: `docs/notes/electronapi-direct-call-audit-memo-2026-02-19.md`
   - 対象例: `src/store/slices/projectSlice.ts`, `src/store/slices/metadataSlice.ts`
 - `TODO-DEBT-011` Gate9 の LipSync サムネ解決を resolver-only 経路へ統一し、snapshot fallback を撤去する
