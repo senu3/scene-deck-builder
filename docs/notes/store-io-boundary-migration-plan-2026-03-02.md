@@ -19,6 +19,11 @@
   - Preview VideoClip の Save/Clear 更新経路は共通ユースケース化済み。
   - 次段階は slice 内 I/O の provider/gateway 移管。
 
+## Progress Log
+- 2026-03-02 (M2):
+  - `projectSlice` の `refreshAllSourceFolders` / `initializeSourcePanel` で `window.electronAPI` 直呼びを撤去し、`features/project/sourcePanelProvider.ts` 経由へ移管。
+  - provider 単体テストと projectSlice 結合テストを追加。
+
 ## Implementation Policy
 1. `projectSlice` の移管
 - 対象: `refreshAllSourceFolders` / `initializeSourcePanel`
