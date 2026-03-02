@@ -23,6 +23,9 @@
 - 2026-03-02 (M2):
   - `projectSlice` の `refreshAllSourceFolders` / `initializeSourcePanel` で `window.electronAPI` 直呼びを撤去し、`features/project/sourcePanelProvider.ts` 経由へ移管。
   - provider 単体テストと projectSlice 結合テストを追加。
+- 2026-03-02 (M3):
+  - `metadataSlice.loadMetadata` の `loadAssetIndex` / `resolveVaultPath` 直呼びを撤去し、`features/metadata/provider.ts` の hydration API へ移管。
+  - metadata provider テストを拡張し、既存 hydration 結合テストの回帰を確認。
 
 ## Implementation Policy
 1. `projectSlice` の移管
