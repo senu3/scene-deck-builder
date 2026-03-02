@@ -13,7 +13,7 @@ import {
 } from '../../utils/metadataStore';
 import { analyzeAudioRms } from '../../utils/audioUtils';
 import { collectAssetRefs, getBlockingRefsForAssetIds } from '../../utils/assetRefs';
-import { hydrateAssetsByIdsFromIndex } from '../../features/metadata/provider';
+import { deleteAssetWithIndexSync, hydrateAssetsByIdsFromIndex } from '../../features/metadata/provider';
 import type { MetadataStore } from '../../types';
 import type { MetadataSliceContract } from '../contracts';
 import type { SliceGet, SliceSet } from './sliceTypes';
@@ -311,7 +311,7 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
       // Remove lipsync metadata first so generated assets are no longer treated as in-use references.
       get().clearLipSyncForAsset(assetId);
 
-      if (generatedAssetIds.length === 0 || !window.electronAPI?.loadAssetIndex) {
+      if (generatedAssetIds.length === 0) {
         return;
       }
 
@@ -327,11 +327,11 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
 
       if (latestState.vaultPath) {
         try {
-          const index = await window.electronAPI.loadAssetIndex(latestState.vaultPath);
-          for (const entry of index.assets) {
-            if (!generatedAssetIds.includes(entry.id)) continue;
-            if (assetPathById.has(entry.id)) continue;
-            assetPathById.set(entry.id, `${latestState.vaultPath}/assets/${entry.filename}`);
+          const unresolvedAssetIds = generatedAssetIds.filter((id) => !assetPathById.has(id));
+          const hydratedAssets = await hydrateAssetsByIdsFromIndex(latestState.vaultPath, unresolvedAssetIds);
+          for (const asset of hydratedAssets) {
+            if (!asset.path || assetPathById.has(asset.id)) continue;
+            assetPathById.set(asset.id, asset.path);
           }
         } catch (error) {
           console.warn('[LipSync] Failed to resolve generated asset paths from index:', error);
@@ -341,11 +341,14 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
       for (const generatedId of generatedAssetIds) {
         const generatedPath = assetPathById.get(generatedId);
         if (!generatedPath) continue;
-        await get().deleteAssetWithPolicy({
+        const result = await get().deleteAssetWithPolicy({
           assetPath: generatedPath,
           assetIds: [generatedId],
           reason: 'lipsync-generated-cleanup',
         });
+        if (!result.success) {
+          console.warn('[LipSync] Generated asset cleanup failed:', result.reason, generatedId);
+        }
       }
     },
 
@@ -388,9 +391,6 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
 
     deleteAssetWithPolicy: async ({ assetPath, assetIds, reason }) => {
       const state = get();
-      if (!window.electronAPI?.vaultGateway) {
-        return { success: false, reason: 'electron-unavailable' };
-      }
 
       const targetAssetIds = Array.from(new Set(assetIds.filter(Boolean)));
       if (targetAssetIds.length === 0) {
@@ -408,31 +408,21 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
         return { success: false, reason: 'trash-path-missing' };
       }
 
-      const moved = await window.electronAPI.vaultGateway.moveToTrashWithMeta(assetPath, targetTrashPath, {
-        assetId: targetAssetIds[0],
-        reason: reason || 'asset-delete-policy',
+      const deletion = await deleteAssetWithIndexSync({
+        assetPath,
+        trashPath: targetTrashPath,
+        assetIds: targetAssetIds,
+        reason,
+        vaultPath: state.vaultPath,
       });
-      if (!moved) {
-        return { success: false, reason: 'trash-move-failed' };
-      }
-
-      if (state.vaultPath) {
-        try {
-          const index = await window.electronAPI.loadAssetIndex(state.vaultPath);
-          const deletedIds = new Set(targetAssetIds);
-          const updatedAssets = index.assets.filter((entry) => !deletedIds.has(entry.id));
-          if (updatedAssets.length !== index.assets.length) {
-            await window.electronAPI.vaultGateway.saveAssetIndex(state.vaultPath, {
-              ...index,
-              assets: updatedAssets,
-            });
-          }
-        } catch (error) {
-          console.error('Failed to update asset index during delete policy:', error);
-        }
+      if (!deletion.success || !deletion.fileDeleted) {
+        return { success: false, reason: deletion.reason || 'trash-move-failed' };
       }
 
       get().removeAssetReferences(targetAssetIds);
+      if (!deletion.indexUpdated) {
+        return { success: true, reason: 'index-sync-failed' };
+      }
       return { success: true };
     },
 

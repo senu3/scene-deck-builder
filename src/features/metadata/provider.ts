@@ -1,8 +1,12 @@
 import {
+  hasVaultGatewayBridge,
   getVideoMetadataBridge,
   loadAssetIndexBridge,
+  moveToTrashWithMetaBridge,
   readImageMetadataBridge,
   resolveVaultPathBridge,
+  saveAssetIndexBridge,
+  withSerializedAssetIndexMutationBridge,
 } from '../platform/electronGateway';
 import type { Asset } from '../../types';
 
@@ -36,6 +40,21 @@ type VideoMetadataLike = {
   duration?: number;
   width?: number;
   height?: number;
+};
+
+type DeleteAssetWithIndexSyncParams = {
+  assetPath: string;
+  trashPath: string;
+  assetIds: string[];
+  reason?: string;
+  vaultPath?: string | null;
+};
+
+export type DeleteAssetWithIndexSyncResult = {
+  success: boolean;
+  fileDeleted: boolean;
+  indexUpdated: boolean;
+  reason?: 'electron-unavailable' | 'trash-move-failed' | 'index-update-failed' | 'invalid-params';
 };
 
 function isAssetIndexEntryLike(value: unknown): value is AssetIndexEntryLike {
@@ -131,4 +150,55 @@ export async function resolveVideoDurationForPath(path: string): Promise<number 
   if (typeof duration !== 'number') return null;
   if (!Number.isFinite(duration) || duration <= 0) return null;
   return duration;
+}
+
+export async function deleteAssetWithIndexSync(
+  params: DeleteAssetWithIndexSyncParams
+): Promise<DeleteAssetWithIndexSyncResult> {
+  const { assetPath, trashPath, assetIds, reason, vaultPath } = params;
+  const normalizedAssetIds = Array.from(new Set(assetIds.filter(Boolean)));
+  if (!assetPath || !trashPath) {
+    return { success: false, fileDeleted: false, indexUpdated: false, reason: 'invalid-params' };
+  }
+  if (!hasVaultGatewayBridge()) {
+    return { success: false, fileDeleted: false, indexUpdated: false, reason: 'electron-unavailable' };
+  }
+
+  const moved = await moveToTrashWithMetaBridge(assetPath, trashPath, {
+    assetId: normalizedAssetIds[0],
+    reason: reason || 'asset-delete-policy',
+  });
+  if (!moved) {
+    return { success: false, fileDeleted: false, indexUpdated: false, reason: 'trash-move-failed' };
+  }
+
+  if (!vaultPath || normalizedAssetIds.length === 0) {
+    return { success: true, fileDeleted: true, indexUpdated: true };
+  }
+
+  const indexUpdated = await withSerializedAssetIndexMutationBridge(async () => {
+    try {
+      const index = await loadAssetIndexBridge(vaultPath);
+      if (!index || !Array.isArray(index.assets)) return false;
+      const deletedIds = new Set(normalizedAssetIds);
+      const updatedAssets = index.assets.filter((entry) => {
+        const candidate = entry as { id?: unknown };
+        return typeof candidate.id !== 'string' || !deletedIds.has(candidate.id);
+      });
+      if (updatedAssets.length === index.assets.length) {
+        return true;
+      }
+      return await saveAssetIndexBridge(vaultPath, {
+        ...index,
+        assets: updatedAssets,
+      });
+    } catch {
+      return false;
+    }
+  });
+
+  if (!indexUpdated) {
+    return { success: true, fileDeleted: true, indexUpdated: false, reason: 'index-update-failed' };
+  }
+  return { success: true, fileDeleted: true, indexUpdated: true };
 }

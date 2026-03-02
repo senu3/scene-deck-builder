@@ -140,7 +140,7 @@ export async function runAssetExtractAudio(
 }
 
 export type RunAssetDeleteResult =
-  | { success: true; assetIds: string[] }
+  | { success: true; assetIds: string[]; warning?: 'index-sync-failed' }
   | { success: false; reason: 'blocked' | 'delete-failed'; blockingKind?: string };
 
 export async function runAssetDelete(
@@ -174,5 +174,8 @@ export async function runAssetDelete(
     return { success: false, reason: 'delete-failed' };
   }
 
+  if (result.reason === 'index-sync-failed') {
+    return { success: true, assetIds, warning: 'index-sync-failed' };
+  }
   return { success: true, assetIds };
 }

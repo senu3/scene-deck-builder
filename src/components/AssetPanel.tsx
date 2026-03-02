@@ -883,6 +883,12 @@ export default function AssetPanel({
 
     setAssets((prev) => prev.filter((a) => a.path !== asset.path));
     removeAssetThumbnail('asset-grid', { assetId: asset.id, path: asset.path });
+    if (result.success && result.warning === 'index-sync-failed') {
+      toast.warning(
+        'Asset moved, index sync pending',
+        'Please run recovery or reload project metadata to resync asset index.'
+      );
+    }
     toast.success('Asset moved to trash', asset.sourceName);
     setAssetContextMenu(null);
   };

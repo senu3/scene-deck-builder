@@ -51,10 +51,22 @@ type ImageMetadataLike = {
   fileSize?: number;
 };
 
+type TrashMetaLike = {
+  assetId?: string;
+  reason?: string;
+  originRefs?: Array<{
+    sceneId?: string;
+    cutId?: string;
+    note?: string;
+  }>;
+};
+
 function getElectronAPI(): BridgeElectronAPI | null {
   if (typeof window === 'undefined' || !window.electronAPI) return null;
   return window.electronAPI;
 }
+
+let assetIndexMutationQueue: Promise<void> = Promise.resolve();
 
 export function getPathForFileBridge(file: File): string | undefined {
   return getElectronAPI()?.getPathForFile?.(file);
@@ -106,6 +118,20 @@ export async function loadAssetIndexBridge(vaultPath: string): Promise<AssetInde
   return getElectronAPI()?.loadAssetIndex?.(vaultPath) ?? null;
 }
 
+export async function withSerializedAssetIndexMutationBridge<T>(run: () => Promise<T>): Promise<T> {
+  const previous = assetIndexMutationQueue;
+  let release!: () => void;
+  assetIndexMutationQueue = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await previous;
+  try {
+    return await run();
+  } finally {
+    release();
+  }
+}
+
 export async function getVideoMetadataBridge(filePath: string): Promise<VideoMetadataLike | null> {
   return getElectronAPI()?.getVideoMetadata?.(filePath) ?? null;
 }
@@ -120,6 +146,14 @@ export function hasVaultGatewayBridge(): boolean {
 
 export async function saveAssetIndexBridge(vaultPath: string, index: AssetIndexLike): Promise<boolean> {
   return (await getElectronAPI()?.vaultGateway?.saveAssetIndex?.(vaultPath, index as any)) ?? false;
+}
+
+export async function moveToTrashWithMetaBridge(
+  filePath: string,
+  trashPath: string,
+  meta: TrashMetaLike
+): Promise<string | null> {
+  return (await getElectronAPI()?.vaultGateway?.moveToTrashWithMeta?.(filePath, trashPath, meta as any)) ?? null;
 }
 
 export async function importAndRegisterAssetBridge(

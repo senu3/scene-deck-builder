@@ -83,36 +83,6 @@ const gate7MetadataUiFiles = new Set([
   'src/components/AssetPanel.tsx',
   'src/components/DetailsPanel.tsx',
 ]);
-const gate7AllowedStoreSliceElectronApiRules = [
-  {
-    path: 'src/store/slices/metadataSlice.ts',
-    pattern: /\bwindow\.electronAPI\?\.loadAssetIndex\b/g,
-    reason: 'metadata load/recovery path (TODO-DEBT-010 migration exception)',
-  },
-  {
-    path: 'src/store/slices/metadataSlice.ts',
-    pattern: /\bwindow\.electronAPI\.loadAssetIndex\b/g,
-    reason: 'metadata load/recovery path (TODO-DEBT-010 migration exception)',
-  },
-  {
-    path: 'src/store/slices/metadataSlice.ts',
-    pattern: /\bwindow\.electronAPI\?\.vaultGateway\b/g,
-    reason: 'metadata delete policy gateway guard (TODO-DEBT-010 migration exception)',
-  },
-  {
-    path: 'src/store/slices/metadataSlice.ts',
-    pattern: /\bwindow\.electronAPI\.vaultGateway\.moveToTrashWithMeta\b/g,
-    reason: 'metadata delete policy write path (TODO-DEBT-010 migration exception)',
-  },
-  {
-    path: 'src/store/slices/metadataSlice.ts',
-    pattern: /\bwindow\.electronAPI\.vaultGateway\.saveAssetIndex\b/g,
-    reason: 'metadata index persistence path (TODO-DEBT-010 migration exception)',
-  },
-];
-const gate7AllowedStoreSliceElectronApiFiles = new Set(
-  gate7AllowedStoreSliceElectronApiRules.map((rule) => rule.path),
-);
 const gate10ForbiddenInHotpathBlock = [
   {
     pattern: /\b(readFileSync|writeFileSync|appendFileSync|openSync|statSync|spawnSync|execSync)\b/g,
@@ -295,16 +265,6 @@ for (const file of files) {
   // Gate 7: store slices must not directly call electronAPI except temporary allowlist entries.
   if (r.startsWith(gate7StoreSlicePrefix)) {
     for (const m of findAll(src, /\bwindow\.electronAPI(?:\?|\b)/g)) {
-      if (gate7AllowedStoreSliceElectronApiFiles.has(r)) {
-        const context = src.slice(m.index, Math.min(src.length, m.index + 120));
-        const isAllowed = gate7AllowedStoreSliceElectronApiRules.some((rule) => {
-          if (rule.path !== r) return false;
-          rule.pattern.lastIndex = 0;
-          return rule.pattern.test(context);
-        });
-        if (isAllowed) continue;
-      }
-
       warnings.push({
         gate: 'Gate7',
         file: r,
