@@ -28,7 +28,8 @@
   - metadata provider テストを拡張し、既存 hydration 結合テストの回帰を確認。
 - 2026-03-02 (M4):
   - `scripts/check-gate.mjs` の Gate7 監査を拡張し、`src/store/slices` 配下の `window.electronAPI` 直呼びを fail 対象に追加。
-  - `metadataSlice` に残る既存経路は期限付き allowlist として明示し、新規流入を strict で検知できる状態へ更新。
+  - `metadataSlice` の残存直呼びを provider/gateway へ移管し、Gate7 allowlist を撤去。
+  - 削除経路の最小リスク対策として「実ファイル削除先行」「index更新失敗の明示返却（warning）」「index更新の直列化」を追加。
 
 ## Implementation Policy
 1. `projectSlice` の移管
