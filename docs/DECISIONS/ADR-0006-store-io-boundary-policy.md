@@ -1,7 +1,7 @@
 # ADR-0006: Store 内 I/O 副作用境界を固定する（Draft）
 
 ## Status
-Proposed (Draft, 2026-03-02)
+Accepted (2026-03-02)
 
 ## Context
 - 現状は `projectSlice` / `metadataSlice` に `window.electronAPI` 直呼びが残っている。
@@ -24,7 +24,7 @@ Proposed (Draft, 2026-03-02)
 - serialize は deterministic / side-effect free を条件とする。
 
 3. Save/Load の I/O 呼び出し
-- read/write の I/O 呼び出しは `provider/gateway` でのみ許可する。
+- read/write の I/O 呼び出しは `provider/gateway` でのみ許可する（feature action から provider を呼ぶのは可）。
 - slice reducer / slice action から直接実行してはならない。
 
 4. 互換維持の暫定例外（期限付き）
