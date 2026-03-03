@@ -154,18 +154,12 @@ export function usePreviewSingleModeSession({
       return;
     }
     lastCommittedClipPointsRef.current = null;
-    singleModeRangeRef.current = {
-      inPoint: singleModeInPoint,
-      outPoint: singleModeOutPoint,
-    };
   }, [
     isSingleModeVideo,
     focusCut?.id,
     focusCut?.isClip,
     focusCut?.inPoint,
     focusCut?.outPoint,
-    singleModeInPoint,
-    singleModeOutPoint,
   ]);
 
   const handleSingleModeSetInPoint = useCallback(() => {
