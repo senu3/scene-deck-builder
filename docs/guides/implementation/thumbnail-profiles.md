@@ -11,6 +11,7 @@
 - Must: サムネイル取得入口は `src/features/thumbnails/api.ts`（Facade / provider）へ段階的に統一する。
 - Must: `asset.thumbnail` fallback を使う場合も `src/features/thumbnails/api.ts` の resolver 経由にし、Asset key namespace（`asset:${assetId|path}:${profile}:${timeOffset}`）を維持する。
 - Must: cut派生サムネ解決は `src/features/thumbnails/api.ts` の cut resolver を正規入口とし、`cut:${kind}:${cutId}:${fingerprint}:${profile}` namespace を維持する。
+- Must: Videoclip のサムネ再生成は `src/features/cut/clipThumbnailRegenerationQueue.ts` から enqueue し、command 成功後に非同期で追随させる。
 - Must Not: `asset-grid` / `sequence-preview` / `details-panel` を相互流用しない。
 - Must Not: profile 変更時に cache key の `profile` 要素を外さない。
 - Must Not: 新規コードで `asset.thumbnail` をサムネイル解決の主経路として直参照しない（provider経由で解決する）。
@@ -28,6 +29,13 @@
 - `details-panel`
   - 用途: Details Panel のプレビュー画像
   - 代表呼び出し: `src/components/DetailsPanel.tsx`
+
+## Videoclip Queue Boundary
+- 対象: Preview Modal の clip 保存/clear 後に再生成するサムネイル。
+- 先行対象: `timeline-card` のみ。
+- enqueue 起点: `src/features/cut/previewClipUpdate.ts` の command 成功後（保存呼び出し点から直接 enqueue）。
+- 反映規則: 非同期処理中に cut 状態が変化した場合は古い要求を破棄し、最新状態のみ反映する。
+- 禁止: command 本体内でサムネイル生成を同期実行しない。
 
 ## 運用ルール
 - `asset-grid` は Assets Panel 専用。Preview/Details に流用しない。

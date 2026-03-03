@@ -52,6 +52,7 @@
 - IN/OUT（Clip Range）:
   - 更新入力は playhead、基準は canonical timing。
   - clamp/normalize/swap/reject は `clipRangeOps` の純関数に集約し、`PreviewModal.tsx` に戻さない。
+  - clip 保存/clear 後のサムネイル更新は command 外の非同期 queue（`features/cut`）で追随させる。
 - 表示（View）:
   - UI playhead time の丸め/fps/表示単位は View 側の純関数で完結し、controller/domain に混ぜない。
 - Asset Identity:
