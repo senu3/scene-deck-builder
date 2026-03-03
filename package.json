@@ -15,8 +15,77 @@
     "test:watch": "vitest",
     "check:gate": "node scripts/check-gate.mjs",
     "check:gate:strict": "node scripts/check-gate.mjs --strict",
+    "commit": "cz",
     "commitlint": "commitlint",
-    "check:commit-policy": "node scripts/check-commit-policy.mjs"
+    "check:commit-policy": "node scripts/check-commit-policy.mjs",
+    "prepare": "husky"
+  },
+  "config": {
+    "commitizen": {
+      "path": "cz-git"
+    }
+  },
+  "cz-git": {
+    "useEmoji": false,
+    "allowEmptyScopes": false,
+    "allowCustomScopes": false,
+    "types": [
+      {
+        "value": "feat",
+        "name": "feat: new feature"
+      },
+      {
+        "value": "fix",
+        "name": "fix: bug fix"
+      },
+      {
+        "value": "refactor",
+        "name": "refactor: code restructuring without behavior change"
+      },
+      {
+        "value": "docs",
+        "name": "docs: documentation update"
+      },
+      {
+        "value": "test",
+        "name": "test: add/update tests"
+      },
+      {
+        "value": "chore",
+        "name": "chore: maintenance"
+      },
+      {
+        "value": "build",
+        "name": "build: build/packaging change"
+      },
+      {
+        "value": "ci",
+        "name": "ci: CI configuration change"
+      }
+    ],
+    "scopes": [
+      "ui",
+      "preview",
+      "store",
+      "media",
+      "platform",
+      "docs",
+      "test",
+      "build",
+      "deps",
+      "electron",
+      "gate-checks",
+      "gate1",
+      "gate2",
+      "gate3",
+      "gate4",
+      "gate5",
+      "gate6",
+      "gate7",
+      "gate8",
+      "gate9",
+      "gate10"
+    ]
   },
   "keywords": [
     "electron",
@@ -37,8 +106,11 @@
     "@types/react-dom": "^18.2.17",
     "@types/uuid": "^9.0.7",
     "@vitejs/plugin-react": "^4.2.1",
+    "commitizen": "^4.3.1",
     "concurrently": "^8.2.2",
+    "cz-git": "^1.12.0",
     "electron": "^40.4.1",
+    "husky": "^9.1.7",
     "jsdom": "^28.0.0",
     "typescript": "^5.3.3",
     "vite": "^5.0.8",

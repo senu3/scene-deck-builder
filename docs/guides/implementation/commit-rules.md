@@ -27,6 +27,7 @@
 - コミット件名は `type(scope): subject` を使用する。
 - `type` は `feat` `fix` `refactor` `docs` `test` `chore` `build` `ci` のみを使用する。
 - `scope` は必須とし、主影響範囲を 1 つ選ぶ。
+- `scope` は allowlist のみ使用する（`ui` `preview` `store` `media` `platform` `docs` `test` `build` `deps` `electron` `gate-checks` `gate1`-`gate10`）。
 - Gate に触れる `feat`/`fix`/`refactor` は `scope=gateN` を使う。
 - 見た目のみの変更はコミット本文フッターに `UI-Only: true` を付与する。
 - Electron は特別扱いの依存とする。バージョン更新およびそれに伴う軽微な追随修正（例: 非推奨APIの置換、型調整、import修正など）は `chore(electron)` を使う。
@@ -45,6 +46,7 @@
 ## コミット件名ルール
 - 形式: `type(scope): subject`
 - 例外: マージコミットは Git が生成する定型文を許可する。
+- 推奨: `npm run commit`（`cz-git`）で type/scope を選択式入力にする。
 - 例:
   - `feat(gate1): sceneOrder を唯一正本として enforce`
   - `fix(gate5): export の missing asset を skip + warn に統一`
@@ -75,7 +77,7 @@
 ## docs 更新ルール
 - 原則：コード変更と docs 更新は別コミット。
 - 例外：用語統一・名称変更・進捗状況の更新に伴う docs 修正は同一コミット可（同一タイミングで反映）。
-- `docs/notes/archive` への移動・INDEX更新は、通常の仕様更新コミットと分離して `docs(notes)` 系の専用コミットで行う。
+- `docs/notes/archive` への移動・INDEX更新は、通常の仕様更新コミットと分離して `docs(docs)` 系の専用コミットで行う。
 
 ## baseline 更新ルール
 - Gate baseline 更新は専用コミットに分離する。
@@ -88,10 +90,11 @@
   - `docs/ARCHITECTURE.md` と対象ドメインガイド（`docs/guides/...`）を確認する。
   - 必要に応じて作業用ブランチを作成し、作業対象を明確化する。
 - コミット前チェック:
-  1. `git log --oneline <base>..HEAD` で自分のコミット一覧を確認する。
-  2. 各コミットの `type/scope/subject` が規約に準拠していることを確認する。
-  3. `scope=gateN` がある場合、docs を更新したことを確認する（例外時は PR に理由記載）。
-  4. UI 見た目のみ変更コミットに `UI-Only: true` があることを確認する。
-  5. 機械的変更が分離されているか。
+  1. `npm run commit` を使用し、type/scope を選択式で入力する。
+  2. `git log --oneline <base>..HEAD` で自分のコミット一覧を確認する。
+  3. 各コミットの `type/scope/subject` が規約に準拠していることを確認する。
+  4. `scope=gateN` がある場合、docs を更新したことを確認する（例外時は PR に理由記載）。
+  5. UI 見た目のみ変更コミットに `UI-Only: true` があることを確認する。
+  6. 機械的変更が分離されているか。
 - PR 作成前:
   - commit 一覧を再確認し、規約違反がないことを確認してから提出する。
