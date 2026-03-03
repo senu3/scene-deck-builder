@@ -1,6 +1,7 @@
 import { ClearClipPointsCommand, UpdateClipPointsCommand } from '../../store/commands';
 import type { Command } from '../../store/historyStore';
-import { getCutClipThumbnail } from '../thumbnails/api';
+import type { Cut } from '../../types';
+import { enqueueClipThumbnailRegeneration } from './clipThumbnailRegenerationQueue';
 import type { ThumbnailProfile } from '../../utils/thumbnailCache';
 
 interface PreviewClipAssetInput {
@@ -17,6 +18,7 @@ interface PreviewClipContext {
 
 interface PreviewClipDeps {
   executeCommand: (command: Command) => Promise<void>;
+  getCurrentCut: (sceneId: string, cutId: string) => Cut | undefined;
   updateCutAsset: (sceneId: string, cutId: string, updates: { thumbnail?: string }) => void;
   thumbnailProfile: ThumbnailProfile;
   onThumbnailUpdated?: (thumbnail: string) => void;
@@ -30,17 +32,20 @@ export async function savePreviewClipPoints(
 ): Promise<void> {
   await deps.executeCommand(new UpdateClipPointsCommand(context.sceneId, context.cutId, inPoint, outPoint));
 
+  if (deps.thumbnailProfile !== 'timeline-card') return;
   if (context.asset?.type !== 'video' || !context.asset.path) return;
-  const thumbnail = await getCutClipThumbnail(deps.thumbnailProfile, {
+  enqueueClipThumbnailRegeneration({
+    sceneId: context.sceneId,
     cutId: context.cutId,
-    path: context.asset.path,
+    assetPath: context.asset.path,
+    mode: 'clip',
     inPointSec: inPoint,
     outPointSec: outPoint,
+  }, {
+    getCurrentCut: deps.getCurrentCut,
+    updateCutAsset: deps.updateCutAsset,
+    onThumbnailUpdated: deps.onThumbnailUpdated,
   });
-  if (!thumbnail) return;
-
-  deps.updateCutAsset(context.sceneId, context.cutId, { thumbnail });
-  deps.onThumbnailUpdated?.(thumbnail);
 }
 
 export async function clearPreviewClipPoints(
@@ -50,14 +55,17 @@ export async function clearPreviewClipPoints(
   if (!context.isClip) return;
   await deps.executeCommand(new ClearClipPointsCommand(context.sceneId, context.cutId));
 
+  if (deps.thumbnailProfile !== 'timeline-card') return;
   if (context.asset?.type !== 'video' || !context.asset.path) return;
-  const thumbnail = await getCutClipThumbnail(deps.thumbnailProfile, {
+  enqueueClipThumbnailRegeneration({
+    sceneId: context.sceneId,
     cutId: context.cutId,
-    path: context.asset.path,
+    assetPath: context.asset.path,
+    mode: 'clear',
     inPointSec: 0,
+  }, {
+    getCurrentCut: deps.getCurrentCut,
+    updateCutAsset: deps.updateCutAsset,
+    onThumbnailUpdated: deps.onThumbnailUpdated,
   });
-  if (!thumbnail) return;
-
-  deps.updateCutAsset(context.sceneId, context.cutId, { thumbnail });
-  deps.onThumbnailUpdated?.(thumbnail);
 }

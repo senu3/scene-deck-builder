@@ -36,9 +36,9 @@ describe('clipThumbnailRegenerationQueue', () => {
       asset: { id: 'asset-1', name: 'v.mp4', path: '/v.mp4', type: 'video' },
     };
 
-    let releaseFirst: (() => void) | null = null;
+    let resolveFirst!: (value: string) => void;
     const firstPending = new Promise<string>((resolve) => {
-      releaseFirst = () => resolve('thumb-old');
+      resolveFirst = resolve;
     });
 
     vi.mocked(getCutClipThumbnail)
@@ -77,7 +77,7 @@ describe('clipThumbnailRegenerationQueue', () => {
       updateCutAsset,
     });
 
-    releaseFirst?.();
+    resolveFirst('thumb-old');
     await flushMicrotasks();
 
     expect(updateCutAsset).toHaveBeenCalledTimes(1);

@@ -453,6 +453,10 @@ export default function DetailsPanel() {
         outPoint,
         {
           executeCommand,
+          getCurrentCut: (sceneId, cutId) => {
+            const targetScene = useStore.getState().scenes.find((s) => s.id === sceneId);
+            return targetScene?.cuts.find((c) => c.id === cutId);
+          },
           updateCutAsset,
           thumbnailProfile: "details-panel",
           onThumbnailUpdated: setThumbnail,
@@ -472,6 +476,10 @@ export default function DetailsPanel() {
         },
         {
           executeCommand,
+          getCurrentCut: (sceneId, cutId) => {
+            const targetScene = useStore.getState().scenes.find((s) => s.id === sceneId);
+            return targetScene?.cuts.find((c) => c.id === cutId);
+          },
           updateCutAsset,
           thumbnailProfile: "details-panel",
           onThumbnailUpdated: setThumbnail,

@@ -863,11 +863,15 @@ function App() {
       },
       inPoint,
       outPoint,
-      {
-        executeCommand,
-        updateCutAsset,
-        thumbnailProfile: 'timeline-card',
-      },
+        {
+          executeCommand,
+          getCurrentCut: (sceneId, cutId) => {
+            const targetScene = useStore.getState().scenes.find((s) => s.id === sceneId);
+            return targetScene?.cuts.find((c) => c.id === cutId);
+          },
+          updateCutAsset,
+          thumbnailProfile: 'timeline-card',
+        },
     );
   }, [previewData, executeCommand, updateCutAsset]);
 
@@ -881,11 +885,15 @@ function App() {
         isClip: !!cut.isClip,
         asset,
       },
-      {
-        executeCommand,
-        updateCutAsset,
-        thumbnailProfile: 'timeline-card',
-      },
+        {
+          executeCommand,
+          getCurrentCut: (sceneId, cutId) => {
+            const targetScene = useStore.getState().scenes.find((s) => s.id === sceneId);
+            return targetScene?.cuts.find((c) => c.id === cutId);
+          },
+          updateCutAsset,
+          thumbnailProfile: 'timeline-card',
+        },
     );
   }, [previewData, executeCommand, updateCutAsset]);
 
