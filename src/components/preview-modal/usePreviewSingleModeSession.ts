@@ -90,7 +90,7 @@ export function usePreviewSingleModeSession({
   }, [setSingleModeInPoint, setSingleModeOutPoint]);
 
   const commitSingleModeClipPoints = useCallback(async (nextInPoint: number | null, nextOutPoint: number | null) => {
-    if (!isSingleModeVideo || !isSingleModeClipEnabled || !onClipSave) return;
+    if (!isSingleModeVideo || !onClipSave) return;
     if (nextInPoint === null || nextOutPoint === null) return;
     if (isSingleModeClipPending) {
       queuedClipCommitRef.current = { inPoint: nextInPoint, outPoint: nextOutPoint };
@@ -111,6 +111,7 @@ export function usePreviewSingleModeSession({
     setIsSingleModeClipPending(true);
     try {
       await onClipSave(start, end);
+      setIsSingleModeClipEnabled(true);
       lastCommittedClipPointsRef.current = { start, end };
     } catch (error) {
       console.error('Failed to update clip points:', error);
@@ -118,20 +119,20 @@ export function usePreviewSingleModeSession({
     } finally {
       setIsSingleModeClipPending(false);
     }
-  }, [isSingleModeVideo, isSingleModeClipEnabled, onClipSave, isSingleModeClipPending, showMiniToast]);
+  }, [isSingleModeVideo, onClipSave, isSingleModeClipPending, showMiniToast]);
 
   useEffect(() => {
     singleModeRangeRef.current = { inPoint: singleModeInPoint, outPoint: singleModeOutPoint };
   }, [singleModeInPoint, singleModeOutPoint]);
 
   useEffect(() => {
-    if (!isSingleModeVideo || !isSingleModeClipEnabled) return;
+    if (!isSingleModeVideo) return;
     if (isSingleModeClipPending) return;
     const queued = queuedClipCommitRef.current;
     if (!queued) return;
     queuedClipCommitRef.current = null;
     void commitSingleModeClipPoints(queued.inPoint, queued.outPoint);
-  }, [isSingleModeVideo, isSingleModeClipEnabled, isSingleModeClipPending, commitSingleModeClipPoints]);
+  }, [isSingleModeVideo, isSingleModeClipPending, commitSingleModeClipPoints]);
 
   useEffect(() => {
     if (!isSingleModeVideo) return;
@@ -370,20 +371,20 @@ export function usePreviewSingleModeSession({
   ]);
 
   const handleMarkerDrag = useCallback((marker: 'in' | 'out', newTime: number): number => {
-    if (isSingleModeVideo && isSingleModeClipEnabled) {
+    if (isSingleModeVideo) {
       singleModeClipDragDirtyRef.current = true;
     }
     return setMarkerTime(marker, newTime);
-  }, [setMarkerTime, isSingleModeVideo, isSingleModeClipEnabled]);
+  }, [setMarkerTime, isSingleModeVideo]);
 
   const handleMarkerDragEnd = useCallback(async () => {
-    if (isSingleModeVideo && isSingleModeClipEnabled && singleModeClipDragDirtyRef.current) {
+    if (isSingleModeVideo && singleModeClipDragDirtyRef.current) {
       singleModeClipDragDirtyRef.current = false;
       const { inPoint: latestInPoint, outPoint: latestOutPoint } = singleModeRangeRef.current;
       await commitSingleModeClipPoints(latestInPoint, latestOutPoint);
     }
     setFocusedMarker(null);
-  }, [isSingleModeVideo, isSingleModeClipEnabled, commitSingleModeClipPoints, setFocusedMarker]);
+  }, [isSingleModeVideo, commitSingleModeClipPoints, setFocusedMarker]);
 
   useEffect(() => {
     if (isSingleModeVideo && videoRef.current) {

@@ -33,7 +33,7 @@ export function PlaybackRangeMarkers({
   const suppressClickRef = useRef(false);
   const [hoveredMarker, setHoveredMarker] = useState<'in' | 'out' | null>(null);
 
-  const calculateTimeFromMouseEvent = useCallback((e: MouseEvent | React.MouseEvent): number => {
+  const calculateTimeFromPointerEvent = useCallback((e: PointerEvent | React.PointerEvent): number => {
     if (!progressBarRef?.current) return 0;
     const rect = progressBarRef.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
@@ -41,7 +41,7 @@ export function PlaybackRangeMarkers({
     return percent * duration;
   }, [progressBarRef, duration]);
 
-  const handleMarkerMouseDown = useCallback((marker: 'in' | 'out', e: React.MouseEvent) => {
+  const handleMarkerPointerDown = useCallback((marker: 'in' | 'out', e: React.PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -50,7 +50,7 @@ export function PlaybackRangeMarkers({
     didDragRef.current = false;
     onMarkerFocus?.(marker);
 
-    const handleMouseMove = (moveEvent: MouseEvent) => {
+    const handlePointerMove = (moveEvent: PointerEvent) => {
       if (!draggingMarkerRef.current) return;
       const dragStart = dragStartRef.current;
       if (!didDragRef.current && dragStart) {
@@ -61,11 +61,11 @@ export function PlaybackRangeMarkers({
         }
       }
       if (!didDragRef.current) return;
-      const newTime = calculateTimeFromMouseEvent(moveEvent);
+      const newTime = calculateTimeFromPointerEvent(moveEvent);
       onMarkerDrag?.(draggingMarkerRef.current, newTime);
     };
 
-    const handleMouseUp = () => {
+    const handlePointerUp = () => {
       const didDrag = didDragRef.current;
       draggingMarkerRef.current = null;
       dragStartRef.current = null;
@@ -77,13 +77,13 @@ export function PlaybackRangeMarkers({
         }, 0);
         onMarkerDragEnd?.();
       }
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-  }, [onMarkerFocus, onMarkerDrag, onMarkerDragEnd, calculateTimeFromMouseEvent]);
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+  }, [onMarkerFocus, onMarkerDrag, onMarkerDragEnd, calculateTimeFromPointerEvent]);
 
   const handleMarkerClick = useCallback((marker: 'in' | 'out', e: React.MouseEvent) => {
     e.preventDefault();
@@ -109,7 +109,7 @@ export function PlaybackRangeMarkers({
           className={`timeline-marker in-marker ${focusedMarker === 'in' ? 'focused' : ''}`}
           style={{ left: `${inPointPercent}%` }}
           onClick={(e) => handleMarkerClick('in', e)}
-          onMouseDown={(e) => handleMarkerMouseDown('in', e)}
+          onPointerDown={(e) => handleMarkerPointerDown('in', e)}
           onMouseEnter={() => setHoveredMarker('in')}
           onMouseLeave={() => setHoveredMarker(null)}
         >
@@ -127,7 +127,7 @@ export function PlaybackRangeMarkers({
           className={`timeline-marker out-marker ${focusedMarker === 'out' ? 'focused' : ''}`}
           style={{ left: `${outPointPercent}%` }}
           onClick={(e) => handleMarkerClick('out', e)}
-          onMouseDown={(e) => handleMarkerMouseDown('out', e)}
+          onPointerDown={(e) => handleMarkerPointerDown('out', e)}
           onMouseEnter={() => setHoveredMarker('out')}
           onMouseLeave={() => setHoveredMarker(null)}
         >
