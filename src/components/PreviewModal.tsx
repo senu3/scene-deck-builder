@@ -17,7 +17,7 @@ import { useSequencePlaybackController } from '../utils/previewPlaybackControlle
 import { getScenesInOrder } from '../utils/sceneOrder';
 import { cyclePlaybackSpeed } from '../utils/timeUtils';
 import { useMiniToast } from '../ui';
-import type { PreviewModalProps, ResolutionPreset } from './preview-modal/types';
+import type { PreviewModalCloseReason, PreviewModalProps, ResolutionPreset } from './preview-modal/types';
 import {
   FRAME_DURATION,
   INITIAL_PRELOAD_ITEMS,
@@ -253,6 +253,27 @@ export default function PreviewModal({
   const isPlaying = usesSequenceController ? sequenceState.isPlaying : singleModeIsPlaying;
   const isLooping = usesSequenceController ? sequenceState.isLooping : singleModeIsLooping;
 
+  const dispatchClose = useCallback((reason: PreviewModalCloseReason) => {
+    const shouldAttachSingleRange = isSingleMode && isSingleModeVideo;
+    const range = shouldAttachSingleRange
+      ? { inPoint: singleModeInPoint, outPoint: singleModeOutPoint }
+      : undefined;
+
+    const dirty = shouldAttachSingleRange
+      ? singleModeInPoint !== (initialInPoint ?? null) || singleModeOutPoint !== (initialOutPoint ?? null)
+      : undefined;
+
+    onClose({ reason, range, dirty });
+  }, [
+    initialInPoint,
+    initialOutPoint,
+    isSingleMode,
+    isSingleModeVideo,
+    onClose,
+    singleModeInPoint,
+    singleModeOutPoint,
+  ]);
+
   // ===== ATTACHED AUDIO HELPER =====
 
   const resolveAudioBindingForCut = useCallback((cut: Cut | null | undefined) => {
@@ -423,7 +444,7 @@ export default function PreviewModal({
     onPauseBeforeSeek: sequencePause,
     onSeekAbsolute: interactionCommands.seekToAbsolute,
     onSeekPercent: interactionCommands.seekToPercent,
-    onClose,
+    onClose: dispatchClose,
     onPlayPause: interactionCommands.playPause,
     onSkipBack: interactionCommands.skipBack,
     onSkipForward: interactionCommands.skipForward,
@@ -505,7 +526,7 @@ export default function PreviewModal({
         displayContainerRef={displayContainerRef}
         progressBarRef={progressBarRef}
         videoRef={videoRef}
-        onClose={onClose}
+        onRequestClose={dispatchClose}
         onContainerMouseDown={handleContainerMouseDown}
         previewDisplayClassName={previewDisplayClassName}
         showOverlayNow={showOverlayNow}
@@ -575,7 +596,7 @@ export default function PreviewModal({
       progressBarRef={progressBarRef}
       progressFillRef={progressFillRef}
       progressHandleRef={progressHandleRef}
-      onClose={onClose}
+      onRequestClose={dispatchClose}
       onContainerMouseDown={handleContainerMouseDown}
       showOverlayNow={showOverlayNow}
       scheduleHideOverlay={scheduleHideOverlay}

@@ -1,4 +1,5 @@
 import type React from 'react';
+import type { PreviewModalCloseReason } from './types';
 import { usePreviewKeyboardShortcuts } from './usePreviewKeyboardShortcuts';
 import { useSequenceProgressInteractions } from './useSequenceProgressInteractions';
 
@@ -9,7 +10,7 @@ interface UsePreviewInputsInput {
   onPauseBeforeSeek: () => void;
   onSeekAbsolute: (time: number) => void;
   onSeekPercent: (percent: number) => void;
-  onClose: () => void;
+  onClose: (reason: PreviewModalCloseReason) => void;
   onPlayPause: () => void;
   onSkipBack: () => void;
   onSkipForward: () => void;

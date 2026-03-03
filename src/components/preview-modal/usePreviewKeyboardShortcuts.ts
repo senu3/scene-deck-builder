@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
+import type { PreviewModalCloseReason } from './types';
 import { isEditableTarget } from './helpers';
 
 interface UsePreviewKeyboardShortcutsInput {
-  onClose: () => void;
+  onClose: (reason: PreviewModalCloseReason) => void;
   onPlayPause: () => void;
   onSkipBack: () => void;
   onSkipForward: () => void;
@@ -36,7 +37,7 @@ export function usePreviewKeyboardShortcuts({
 
       switch (e.key) {
         case 'Escape':
-          onClose();
+          onClose('escape');
           break;
         case ' ':
           e.preventDefault();

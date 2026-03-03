@@ -7,14 +7,14 @@ import { TimeDisplay } from './parts/TimeDisplay';
 import { VolumeControl } from './parts/VolumeControl';
 import { PreviewResolutionPicker } from './PreviewResolutionPicker';
 import { RESOLUTION_PRESETS } from './constants';
-import type { ResolutionPreset } from './types';
+import type { PreviewModalCloseReason, ResolutionPreset } from './types';
 
 interface PreviewModalSingleViewProps {
   modalRef: React.RefObject<HTMLDivElement>;
   displayContainerRef: React.RefObject<HTMLDivElement>;
   progressBarRef: React.RefObject<HTMLDivElement>;
   videoRef: React.RefObject<HTMLVideoElement>;
-  onClose: () => void;
+  onRequestClose: (reason: PreviewModalCloseReason) => void;
   onContainerMouseDown: (e: React.MouseEvent) => void;
   previewDisplayClassName: string;
   showOverlayNow: () => void;
@@ -77,7 +77,7 @@ export function PreviewModalSingleView({
   displayContainerRef,
   progressBarRef,
   videoRef,
-  onClose,
+  onRequestClose,
   onContainerMouseDown,
   previewDisplayClassName,
   showOverlayNow,
@@ -188,7 +188,7 @@ export function PreviewModalSingleView({
 
   return (
     <div className="preview-modal" ref={modalRef} onMouseDown={onContainerMouseDown}>
-      <div className="preview-backdrop" onClick={onClose} />
+      <div className="preview-backdrop" onClick={() => onRequestClose('backdrop')} />
       <div className="preview-container preview-container--compact">
         <div
           className={previewDisplayClassName}
@@ -205,7 +205,7 @@ export function PreviewModalSingleView({
               )}
             </div>
             <div className="preview-header-right">
-              <button className="preview-close-btn" onClick={onClose} title="Close (Esc)">
+              <button className="preview-close-btn" onClick={() => onRequestClose('button')} title="Close (Esc)">
                 <X size={20} />
               </button>
             </div>

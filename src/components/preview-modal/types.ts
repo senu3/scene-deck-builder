@@ -7,6 +7,14 @@ export interface ResolutionPresetType {
   height: number;
 }
 
+export type PreviewModalCloseReason = 'escape' | 'backdrop' | 'button';
+
+export interface PreviewModalClosePayload {
+  reason: PreviewModalCloseReason;
+  range?: { inPoint: number | null; outPoint: number | null };
+  dirty?: boolean;
+}
+
 export interface SingleModeProps {
   asset: Asset;
   initialInPoint?: number;
@@ -17,7 +25,7 @@ export interface SingleModeProps {
 }
 
 export interface BasePreviewModalProps {
-  onClose: () => void;
+  onClose: (payload?: PreviewModalClosePayload) => void;
   exportResolution?: ResolutionPresetType;
   onResolutionChange?: (resolution: ResolutionPresetType) => void;
   focusCutId?: string;

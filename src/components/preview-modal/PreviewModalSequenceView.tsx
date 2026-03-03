@@ -7,7 +7,7 @@ import { TimeDisplay } from './parts/TimeDisplay';
 import { VolumeControl } from './parts/VolumeControl';
 import { PreviewResolutionPicker } from './PreviewResolutionPicker';
 import { RESOLUTION_PRESETS } from './constants';
-import type { PreviewItem, ResolutionPreset } from './types';
+import type { PreviewItem, PreviewModalCloseReason, ResolutionPreset } from './types';
 
 interface PreviewModalSequenceViewProps {
   modalRef: React.RefObject<HTMLDivElement>;
@@ -15,7 +15,7 @@ interface PreviewModalSequenceViewProps {
   progressBarRef: React.RefObject<HTMLDivElement>;
   progressFillRef: React.RefObject<HTMLDivElement>;
   progressHandleRef: React.RefObject<HTMLDivElement>;
-  onClose: () => void;
+  onRequestClose: (reason: PreviewModalCloseReason) => void;
   onContainerMouseDown: (e: React.MouseEvent) => void;
   showOverlayNow: () => void;
   scheduleHideOverlay: () => void;
@@ -70,7 +70,7 @@ export function PreviewModalSequenceView({
   progressBarRef,
   progressFillRef,
   progressHandleRef,
-  onClose,
+  onRequestClose,
   onContainerMouseDown,
   showOverlayNow,
   scheduleHideOverlay,
@@ -121,11 +121,11 @@ export function PreviewModalSequenceView({
   if (items.length === 0) {
     return (
       <div className="preview-modal" ref={modalRef}>
-        <div className="preview-backdrop" onClick={onClose} />
+        <div className="preview-backdrop" onClick={() => onRequestClose('backdrop')} />
         <div className="preview-container">
           <div className="preview-header preview-header--static">
             <span>Preview</span>
-            <button className="preview-close-btn" onClick={onClose} title="Close (Esc)">
+            <button className="preview-close-btn" onClick={() => onRequestClose('button')} title="Close (Esc)">
               <X size={20} />
             </button>
           </div>
@@ -166,7 +166,7 @@ export function PreviewModalSequenceView({
 
   return (
     <div className="preview-modal" ref={modalRef} onMouseDown={onContainerMouseDown}>
-      <div className="preview-backdrop" onClick={onClose} />
+      <div className="preview-backdrop" onClick={() => onRequestClose('backdrop')} />
       <div className="preview-container preview-container--compact">
         <div
           className={previewDisplayClassName}
@@ -182,7 +182,7 @@ export function PreviewModalSequenceView({
               <span className="preview-cut-label">Cut {(currentItem?.cutIndex || 0) + 1}</span>
             </div>
             <div className="preview-header-right">
-              <button className="preview-close-btn" onClick={onClose} title="Close (Esc)">
+              <button className="preview-close-btn" onClick={() => onRequestClose('button')} title="Close (Esc)">
                 <X size={20} />
               </button>
             </div>
