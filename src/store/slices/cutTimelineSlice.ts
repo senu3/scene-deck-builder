@@ -4,7 +4,7 @@ import { upsertSceneMetadata, removeSceneMetadata } from '../../utils/metadataSt
 import { buildAssetForCut } from '../../utils/cutImport';
 import { getScenesAndCutsInTimelineOrder } from '../../utils/timelineOrder';
 import { normalizeSceneOrder } from '../../utils/sceneOrder';
-import { resolveCutAsset, resolveCutDuration } from '../../utils/assetResolve';
+import { resolveCutAsset } from '../../utils/assetResolve';
 import type { ClipboardCut } from '../stateTypes';
 import type { CutTimelineSliceContract } from '../contracts';
 import type { SliceGet, SliceSet } from './sliceTypes';
@@ -360,7 +360,10 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
                 cuts: s.cuts.map((c) =>
                   c.id === cutId
                     ? (() => {
-                        const restoredDuration = resolveCutDuration(c, state.getAsset);
+                        const resolvedAsset = resolveCutAsset(c, state.getAsset) ?? c.asset;
+                        const restoredDuration = typeof resolvedAsset?.duration === 'number' && Number.isFinite(resolvedAsset.duration) && resolvedAsset.duration > 0
+                          ? resolvedAsset.duration
+                          : null;
                         return {
                           ...c,
                           inPoint: undefined,
@@ -652,4 +655,3 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
     canPaste: () => get().clipboard.length > 0,
   };
 }
-

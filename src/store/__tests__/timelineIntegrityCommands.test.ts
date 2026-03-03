@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   AutoClipSimpleCommand,
+  ClearClipPointsCommand,
   RemoveCutFromGroupCommand,
   RemoveSceneCommand,
   ReorderCutsWithGroupSyncCommand,
@@ -508,5 +509,41 @@ describe('timeline integrity commands', () => {
 
     expect(command.getOutcome()).toBe('created');
     expect(command.getCreatedCount()).toBeGreaterThan(0);
+  });
+
+  it('restores displayTime to video duration when clearing clip points', async () => {
+    useStore.getState().initializeProject({
+      name: 'Clear Clip Duration Restore',
+      vaultPath: 'C:/vault',
+      scenes: [{
+        id: 'scene-clear-clip',
+        name: 'Scene Clear Clip',
+        order: 0,
+        notes: [],
+        cuts: [{
+          id: 'cut-clear-clip',
+          assetId: VIDEO_ASSET.id,
+          asset: { ...VIDEO_ASSET, duration: 12, path: 'C:/vault/assets/clip-clear.mp4' },
+          displayTime: 3,
+          order: 0,
+          inPoint: 2,
+          outPoint: 5,
+          isClip: true,
+          audioBindings: [],
+        }],
+      }],
+    });
+
+    const command = new ClearClipPointsCommand('scene-clear-clip', 'cut-clear-clip');
+    await command.execute();
+
+    const cut = useStore.getState().scenes
+      .find((scene) => scene.id === 'scene-clear-clip')
+      ?.cuts.find((c) => c.id === 'cut-clear-clip');
+
+    expect(cut?.isClip).toBe(false);
+    expect(cut?.inPoint).toBeUndefined();
+    expect(cut?.outPoint).toBeUndefined();
+    expect(cut?.displayTime).toBe(12);
   });
 });
