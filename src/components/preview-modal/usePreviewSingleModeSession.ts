@@ -178,9 +178,7 @@ export function usePreviewSingleModeSession({
       setFocusedMarker(null);
     }
     notifyRangeChange(nextInPoint, nextOutPoint);
-    if (isSingleModeClipEnabled) {
-      void commitSingleModeClipPoints(nextInPoint, nextOutPoint);
-    }
+    void commitSingleModeClipPoints(nextInPoint, nextOutPoint);
   }, [
     isSingleModeVideo,
     singleModeCurrentTime,
@@ -189,7 +187,6 @@ export function usePreviewSingleModeSession({
     focusedMarker,
     setFocusedMarker,
     notifyRangeChange,
-    isSingleModeClipEnabled,
     commitSingleModeClipPoints,
     setSingleModeRange,
   ]);
@@ -209,9 +206,7 @@ export function usePreviewSingleModeSession({
       setFocusedMarker(null);
     }
     notifyRangeChange(nextInPoint, nextOutPoint);
-    if (isSingleModeClipEnabled) {
-      void commitSingleModeClipPoints(nextInPoint, nextOutPoint);
-    }
+    void commitSingleModeClipPoints(nextInPoint, nextOutPoint);
   }, [
     isSingleModeVideo,
     singleModeCurrentTime,
@@ -220,7 +215,6 @@ export function usePreviewSingleModeSession({
     focusedMarker,
     setFocusedMarker,
     notifyRangeChange,
-    isSingleModeClipEnabled,
     commitSingleModeClipPoints,
     setSingleModeRange,
   ]);
