@@ -11,7 +11,11 @@ export interface SingleModeProps {
   asset: Asset;
   initialInPoint?: number;
   initialOutPoint?: number;
-  onClipSave?: (inPoint: number, outPoint: number) => Promise<void> | void;
+  onClipSave?: (
+    inPoint: number,
+    outPoint: number,
+    options?: { expectedClipRevision?: number }
+  ) => Promise<void> | void;
   onClipClear?: () => Promise<void> | void;
   onFrameCapture?: (timestamp: number) => Promise<string | void> | void;
 }

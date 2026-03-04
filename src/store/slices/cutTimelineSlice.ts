@@ -10,6 +10,21 @@ import type { CutTimelineSliceContract } from '../contracts';
 import type { SliceGet, SliceSet } from './sliceTypes';
 
 export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelineSliceContract {
+  const incrementClipRevision = (
+    runtimeById: Record<string, { isLoading?: boolean; loadingName?: string; clipRevision?: number }>,
+    cutId: string,
+  ) => {
+    const current = runtimeById[cutId];
+    const currentRevision = current?.clipRevision ?? 0;
+    return {
+      ...runtimeById,
+      [cutId]: {
+        ...(current || {}),
+        clipRevision: currentRevision + 1,
+      },
+    };
+  };
+
   return {
     addScene: (name?: string) => {
       const id = uuidv4();
@@ -349,6 +364,7 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
               }
             : s
         ),
+        cutRuntimeById: incrementClipRevision(state.cutRuntimeById, cutId),
       })),
 
     clearCutClipPoints: (sceneId, cutId) =>
@@ -377,6 +393,7 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
               }
             : s
         ),
+        cutRuntimeById: incrementClipRevision(state.cutRuntimeById, cutId),
       })),
 
     updateCutAsset: (sceneId, cutId, assetUpdates) =>

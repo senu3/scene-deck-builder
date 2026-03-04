@@ -11,6 +11,7 @@ import {
   selectSetGlobalVolume,
   selectToggleGlobalMute,
   selectMetadataStore,
+  selectGetCutRuntime,
 } from '../store/selectors';
 import type { Cut } from '../types';
 import { useSequencePlaybackController } from '../utils/previewPlaybackController';
@@ -75,6 +76,7 @@ export default function PreviewModal({
   const setGlobalVolume = useStore(selectSetGlobalVolume);
   const toggleGlobalMute = useStore(selectToggleGlobalMute);
   const metadataStore = useStore(selectMetadataStore);
+  const getCutRuntime = useStore(selectGetCutRuntime);
 
   // Mode detection: Single Mode if asset prop is provided
   const isSingleMode = !!asset;
@@ -253,6 +255,11 @@ export default function PreviewModal({
     setSingleModeDuration,
     singleModeCurrentTime,
     setSingleModeCurrentTime,
+    getCurrentClipRevision: () => {
+      const cutId = focusCutData?.cut?.id;
+      if (!cutId) return 0;
+      return getCutRuntime(cutId)?.clipRevision ?? 0;
+    },
   });
   const isPlaying = usesSequenceController ? sequenceState.isPlaying : singleModeIsPlaying;
   const isLooping = usesSequenceController ? sequenceState.isLooping : singleModeIsLooping;

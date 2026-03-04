@@ -102,6 +102,7 @@ export interface Cut {
 export interface CutRuntimeState {
   isLoading?: boolean;
   loadingName?: string;
+  clipRevision?: number;
 }
 
 export type FramingMode = 'cover' | 'fit';

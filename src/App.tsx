@@ -851,7 +851,11 @@ function App() {
   const previewData = previewCutData();
 
   // Handle clip save from video preview modal
-  const handleVideoPreviewClipSave = useCallback(async (inPoint: number, outPoint: number) => {
+  const handleVideoPreviewClipSave = useCallback(async (
+    inPoint: number,
+    outPoint: number,
+    options?: { expectedClipRevision?: number },
+  ) => {
     if (!previewData) return;
     const { scene, cut, asset } = previewData;
     await savePreviewClipPoints(
@@ -869,9 +873,11 @@ function App() {
             const targetScene = useStore.getState().scenes.find((s) => s.id === sceneId);
             return targetScene?.cuts.find((c) => c.id === cutId);
           },
+          getCurrentClipRevision: (cutId) => useStore.getState().getCutRuntime(cutId)?.clipRevision ?? 0,
           updateCutAsset,
           thumbnailProfile: 'timeline-card',
         },
+        options,
     );
   }, [previewData, executeCommand, updateCutAsset]);
 
@@ -891,6 +897,7 @@ function App() {
             const targetScene = useStore.getState().scenes.find((s) => s.id === sceneId);
             return targetScene?.cuts.find((c) => c.id === cutId);
           },
+          getCurrentClipRevision: (cutId) => useStore.getState().getCutRuntime(cutId)?.clipRevision ?? 0,
           updateCutAsset,
           thumbnailProfile: 'timeline-card',
         },

@@ -19,6 +19,7 @@ interface PreviewClipContext {
 interface PreviewClipDeps {
   executeCommand: (command: Command) => Promise<void>;
   getCurrentCut: (sceneId: string, cutId: string) => Cut | undefined;
+  getCurrentClipRevision: (cutId: string) => number;
   updateCutAsset: (sceneId: string, cutId: string, updates: { thumbnail?: string }) => void;
   thumbnailProfile: ThumbnailProfile;
   onThumbnailUpdated?: (thumbnail: string) => void;
@@ -36,7 +37,15 @@ export async function savePreviewClipPoints(
   inPoint: number,
   outPoint: number,
   deps: PreviewClipDeps,
+  options?: { expectedClipRevision?: number },
 ): Promise<void> {
+  if (
+    typeof options?.expectedClipRevision === 'number'
+    && deps.getCurrentClipRevision(context.cutId) !== options.expectedClipRevision
+  ) {
+    return;
+  }
+
   const currentCut = deps.getCurrentCut(context.sceneId, context.cutId);
   const start = Math.min(inPoint, outPoint);
   const end = Math.max(inPoint, outPoint);
@@ -57,8 +66,8 @@ export async function savePreviewClipPoints(
     cutId: context.cutId,
     assetPath: context.asset.path,
     mode: 'clip',
-    inPointSec: inPoint,
-    outPointSec: outPoint,
+    inPointSec: start,
+    outPointSec: end,
   }, {
     getCurrentCut: deps.getCurrentCut,
     updateCutAsset: deps.updateCutAsset,

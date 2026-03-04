@@ -32,7 +32,11 @@ interface UsePreviewSingleModeSessionInput {
   sequenceTotalDuration: number;
   progressBarRef: React.RefObject<HTMLDivElement>;
   videoRef: React.RefObject<HTMLVideoElement>;
-  onClipSave?: (inPoint: number, outPoint: number) => Promise<void> | void;
+  onClipSave?: (
+    inPoint: number,
+    outPoint: number,
+    options?: { expectedClipRevision?: number }
+  ) => Promise<void> | void;
   onClipClear?: () => Promise<void> | void;
   onFrameCapture?: (timestamp: number) => Promise<string | void> | void;
   showMiniToast: (message: string, variant?: 'success' | 'info' | 'warning' | 'error') => void;
@@ -41,6 +45,7 @@ interface UsePreviewSingleModeSessionInput {
   setSingleModeDuration: (value: number) => void;
   singleModeCurrentTime: number;
   setSingleModeCurrentTime: (value: number) => void;
+  getCurrentClipRevision?: () => number;
 }
 
 export function usePreviewSingleModeSession({
@@ -77,6 +82,7 @@ export function usePreviewSingleModeSession({
   setSingleModeDuration,
   singleModeCurrentTime,
   setSingleModeCurrentTime,
+  getCurrentClipRevision,
 }: UsePreviewSingleModeSessionInput) {
   const [singleModeIsPlaying, setSingleModeIsPlaying] = useState(false);
   const [isSingleModeClipEnabled, setIsSingleModeClipEnabled] = useState(false);
@@ -164,7 +170,7 @@ export function usePreviewSingleModeSession({
 
     setIsSingleModeClipPending(true);
     try {
-      await onClipSave(start, end);
+      await onClipSave(start, end, { expectedClipRevision: getCurrentClipRevision?.() });
       setIsSingleModeClipEnabled(true);
       lastCommittedClipPointsRef.current = { start, end };
     } catch (error) {
@@ -173,7 +179,7 @@ export function usePreviewSingleModeSession({
     } finally {
       setIsSingleModeClipPending(false);
     }
-  }, [isSingleModeVideo, onClipSave, isSingleModeClipPending, showMiniToast]);
+  }, [isSingleModeVideo, onClipSave, isSingleModeClipPending, showMiniToast, getCurrentClipRevision]);
 
   useEffect(() => {
     singleModeRangeRef.current = { inPoint: singleModeInPoint, outPoint: singleModeOutPoint };
@@ -307,7 +313,7 @@ export function usePreviewSingleModeSession({
     const end = Math.max(inPoint, outPoint);
     setIsSingleModeClipPending(true);
     try {
-      await onClipSave?.(start, end);
+      await onClipSave?.(start, end, { expectedClipRevision: getCurrentClipRevision?.() });
       setIsSingleModeClipEnabled(true);
       lastCommittedClipPointsRef.current = { start, end };
       showMiniToast('VIDEOCLIP set', 'success');
@@ -317,7 +323,7 @@ export function usePreviewSingleModeSession({
     } finally {
       setIsSingleModeClipPending(false);
     }
-  }, [isSingleModeVideo, inPoint, outPoint, onClipSave, showMiniToast]);
+  }, [isSingleModeVideo, inPoint, outPoint, onClipSave, showMiniToast, getCurrentClipRevision]);
 
   const handleSingleModeCaptureFrame = useCallback(async () => {
     if (!isSingleModeVideo || !onFrameCapture) return;

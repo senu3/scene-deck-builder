@@ -21,6 +21,7 @@ describe('previewClipUpdate', () => {
       order: 0,
       isClip: false,
     }));
+    const getCurrentClipRevision = vi.fn(() => 0);
 
     await savePreviewClipPoints(
       {
@@ -34,6 +35,7 @@ describe('previewClipUpdate', () => {
       {
         executeCommand,
         getCurrentCut,
+        getCurrentClipRevision,
         updateCutAsset,
         thumbnailProfile: 'timeline-card',
       },
@@ -66,6 +68,7 @@ describe('previewClipUpdate', () => {
       inPoint: 1,
       outPoint: 3,
     }));
+    const getCurrentClipRevision = vi.fn(() => 4);
 
     await savePreviewClipPoints(
       {
@@ -79,6 +82,7 @@ describe('previewClipUpdate', () => {
       {
         executeCommand,
         getCurrentCut,
+        getCurrentClipRevision,
         updateCutAsset,
         thumbnailProfile: 'timeline-card',
       },
@@ -100,6 +104,7 @@ describe('previewClipUpdate', () => {
       inPoint: 1,
       outPoint: 2,
     }));
+    const getCurrentClipRevision = vi.fn(() => 1);
 
     await clearPreviewClipPoints(
       {
@@ -111,6 +116,7 @@ describe('previewClipUpdate', () => {
       {
         executeCommand,
         getCurrentCut,
+        getCurrentClipRevision,
         updateCutAsset,
         thumbnailProfile: 'details-panel',
       },
@@ -124,6 +130,7 @@ describe('previewClipUpdate', () => {
     const executeCommand = vi.fn(async () => undefined);
     const updateCutAsset = vi.fn();
     const getCurrentCut = vi.fn(() => undefined);
+    const getCurrentClipRevision = vi.fn(() => 0);
 
     await clearPreviewClipPoints(
       {
@@ -135,6 +142,7 @@ describe('previewClipUpdate', () => {
       {
         executeCommand,
         getCurrentCut,
+        getCurrentClipRevision,
         updateCutAsset,
         thumbnailProfile: 'timeline-card',
       },
@@ -157,6 +165,7 @@ describe('previewClipUpdate', () => {
       inPoint: 0,
       outPoint: 2,
     }));
+    const getCurrentClipRevision = vi.fn(() => 7);
 
     await clearPreviewClipPoints(
       {
@@ -168,6 +177,7 @@ describe('previewClipUpdate', () => {
       {
         executeCommand,
         getCurrentCut,
+        getCurrentClipRevision,
         updateCutAsset,
         thumbnailProfile: 'timeline-card',
       },
@@ -175,5 +185,40 @@ describe('previewClipUpdate', () => {
 
     expect(executeCommand).toHaveBeenCalledTimes(1);
     expect(enqueueClipThumbnailRegeneration).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips save when expected clip revision is stale', async () => {
+    const executeCommand = vi.fn(async () => undefined);
+    const updateCutAsset = vi.fn();
+    const getCurrentCut = vi.fn(() => ({
+      id: 'cut-stale',
+      assetId: 'asset-stale',
+      displayTime: 2,
+      order: 0,
+      isClip: false,
+    }));
+    const getCurrentClipRevision = vi.fn(() => 5);
+
+    await savePreviewClipPoints(
+      {
+        sceneId: 'scene-stale',
+        cutId: 'cut-stale',
+        isClip: false,
+        asset: { path: '/vault/assets/stale.mp4', type: 'video' },
+      },
+      1,
+      2,
+      {
+        executeCommand,
+        getCurrentCut,
+        getCurrentClipRevision,
+        updateCutAsset,
+        thumbnailProfile: 'timeline-card',
+      },
+      { expectedClipRevision: 4 },
+    );
+
+    expect(executeCommand).not.toHaveBeenCalled();
+    expect(enqueueClipThumbnailRegeneration).not.toHaveBeenCalled();
   });
 });

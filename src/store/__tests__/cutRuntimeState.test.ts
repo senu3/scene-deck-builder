@@ -31,4 +31,22 @@ describe('cut runtime state', () => {
     expect(cut?.assetId).toBe(TEST_IMAGE_ASSET.id);
     expect(cut?.displayTime).toBe(2);
   });
+
+  it('increments clip revision on clip update and clear', () => {
+    const cutId = useStore.getState().addCutToScene('scene-1', {
+      id: 'asset-video',
+      name: 'v.mp4',
+      path: '/vault/assets/v.mp4',
+      type: 'video',
+      duration: 10,
+    });
+
+    expect(useStore.getState().getCutRuntime(cutId)?.clipRevision ?? 0).toBe(0);
+
+    useStore.getState().updateCutClipPoints('scene-1', cutId, 1, 3);
+    expect(useStore.getState().getCutRuntime(cutId)?.clipRevision).toBe(1);
+
+    useStore.getState().clearCutClipPoints('scene-1', cutId);
+    expect(useStore.getState().getCutRuntime(cutId)?.clipRevision).toBe(2);
+  });
 });

@@ -440,7 +440,11 @@ export default function DetailsPanel() {
     }
   };
 
-  const handleSaveClip = async (inPoint: number, outPoint: number) => {
+  const handleSaveClip = async (
+    inPoint: number,
+    outPoint: number,
+    options?: { expectedClipRevision?: number },
+  ) => {
     if (cutScene && cut && asset) {
       await savePreviewClipPoints(
         {
@@ -457,10 +461,12 @@ export default function DetailsPanel() {
             const targetScene = useStore.getState().scenes.find((s) => s.id === sceneId);
             return targetScene?.cuts.find((c) => c.id === cutId);
           },
+          getCurrentClipRevision: (cutId) => useStore.getState().getCutRuntime(cutId)?.clipRevision ?? 0,
           updateCutAsset,
           thumbnailProfile: "details-panel",
           onThumbnailUpdated: setThumbnail,
         },
+        options,
       );
     }
   };
@@ -480,6 +486,7 @@ export default function DetailsPanel() {
             const targetScene = useStore.getState().scenes.find((s) => s.id === sceneId);
             return targetScene?.cuts.find((c) => c.id === cutId);
           },
+          getCurrentClipRevision: (cutId) => useStore.getState().getCutRuntime(cutId)?.clipRevision ?? 0,
           updateCutAsset,
           thumbnailProfile: "details-panel",
           onThumbnailUpdated: setThumbnail,
