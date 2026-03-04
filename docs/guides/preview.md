@@ -6,8 +6,7 @@
 原則：
 - Sequence再生制御は単一コントローラ経由
 - Preview操作は command 単一入口経由
-- 表示と出力で時間正本を分離しない
-- assetIdベースの解決整合を維持する
+- 時間正本は canonical cut timing
 詳細：再生実装は preview系実装を参照
 
 **目的**: Preview 再生の責務境界と変更禁止点を固定する。  
@@ -21,12 +20,10 @@
 - Must: timing 解決は domain 正規化後の canonical cut timing を正本とする。
 - Must: `sequenceCuts` 指定時はその範囲のみで sequence を構築する。
 - Must: `PreviewModal.tsx` は Composition Root とし、配線（hook 呼び出し＋View props 組み立て）に限定する。
-- Must: URL/asset 解決は `assetId` 整合を維持する。
 - Must: Debug Overlay は Preview の時間正本を変更しない。
 - Must Not: Preview/Export で時間定義を分岐させない（ad-hoc タイマー含む）。
 - Must Not: Sequence Mode を `<video>` 直接制御へ戻さない。
 - Must Not: Controller はドメイン構造を書き換えない。
-- Must Not: Debug Overlay が state 更新・command 発行・永続化を行う。
 
 ## モード境界
 - Single Mode:
@@ -47,23 +44,19 @@
   - progress bar click/drag や marker drag による seek も command 入口で処理する。
   - 表示整形、DOM 計測、fullscreen/overlay など純UI状態は command 対象外。
 - 時間の正本（Timebase）:
-  - 正本は domain 正規化後の canonical cut timing。
-  - Preview 側の独自再計算や Preview/Export の時間定義分岐は禁止。
+  - 正本は domain 正規化後の canonical cut timing とし、Preview 側の独自再計算や Preview/Export の時間定義分岐を禁止する。
 - IN/OUT（Clip Range）:
   - 更新入力は playhead、基準は canonical timing。
   - clamp/normalize/swap/reject は `clipRangeOps` の純関数に集約し、`PreviewModal.tsx` に戻さない。
   - clip 保存/clear 後のサムネイル更新は command 外の非同期 queue（`features/cut`）で追随させる。
 - 表示（View）:
   - UI playhead time の丸め/fps/表示単位は View 側の純関数で完結し、controller/domain に混ぜない。
-- Asset Identity:
-  - URL/asset 解決は `assetId` 整合を維持する。
-
 ## Export連携
 - Preview 起点 export は Export ガイドの正本ルールに従う。
 - Preview 側で独自の export 時間定義を持たない。
 
 ## Debug Overlay Boundary
-- Debug Overlay の正本は `docs/guides/implementation/debug-overlay.md` とする。
+- Debug Overlay の仕様は `docs/guides/implementation/debug-overlay.md` に従う。
 - Preview の時間正本・ドメイン構造に干渉してはならない。
 
 ## 運用メモ

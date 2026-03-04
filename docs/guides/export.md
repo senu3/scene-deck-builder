@@ -7,7 +7,6 @@
 - Preview/Exportで時間定義を分離しない
 - Exportは独自の時間再計算を持たない
 - Exportはdomain構造を変更しない
-- scenes配列順を順序根拠にしない
 詳細：音声詳細は export-audio-mix を参照
 
 **目的**: Export の時系列・出力境界・Preview parity を固定する。  
