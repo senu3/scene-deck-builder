@@ -12,6 +12,10 @@ interface UsePreviewSingleModeSessionInput {
   isSingleModeVideo: boolean;
   usesSequenceController: boolean;
   focusCut: Cut | null;
+  focusCutId?: string;
+  focusCutIsClip?: boolean;
+  focusCutInPoint?: number;
+  focusCutOutPoint?: number;
   inPoint: number | null;
   outPoint: number | null;
   initialInPoint?: number;
@@ -43,7 +47,11 @@ export function usePreviewSingleModeSession({
   isSingleMode,
   isSingleModeVideo,
   usesSequenceController,
-  focusCut,
+  focusCut: _focusCut,
+  focusCutId,
+  focusCutIsClip,
+  focusCutInPoint,
+  focusCutOutPoint,
   inPoint,
   outPoint,
   initialInPoint,
@@ -82,12 +90,58 @@ export function usePreviewSingleModeSession({
     inPoint: null,
     outPoint: null,
   });
+  const isDraggingRef = useRef(false);
+  const pendingSyncRef = useRef(false);
+  const latestExternalRef = useRef<{
+    cutId: string | null;
+    isClip: boolean;
+    inPoint: number | null;
+    outPoint: number | null;
+  }>({
+    cutId: null,
+    isClip: false,
+    inPoint: null,
+    outPoint: null,
+  });
+  const lastSyncedExternalRef = useRef<{
+    cutId: string | null;
+    isClip: boolean;
+    inPoint: number | null;
+    outPoint: number | null;
+  }>({
+    cutId: null,
+    isClip: false,
+    inPoint: null,
+    outPoint: null,
+  });
 
   const setSingleModeRange = useCallback((nextInPoint: number | null, nextOutPoint: number | null) => {
     singleModeRangeRef.current = { inPoint: nextInPoint, outPoint: nextOutPoint };
     setSingleModeInPoint(nextInPoint);
     setSingleModeOutPoint(nextOutPoint);
   }, [setSingleModeInPoint, setSingleModeOutPoint]);
+
+  const syncLocalRangeFromExternal = useCallback((external: {
+    cutId: string | null;
+    isClip: boolean;
+    inPoint: number | null;
+    outPoint: number | null;
+  }) => {
+    const nextInPoint = external.isClip ? external.inPoint : null;
+    const nextOutPoint = external.isClip ? external.outPoint : null;
+
+    setSingleModeRange(nextInPoint, nextOutPoint);
+    setIsSingleModeClipEnabled(external.isClip);
+    setFocusedMarker(null);
+    if (external.isClip && nextInPoint !== null && nextOutPoint !== null) {
+      lastCommittedClipPointsRef.current = {
+        start: Math.min(nextInPoint, nextOutPoint),
+        end: Math.max(nextInPoint, nextOutPoint),
+      };
+      return;
+    }
+    lastCommittedClipPointsRef.current = null;
+  }, [setSingleModeRange, setFocusedMarker]);
 
   const commitSingleModeClipPoints = useCallback(async (nextInPoint: number | null, nextOutPoint: number | null) => {
     if (!isSingleModeVideo || !onClipSave) return;
@@ -136,31 +190,37 @@ export function usePreviewSingleModeSession({
 
   useEffect(() => {
     if (!isSingleModeVideo) return;
-    setIsSingleModeClipEnabled(!!focusCut?.isClip);
-    const sourceInPoint = focusCut?.inPoint;
-    const sourceOutPoint = focusCut?.outPoint;
-    if (
-      focusCut?.isClip &&
-      typeof sourceInPoint === 'number' &&
-      typeof sourceOutPoint === 'number'
-    ) {
-      lastCommittedClipPointsRef.current = {
-        start: Math.min(sourceInPoint, sourceOutPoint),
-        end: Math.max(sourceInPoint, sourceOutPoint),
-      };
-      singleModeRangeRef.current = {
-        inPoint: sourceInPoint,
-        outPoint: sourceOutPoint,
-      };
+    const external = {
+      cutId: focusCutId ?? null,
+      isClip: !!focusCutIsClip,
+      inPoint: typeof focusCutInPoint === 'number' ? focusCutInPoint : null,
+      outPoint: typeof focusCutOutPoint === 'number' ? focusCutOutPoint : null,
+    };
+    latestExternalRef.current = external;
+
+    const lastSynced = lastSyncedExternalRef.current;
+    const changed = (
+      external.cutId !== lastSynced.cutId
+      || external.isClip !== lastSynced.isClip
+      || external.inPoint !== lastSynced.inPoint
+      || external.outPoint !== lastSynced.outPoint
+    );
+    if (!changed) return;
+
+    if (isDraggingRef.current) {
+      pendingSyncRef.current = true;
       return;
     }
-    lastCommittedClipPointsRef.current = null;
+
+    syncLocalRangeFromExternal(external);
+    lastSyncedExternalRef.current = external;
   }, [
+    focusCutId,
+    focusCutInPoint,
+    focusCutIsClip,
+    focusCutOutPoint,
     isSingleModeVideo,
-    focusCut?.id,
-    focusCut?.isClip,
-    focusCut?.inPoint,
-    focusCut?.outPoint,
+    syncLocalRangeFromExternal,
   ]);
 
   const handleSingleModeSetInPoint = useCallback(() => {
@@ -366,6 +426,7 @@ export function usePreviewSingleModeSession({
 
   const handleMarkerDrag = useCallback((marker: 'in' | 'out', newTime: number): number => {
     if (isSingleModeVideo) {
+      isDraggingRef.current = true;
       singleModeClipDragDirtyRef.current = true;
     }
     return setMarkerTime(marker, newTime);
@@ -377,8 +438,15 @@ export function usePreviewSingleModeSession({
       const { inPoint: latestInPoint, outPoint: latestOutPoint } = singleModeRangeRef.current;
       await commitSingleModeClipPoints(latestInPoint, latestOutPoint);
     }
+    isDraggingRef.current = false;
+    if (pendingSyncRef.current) {
+      pendingSyncRef.current = false;
+      const latestExternal = latestExternalRef.current;
+      syncLocalRangeFromExternal(latestExternal);
+      lastSyncedExternalRef.current = latestExternal;
+    }
     setFocusedMarker(null);
-  }, [isSingleModeVideo, commitSingleModeClipPoints, setFocusedMarker]);
+  }, [isSingleModeVideo, commitSingleModeClipPoints, setFocusedMarker, syncLocalRangeFromExternal]);
 
   useEffect(() => {
     if (isSingleModeVideo && videoRef.current) {
