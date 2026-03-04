@@ -7,6 +7,7 @@ import { normalizeSceneOrder } from '../../utils/sceneOrder';
 import { resolveCutAsset } from '../../utils/assetResolve';
 import type { ClipboardCut } from '../stateTypes';
 import type { CutTimelineSliceContract } from '../contracts';
+import type { AppState } from '../stateTypes';
 import type { SliceGet, SliceSet } from './sliceTypes';
 
 export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelineSliceContract {
@@ -22,6 +23,74 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
         ...(current || {}),
         clipRevision: currentRevision + 1,
       },
+    };
+  };
+
+  const applyClipMarkerMutation = (
+    state: AppState,
+    sceneId: string,
+    cutId: string,
+    mutation: { type: 'set'; inPoint: number; outPoint: number } | { type: 'clear' },
+  ) => {
+    let didChange = false;
+    const scenes = state.scenes.map((scene) => {
+      if (scene.id !== sceneId) return scene;
+      return {
+        ...scene,
+        cuts: scene.cuts.map((cut) => {
+          if (cut.id !== cutId) return cut;
+
+          if (mutation.type === 'set') {
+            const nextDisplayTime = Math.abs(mutation.outPoint - mutation.inPoint);
+            const unchanged =
+              cut.isClip === true
+              && cut.inPoint === mutation.inPoint
+              && cut.outPoint === mutation.outPoint
+              && cut.displayTime === nextDisplayTime;
+            if (unchanged) return cut;
+            didChange = true;
+            return {
+              ...cut,
+              inPoint: mutation.inPoint,
+              outPoint: mutation.outPoint,
+              isClip: true,
+              displayTime: nextDisplayTime,
+            };
+          }
+
+          const resolvedAsset = resolveCutAsset(cut, state.getAsset);
+          const restoredDuration =
+            typeof resolvedAsset?.duration === 'number'
+            && Number.isFinite(resolvedAsset.duration)
+            && resolvedAsset.duration > 0
+              ? resolvedAsset.duration
+              : null;
+          const nextDisplayTime = restoredDuration ?? cut.displayTime;
+          const unchanged =
+            cut.isClip === false
+            && cut.inPoint === undefined
+            && cut.outPoint === undefined
+            && cut.displayTime === nextDisplayTime;
+          if (unchanged) return cut;
+          didChange = true;
+          return {
+            ...cut,
+            inPoint: undefined,
+            outPoint: undefined,
+            isClip: false,
+            displayTime: nextDisplayTime,
+          };
+        }),
+      };
+    });
+
+    if (!didChange) {
+      return { scenes: state.scenes, cutRuntimeById: state.cutRuntimeById };
+    }
+
+    return {
+      scenes,
+      cutRuntimeById: incrementClipRevision(state.cutRuntimeById, cutId),
     };
   };
 
@@ -345,56 +414,15 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
       })),
 
     updateCutClipPoints: (sceneId, cutId, inPoint, outPoint) =>
-      set((state) => ({
-        scenes: state.scenes.map((s) =>
-          s.id === sceneId
-            ? {
-                ...s,
-                cuts: s.cuts.map((c) =>
-                  c.id === cutId
-                    ? {
-                        ...c,
-                        inPoint,
-                        outPoint,
-                        isClip: true,
-                        displayTime: Math.abs(outPoint - inPoint),
-                      }
-                    : c
-                ),
-              }
-            : s
-        ),
-        cutRuntimeById: incrementClipRevision(state.cutRuntimeById, cutId),
-      })),
+      set((state) =>
+        applyClipMarkerMutation(state, sceneId, cutId, {
+          type: 'set',
+          inPoint,
+          outPoint,
+        })),
 
     clearCutClipPoints: (sceneId, cutId) =>
-      set((state) => ({
-        scenes: state.scenes.map((s) =>
-          s.id === sceneId
-            ? {
-                ...s,
-                cuts: s.cuts.map((c) =>
-                  c.id === cutId
-                    ? (() => {
-                        const resolvedAsset = resolveCutAsset(c, state.getAsset) ?? c.asset;
-                        const restoredDuration = typeof resolvedAsset?.duration === 'number' && Number.isFinite(resolvedAsset.duration) && resolvedAsset.duration > 0
-                          ? resolvedAsset.duration
-                          : null;
-                        return {
-                          ...c,
-                          inPoint: undefined,
-                          outPoint: undefined,
-                          isClip: false,
-                          displayTime: restoredDuration ?? c.displayTime,
-                        };
-                      })()
-                    : c
-                ),
-              }
-            : s
-        ),
-        cutRuntimeById: incrementClipRevision(state.cutRuntimeById, cutId),
-      })),
+      set((state) => applyClipMarkerMutation(state, sceneId, cutId, { type: 'clear' })),
 
     updateCutAsset: (sceneId, cutId, assetUpdates) =>
       set((state) => ({
