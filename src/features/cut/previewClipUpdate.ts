@@ -24,13 +24,31 @@ interface PreviewClipDeps {
   onThumbnailUpdated?: (thumbnail: string) => void;
 }
 
+const CLIP_POINT_EPSILON = 0.0001;
+
+function approximatelyEqual(a: number | undefined, b: number | undefined): boolean {
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return false;
+  return Math.abs((a as number) - (b as number)) < CLIP_POINT_EPSILON;
+}
+
 export async function savePreviewClipPoints(
   context: PreviewClipContext,
   inPoint: number,
   outPoint: number,
   deps: PreviewClipDeps,
 ): Promise<void> {
-  await deps.executeCommand(new UpdateClipPointsCommand(context.sceneId, context.cutId, inPoint, outPoint));
+  const currentCut = deps.getCurrentCut(context.sceneId, context.cutId);
+  const start = Math.min(inPoint, outPoint);
+  const end = Math.max(inPoint, outPoint);
+  if (
+    currentCut?.isClip
+    && approximatelyEqual(currentCut.inPoint, start)
+    && approximatelyEqual(currentCut.outPoint, end)
+  ) {
+    return;
+  }
+
+  await deps.executeCommand(new UpdateClipPointsCommand(context.sceneId, context.cutId, start, end));
 
   if (deps.thumbnailProfile !== 'timeline-card') return;
   if (context.asset?.type !== 'video' || !context.asset.path) return;
@@ -52,7 +70,8 @@ export async function clearPreviewClipPoints(
   context: PreviewClipContext,
   deps: PreviewClipDeps,
 ): Promise<void> {
-  if (!context.isClip) return;
+  const currentCut = deps.getCurrentCut(context.sceneId, context.cutId);
+  if (!currentCut?.isClip && !context.isClip) return;
   await deps.executeCommand(new ClearClipPointsCommand(context.sceneId, context.cutId));
 
   if (deps.thumbnailProfile !== 'timeline-card') return;
