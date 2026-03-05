@@ -1,4 +1,4 @@
-# ADR-0006: Store 内 I/O 副作用境界を固定する（Draft）
+# ADR-0006: Store 内 I/O 副作用境界を固定する
 
 ## Status
 Accepted (2026-03-02)
@@ -48,6 +48,10 @@ Accepted (2026-03-02)
 - store の責務が「状態遷移」に収束し、I/O 障害時の切り分けが容易になる。
 - provider 統一によりテスト容易性と Gate 監査の精度が上がる。
 - 一方、移行期間は adapter 層が増えるため、段階的移管とテスト補強が前提になる。
+
+## Follow-up Update (2026-03-05)
+- 2026-03-05 時点の移行詳細（削除順序固定、失敗時ガード、effects 実行方針）は notes へ分離した。
+- 参照: `docs/notes/store-ui-feature-effects-migration-plan-2026-03-05.md`
 
 ## Related
 - `docs/notes/archive/store-io-boundary-migration-plan-2026-03-02.md`
