@@ -50,6 +50,28 @@ type DeleteAssetWithIndexSyncParams = {
   vaultPath?: string | null;
 };
 
+type DeleteAssetFileParams = {
+  assetPath: string;
+  trashPath: string;
+  assetIds: string[];
+  reason?: string;
+};
+
+type RemoveAssetsFromIndexParams = {
+  vaultPath?: string | null;
+  assetIds: string[];
+};
+
+export type DeleteAssetFileResult = {
+  success: boolean;
+  reason?: 'electron-unavailable' | 'trash-move-failed' | 'invalid-params';
+};
+
+export type RemoveAssetsFromIndexResult = {
+  success: boolean;
+  reason?: 'index-update-failed' | 'invalid-params';
+};
+
 export type DeleteAssetWithIndexSyncResult = {
   success: boolean;
   fileDeleted: boolean;
@@ -155,13 +177,37 @@ export async function resolveVideoDurationForPath(path: string): Promise<number 
 export async function deleteAssetWithIndexSync(
   params: DeleteAssetWithIndexSyncParams
 ): Promise<DeleteAssetWithIndexSyncResult> {
-  const { assetPath, trashPath, assetIds, reason, vaultPath } = params;
+  const fileDeletion = await deleteAssetFile(params);
+  if (!fileDeletion.success) {
+    return {
+      success: false,
+      fileDeleted: false,
+      indexUpdated: false,
+      reason: fileDeletion.reason,
+    };
+  }
+
+  const indexUpdate = await removeAssetsFromIndex({
+    vaultPath: params.vaultPath,
+    assetIds: params.assetIds,
+  });
+  if (!indexUpdate.success) {
+    return { success: true, fileDeleted: true, indexUpdated: false, reason: indexUpdate.reason };
+  }
+
+  return { success: true, fileDeleted: true, indexUpdated: true };
+}
+
+export async function deleteAssetFile(
+  params: DeleteAssetFileParams
+): Promise<DeleteAssetFileResult> {
+  const { assetPath, trashPath, assetIds, reason } = params;
   const normalizedAssetIds = Array.from(new Set(assetIds.filter(Boolean)));
   if (!assetPath || !trashPath) {
-    return { success: false, fileDeleted: false, indexUpdated: false, reason: 'invalid-params' };
+    return { success: false, reason: 'invalid-params' };
   }
   if (!hasVaultGatewayBridge()) {
-    return { success: false, fileDeleted: false, indexUpdated: false, reason: 'electron-unavailable' };
+    return { success: false, reason: 'electron-unavailable' };
   }
 
   const moved = await moveToTrashWithMetaBridge(assetPath, trashPath, {
@@ -169,11 +215,19 @@ export async function deleteAssetWithIndexSync(
     reason: reason || 'asset-delete-policy',
   });
   if (!moved) {
-    return { success: false, fileDeleted: false, indexUpdated: false, reason: 'trash-move-failed' };
+    return { success: false, reason: 'trash-move-failed' };
   }
 
+  return { success: true };
+}
+
+export async function removeAssetsFromIndex(
+  params: RemoveAssetsFromIndexParams
+): Promise<RemoveAssetsFromIndexResult> {
+  const { vaultPath, assetIds } = params;
+  const normalizedAssetIds = Array.from(new Set(assetIds.filter(Boolean)));
   if (!vaultPath || normalizedAssetIds.length === 0) {
-    return { success: true, fileDeleted: true, indexUpdated: true };
+    return { success: true };
   }
 
   const indexUpdated = await withSerializedAssetIndexMutationBridge(async () => {
@@ -198,7 +252,7 @@ export async function deleteAssetWithIndexSync(
   });
 
   if (!indexUpdated) {
-    return { success: true, fileDeleted: true, indexUpdated: false, reason: 'index-update-failed' };
+    return { success: false, reason: 'index-update-failed' };
   }
-  return { success: true, fileDeleted: true, indexUpdated: true };
+  return { success: true };
 }

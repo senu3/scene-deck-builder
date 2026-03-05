@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  deleteAssetFile,
   deleteAssetWithIndexSync,
   hydrateAssetsByIdsFromIndex,
   loadAssetIndexEntries,
+  removeAssetsFromIndex,
   readImageMetadataForPath,
   readVideoMetadataForPath,
   resolveVideoDurationForPath,
@@ -117,6 +119,42 @@ describe('metadata provider', () => {
       indexUpdated: true,
     });
     expect(window.electronAPI!.vaultGateway.moveToTrashWithMeta).toHaveBeenCalledTimes(1);
+    expect(window.electronAPI!.vaultGateway.saveAssetIndex).toHaveBeenCalledTimes(1);
+  });
+
+  it('deletes only file via deleteAssetFile API', async () => {
+    resetElectronMocks();
+    (window.electronAPI!.vaultGateway.moveToTrashWithMeta as any).mockResolvedValueOnce('C:/vault/.trash/aud_1.wav');
+
+    const result = await deleteAssetFile({
+      assetPath: 'C:/vault/assets/aud_1.wav',
+      trashPath: 'C:/vault/.trash',
+      assetIds: ['aud-1'],
+      reason: 'asset-panel-delete',
+    });
+
+    expect(result).toEqual({ success: true });
+    expect(window.electronAPI!.vaultGateway.moveToTrashWithMeta).toHaveBeenCalledTimes(1);
+    expect(window.electronAPI!.vaultGateway.saveAssetIndex).not.toHaveBeenCalled();
+  });
+
+  it('updates index via removeAssetsFromIndex API', async () => {
+    resetElectronMocks();
+    (window.electronAPI!.loadAssetIndex as any).mockResolvedValueOnce({
+      version: 1,
+      assets: [
+        { id: 'aud-1', filename: 'aud_1.wav' },
+        { id: 'img-1', filename: 'img_1.png' },
+      ],
+    });
+    (window.electronAPI!.vaultGateway.saveAssetIndex as any).mockResolvedValueOnce(true);
+
+    const result = await removeAssetsFromIndex({
+      vaultPath: 'C:/vault',
+      assetIds: ['aud-1'],
+    });
+
+    expect(result).toEqual({ success: true });
     expect(window.electronAPI!.vaultGateway.saveAssetIndex).toHaveBeenCalledTimes(1);
   });
 
