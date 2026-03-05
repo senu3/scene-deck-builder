@@ -13,7 +13,8 @@ import {
 } from '../../utils/metadataStore';
 import { analyzeAudioRms } from '../../utils/audioUtils';
 import { collectAssetRefs, getBlockingRefsForAssetIds } from '../../utils/assetRefs';
-import { deleteAssetWithIndexSync, hydrateAssetsByIdsFromIndex } from '../../features/metadata/provider';
+import { deleteAssetFile, hydrateAssetsByIdsFromIndex, removeAssetsFromIndex } from '../../features/metadata/provider';
+import { runEffects, type DeleteEffects } from '../../features/platform/effects';
 import type { MetadataStore } from '../../types';
 import type { MetadataSliceContract } from '../contracts';
 import type { SliceGet, SliceSet } from './sliceTypes';
@@ -346,8 +347,9 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
           assetIds: [generatedId],
           reason: 'lipsync-generated-cleanup',
         });
-        if (!result.success) {
-          console.warn('[LipSync] Generated asset cleanup failed:', result.reason, generatedId);
+        if (!result.success || result.reason === 'index-sync-failed') {
+          const level = result.success ? 'warning' : 'failed';
+          console.warn(`[LipSync] Generated asset cleanup ${level}:`, result.reason, generatedId);
         }
       }
     },
@@ -408,22 +410,52 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
         return { success: false, reason: 'trash-path-missing' };
       }
 
-      const deletion = await deleteAssetWithIndexSync({
-        assetPath,
-        trashPath: targetTrashPath,
-        assetIds: targetAssetIds,
-        reason,
-        vaultPath: state.vaultPath,
+      const effects: DeleteEffects[] = [
+        {
+          type: 'FILES_DELETE',
+          payload: {
+            assetPath,
+            trashPath: targetTrashPath,
+            assetIds: targetAssetIds,
+            reason,
+          },
+        },
+      ];
+      if (state.vaultPath) {
+        effects.push({
+          type: 'INDEX_UPDATE',
+          payload: {
+            vaultPath: state.vaultPath,
+            assetIds: targetAssetIds,
+          },
+        });
+      }
+      effects.push({
+        type: 'METADATA_DELETE',
+        payload: {
+          assetIds: targetAssetIds,
+        },
       });
-      if (!deletion.success || !deletion.fileDeleted) {
-        return { success: false, reason: deletion.reason || 'trash-move-failed' };
+
+      const results = await runEffects(effects, {
+        deleteAssetFile,
+        removeAssetsFromIndex,
+        deleteMetadata: (ids) => {
+          get().removeAssetReferences(ids);
+        },
+      });
+      const failed = results.find((entry) => !entry.success);
+      if (!failed) {
+        return { success: true };
       }
 
-      get().removeAssetReferences(targetAssetIds);
-      if (!deletion.indexUpdated) {
+      if (failed.effect.type === 'FILES_DELETE') {
+        return { success: false, reason: failed.reason || 'trash-move-failed' };
+      }
+      if (failed.effect.type === 'INDEX_UPDATE') {
         return { success: true, reason: 'index-sync-failed' };
       }
-      return { success: true };
+      return { success: false, reason: failed.reason || 'metadata-delete-failed' };
     },
 
     relinkCutAsset: (sceneId, cutId, newAsset, options) => {
