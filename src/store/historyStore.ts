@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { useStore } from './useStore';
+import type { CommandApplyResult } from './commandCore';
 
 /**
  * Command Pattern Interface
@@ -8,6 +9,11 @@ import { useStore } from './useStore';
 export interface Command {
   type: string;
   description: string;
+  /**
+   * Migration shape for command core unification.
+   * Existing commands may keep execute/undo while apply() is introduced incrementally.
+   */
+  apply?: () => CommandApplyResult | Promise<CommandApplyResult>;
   execute: () => void | Promise<void>;
   undo: () => void | Promise<void>;
 }
