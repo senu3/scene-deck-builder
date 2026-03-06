@@ -120,6 +120,10 @@ const gate9LowLevelThumbnailApis = new Set([
   'getCachedThumbnail',
   'removeThumbnailCache',
 ]);
+const gate7AllowedThumbnailQueueImportFiles = new Set([
+  'src/features/cut/thumbnailEffects.ts',
+  'src/features/cut/clipThumbnailRegenerationQueue.ts',
+]);
 
 for (const file of files) {
   const r = rel(file);
@@ -282,6 +286,23 @@ for (const file of files) {
         file: r,
         line: lineOf(src, m.index),
         message: 'metadata/video metadata electronAPI direct call in UI (use metadata provider)',
+      });
+    }
+  }
+
+  // Gate 7: thumbnail queue request should go through effects route.
+  if (!gate7AllowedThumbnailQueueImportFiles.has(r)) {
+    for (const m of findAll(src, /import\s*\{([^}]*)\}\s*from\s*['"][^'"]*clipThumbnailRegenerationQueue['"]/g)) {
+      const imported = (m.text.match(/\{([^}]*)\}/)?.[1] || '')
+        .split(',')
+        .map((token) => token.trim().split(/\s+as\s+/i)[0]?.trim())
+        .filter(Boolean);
+      if (!imported.includes('enqueueClipThumbnailRegeneration')) continue;
+      warnings.push({
+        gate: 'Gate7',
+        file: r,
+        line: lineOf(src, m.index),
+        message: 'direct clip thumbnail queue import detected (use thumbnail effects route)',
       });
     }
   }
