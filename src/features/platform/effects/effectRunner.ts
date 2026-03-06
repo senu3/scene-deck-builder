@@ -1,14 +1,15 @@
-import type { DeleteEffects, EffectRunResult, EffectRunnerDeps } from './effects';
+import type { AppEffect, EffectRunResult, EffectRunnerDeps } from './effects';
 
-function resolveFailureReason(effectType: DeleteEffects['type'], reason?: string): string {
+function resolveFailureReason(effectType: AppEffect['type'], reason?: string): string {
   if (reason) return reason;
   if (effectType === 'FILES_DELETE') return 'trash-move-failed';
   if (effectType === 'INDEX_UPDATE') return 'index-update-failed';
+  if (effectType === 'REGEN_THUMBNAILS') return 'thumbnail-regeneration-failed';
   return 'metadata-delete-failed';
 }
 
 export async function runEffects(
-  effects: DeleteEffects[],
+  effects: AppEffect[],
   deps: EffectRunnerDeps
 ): Promise<EffectRunResult[]> {
   const results: EffectRunResult[] = [];
@@ -39,6 +40,32 @@ export async function runEffects(
         return results;
       }
       results.push({ effect, success: true });
+      continue;
+    }
+
+    if (effect.type === 'REGEN_THUMBNAILS') {
+      if (!deps.requestThumbnailRegeneration) {
+        results.push({
+          effect,
+          success: false,
+          reason: resolveFailureReason(effect.type, 'thumbnail-regeneration-handler-missing'),
+        });
+        return results;
+      }
+      try {
+        await deps.requestThumbnailRegeneration(effect.payload);
+        results.push({ effect, success: true });
+      } catch (error) {
+        results.push({
+          effect,
+          success: false,
+          reason: resolveFailureReason(
+            effect.type,
+            error instanceof Error ? error.message : undefined
+          ),
+        });
+        return results;
+      }
       continue;
     }
 

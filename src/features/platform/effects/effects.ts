@@ -1,6 +1,18 @@
 import type { DeleteAssetFileResult, RemoveAssetsFromIndexResult } from '../../metadata/provider';
+import type { ThumbnailProfile } from '../../../utils/thumbnailCache';
 
-export type DeleteEffects =
+export type ClipThumbnailRegenMode = 'clip' | 'clear';
+
+export interface RegenThumbnailsRequest {
+  sceneId: string;
+  cutId: string;
+  assetPath: string;
+  mode: ClipThumbnailRegenMode;
+  inPointSec: number;
+  outPointSec?: number;
+}
+
+export type AppEffect =
   | {
       type: 'FILES_DELETE';
       payload: {
@@ -22,15 +34,24 @@ export type DeleteEffects =
       payload: {
         assetIds: string[];
       };
+    }
+  | {
+      type: 'REGEN_THUMBNAILS';
+      payload: {
+        profile: ThumbnailProfile;
+        cutIds: string[];
+        reason: string;
+        requests: RegenThumbnailsRequest[];
+      };
     };
 
 export type EffectSuccessResult = {
-  effect: DeleteEffects;
+  effect: AppEffect;
   success: true;
 };
 
 export type EffectFailureResult = {
-  effect: DeleteEffects;
+  effect: AppEffect;
   success: false;
   reason: string;
 };
@@ -49,4 +70,10 @@ export interface EffectRunnerDeps {
     assetIds: string[];
   }) => Promise<RemoveAssetsFromIndexResult>;
   deleteMetadata: (assetIds: string[]) => void | Promise<void>;
+  requestThumbnailRegeneration?: (input: {
+    profile: ThumbnailProfile;
+    cutIds: string[];
+    reason: string;
+    requests: RegenThumbnailsRequest[];
+  }) => void | Promise<void>;
 }

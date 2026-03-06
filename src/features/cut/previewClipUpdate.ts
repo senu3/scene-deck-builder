@@ -1,7 +1,7 @@
 import { ClearClipPointsCommand, UpdateClipPointsCommand } from '../../store/commands';
 import type { Command } from '../../store/historyStore';
 import type { Cut } from '../../types';
-import { enqueueClipThumbnailRegeneration } from './clipThumbnailRegenerationQueue';
+import { emitRegenThumbnailsEffect } from './thumbnailEffects';
 import type { ThumbnailProfile } from '../../utils/thumbnailCache';
 
 interface PreviewClipAssetInput {
@@ -61,18 +61,25 @@ export async function savePreviewClipPoints(
 
   if (deps.thumbnailProfile !== 'timeline-card') return;
   if (context.asset?.type !== 'video' || !context.asset.path) return;
-  enqueueClipThumbnailRegeneration({
-    sceneId: context.sceneId,
-    cutId: context.cutId,
-    assetPath: context.asset.path,
-    mode: 'clip',
-    inPointSec: start,
-    outPointSec: end,
-  }, {
-    getCurrentCut: deps.getCurrentCut,
-    updateCutAsset: deps.updateCutAsset,
-    onThumbnailUpdated: deps.onThumbnailUpdated,
-  });
+  await emitRegenThumbnailsEffect(
+    {
+      profile: deps.thumbnailProfile,
+      reason: 'clip-points-saved',
+      requests: [{
+        sceneId: context.sceneId,
+        cutId: context.cutId,
+        assetPath: context.asset.path,
+        mode: 'clip',
+        inPointSec: start,
+        outPointSec: end,
+      }],
+    },
+    {
+      getCurrentCut: deps.getCurrentCut,
+      updateCutAsset: deps.updateCutAsset,
+      onThumbnailUpdated: deps.onThumbnailUpdated,
+    }
+  );
 }
 
 export async function clearPreviewClipPoints(
@@ -85,15 +92,22 @@ export async function clearPreviewClipPoints(
 
   if (deps.thumbnailProfile !== 'timeline-card') return;
   if (context.asset?.type !== 'video' || !context.asset.path) return;
-  enqueueClipThumbnailRegeneration({
-    sceneId: context.sceneId,
-    cutId: context.cutId,
-    assetPath: context.asset.path,
-    mode: 'clear',
-    inPointSec: 0,
-  }, {
-    getCurrentCut: deps.getCurrentCut,
-    updateCutAsset: deps.updateCutAsset,
-    onThumbnailUpdated: deps.onThumbnailUpdated,
-  });
+  await emitRegenThumbnailsEffect(
+    {
+      profile: deps.thumbnailProfile,
+      reason: 'clip-points-cleared',
+      requests: [{
+        sceneId: context.sceneId,
+        cutId: context.cutId,
+        assetPath: context.asset.path,
+        mode: 'clear',
+        inPointSec: 0,
+      }],
+    },
+    {
+      getCurrentCut: deps.getCurrentCut,
+      updateCutAsset: deps.updateCutAsset,
+      onThumbnailUpdated: deps.onThumbnailUpdated,
+    }
+  );
 }

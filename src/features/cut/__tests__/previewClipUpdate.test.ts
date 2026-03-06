@@ -1,9 +1,9 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { clearPreviewClipPoints, savePreviewClipPoints } from '../previewClipUpdate';
-import { enqueueClipThumbnailRegeneration } from '../clipThumbnailRegenerationQueue';
+import { emitRegenThumbnailsEffect } from '../thumbnailEffects';
 
-vi.mock('../clipThumbnailRegenerationQueue', () => ({
-  enqueueClipThumbnailRegeneration: vi.fn(),
+vi.mock('../thumbnailEffects', () => ({
+  emitRegenThumbnailsEffect: vi.fn(async () => undefined),
 }));
 
 describe('previewClipUpdate', () => {
@@ -42,13 +42,17 @@ describe('previewClipUpdate', () => {
     );
 
     expect(executeCommand).toHaveBeenCalledTimes(1);
-    expect(enqueueClipThumbnailRegeneration).toHaveBeenCalledWith({
-      sceneId: 'scene-1',
-      cutId: 'cut-1',
-      assetPath: '/vault/assets/a.mp4',
-      mode: 'clip',
-      inPointSec: 1,
-      outPointSec: 3,
+    expect(emitRegenThumbnailsEffect).toHaveBeenCalledWith({
+      profile: 'timeline-card',
+      reason: 'clip-points-saved',
+      requests: [{
+        sceneId: 'scene-1',
+        cutId: 'cut-1',
+        assetPath: '/vault/assets/a.mp4',
+        mode: 'clip',
+        inPointSec: 1,
+        outPointSec: 3,
+      }],
     }, {
       getCurrentCut,
       updateCutAsset,
@@ -89,7 +93,7 @@ describe('previewClipUpdate', () => {
     );
 
     expect(executeCommand).not.toHaveBeenCalled();
-    expect(enqueueClipThumbnailRegeneration).not.toHaveBeenCalled();
+    expect(emitRegenThumbnailsEffect).not.toHaveBeenCalled();
   });
 
   it('does not enqueue clear thumbnail regeneration for non timeline-card profile', async () => {
@@ -123,7 +127,7 @@ describe('previewClipUpdate', () => {
     );
 
     expect(executeCommand).toHaveBeenCalledTimes(1);
-    expect(enqueueClipThumbnailRegeneration).not.toHaveBeenCalled();
+    expect(emitRegenThumbnailsEffect).not.toHaveBeenCalled();
   });
 
   it('does nothing for clear when cut is not clip', async () => {
@@ -150,7 +154,7 @@ describe('previewClipUpdate', () => {
 
     expect(executeCommand).not.toHaveBeenCalled();
     expect(updateCutAsset).not.toHaveBeenCalled();
-    expect(enqueueClipThumbnailRegeneration).not.toHaveBeenCalled();
+    expect(emitRegenThumbnailsEffect).not.toHaveBeenCalled();
   });
 
   it('clears clip using current cut state even when context is stale', async () => {
@@ -184,7 +188,7 @@ describe('previewClipUpdate', () => {
     );
 
     expect(executeCommand).toHaveBeenCalledTimes(1);
-    expect(enqueueClipThumbnailRegeneration).toHaveBeenCalledTimes(1);
+    expect(emitRegenThumbnailsEffect).toHaveBeenCalledTimes(1);
   });
 
   it('skips save when expected clip revision is stale', async () => {
@@ -219,6 +223,6 @@ describe('previewClipUpdate', () => {
     );
 
     expect(executeCommand).not.toHaveBeenCalled();
-    expect(enqueueClipThumbnailRegeneration).not.toHaveBeenCalled();
+    expect(emitRegenThumbnailsEffect).not.toHaveBeenCalled();
   });
 });

@@ -14,7 +14,7 @@ import {
 import { analyzeAudioRms } from '../../utils/audioUtils';
 import { collectAssetRefs, getBlockingRefsForAssetIds } from '../../utils/assetRefs';
 import { deleteAssetFile, hydrateAssetsByIdsFromIndex, removeAssetsFromIndex } from '../../features/metadata/provider';
-import { runEffects, type DeleteEffects } from '../../features/platform/effects';
+import { runEffects, type AppEffect } from '../../features/platform/effects';
 import type { MetadataStore } from '../../types';
 import type { MetadataSliceContract } from '../contracts';
 import type { SliceGet, SliceSet } from './sliceTypes';
@@ -410,7 +410,7 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
         return { success: false, reason: 'trash-path-missing' };
       }
 
-      const effects: DeleteEffects[] = [
+      const effects: AppEffect[] = [
         {
           type: 'FILES_DELETE',
           payload: {
