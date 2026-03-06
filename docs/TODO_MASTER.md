@@ -11,13 +11,6 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
 - `DoneWhen`: 完了判定条件
 
 ## Gate-Work Track
-- `TODO-DEBT-011` Gate9 の LipSync サムネ解決を resolver-only 経路へ統一し、snapshot fallback を撤去する
-  - Track: `Gate-Work`
-  - Status: `backlog`
-  - StartWhen: cut resolver 正規化（`features/thumbnails/api.ts`）が main に反映されたとき
-  - BlockedBy: なし
-  - DoneWhen: LipSync サムネ解決の実行経路が `features/thumbnails/api.ts` に統一され、snapshot fallback の直接依存が撤去される
-  - 関連: `docs/notes/gate9-provider-unification-update-2026-02-28.md`
 - `TODO-DEBT-004` Buffer/Memory ガイドを最新実装検索結果で再棚卸しする
   - Track: `Gate-Work`
   - Status: `backlog`
@@ -71,6 +64,13 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
   - 関連: `docs/guides/export.md`
 
 ## Investigation Track
+- `TODO-INVEST-009` LipSync 見直し計画（課題再棚卸し + v2設計 + 段階移行）を確定する
+  - Track: `Investigation`
+  - Status: `ready`
+  - StartWhen: SequencePlan Phase A の入口統一タスクが着手済みになったとき
+  - BlockedBy: `TODO-INVEST-008`
+  - DoneWhen: LipSync 課題一覧（再現条件/優先度/フェーズ）が確定し、v2移行方針が docs で固定される
+  - 関連: `docs/notes/lipsync-reassessment-plan-2026-03-06.md`
 - `TODO-INVEST-008` SequencePlan の単一入口化（Phase A: LIPSync除外）を完了し、Preview/Export parity の基線を固定する
   - Track: `Investigation`
   - Status: `ready`
@@ -109,11 +109,12 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
   - 関連: `docs/guides/implementation/gate-checks.md`
 
 ## Done (archive)
+- 2026-03-06 | `TODO-DEBT-011` Gate9 の LipSync サムネ resolver-only タスクを見直し計画へ統合し、単独追跡を終了（replaced by `TODO-INVEST-009`） | `docs/notes/archive/gate9-provider-unification-update-2026-02-28.md`, `docs/notes/lipsync-reassessment-plan-2026-03-06.md`
 - 2026-03-02 | `TODO-DEBT-010` store action の I/O 副作用境界を docs 固定 + 対象slice実行経路を provider/gateway 境界へ整合 | `docs/notes/archive/store-io-boundary-migration-plan-2026-03-02.md`, `docs/notes/archive/electronapi-direct-call-audit-memo-2026-02-19.md`, `docs/DECISIONS/ADR-0006-store-io-boundary-policy.md`
 - 2026-03-01 | `TODO-INVEST-005` Preview Debug Overlay HUD（表示専用）仕様を確定し、DevOverlayHost へ DnD debug HUD を分離 | `docs/guides/implementation/debug-overlay.md` (`309b95e`, `7514b0b`)
 - 2026-03-01 | `TODO-INVEST-003` `CUT_RELINKED` の購読側（通知/表示/同期）仕様を凍結（origin/opId/allowlist/表示境界） | `docs/guides/cut-history.md`
 - 2026-02-28 | `TODO-DEBT-008` Gate8 例外カテゴリ/禁止線/マイルストーン（M1-M4）を ADR で固定 | `docs/DECISIONS/ADR-0005-asset-resolve-failure-policy.md`
-- 2026-02-28 | `TODO-DEBT-009` Gate9 provider統一（主要経路）と `asset.thumbnail` 直参照の監査運用を追加 | `docs/notes/gate9-provider-unification-update-2026-02-28.md`
+- 2026-02-28 | `TODO-DEBT-009` Gate9 provider統一（主要経路）と `asset.thumbnail` 直参照の監査運用を追加 | `docs/notes/archive/gate9-provider-unification-update-2026-02-28.md`
 - 2026-02-28 | `TODO-DEBT-007` metadata/video metadata の UI直呼びを provider 経由へ整理し、Gate7 監査を拡張 | `docs/notes/archive/electronapi-direct-call-audit-memo-2026-02-19.md#update-2026-02-28`
 - 2026-02-27 | `TODO-DEBT-006` utils層の `window.electronAPI` 直呼びを bridge 経由へ移行し、Gate7 utils監査を追加 | `docs/notes/archive/electronapi-direct-call-audit-memo-2026-02-19.md#update-2026-02-27`
 - 2026-02-20 | `TODO-DEBT-001` Vaultガイド更新を完了し、Export/Vault仕様を固定 | `docs/notes/archive/todo-done-2026-02.md#todo-debt-001`

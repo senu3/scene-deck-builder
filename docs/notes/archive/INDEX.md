@@ -26,6 +26,7 @@
 - `docs/notes/archive/test-integration-startpoint-implemented-2026-02-21.md`
 - `docs/notes/archive/previewmodal-split-plan-implemented-2026-02-23.md`
 - `docs/notes/archive/group-audio-core-adapter-phase-plan-implemented-2026-02-26.md`
+- `docs/notes/archive/gate9-provider-unification-update-2026-02-28.md`
 - `docs/notes/archive/electronapi-direct-call-audit-memo-2026-02-19.md`
 - `docs/notes/archive/store-io-boundary-migration-plan-2026-03-02.md`
 
