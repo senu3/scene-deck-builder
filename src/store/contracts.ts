@@ -89,6 +89,8 @@ export interface CutTimelineSliceContract {
   moveCutToScene: (fromSceneId: string, toSceneId: string, cutId: string, toIndex: number) => void;
   moveCutsToScene: (cutIds: string[], toSceneId: string, toIndex: number) => void;
   setCutRuntime: (cutId: string, runtime: CutRuntimeState) => void;
+  setCutRuntimeHold: (cutId: string, hold: NonNullable<CutRuntimeState['hold']>) => void;
+  clearCutRuntimeHold: (cutId: string) => void;
   clearCutRuntime: (cutId: string) => void;
   getCutRuntime: (cutId: string) => CutRuntimeState | undefined;
   copySelectedCuts: () => void;

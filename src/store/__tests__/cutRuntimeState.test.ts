@@ -49,4 +49,26 @@ describe('cut runtime state', () => {
     useStore.getState().clearCutClipPoints('scene-1', cutId);
     expect(useStore.getState().getCutRuntime(cutId)?.clipRevision).toBe(2);
   });
+
+  it('stores and clears hold runtime without touching persistent cut fields', () => {
+    const cutId = useStore.getState().addCutToScene('scene-1', TEST_IMAGE_ASSET);
+    useStore.getState().setCutRuntimeHold(cutId, {
+      enabled: true,
+      mode: 'tail',
+      durationMs: 1200,
+      muteAudio: true,
+      composeWithClip: true,
+    });
+
+    expect(useStore.getState().getCutRuntime(cutId)?.hold).toEqual({
+      enabled: true,
+      mode: 'tail',
+      durationMs: 1200,
+      muteAudio: true,
+      composeWithClip: true,
+    });
+
+    useStore.getState().clearCutRuntimeHold(cutId);
+    expect(useStore.getState().getCutRuntime(cutId)).toBeUndefined();
+  });
 });

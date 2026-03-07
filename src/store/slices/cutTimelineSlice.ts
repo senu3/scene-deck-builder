@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { Scene, Cut } from '../../types';
+import type { Scene, Cut, CutRuntimeState } from '../../types';
 import { upsertSceneMetadata, removeSceneMetadata } from '../../utils/metadataStore';
 import { buildAssetForCut } from '../../utils/cutImport';
 import { getScenesAndCutsInTimelineOrder } from '../../utils/timelineOrder';
@@ -12,7 +12,7 @@ import type { SliceGet, SliceSet } from './sliceTypes';
 
 export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelineSliceContract {
   const incrementClipRevision = (
-    runtimeById: Record<string, { isLoading?: boolean; loadingName?: string; clipRevision?: number }>,
+    runtimeById: Record<string, CutRuntimeState>,
     cutId: string,
   ) => {
     const current = runtimeById[cutId];
@@ -24,6 +24,25 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
         clipRevision: currentRevision + 1,
       },
     };
+  };
+
+  const pruneRuntimeById = (
+    runtimeById: Record<string, CutRuntimeState>,
+    cutId: string,
+    runtime: CutRuntimeState
+  ) => {
+    const nextRuntimeById = { ...runtimeById };
+    const hasRuntimeValue =
+      runtime.isLoading !== undefined
+      || runtime.loadingName !== undefined
+      || runtime.clipRevision !== undefined
+      || runtime.hold !== undefined;
+    if (hasRuntimeValue) {
+      nextRuntimeById[cutId] = runtime;
+    } else {
+      delete nextRuntimeById[cutId];
+    }
+    return nextRuntimeById;
   };
 
   const applyClipMarkerMutation = (
@@ -609,6 +628,30 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
       set((state) => ({
         cutRuntimeById: { ...state.cutRuntimeById, [cutId]: runtime },
       })),
+
+    setCutRuntimeHold: (cutId, hold) =>
+      set((state) => {
+        const current = state.cutRuntimeById[cutId] || {};
+        return {
+          cutRuntimeById: {
+            ...state.cutRuntimeById,
+            [cutId]: {
+              ...current,
+              hold: { ...hold },
+            },
+          },
+        };
+      }),
+
+    clearCutRuntimeHold: (cutId) =>
+      set((state) => {
+        const current = state.cutRuntimeById[cutId];
+        if (!current?.hold) return state;
+        const { hold: _removed, ...rest } = current;
+        return {
+          cutRuntimeById: pruneRuntimeById(state.cutRuntimeById, cutId, rest),
+        };
+      }),
 
     clearCutRuntime: (cutId) =>
       set((state) => {
