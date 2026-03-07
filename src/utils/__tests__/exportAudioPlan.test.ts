@@ -298,4 +298,71 @@ describe('buildExportAudioPlan', () => {
     expect(plan.totalDurationSec).toBe(4);
     warnSpy.mockRestore();
   });
+
+  it('clips direct audio plan inputs by in/out for embedded, scene, and group audio timing', () => {
+    const cuts: Cut[] = [
+      {
+        id: 'cut-clip-direct',
+        assetId: 'vid-1',
+        displayTime: 5,
+        order: 0,
+        isClip: true,
+        inPoint: 2,
+        outPoint: 3.5,
+        groupId: 'group-1',
+      },
+    ];
+    const assets = mapAssetsById([
+      { id: 'vid-1', name: 'v.mp4', path: '/vault/v.mp4', type: 'video', duration: 12 },
+      { id: 'aud-scene', name: 'scene.wav', path: '/vault/scene.wav', type: 'audio' },
+      { id: 'aud-group', name: 'group.wav', path: '/vault/group.wav', type: 'audio' },
+    ]);
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const plan = buildExportAudioPlan({
+      cuts: cuts as unknown as ExportAudioPlanCut[],
+      metadataStore: {
+        version: 1,
+        metadata: {},
+        sceneMetadata: {
+          'scene-1': {
+            id: 'scene-1',
+            name: 'Scene 1',
+            notes: [],
+            updatedAt: 't',
+            attachAudio: {
+              id: 'scene-audio-1',
+              audioAssetId: 'aud-scene',
+              enabled: true,
+              kind: 'scene',
+            },
+            groupAudioBindings: {
+              'group-1': {
+                id: 'group-audio-1',
+                groupId: 'group-1',
+                audioAssetId: 'aud-group',
+                enabled: true,
+                kind: 'group',
+              },
+            },
+          },
+        },
+      },
+      getAssetById: (assetId) => assets.get(assetId),
+      resolveSceneIdByCutId: () => 'scene-1',
+      canonicalGuard: 'warn',
+    });
+
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(plan.totalDurationSec).toBeCloseTo(1.5, 6);
+
+    const embedded = plan.events.find((event) => event.sourceType === 'video');
+    const sceneAttach = plan.events.find((event) => event.sourceType === 'scene-attach');
+    const groupAttach = plan.events.find((event) => event.sourceType === 'group-attach');
+
+    expect(embedded?.durationSec).toBeCloseTo(1.5, 6);
+    expect(sceneAttach?.durationSec).toBeCloseTo(1.5, 6);
+    expect(groupAttach?.durationSec).toBeCloseTo(1.5, 6);
+    warnSpy.mockRestore();
+  });
 });

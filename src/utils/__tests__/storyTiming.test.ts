@@ -73,4 +73,26 @@ describe('storyTiming', () => {
     expect(timings.cutTimings.get('c3')?.startSec).toBe(5);
     expect(timings.totalDurationSec).toBe(7.5);
   });
+
+  it('uses clip in/out duration as canonical preview/export timing source', () => {
+    const cuts: Cut[] = [
+      { id: 'clip-1', assetId: 'v1', displayTime: 5, order: 0, isClip: true, inPoint: 2, outPoint: 3.5 },
+      { id: 'clip-2', assetId: 'v2', displayTime: 2, order: 1 },
+    ];
+    const assets = new Map<string, Asset>([
+      ['v1', { id: 'v1', name: 'video-1', type: 'video', path: '/tmp/1.mp4', duration: 10 }],
+      ['v2', { id: 'v2', name: 'video-2', type: 'video', path: '/tmp/2.mp4', duration: 2 }],
+    ]);
+
+    const timings = computeCanonicalStoryTimingsForCuts(
+      cuts.map((cut) => ({ cut, sceneId: 's1' })),
+      (assetId) => assets.get(assetId),
+      { fallbackDurationSec: 1.0, preferAssetDuration: true }
+    );
+
+    expect(timings.normalizedDurationByCutId.get('clip-1')).toBeCloseTo(1.5, 6);
+    expect(timings.normalizedCutByCutId.get('clip-1')?.source).toBe('clipDuration');
+    expect(timings.cutTimings.get('clip-2')?.startSec).toBeCloseTo(1.5, 6);
+    expect(timings.totalDurationSec).toBeCloseTo(3.5, 6);
+  });
 });
