@@ -202,7 +202,38 @@ describe('buildSequencePlan', () => {
       holdDurationSec: 1.2,
       flags: { isHold: true, isMuted: true },
     });
+    const embeddedAudioEvent = plan.audioPlan.events.find((event) => event.sourceType === 'video' && event.cutId === 'cut-hold');
+    expect(embeddedAudioEvent?.durationSec).toBeCloseTo(2, 4);
+    expect((embeddedAudioEvent?.timelineStartSec ?? 0) + (embeddedAudioEvent?.durationSec ?? 0)).toBeLessThan(plan.durationSec);
     expect(plan.durationSec).toBeCloseTo(3.2, 4);
     expect(plan.audioPlan.totalDurationSec).toBeCloseTo(3.2, 4);
+  });
+
+  it('treats clip in/out duration as canonical when displayTime differs', () => {
+    const cuts: Cut[] = [
+      cut({
+        id: 'cut-mismatch',
+        assetId: 'video-1',
+        displayTime: 5,
+        order: 0,
+        isClip: true,
+        inPoint: 2,
+        outPoint: 3.5,
+      }),
+    ];
+    const assets = new Map<string, Asset>([['video-1', VIDEO_ASSET]]);
+
+    const plan = buildSequencePlan({
+      scenes: [{ id: 'scene-1', name: 'Scene 1', cuts, notes: [] }],
+      sceneOrder: ['scene-1'],
+    }, {
+      metadataStore: null,
+      getAssetById: (assetId) => assets.get(assetId),
+    });
+
+    expect(plan.videoItems).toHaveLength(1);
+    expect(plan.videoItems[0]?.dstOutSec).toBeCloseTo(1.5, 6);
+    expect(plan.exportItems[0]?.duration).toBeCloseTo(1.5, 6);
+    expect(plan.audioPlan.totalDurationSec).toBeCloseTo(1.5, 6);
   });
 });

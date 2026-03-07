@@ -44,6 +44,38 @@ describe('buildExportAudioPlan', () => {
     expect(plan.events.some((event) => event.sourceType === 'scene-attach' && event.timelineStartSec === 0 && event.durationSec === 5)).toBe(true);
   });
 
+  it('canonicalizes clip duration from in/out when displayTime differs', () => {
+    const cuts: Cut[] = [
+      {
+        id: 'cut-clip',
+        assetId: 'vid-1',
+        displayTime: 5,
+        order: 0,
+        isClip: true,
+        inPoint: 2,
+        outPoint: 3.5,
+      },
+    ];
+    const assets = mapAssetsById([
+      { id: 'vid-1', name: 'v.mp4', path: '/vault/v.mp4', type: 'video', duration: 10 },
+    ]);
+
+    const canonical = canonicalizeCutsForExportAudioPlan(cuts, (assetId) => assets.get(assetId));
+    expect(canonical.adjustedCutIds).toContain('cut-clip');
+    expect(canonical.cuts[0]?.displayTime).toBeCloseTo(1.5, 6);
+
+    const plan = buildExportAudioPlan({
+      cuts: canonical.cuts,
+      metadataStore: null,
+      getAssetById: (assetId) => assets.get(assetId),
+      resolveSceneIdByCutId: () => 'scene-1',
+    });
+
+    const embedded = plan.events.find((event) => event.sourceType === 'video' && event.cutId === 'cut-clip');
+    expect(embedded?.durationSec).toBeCloseTo(1.5, 6);
+    expect(plan.totalDurationSec).toBeCloseTo(1.5, 6);
+  });
+
   it('skips embedded video audio when useEmbeddedAudio is false', () => {
     const cuts: Cut[] = [
       {

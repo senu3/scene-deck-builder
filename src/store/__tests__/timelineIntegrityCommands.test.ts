@@ -1,12 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   AutoClipSimpleCommand,
+  BatchUpdateDisplayTimeCommand,
   ClearClipPointsCommand,
   RemoveCutFromGroupCommand,
   RemoveSceneCommand,
   ReorderCutsWithGroupSyncCommand,
   SetGroupAttachAudioCommand,
   SetSceneAttachAudioCommand,
+  UpdateDisplayTimeCommand,
   UpdateGroupCutOrderCommand,
 } from '../commands';
 import { useStore } from '../useStore';
@@ -545,5 +547,83 @@ describe('timeline integrity commands', () => {
     expect(cut?.inPoint).toBeUndefined();
     expect(cut?.outPoint).toBeUndefined();
     expect(cut?.displayTime).toBe(12);
+  });
+
+  it('does not update displayTime for clip cuts', async () => {
+    useStore.getState().initializeProject({
+      name: 'DisplayTime clip guard',
+      vaultPath: 'C:/vault',
+      scenes: [{
+        id: 'scene-display-guard',
+        name: 'Scene Display Guard',
+        order: 0,
+        notes: [],
+        cuts: [{
+          id: 'cut-display-guard',
+          assetId: VIDEO_ASSET.id,
+          asset: { ...VIDEO_ASSET, duration: 12, path: 'C:/vault/assets/clip-guard.mp4' },
+          displayTime: 3,
+          order: 0,
+          inPoint: 2,
+          outPoint: 5,
+          isClip: true,
+          audioBindings: [],
+        }],
+      }],
+    });
+
+    const command = new UpdateDisplayTimeCommand('scene-display-guard', 'cut-display-guard', 9);
+    await command.execute();
+
+    const cut = useStore.getState().scenes
+      .find((scene) => scene.id === 'scene-display-guard')
+      ?.cuts.find((c) => c.id === 'cut-display-guard');
+    expect(cut?.displayTime).toBe(3);
+  });
+
+  it('batch update skips clip cuts', async () => {
+    useStore.getState().initializeProject({
+      name: 'Batch display clip guard',
+      vaultPath: 'C:/vault',
+      scenes: [{
+        id: 'scene-batch-guard',
+        name: 'Scene Batch Guard',
+        order: 0,
+        notes: [],
+        cuts: [
+          {
+            id: 'cut-batch-clip',
+            assetId: VIDEO_ASSET.id,
+            asset: { ...VIDEO_ASSET, duration: 12, path: 'C:/vault/assets/clip-batch.mp4' },
+            displayTime: 2,
+            order: 0,
+            inPoint: 1,
+            outPoint: 3,
+            isClip: true,
+            audioBindings: [],
+          },
+          {
+            id: 'cut-batch-normal',
+            assetId: BASE_ASSET.id,
+            asset: BASE_ASSET,
+            displayTime: 2,
+            order: 1,
+            audioBindings: [],
+          },
+        ],
+      }],
+    });
+
+    const command = new BatchUpdateDisplayTimeCommand([
+      { sceneId: 'scene-batch-guard', cutId: 'cut-batch-clip', newTime: 7 },
+      { sceneId: 'scene-batch-guard', cutId: 'cut-batch-normal', newTime: 7 },
+    ]);
+    await command.execute();
+
+    const scene = useStore.getState().scenes.find((item) => item.id === 'scene-batch-guard');
+    const clipCut = scene?.cuts.find((c) => c.id === 'cut-batch-clip');
+    const normalCut = scene?.cuts.find((c) => c.id === 'cut-batch-normal');
+    expect(clipCut?.displayTime).toBe(2);
+    expect(normalCut?.displayTime).toBe(7);
   });
 });
