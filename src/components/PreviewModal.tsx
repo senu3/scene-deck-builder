@@ -44,6 +44,7 @@ import { usePreviewInteractionCommands } from './preview-modal/usePreviewInterac
 import { usePreviewViewShell } from './preview-modal/usePreviewViewShell';
 import { usePreviewInputs } from './preview-modal/usePreviewInputs';
 import { usePreviewSequenceSession } from './preview-modal/usePreviewSequenceSession';
+import VideoHoldModal from './preview-modal/VideoHoldModal';
 import { resolveCutAudioBinding } from './preview-modal/audioBinding';
 import { usePreviewSingleModeSession } from './preview-modal/usePreviewSingleModeSession';
 import { usePreviewItemsState } from './preview-modal/usePreviewItemsState';
@@ -112,8 +113,7 @@ export default function PreviewModal({
   const { show: showMiniToast, element: miniToastElement } = useMiniToast();
   const [singleModeDuration, setSingleModeDuration] = useState(0);
   const [singleModeCurrentTime, setSingleModeCurrentTime] = useState(0);
-  const [showHoldEditor, setShowHoldEditor] = useState(false);
-  const [holdDurationInput, setHoldDurationInput] = useState('1.0');
+  const [showHoldModal, setShowHoldModal] = useState(false);
 
   const { isLoading, singleModeImageData } = usePreviewSingleMediaAsset({
     isSingleMode,
@@ -523,16 +523,14 @@ export default function PreviewModal({
   const currentFocusHold = focusCutData?.cut?.id ? getCutRuntime(focusCutData.cut.id)?.hold : undefined;
   const isHoldEnabled = !!(currentFocusHold?.enabled && currentFocusHold.durationMs > 0);
   const openHoldEditor = useCallback(() => {
-    const currentSec = currentFocusHold?.durationMs ? currentFocusHold.durationMs / 1000 : 1;
-    setHoldDurationInput(currentSec.toFixed(2));
-    setShowHoldEditor(true);
-  }, [currentFocusHold?.durationMs]);
+    setShowHoldModal(true);
+  }, []);
   const handleSingleModeHoldToggle = useCallback(() => {
     const cutId = focusCutData?.cut?.id;
     if (!cutId) return;
     if (isHoldEnabled) {
       clearCutRuntimeHold(cutId);
-      setShowHoldEditor(false);
+      setShowHoldModal(false);
       showMiniToast('VIDEO Hold disabled', 'info');
       return;
     }
@@ -544,10 +542,9 @@ export default function PreviewModal({
     showMiniToast,
     openHoldEditor,
   ]);
-  const handleSingleModeHoldApply = useCallback(() => {
+  const handleSingleModeHoldApply = useCallback((seconds: number) => {
     const cutId = focusCutData?.cut?.id;
     if (!cutId) return;
-    const seconds = Number(holdDurationInput.trim());
     if (!Number.isFinite(seconds) || seconds <= 0) {
       showMiniToast('Hold duration must be a positive number', 'warning');
       return;
@@ -559,11 +556,10 @@ export default function PreviewModal({
       muteAudio: true,
       composeWithClip: true,
     });
-    setShowHoldEditor(false);
+    setShowHoldModal(false);
     showMiniToast(`VIDEO Hold enabled (${seconds.toFixed(2)}s)`, 'success');
   }, [
     focusCutData?.cut?.id,
-    holdDurationInput,
     setCutRuntimeHold,
     showMiniToast,
   ]);
@@ -571,24 +567,104 @@ export default function PreviewModal({
   // ===== SINGLE MODE RENDER =====
   if (isSingleMode) {
     return (
-      <PreviewModalSingleView
+      <>
+        <PreviewModalSingleView
+          modalRef={modalRef}
+          displayContainerRef={displayContainerRef}
+          progressBarRef={progressBarRef}
+          videoRef={videoRef}
+          onClose={onClose}
+          onContainerMouseDown={handleContainerMouseDown}
+          previewDisplayClassName={previewDisplayClassName}
+          showOverlayNow={showOverlayNow}
+          scheduleHideOverlay={scheduleHideOverlay}
+          asset={asset}
+          isAssetOnlyPreview={isAssetOnlyPreview}
+          isLoading={isLoading}
+          isSingleModeVideo={isSingleModeVideo}
+          isSingleModeImage={isSingleModeImage}
+          videoObjectUrl={videoObjectUrl}
+          sequenceMediaElement={sequenceMediaElement}
+          singleModeImageData={singleModeImageData}
+          getViewportStyle={getViewportStyle}
+          currentFraming={currentFraming}
+          selectedResolution={selectedResolution}
+          onResolutionSelect={(preset) => {
+            setSelectedResolution(preset);
+            onResolutionChange?.(preset);
+          }}
+          previewResolutionLabel={previewResolutionLabel}
+          showOverlay={showOverlay}
+          inPoint={inPoint}
+          outPoint={outPoint}
+          singleModePlaybackDuration={singleModePlaybackDuration}
+          singleModeProgressPercent={singleModeProgressPercent}
+          singleModePlaybackTime={singleModePlaybackTime}
+          focusedMarker={focusedMarker}
+          onMarkerFocus={interactionCommands.markerFocus}
+          onMarkerDrag={interactionCommands.markerDrag}
+          onMarkerDragEnd={interactionCommands.markerDragEnd}
+          handleSingleModeProgressClick={handleSingleModeProgressClick}
+          isPlaying={isPlaying}
+          skipBack={interactionCommands.skipBack}
+          skipForward={interactionCommands.skipForward}
+          togglePlay={interactionCommands.playPause}
+          handleSetInPoint={interactionCommands.setInPoint}
+          handleSetOutPoint={interactionCommands.setOutPoint}
+          showSingleModeClipButton={showSingleModeClipButton}
+          isSingleModeClipEnabled={isSingleModeClipEnabled}
+          onClipPrimaryAction={isSingleModeClipEnabled ? handleSingleModeClearClip : handleSingleModeSave}
+          isSingleModeClipPending={isSingleModeClipPending}
+          onFrameCapture={onFrameCapture ? handleSingleModeCaptureFrame : undefined}
+          showHoldButton={isSingleModeVideo && !!focusCutData?.cut?.id}
+          isHoldEnabled={isHoldEnabled}
+          onHoldToggle={handleSingleModeHoldToggle}
+          isLooping={isLooping}
+          toggleLooping={interactionCommands.toggleLooping}
+          globalVolume={globalVolume}
+          globalMuted={globalMuted}
+          setGlobalVolume={setGlobalVolume}
+          toggleGlobalMute={interactionCommands.toggleMute}
+          playbackSpeed={playbackSpeed}
+          cycleSpeedUp={cycleSingleModeSpeed}
+          isFullscreen={isFullscreen}
+          toggleFullscreen={toggleFullscreen}
+          miniToastElement={miniToastElement}
+          handleSingleModeTimeUpdate={handleSingleModeTimeUpdate}
+          handleSingleModeLoadedMetadata={handleSingleModeLoadedMetadata}
+          onSingleModeVideoPlay={() => setSingleModeIsPlaying(true)}
+          onSingleModeVideoPause={() => setSingleModeIsPlaying(false)}
+          handleSingleModeVideoEnded={handleSingleModeVideoEnded}
+        />
+        <VideoHoldModal
+          open={showHoldModal}
+          initialDurationSec={currentFocusHold?.durationMs ? currentFocusHold.durationMs / 1000 : 1}
+          onClose={() => setShowHoldModal(false)}
+          onConfirm={handleSingleModeHoldApply}
+        />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <PreviewModalSequenceView
         modalRef={modalRef}
         displayContainerRef={displayContainerRef}
         progressBarRef={progressBarRef}
-        videoRef={videoRef}
+        progressFillRef={progressFillRef}
+        progressHandleRef={progressHandleRef}
         onClose={onClose}
         onContainerMouseDown={handleContainerMouseDown}
-        previewDisplayClassName={previewDisplayClassName}
         showOverlayNow={showOverlayNow}
         scheduleHideOverlay={scheduleHideOverlay}
-        asset={asset}
-        isAssetOnlyPreview={isAssetOnlyPreview}
-        isLoading={isLoading}
-        isSingleModeVideo={isSingleModeVideo}
-        isSingleModeImage={isSingleModeImage}
-        videoObjectUrl={videoObjectUrl}
+        previewDisplayClassName={previewDisplayClassName}
+        items={sequenceItems}
+        missingFocusedCut={missingFocusedCut}
+        currentIndex={currentIndex}
+        currentItem={currentItem}
         sequenceMediaElement={sequenceMediaElement}
-        singleModeImageData={singleModeImageData}
+        resolveAssetForCut={resolveAssetForCut}
         getViewportStyle={getViewportStyle}
         currentFraming={currentFraming}
         selectedResolution={selectedResolution}
@@ -597,115 +673,40 @@ export default function PreviewModal({
           onResolutionChange?.(preset);
         }}
         previewResolutionLabel={previewResolutionLabel}
+        onExportFull={() => {
+          void handleExportFull();
+        }}
+        isExporting={isExporting}
+        isBuffering={isBuffering}
         showOverlay={showOverlay}
         inPoint={inPoint}
         outPoint={outPoint}
-        singleModePlaybackDuration={singleModePlaybackDuration}
-        singleModeProgressPercent={singleModeProgressPercent}
-        singleModePlaybackTime={singleModePlaybackTime}
+        sequenceTotalDuration={sequenceTotalDuration}
         focusedMarker={focusedMarker}
         onMarkerFocus={interactionCommands.markerFocus}
         onMarkerDrag={interactionCommands.markerDrag}
         onMarkerDragEnd={interactionCommands.markerDragEnd}
-        handleSingleModeProgressClick={handleSingleModeProgressClick}
+        onProgressBarMouseDown={handleProgressBarMouseDown}
+        onProgressBarHover={handleProgressBarHover}
+        onProgressBarLeave={handleProgressBarLeave}
+        hoverTime={hoverTime}
+        sequenceCurrentTime={sequenceCurrentTime}
+        goToPrev={goToPrev}
+        handlePlayPause={interactionCommands.playPause}
         isPlaying={isPlaying}
-        skipBack={interactionCommands.skipBack}
-        skipForward={interactionCommands.skipForward}
-        togglePlay={interactionCommands.playPause}
+        goToNext={goToNext}
         handleSetInPoint={interactionCommands.setInPoint}
         handleSetOutPoint={interactionCommands.setOutPoint}
-        showSingleModeClipButton={showSingleModeClipButton}
-        isSingleModeClipEnabled={isSingleModeClipEnabled}
-        onClipPrimaryAction={isSingleModeClipEnabled ? handleSingleModeClearClip : handleSingleModeSave}
-        isSingleModeClipPending={isSingleModeClipPending}
-        onFrameCapture={onFrameCapture ? handleSingleModeCaptureFrame : undefined}
-        showHoldButton={isSingleModeVideo && !!focusCutData?.cut?.id}
-        isHoldEnabled={isHoldEnabled}
-        onHoldToggle={handleSingleModeHoldToggle}
-        showHoldEditor={showHoldEditor}
-        holdDurationInput={holdDurationInput}
-        onHoldDurationInputChange={setHoldDurationInput}
-        onHoldApply={handleSingleModeHoldApply}
-        onHoldCancel={() => setShowHoldEditor(false)}
         isLooping={isLooping}
         toggleLooping={interactionCommands.toggleLooping}
         globalVolume={globalVolume}
         globalMuted={globalMuted}
         setGlobalVolume={setGlobalVolume}
         toggleGlobalMute={interactionCommands.toggleMute}
-        playbackSpeed={playbackSpeed}
-        cycleSpeedUp={cycleSingleModeSpeed}
         isFullscreen={isFullscreen}
         toggleFullscreen={toggleFullscreen}
         miniToastElement={miniToastElement}
-        handleSingleModeTimeUpdate={handleSingleModeTimeUpdate}
-        handleSingleModeLoadedMetadata={handleSingleModeLoadedMetadata}
-        onSingleModeVideoPlay={() => setSingleModeIsPlaying(true)}
-        onSingleModeVideoPause={() => setSingleModeIsPlaying(false)}
-        handleSingleModeVideoEnded={handleSingleModeVideoEnded}
       />
-    );
-  }
-
-  return (
-    <PreviewModalSequenceView
-      modalRef={modalRef}
-      displayContainerRef={displayContainerRef}
-      progressBarRef={progressBarRef}
-      progressFillRef={progressFillRef}
-      progressHandleRef={progressHandleRef}
-      onClose={onClose}
-      onContainerMouseDown={handleContainerMouseDown}
-      showOverlayNow={showOverlayNow}
-      scheduleHideOverlay={scheduleHideOverlay}
-      previewDisplayClassName={previewDisplayClassName}
-      items={sequenceItems}
-      missingFocusedCut={missingFocusedCut}
-      currentIndex={currentIndex}
-      currentItem={currentItem}
-      sequenceMediaElement={sequenceMediaElement}
-      resolveAssetForCut={resolveAssetForCut}
-      getViewportStyle={getViewportStyle}
-      currentFraming={currentFraming}
-      selectedResolution={selectedResolution}
-      onResolutionSelect={(preset) => {
-        setSelectedResolution(preset);
-        onResolutionChange?.(preset);
-      }}
-      previewResolutionLabel={previewResolutionLabel}
-      onExportFull={() => {
-        void handleExportFull();
-      }}
-      isExporting={isExporting}
-      isBuffering={isBuffering}
-      showOverlay={showOverlay}
-      inPoint={inPoint}
-      outPoint={outPoint}
-      sequenceTotalDuration={sequenceTotalDuration}
-      focusedMarker={focusedMarker}
-      onMarkerFocus={interactionCommands.markerFocus}
-      onMarkerDrag={interactionCommands.markerDrag}
-      onMarkerDragEnd={interactionCommands.markerDragEnd}
-      onProgressBarMouseDown={handleProgressBarMouseDown}
-      onProgressBarHover={handleProgressBarHover}
-      onProgressBarLeave={handleProgressBarLeave}
-      hoverTime={hoverTime}
-      sequenceCurrentTime={sequenceCurrentTime}
-      goToPrev={goToPrev}
-      handlePlayPause={interactionCommands.playPause}
-      isPlaying={isPlaying}
-      goToNext={goToNext}
-      handleSetInPoint={interactionCommands.setInPoint}
-      handleSetOutPoint={interactionCommands.setOutPoint}
-      isLooping={isLooping}
-      toggleLooping={interactionCommands.toggleLooping}
-      globalVolume={globalVolume}
-      globalMuted={globalMuted}
-      setGlobalVolume={setGlobalVolume}
-      toggleGlobalMute={interactionCommands.toggleMute}
-      isFullscreen={isFullscreen}
-      toggleFullscreen={toggleFullscreen}
-      miniToastElement={miniToastElement}
-    />
+    </>
   );
 }

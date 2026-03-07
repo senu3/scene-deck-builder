@@ -57,11 +57,6 @@ interface PreviewModalSingleViewProps {
   showHoldButton: boolean;
   isHoldEnabled: boolean;
   onHoldToggle: () => void;
-  showHoldEditor: boolean;
-  holdDurationInput: string;
-  onHoldDurationInputChange: (value: string) => void;
-  onHoldApply: () => void;
-  onHoldCancel: () => void;
   isLooping: boolean;
   toggleLooping: () => void;
   globalVolume: number;
@@ -128,11 +123,6 @@ export function PreviewModalSingleView({
   showHoldButton,
   isHoldEnabled,
   onHoldToggle,
-  showHoldEditor,
-  holdDurationInput,
-  onHoldDurationInputChange,
-  onHoldApply,
-  onHoldCancel,
   isLooping,
   toggleLooping,
   globalVolume,
@@ -392,36 +382,6 @@ export function PreviewModalSingleView({
                 </button>
                 {miniToastElement}
               </div>
-              {showHoldEditor && (
-                <div
-                  style={{
-                    marginTop: 8,
-                    display: 'flex',
-                    gap: 8,
-                    alignItems: 'center',
-                    background: 'rgba(15, 23, 42, 0.7)',
-                    border: '1px solid rgba(148, 163, 184, 0.35)',
-                    borderRadius: 8,
-                    padding: '8px 10px',
-                  }}
-                >
-                  <span style={{ fontSize: 12, color: '#e2e8f0' }}>Hold (sec)</span>
-                  <input
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    value={holdDurationInput}
-                    onChange={(e) => onHoldDurationInputChange(e.target.value)}
-                    style={{ width: 92 }}
-                  />
-                  <button className="preview-ctrl-btn preview-ctrl-btn--text" onClick={onHoldApply}>
-                    Apply
-                  </button>
-                  <button className="preview-ctrl-btn preview-ctrl-btn--text" onClick={onHoldCancel}>
-                    Cancel
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         </div>
