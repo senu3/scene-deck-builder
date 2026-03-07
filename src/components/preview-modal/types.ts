@@ -1,4 +1,5 @@
 import type { Asset, Cut } from '../../types';
+import type { SequencePlan } from '../../utils/sequencePlan';
 import type { CanonicalDurationSec } from '../../utils/storyTiming';
 
 export interface ResolutionPresetType {
@@ -28,7 +29,7 @@ export interface BasePreviewModalProps {
   sequenceCuts?: Cut[];
   sequenceContext?: { kind: 'scene'; sceneId: string; sceneName?: string };
   onRangeChange?: (range: { inPoint: number | null; outPoint: number | null }) => void;
-  onExportSequence?: (cuts: Cut[], resolution: { width: number; height: number }) => Promise<void> | void;
+  onExportSequence?: (plan: SequencePlan, resolution: { width: number; height: number }) => Promise<void> | void;
 }
 
 export type PreviewModalProps = BasePreviewModalProps & Partial<SingleModeProps>;

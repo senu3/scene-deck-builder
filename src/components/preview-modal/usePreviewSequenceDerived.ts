@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
 import type { Asset, MetadataStore } from '../../types';
-import { buildSequenceItemsForCuts } from '../../utils/exportSequence';
-import { buildExportAudioPlan, canonicalizeCutsForExportAudioPlan } from '../../utils/exportAudioPlan';
 import { EXPORT_FRAMING_DEFAULTS } from '../../constants/framing';
+import { buildSequencePlan } from '../../utils/sequencePlan';
 import type { PreviewItem } from './types';
 
 interface UsePreviewSequenceDerivedInput {
@@ -16,26 +15,8 @@ export function usePreviewSequenceDerived({
   metadataStore,
   getAsset,
 }: UsePreviewSequenceDerivedInput) {
-  const previewSequenceItems = useMemo(() => {
-    const exportCuts = items.map((item) => ({
-      ...item.cut,
-      displayTime: item.normalizedDisplayTime,
-    }));
-    return buildSequenceItemsForCuts(exportCuts, {
-      framingDefaults: EXPORT_FRAMING_DEFAULTS,
-      metadataByAssetId: metadataStore?.metadata,
-      resolveAssetById: getAsset,
-      strictLipSync: false,
-    });
-  }, [items, metadataStore, getAsset]);
-
-  const previewSequenceItemByCutId = useMemo(
-    () => new Map(previewSequenceItems.map((item, index) => [items[index]?.cut.id, item] as const).filter((entry) => !!entry[0])),
-    [previewSequenceItems, items]
-  );
-
-  const previewAudioPlan = useMemo(() => {
-    const exportCuts = items.map((item) => ({
+  const previewSequencePlan = useMemo(() => {
+    const planCuts = items.map((item) => ({
       ...item.cut,
       displayTime: item.normalizedDisplayTime,
     }));
@@ -43,15 +24,27 @@ export function usePreviewSequenceDerived({
     for (const item of items) {
       cutSceneMap.set(item.cut.id, item.sceneId);
     }
-    return buildExportAudioPlan({
-      cuts: canonicalizeCutsForExportAudioPlan(exportCuts, getAsset).cuts,
+    return buildSequencePlan({
+      cuts: planCuts,
       metadataStore,
       getAssetById: getAsset,
+      framingDefaults: EXPORT_FRAMING_DEFAULTS,
+      strictLipSync: false,
       resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
     });
   }, [items, metadataStore, getAsset]);
 
+  const previewSequenceItems = previewSequencePlan.exportItems;
+
+  const previewSequenceItemByCutId = useMemo(
+    () => previewSequencePlan.exportItemByCutId,
+    [previewSequencePlan]
+  );
+
+  const previewAudioPlan = previewSequencePlan.audioPlan;
+
   return {
+    previewSequencePlan,
     previewSequenceItems,
     previewSequenceItemByCutId,
     previewAudioPlan,

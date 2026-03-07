@@ -1,10 +1,9 @@
 import { useCallback, useState } from 'react';
 import type { Asset, Cut, MetadataStore } from '../../types';
 import { formatTime } from '../../utils/timeUtils';
-import { buildSequenceItemsForCuts } from '../../utils/exportSequence';
 import { DEFAULT_EXPORT_RESOLUTION } from '../../constants/export';
 import { EXPORT_FRAMING_DEFAULTS } from '../../constants/framing';
-import { buildExportAudioPlan, canonicalizeCutsForExportAudioPlan } from '../../utils/exportAudioPlan';
+import { buildSequencePlan, type SequencePlan } from '../../utils/sequencePlan';
 import type { PreviewItem, ResolutionPreset } from './types';
 
 interface UsePreviewExportActionsInput {
@@ -12,7 +11,7 @@ interface UsePreviewExportActionsInput {
   selectedResolution: ResolutionPreset;
   metadataStore: MetadataStore | null;
   getAsset: (assetId: string) => Asset | undefined;
-  onExportSequence?: (cuts: Cut[], resolution: { width: number; height: number }) => Promise<void> | void;
+  onExportSequence?: (plan: SequencePlan, resolution: { width: number; height: number }) => Promise<void> | void;
   pauseBeforeExport: () => void;
   inPoint: number | null;
   outPoint: number | null;
@@ -41,13 +40,25 @@ export function usePreviewExportActions({
     try {
       const exportWidth = selectedResolution.width > 0 ? selectedResolution.width : DEFAULT_EXPORT_RESOLUTION.width;
       const exportHeight = selectedResolution.height > 0 ? selectedResolution.height : DEFAULT_EXPORT_RESOLUTION.height;
-      const exportCuts = items.map((item) => ({
+      const planCuts = items.map((item) => ({
         ...item.cut,
         displayTime: item.normalizedDisplayTime,
       }));
+      const cutSceneMap = new Map<string, string>();
+      for (const item of items) {
+        cutSceneMap.set(item.cut.id, item.sceneId);
+      }
+      const sequencePlan = buildSequencePlan({
+        cuts: planCuts,
+        metadataStore: metadataStore ?? null,
+        getAssetById: getAsset,
+        framingDefaults: EXPORT_FRAMING_DEFAULTS,
+        strictLipSync: false,
+        resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
+      });
 
       if (onExportSequence) {
-        await onExportSequence(exportCuts, { width: exportWidth, height: exportHeight });
+        await onExportSequence(sequencePlan, { width: exportWidth, height: exportHeight });
         return;
       }
 
@@ -60,33 +71,13 @@ export function usePreviewExportActions({
         return;
       }
 
-      const sequenceItems = buildSequenceItemsForCuts(
-        exportCuts,
-        {
-          debugFraming: true,
-          framingDefaults: EXPORT_FRAMING_DEFAULTS,
-          metadataByAssetId: metadataStore?.metadata,
-          resolveAssetById: getAsset,
-        }
-      );
-      const cutSceneMap = new Map<string, string>();
-      for (const item of items) {
-        cutSceneMap.set(item.cut.id, item.sceneId);
-      }
-      const audioPlan = buildExportAudioPlan({
-        cuts: canonicalizeCutsForExportAudioPlan(exportCuts, getAsset).cuts,
-        metadataStore: metadataStore ?? null,
-        getAssetById: getAsset,
-        resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
-      });
-
       const result = await window.electronAPI.exportSequence({
-        items: sequenceItems,
+        items: sequencePlan.exportItems,
         outputPath,
         width: exportWidth,
         height: exportHeight,
         fps: 30,
-        audioPlan,
+        audioPlan: sequencePlan.audioPlan,
       });
 
       if (result.success) {
@@ -163,38 +154,31 @@ export function usePreviewExportActions({
         }
       }
 
-      const sequenceItems = buildSequenceItemsForCuts(
-        rangeCuts,
-        {
-          debugFraming: true,
-          framingDefaults: EXPORT_FRAMING_DEFAULTS,
-          metadataByAssetId: metadataStore?.metadata,
-          resolveAssetById: getAsset,
-        }
-      );
-
-      if (sequenceItems.length === 0) {
-        alert('No items in the selected range');
-        return;
-      }
       const cutSceneMap = new Map<string, string>();
       for (const item of items) {
         cutSceneMap.set(item.cut.id, item.sceneId);
       }
-      const audioPlan = buildExportAudioPlan({
-        cuts: canonicalizeCutsForExportAudioPlan(rangeCuts, getAsset).cuts,
+      const sequencePlan = buildSequencePlan({
+        cuts: rangeCuts,
         metadataStore: metadataStore ?? null,
         getAssetById: getAsset,
+        framingDefaults: EXPORT_FRAMING_DEFAULTS,
+        strictLipSync: false,
         resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
       });
 
+      if (sequencePlan.exportItems.length === 0) {
+        alert('No items in the selected range');
+        return;
+      }
+
       const result = await window.electronAPI.exportSequence({
-        items: sequenceItems,
+        items: sequencePlan.exportItems,
         outputPath,
         width: exportWidth,
         height: exportHeight,
         fps: 30,
-        audioPlan,
+        audioPlan: sequencePlan.audioPlan,
       });
 
       if (result.success) {

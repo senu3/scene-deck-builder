@@ -53,7 +53,6 @@ import { getAssetThumbnail } from './features/thumbnails/api';
 import { clearPreviewClipPoints, savePreviewClipPoints } from './features/cut/previewClipUpdate';
 import { importFileToVault } from './utils/assetPath';
 import { getDragKind, isDndDebugEnabled, logDragDebug, queueExternalFilesToScene, setDndDebugEnabled } from './utils/dragDrop';
-import { buildSequenceItemsForCuts } from './utils/exportSequence';
 import { getCutIdsInTimelineOrder, getCutsInTimelineOrder, getScenesAndCutsInTimelineOrder } from './utils/timelineOrder';
 import { getFirstSceneId, getSceneIndex, getScenesInOrder, resolveSceneById } from './utils/sceneOrder';
 import { insertCutIdsIntoGroupOrder } from './utils/cutGroupOps';
@@ -64,7 +63,7 @@ import type { ResolutionInput } from './features/export/plan';
 import type { ExportSettings } from './features/export/types';
 import { buildSceneScopedExportPath } from './features/export/sceneScope';
 import { buildExportTimelineEntries, buildManifestJson, buildTimelineText } from './features/export/manifest';
-import { buildExportAudioPlan, canonicalizeCutsForExportAudioPlan } from './utils/exportAudioPlan';
+import { buildSequencePlan, type SequencePlan } from './utils/sequencePlan';
 import { resolveCutAsset } from './utils/assetResolve';
 import { useBanner, useToast } from './ui';
 import './styles/App.css';
@@ -581,8 +580,8 @@ function App() {
   }, [openPreviewForCuts, scenes, toast]);
 
   const exportMp4Sequence = useCallback(async (
-    cuts: Cut[],
-    config: ResolutionInput & { fps: number; outputFilePath?: string; outputDir?: string }
+    sequencePlan: SequencePlan,
+    config: ResolutionInput & { fps: number; outputFilePath?: string; outputDir?: string; cutsForSidecar?: Cut[] }
   ) => {
     if (!window.electronAPI || isExporting) return;
 
@@ -596,26 +595,7 @@ function App() {
       icon: 'sync',
     });
     try {
-      const sequenceItems = buildSequenceItemsForCuts(cuts, {
-        debugFraming: true,
-        framingDefaults: EXPORT_FRAMING_DEFAULTS,
-        metadataByAssetId: metadataStore?.metadata,
-        resolveAssetById: getAsset,
-      });
-      const cutSceneMap = new Map<string, string>();
-      for (const scene of orderedScenes) {
-        for (const sceneCut of scene.cuts) {
-          cutSceneMap.set(sceneCut.id, scene.id);
-        }
-      }
-      const audioPlan = buildExportAudioPlan({
-        cuts: canonicalizeCutsForExportAudioPlan(cuts, getAsset).cuts,
-        metadataStore: metadataStore ?? null,
-        getAssetById: getAsset,
-        resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
-      });
-
-      if (sequenceItems.length === 0) {
+      if (sequencePlan.exportItems.length === 0) {
         toast.warning('No items to export', 'Add cuts to the timeline first.');
         return;
       }
@@ -643,16 +623,16 @@ function App() {
       });
 
       const result = await window.electronAPI.exportSequence({
-        items: sequenceItems,
+        items: sequencePlan.exportItems,
         outputPath,
         width,
         height,
         fps: config.fps,
-        audioPlan,
+        audioPlan: sequencePlan.audioPlan,
       });
 
       if (result.success) {
-        if (config.outputDir) {
+        if (config.outputDir && config.cutsForSidecar) {
           banner.update(EXPORT_PROGRESS_BANNER_ID, {
             message: 'Writing manifest and timeline...',
             progress: 85,
@@ -666,7 +646,7 @@ function App() {
             }
             return null;
           };
-          const timelineEntries = buildExportTimelineEntries(cuts, contextResolver, getAsset);
+          const timelineEntries = buildExportTimelineEntries(config.cutsForSidecar, contextResolver, getAsset);
           const manifestJson = buildManifestJson(timelineEntries, {
             width,
             height,
@@ -737,14 +717,30 @@ function App() {
 
     if (plan.format !== 'mp4') return;
 
-    await exportMp4Sequence(cuts, {
+    const cutSceneMap = new Map<string, string>();
+    for (const scene of orderedScenes) {
+      for (const sceneCut of scene.cuts) {
+        cutSceneMap.set(sceneCut.id, scene.id);
+      }
+    }
+    const sequencePlan = buildSequencePlan({
+      cuts,
+      metadataStore: metadataStore ?? null,
+      getAssetById: getAsset,
+      framingDefaults: EXPORT_FRAMING_DEFAULTS,
+      strictLipSync: false,
+      resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
+    });
+
+    await exportMp4Sequence(sequencePlan, {
       width: plan.width,
       height: plan.height,
       fps: plan.fps,
       outputFilePath: scopedPath.outputFilePath,
       outputDir: scopedPath.outputDir,
+      cutsForSidecar: cuts,
     });
-  }, [isExporting, toast, scenes, sceneOrder, vaultPath, projectName, exportResolution, exportMp4Sequence]);
+  }, [isExporting, toast, scenes, sceneOrder, vaultPath, projectName, exportResolution, exportMp4Sequence, orderedScenes, metadataStore, getAsset]);
 
   const handleExportScene = useCallback(async (sceneId: string) => {
     const scene = resolveSceneById(scenes, sceneId);
@@ -796,20 +792,36 @@ function App() {
         return;
       }
 
-      await exportMp4Sequence(orderedCuts, {
+      const cutSceneMap = new Map<string, string>();
+      for (const scene of orderedScenes) {
+        for (const sceneCut of scene.cuts) {
+          cutSceneMap.set(sceneCut.id, scene.id);
+        }
+      }
+      const sequencePlan = buildSequencePlan({
+        cuts: orderedCuts,
+        metadataStore: metadataStore ?? null,
+        getAssetById: getAsset,
+        framingDefaults: EXPORT_FRAMING_DEFAULTS,
+        strictLipSync: false,
+        resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
+      });
+
+      await exportMp4Sequence(sequencePlan, {
         width: plan.width,
         height: plan.height,
         fps: plan.fps,
         outputFilePath: plan.outputFilePath,
         outputDir: plan.outputDir,
+        cutsForSidecar: orderedCuts,
       });
     } catch (error) {
       toast.error('Export error', String(error));
     }
-  }, [scenes, sceneOrder, exportResolution, isExporting, exportMp4Sequence, getSelectedCutIds, toast]);
+  }, [scenes, sceneOrder, exportResolution, isExporting, exportMp4Sequence, getSelectedCutIds, toast, orderedScenes, metadataStore, getAsset]);
 
   const handlePreviewExport = useCallback(async (
-    cuts: Cut[],
+    sequencePlan: SequencePlan,
     resolution: { width: number; height: number }
   ) => {
     const mp4Plan = resolveExportPlan({
@@ -828,7 +840,7 @@ function App() {
     if (mp4Plan.format !== 'mp4') {
       return;
     }
-      await exportMp4Sequence(cuts, {
+      await exportMp4Sequence(sequencePlan, {
         width: mp4Plan.width,
         height: mp4Plan.height,
         fps: mp4Plan.fps,
