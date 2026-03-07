@@ -160,4 +160,49 @@ describe('buildSequencePlan', () => {
     expect(overridePlan.videoItems).toHaveLength(1);
     expect(overridePlan.videoItems[0]?.sceneId).toBe('scene-override');
   });
+
+  it('appends tail hold video/export items from runtime hold settings', () => {
+    const cuts: Cut[] = [
+      cut({
+        id: 'cut-hold',
+        assetId: 'video-1',
+        displayTime: 2,
+        order: 0,
+        isClip: true,
+        inPoint: 1,
+        outPoint: 3,
+      }),
+    ];
+    const assets = new Map<string, Asset>([['video-1', VIDEO_ASSET]]);
+
+    const plan = buildSequencePlan({
+      scenes: [{ id: 'scene-1', name: 'Scene 1', cuts, notes: [] }],
+      sceneOrder: ['scene-1'],
+    }, {
+      metadataStore: null,
+      getAssetById: (assetId) => assets.get(assetId),
+      resolveCutRuntimeById: () => ({
+        hold: {
+          enabled: true,
+          mode: 'tail',
+          durationMs: 1200,
+          muteAudio: true,
+          composeWithClip: true,
+        },
+      }),
+    });
+
+    expect(plan.videoItems).toHaveLength(2);
+    expect(plan.videoItems[1]).toMatchObject({
+      cutId: 'cut-hold',
+      flags: { isHold: true, isMuted: true },
+    });
+    expect(plan.exportItems).toHaveLength(2);
+    expect(plan.exportItems[1]).toMatchObject({
+      holdDurationSec: 1.2,
+      flags: { isHold: true, isMuted: true },
+    });
+    expect(plan.durationSec).toBeCloseTo(3.2, 4);
+    expect(plan.audioPlan.totalDurationSec).toBeCloseTo(3.2, 4);
+  });
 });

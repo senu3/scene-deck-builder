@@ -10,8 +10,14 @@ export interface ExportSequenceItem {
   duration: number;
   inPoint?: number;
   outPoint?: number;
+  holdDurationSec?: number;
   framingMode: FramingMode;
   framingAnchor: FramingAnchor;
+  flags?: {
+    isClip?: boolean;
+    isMuted?: boolean;
+    isHold?: boolean;
+  };
   lipSync?: {
     framePaths: string[];
     rms: number[];

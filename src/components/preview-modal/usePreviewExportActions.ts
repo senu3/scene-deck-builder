@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import type { Asset, Cut, MetadataStore } from '../../types';
+import type { Asset, Cut, CutRuntimeState, MetadataStore } from '../../types';
 import { formatTime } from '../../utils/timeUtils';
 import { DEFAULT_EXPORT_RESOLUTION } from '../../constants/export';
 import { EXPORT_FRAMING_DEFAULTS } from '../../constants/framing';
@@ -11,6 +11,7 @@ interface UsePreviewExportActionsInput {
   selectedResolution: ResolutionPreset;
   metadataStore: MetadataStore | null;
   getAsset: (assetId: string) => Asset | undefined;
+  getCutRuntime: (cutId: string) => CutRuntimeState | undefined;
   onExportSequence?: (plan: SequencePlan, resolution: { width: number; height: number }) => Promise<void> | void;
   pauseBeforeExport: () => void;
   inPoint: number | null;
@@ -23,6 +24,7 @@ export function usePreviewExportActions({
   selectedResolution,
   metadataStore,
   getAsset,
+  getCutRuntime,
   onExportSequence,
   pauseBeforeExport,
   inPoint,
@@ -59,6 +61,7 @@ export function usePreviewExportActions({
         },
         metadataStore: metadataStore ?? null,
         getAssetById: getAsset,
+        resolveCutRuntimeById: getCutRuntime,
         framingDefaults: EXPORT_FRAMING_DEFAULTS,
         strictLipSync: false,
       });
@@ -99,7 +102,7 @@ export function usePreviewExportActions({
     } finally {
       setIsExporting(false);
     }
-  }, [items, selectedResolution, pauseBeforeExport, metadataStore, getAsset, onExportSequence]);
+  }, [items, selectedResolution, pauseBeforeExport, metadataStore, getAsset, getCutRuntime, onExportSequence]);
 
   const handleExportRange = useCallback(async () => {
     if (!window.electronAPI || items.length === 0) return;
@@ -175,6 +178,7 @@ export function usePreviewExportActions({
         },
         metadataStore: metadataStore ?? null,
         getAssetById: getAsset,
+        resolveCutRuntimeById: getCutRuntime,
         framingDefaults: EXPORT_FRAMING_DEFAULTS,
         strictLipSync: false,
       });
@@ -206,7 +210,7 @@ export function usePreviewExportActions({
     } finally {
       setIsExporting(false);
     }
-  }, [items, selectedResolution, inPoint, outPoint, pauseBeforeExport, resolveAssetForCut, metadataStore, getAsset]);
+  }, [items, selectedResolution, inPoint, outPoint, pauseBeforeExport, resolveAssetForCut, metadataStore, getAsset, getCutRuntime]);
 
   return { isExporting, handleExportFull, handleExportRange };
 }

@@ -24,6 +24,7 @@ import {
   selectToggleSidebar,
   selectGetCutGroup,
   selectGetAsset,
+  selectGetCutRuntime,
   selectClearCutRuntime,
   selectMetadataStore,
   selectSelectionType,
@@ -107,6 +108,7 @@ function App() {
   const toggleSidebar = useStore(selectToggleSidebar);
   const getCutGroup = useStore(selectGetCutGroup);
   const getAsset = useStore(selectGetAsset);
+  const getCutRuntime = useStore(selectGetCutRuntime);
   const clearCutRuntime = useStore(selectClearCutRuntime);
   const metadataStore = useStore(selectMetadataStore);
   const selectionType = useStore(selectSelectionType);
@@ -734,6 +736,7 @@ function App() {
       },
       metadataStore: metadataStore ?? null,
       getAssetById: getAsset,
+      resolveCutRuntimeById: getCutRuntime,
       framingDefaults: EXPORT_FRAMING_DEFAULTS,
       strictLipSync: false,
     });
@@ -746,7 +749,7 @@ function App() {
       outputDir: scopedPath.outputDir,
       cutsForSidecar: cuts,
     });
-  }, [isExporting, toast, scenes, sceneOrder, vaultPath, projectName, exportResolution, exportMp4Sequence, orderedScenes, metadataStore, getAsset]);
+  }, [isExporting, toast, scenes, sceneOrder, vaultPath, projectName, exportResolution, exportMp4Sequence, orderedScenes, metadataStore, getAsset, getCutRuntime]);
 
   const handleExportScene = useCallback(async (sceneId: string) => {
     const scene = resolveSceneById(scenes, sceneId);
@@ -815,6 +818,7 @@ function App() {
         },
         metadataStore: metadataStore ?? null,
         getAssetById: getAsset,
+        resolveCutRuntimeById: getCutRuntime,
         framingDefaults: EXPORT_FRAMING_DEFAULTS,
         strictLipSync: false,
       });
@@ -830,7 +834,7 @@ function App() {
     } catch (error) {
       toast.error('Export error', String(error));
     }
-  }, [scenes, sceneOrder, exportResolution, isExporting, exportMp4Sequence, getSelectedCutIds, toast, orderedScenes, metadataStore, getAsset]);
+  }, [scenes, sceneOrder, exportResolution, isExporting, exportMp4Sequence, getSelectedCutIds, toast, orderedScenes, metadataStore, getAsset, getCutRuntime]);
 
   const handlePreviewExport = useCallback(async (
     sequencePlan: SequencePlan,

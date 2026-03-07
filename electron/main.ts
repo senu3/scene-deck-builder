@@ -1826,6 +1826,7 @@ interface SequenceItem {
   duration: number;  // Duration in seconds
   inPoint?: number;  // For video clips
   outPoint?: number; // For video clips
+  holdDurationSec?: number;
   framingMode?: 'cover' | 'fit';
   framingAnchor?:
     | 'top-left'
@@ -1843,6 +1844,11 @@ interface SequenceItem {
     rmsFps: number;
     thresholds: { t1: number; t2: number; t3: number };
     audioOffsetSec: number;
+  };
+  flags?: {
+    isClip?: boolean;
+    isMuted?: boolean;
+    isHold?: boolean;
   };
 }
 
@@ -2154,26 +2160,52 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
       } else {
         // Video: extract segment and re-encode to consistent format
         const inPoint = item.inPoint ?? 0;
-        const duration = item.outPoint !== undefined
-          ? item.outPoint - inPoint
-          : item.duration;
+        const holdDuration = Number.isFinite(item.holdDurationSec) && item.holdDurationSec && item.holdDurationSec > 0
+          ? item.holdDurationSec
+          : 0;
 
-        const videoArgs = [
-          '-y',
-          '-ss', inPoint.toString(),
-          '-i', item.path,
-          '-t', duration.toString(),
-          '-vf', filter,
-          '-r', fps.toString(),
-          '-c:v', 'libx264',
-          '-preset', 'fast',
-          '-crf', '18',
-          '-pix_fmt', 'yuv420p',
-          '-an',  // Video segments stay silent; audio is exported separately as FLAC.
-          segmentFile
-        ];
+        if (holdDuration > 0) {
+          const frameTime = item.outPoint ?? inPoint;
+          const frameSampleSec = Math.max(0.001, 1 / Math.max(1, fps));
+          const holdFilter = `${filter},trim=duration=${formatFilterNumber(frameSampleSec)},setpts=PTS-STARTPTS,` +
+            `tpad=stop_mode=clone:stop_duration=${formatFilterNumber(Math.max(0, holdDuration - frameSampleSec))}`;
+          const holdArgs = [
+            '-y',
+            '-ss', frameTime.toString(),
+            '-i', item.path,
+            '-t', holdDuration.toString(),
+            '-vf', holdFilter,
+            '-r', fps.toString(),
+            '-c:v', 'libx264',
+            '-preset', 'fast',
+            '-crf', '18',
+            '-pix_fmt', 'yuv420p',
+            '-an',
+            segmentFile
+          ];
+          await runFfmpeg(ffmpegBinary, holdArgs);
+        } else {
+          const duration = item.outPoint !== undefined
+            ? item.outPoint - inPoint
+            : item.duration;
 
-        await runFfmpeg(ffmpegBinary, videoArgs);
+          const videoArgs = [
+            '-y',
+            '-ss', inPoint.toString(),
+            '-i', item.path,
+            '-t', duration.toString(),
+            '-vf', filter,
+            '-r', fps.toString(),
+            '-c:v', 'libx264',
+            '-preset', 'fast',
+            '-crf', '18',
+            '-pix_fmt', 'yuv420p',
+            '-an',  // Video segments stay silent; audio is exported separately as FLAC.
+            segmentFile
+          ];
+
+          await runFfmpeg(ffmpegBinary, videoArgs);
+        }
       }
 
       segmentFiles.push(segmentFile);

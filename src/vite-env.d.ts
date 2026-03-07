@@ -195,6 +195,7 @@ interface SequenceItem {
   duration: number;
   inPoint?: number;
   outPoint?: number;
+  holdDurationSec?: number;
   framingMode?: 'cover' | 'fit';
   framingAnchor?:
     | 'top-left'
@@ -212,6 +213,11 @@ interface SequenceItem {
     rmsFps: number;
     thresholds: { t1: number; t2: number; t3: number };
     audioOffsetSec: number;
+  };
+  flags?: {
+    isClip?: boolean;
+    isMuted?: boolean;
+    isHold?: boolean;
   };
 }
 

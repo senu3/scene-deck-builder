@@ -1,4 +1,4 @@
-import type { Asset, Cut, MetadataStore, Project, Scene } from '../types';
+import type { Asset, Cut, CutRuntimeState, MetadataStore, Project, Scene } from '../types';
 import { resolveCutAsset } from './assetResolve';
 import { buildExportAudioPlan, canonicalizeCutsForExportAudioPlan, type ExportAudioPlan } from './exportAudioPlan';
 import {
@@ -85,6 +85,7 @@ export interface BuildSequencePlanOptions {
   framingDefaults?: BuildExportSequenceOptions['framingDefaults'];
   strictLipSync?: boolean;
   resolveInternalAssetKind?: (assetId: string, cut: Cut) => string | undefined;
+  resolveCutRuntimeById?: (cutId: string) => CutRuntimeState | undefined;
 }
 
 interface BuildSequencePlanFromCutsInput {
@@ -95,7 +96,10 @@ interface BuildSequencePlanFromCutsInput {
   framingDefaults?: BuildExportSequenceOptions['framingDefaults'];
   strictLipSync?: boolean;
   resolveInternalAssetKind?: (assetId: string, cut: Cut) => string | undefined;
+  resolveCutRuntimeById?: (cutId: string) => CutRuntimeState | undefined;
 }
+
+const DEFAULT_HOLD_FPS = 30;
 
 function safeNumber(value: number | undefined, fallback = 0): number {
   if (!Number.isFinite(value)) return fallback;
@@ -151,6 +155,7 @@ function buildSequencePlanFromCuts(input: BuildSequencePlanFromCutsInput): Seque
     framingDefaults,
     strictLipSync = false,
     resolveInternalAssetKind,
+    resolveCutRuntimeById,
   } = input;
 
   const canonicalized = canonicalizeCutsForExportAudioPlan(cuts, getAssetById);
@@ -189,6 +194,7 @@ function buildSequencePlanFromCuts(input: BuildSequencePlanFromCutsInput): Seque
   });
 
   const videoItems: SequenceVideoItem[] = [];
+  const exportItemsWithHold: ExportSequenceItem[] = [];
   const exportItemByCutId = new Map<string, ExportSequenceItem>();
   let timelineCursorSec = 0;
   let exportItemCursor = 0;
@@ -223,7 +229,7 @@ function buildSequencePlanFromCuts(input: BuildSequencePlanFromCutsInput): Seque
       ? safeNumber(cut.outPoint, srcInSec + durationSec)
       : srcInSec + durationSec;
 
-    videoItems.push({
+    const videoItem: SequenceVideoItem = {
       cutId: cut.id,
       sceneId: resolveSceneIdByCutId?.(cut.id),
       assetId: asset.id || cut.assetId,
@@ -239,12 +245,74 @@ function buildSequencePlanFromCuts(input: BuildSequencePlanFromCutsInput): Seque
         isHold: false,
       },
       internalAssetKind: resolveInternalAssetKind?.(asset.id || cut.assetId, cut),
-    });
+    };
+    videoItems.push(videoItem);
 
     const exportItem = exportItems[exportItemCursor];
     if (exportItem) {
+      const exportItemWithFlags: ExportSequenceItem = {
+        ...exportItem,
+        flags: {
+          ...exportItem.flags,
+          isClip: videoItem.flags.isClip,
+          isMuted: videoItem.flags.isMuted,
+          isHold: false,
+        },
+      };
+      exportItemsWithHold.push(exportItemWithFlags);
       exportItemByCutId.set(cut.id, exportItem);
       exportItemCursor += 1;
+    }
+
+    const hold = resolveCutRuntimeById?.(cut.id)?.hold;
+    const holdDurationSec = hold?.enabled && hold.mode === 'tail'
+      ? safeNumber(hold.durationMs, 0) / 1000
+      : 0;
+    const shouldCreateHold = holdDurationSec > 0 && asset.type === 'video';
+    if (!shouldCreateHold) {
+      continue;
+    }
+
+    const frameDurationSec = 1 / DEFAULT_HOLD_FPS;
+    const holdSrcOutSec = srcOutSec;
+    const holdSrcInSec = Math.max(srcInSec, holdSrcOutSec - frameDurationSec);
+    const holdDstInSec = timelineCursorSec;
+    const holdDstOutSec = holdDstInSec + holdDurationSec;
+    timelineCursorSec = holdDstOutSec;
+
+    videoItems.push({
+      cutId: cut.id,
+      sceneId: resolveSceneIdByCutId?.(cut.id),
+      assetId: asset.id || cut.assetId,
+      sourcePath: asset.path,
+      srcInSec: holdSrcInSec,
+      srcOutSec: holdSrcOutSec,
+      dstInSec: holdDstInSec,
+      dstOutSec: holdDstOutSec,
+      rate: 1,
+      flags: {
+        isClip: !!cut.isClip,
+        isMuted: !!hold?.muteAudio,
+        isHold: true,
+      },
+      internalAssetKind: resolveInternalAssetKind?.(asset.id || cut.assetId, cut),
+    });
+
+    if (exportItem) {
+      exportItemsWithHold.push({
+        ...exportItem,
+        duration: holdDurationSec,
+        inPoint: holdSrcInSec,
+        outPoint: holdSrcOutSec,
+        holdDurationSec,
+        lipSync: undefined,
+        flags: {
+          ...exportItem.flags,
+          isClip: !!cut.isClip,
+          isMuted: !!hold?.muteAudio,
+          isHold: true,
+        },
+      });
     }
   }
 
@@ -268,14 +336,20 @@ function buildSequencePlanFromCuts(input: BuildSequencePlanFromCutsInput): Seque
   const maxVideoEnd = videoItems.reduce((max, item) => Math.max(max, item.dstOutSec), 0);
   const maxAudioEnd = audioItems.reduce((max, item) => Math.max(max, item.dstOutSec), 0);
   const durationSec = Math.max(maxVideoEnd, maxAudioEnd, safeNumber(audioPlan.totalDurationSec, 0));
+  const normalizedAudioPlan: ExportAudioPlan = durationSec > safeNumber(audioPlan.totalDurationSec, 0)
+    ? {
+        ...audioPlan,
+        totalDurationSec: durationSec,
+      }
+    : audioPlan;
 
   return {
     videoItems,
     audioItems,
     durationSec,
     warnings,
-    exportItems,
-    audioPlan,
+    exportItems: exportItemsWithHold,
+    audioPlan: normalizedAudioPlan,
     exportItemByCutId,
   };
 }
@@ -293,5 +367,6 @@ export function buildSequencePlan(
     framingDefaults: options.framingDefaults,
     strictLipSync: options.strictLipSync,
     resolveInternalAssetKind: options.resolveInternalAssetKind,
+    resolveCutRuntimeById: options.resolveCutRuntimeById,
   });
 }
