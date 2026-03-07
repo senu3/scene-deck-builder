@@ -6,6 +6,7 @@ import type { ExportSequenceItem } from '../../utils/exportSequence';
 import {
   createImageMediaSource,
   createLipSyncImageMediaSource,
+  createVideoHoldMediaSource,
   createVideoMediaSource,
   type MediaSource,
 } from '../../utils/previewMedia';
@@ -24,7 +25,7 @@ interface UsePreviewSequenceMediaSourceInput {
   setSequenceSource: (source: MediaSource | null) => void;
   sequenceTick: (localTime: number) => void;
   sequenceGoToNext: (fromIndex?: number) => void;
-  previewSequenceItemByCutId: Map<string, ExportSequenceItem>;
+  previewSequenceItemByIndex: Map<number, ExportSequenceItem>;
   getSequenceLiveAbsoluteTime: () => number;
   showMiniToast: (message: string, variant?: 'success' | 'info' | 'warning' | 'error') => void;
   resolveAssetForCut: (cut: Cut | null | undefined) => Asset | null;
@@ -39,7 +40,7 @@ export function usePreviewSequenceMediaSource({
   setSequenceSource,
   sequenceTick,
   sequenceGoToNext,
-  previewSequenceItemByCutId,
+  previewSequenceItemByIndex,
   getSequenceLiveAbsoluteTime,
   showMiniToast,
   resolveAssetForCut,
@@ -62,7 +63,7 @@ export function usePreviewSequenceMediaSource({
     const asset = resolveAssetForCut(currentItem?.cut);
     if (!currentItem || !asset) return;
 
-    const currentSpec = previewSequenceItemByCutId.get(currentItem.cut.id);
+    const currentSpec = previewSequenceItemByIndex.get(currentIndex);
     if (currentSpec?.lipSync) {
       let isActive = true;
       const loadLipSyncSources = async () => {
@@ -134,6 +135,24 @@ export function usePreviewSequenceMediaSource({
         return;
       }
 
+      if (currentSpec?.holdDurationSec && currentSpec.holdDurationSec > 0) {
+        const holdSourceKey = `${currentItem.cut.id}:${videoObjectUrl.url}:hold:${currentSpec.inPoint ?? 0}:${currentSpec.holdDurationSec}`;
+        const holdSource = createVideoHoldMediaSource({
+          src: videoObjectUrl.url,
+          key: holdSourceKey,
+          className: 'preview-media',
+          muted: true,
+          refObject: videoRef,
+          frameTimeSec: currentSpec.outPoint ?? currentSpec.inPoint ?? 0,
+          duration: currentSpec.duration,
+          onTimeUpdate: sequenceTick,
+          onEnded: () => sequenceGoToNext(currentIndex),
+        });
+        setSequenceSource(holdSource);
+        setSequenceMediaElement(holdSource.element);
+        return;
+      }
+
       const clipInPoint = currentItem.cut.isClip && currentItem.cut.inPoint !== undefined
         ? currentSpec?.inPoint ?? currentItem.cut.inPoint
         : 0;
@@ -178,7 +197,7 @@ export function usePreviewSequenceMediaSource({
     setSequenceSource,
     sequenceTick,
     sequenceGoToNext,
-    previewSequenceItemByCutId,
+    previewSequenceItemByIndex,
     getSequenceLiveAbsoluteTime,
     showMiniToast,
     resolveAssetForCut,

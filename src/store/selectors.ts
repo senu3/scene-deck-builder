@@ -35,6 +35,8 @@ export const selectCopySelectedCuts = (s: AppState) => s.copySelectedCuts;
 export const selectCanPaste = (s: AppState) => s.canPaste;
 export const selectPasteCuts = (s: AppState) => s.pasteCuts;
 export const selectGetCutRuntime = (s: AppState) => s.getCutRuntime;
+export const selectSetCutRuntimeHold = (s: AppState) => s.setCutRuntimeHold;
+export const selectClearCutRuntimeHold = (s: AppState) => s.clearCutRuntimeHold;
 export const selectClearCutRuntime = (s: AppState) => s.clearCutRuntime;
 export const selectOpenVideoPreview = (s: AppState) => s.openVideoPreview;
 export const selectOpenSequencePreview = (s: AppState) => s.openSequencePreview;

@@ -27,7 +27,7 @@ interface UsePreviewSequenceSessionInput {
   setSequenceSource: (source: MediaSource | null) => void;
   sequenceTick: (localTime: number) => void;
   sequenceGoToNext: (fromIndex?: number) => void;
-  previewSequenceItemByCutId: Map<string, ExportSequenceItem>;
+  previewSequenceItemByIndex: Map<number, ExportSequenceItem>;
   getSequenceLiveAbsoluteTime: () => number;
   showMiniToast: (message: string, variant?: 'success' | 'info' | 'warning' | 'error') => void;
   videoRef: React.RefObject<HTMLVideoElement>;
@@ -56,7 +56,7 @@ export function usePreviewSequenceSession({
   setSequenceSource,
   sequenceTick,
   sequenceGoToNext,
-  previewSequenceItemByCutId,
+  previewSequenceItemByIndex,
   getSequenceLiveAbsoluteTime,
   showMiniToast,
   videoRef,
@@ -89,7 +89,7 @@ export function usePreviewSequenceSession({
     setSequenceSource,
     sequenceTick,
     sequenceGoToNext,
-    previewSequenceItemByCutId,
+    previewSequenceItemByIndex,
     getSequenceLiveAbsoluteTime,
     showMiniToast,
     resolveAssetForCut,

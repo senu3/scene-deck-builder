@@ -12,6 +12,8 @@ import {
   selectToggleGlobalMute,
   selectMetadataStore,
   selectGetCutRuntime,
+  selectSetCutRuntimeHold,
+  selectClearCutRuntimeHold,
 } from '../store/selectors';
 import type { Cut } from '../types';
 import { useSequencePlaybackController } from '../utils/previewPlaybackController';
@@ -77,6 +79,8 @@ export default function PreviewModal({
   const toggleGlobalMute = useStore(selectToggleGlobalMute);
   const metadataStore = useStore(selectMetadataStore);
   const getCutRuntime = useStore(selectGetCutRuntime);
+  const setCutRuntimeHold = useStore(selectSetCutRuntimeHold);
+  const clearCutRuntimeHold = useStore(selectClearCutRuntimeHold);
 
   // Mode detection: Single Mode if asset prop is provided
   const isSingleMode = !!asset;
@@ -108,6 +112,8 @@ export default function PreviewModal({
   const { show: showMiniToast, element: miniToastElement } = useMiniToast();
   const [singleModeDuration, setSingleModeDuration] = useState(0);
   const [singleModeCurrentTime, setSingleModeCurrentTime] = useState(0);
+  const [showHoldEditor, setShowHoldEditor] = useState(false);
+  const [holdDurationInput, setHoldDurationInput] = useState('1.0');
 
   const { isLoading, singleModeImageData } = usePreviewSingleMediaAsset({
     isSingleMode,
@@ -119,7 +125,6 @@ export default function PreviewModal({
 
   const {
     items,
-    sequenceDurations,
     resolveAssetForCut,
   } = usePreviewItemsState({
     isSingleMode,
@@ -137,6 +142,22 @@ export default function PreviewModal({
     sequenceCuts,
     sequenceContext,
   });
+  const {
+    previewSequenceItems,
+    previewSequenceItemByCutId,
+    previewSequenceItemByIndex,
+    previewAudioPlan,
+  } = usePreviewSequenceDerived({
+    items,
+    metadataStore: metadataStore ?? null,
+    getAsset,
+    getCutRuntime,
+  });
+  const sequenceItems = usesSequenceController ? previewSequenceItems : items;
+  const sequenceDurations = useMemo(
+    () => sequenceItems.map((item) => item.normalizedDisplayTime),
+    [sequenceItems]
+  );
   const sequencePlayback = useSequencePlaybackController(sequenceDurations);
   const {
     state: sequenceState,
@@ -304,7 +325,7 @@ export default function PreviewModal({
   // ===== SEQUENCE MODE LOGIC =====
 
   useEffect(() => {
-    if (!isSingleModeImage || items.length === 0) return;
+    if (!isSingleModeImage || sequenceItems.length === 0) return;
     if (initialInPoint === undefined && initialOutPoint === undefined) return;
 
     setSequenceRange(initialInPoint ?? null, initialOutPoint ?? null);
@@ -313,27 +334,18 @@ export default function PreviewModal({
     }
   }, [
     isSingleModeImage,
-    items.length,
+    sequenceItems.length,
     initialInPoint,
     initialOutPoint,
     setSequenceRange,
     seekSequenceAbsolute,
   ]);
 
-  const {
-    previewSequenceItemByCutId,
-    previewAudioPlan,
-  } = usePreviewSequenceDerived({
-    items,
-    metadataStore: metadataStore ?? null,
-    getAsset,
-  });
-
   // ===== SEQUENCE MODE SESSION =====
   const { checkBufferStatus, sequenceMediaElement } = usePreviewSequenceSession({
     isSingleMode,
     usesSequenceController,
-    items,
+    items: sequenceItems,
     currentIndex,
     sequenceCurrentIndex: sequenceState.currentIndex,
     videoObjectUrl,
@@ -349,7 +361,7 @@ export default function PreviewModal({
     setSequenceSource,
     sequenceTick,
     sequenceGoToNext,
-    previewSequenceItemByCutId,
+    previewSequenceItemByIndex,
     getSequenceLiveAbsoluteTime,
     showMiniToast,
     videoRef,
@@ -368,7 +380,7 @@ export default function PreviewModal({
   } = usePreviewPlaybackControls({
     isSingleMode,
     usesSequenceController,
-    itemsLength: items.length,
+    itemsLength: sequenceItems.length,
     sequenceState,
     getSequenceAbsoluteTime: sequenceSelectors.getAbsoluteTime,
     sequenceGoToNext,
@@ -391,7 +403,7 @@ export default function PreviewModal({
     isSingleModeVideo,
     isPlaying,
     focusedMarker,
-    items,
+    items: sequenceItems,
     currentIndex,
     inPoint,
     outPoint,
@@ -429,7 +441,7 @@ export default function PreviewModal({
     handleProgressBarLeave,
   } = usePreviewInputs({
     progressBarRef,
-    itemsLength: items.length,
+    itemsLength: sequenceItems.length,
     totalDuration: sequenceState.totalDuration,
     onPauseBeforeSeek: sequencePause,
     onSeekAbsolute: interactionCommands.seekToAbsolute,
@@ -452,6 +464,7 @@ export default function PreviewModal({
     selectedResolution,
     metadataStore: metadataStore ?? null,
     getAsset,
+    getCutRuntime,
     onExportSequence,
     pauseBeforeExport,
     inPoint,
@@ -477,7 +490,7 @@ export default function PreviewModal({
     isSingleModeVideo,
     usesSequenceController,
     isDragging,
-    items,
+    items: sequenceItems,
     currentIndex,
     sequenceCurrentIndex: sequenceState.currentIndex,
     sequenceTotalDuration: sequenceState.totalDuration,
@@ -507,6 +520,53 @@ export default function PreviewModal({
   // Single Mode: show Save button only when both IN/OUT are set
   const hasSingleModeRange = isSingleModeVideo && inPoint !== null && outPoint !== null;
   const showSingleModeClipButton = isSingleModeVideo && hasSingleModeRange && !!(onClipSave || onClipClear);
+  const currentFocusHold = focusCutData?.cut?.id ? getCutRuntime(focusCutData.cut.id)?.hold : undefined;
+  const isHoldEnabled = !!(currentFocusHold?.enabled && currentFocusHold.durationMs > 0);
+  const openHoldEditor = useCallback(() => {
+    const currentSec = currentFocusHold?.durationMs ? currentFocusHold.durationMs / 1000 : 1;
+    setHoldDurationInput(currentSec.toFixed(2));
+    setShowHoldEditor(true);
+  }, [currentFocusHold?.durationMs]);
+  const handleSingleModeHoldToggle = useCallback(() => {
+    const cutId = focusCutData?.cut?.id;
+    if (!cutId) return;
+    if (isHoldEnabled) {
+      clearCutRuntimeHold(cutId);
+      setShowHoldEditor(false);
+      showMiniToast('VIDEO Hold disabled', 'info');
+      return;
+    }
+    openHoldEditor();
+  }, [
+    focusCutData?.cut?.id,
+    isHoldEnabled,
+    clearCutRuntimeHold,
+    showMiniToast,
+    openHoldEditor,
+  ]);
+  const handleSingleModeHoldApply = useCallback(() => {
+    const cutId = focusCutData?.cut?.id;
+    if (!cutId) return;
+    const seconds = Number(holdDurationInput.trim());
+    if (!Number.isFinite(seconds) || seconds <= 0) {
+      showMiniToast('Hold duration must be a positive number', 'warning');
+      return;
+    }
+    setCutRuntimeHold(cutId, {
+      enabled: true,
+      mode: 'tail',
+      durationMs: Math.round(seconds * 1000),
+      muteAudio: true,
+      composeWithClip: true,
+    });
+    setShowHoldEditor(false);
+    showMiniToast(`VIDEO Hold enabled (${seconds.toFixed(2)}s)`, 'success');
+  }, [
+    focusCutData?.cut?.id,
+    holdDurationInput,
+    setCutRuntimeHold,
+    showMiniToast,
+  ]);
 
   // ===== SINGLE MODE RENDER =====
   if (isSingleMode) {
@@ -559,6 +619,14 @@ export default function PreviewModal({
         onClipPrimaryAction={isSingleModeClipEnabled ? handleSingleModeClearClip : handleSingleModeSave}
         isSingleModeClipPending={isSingleModeClipPending}
         onFrameCapture={onFrameCapture ? handleSingleModeCaptureFrame : undefined}
+        showHoldButton={isSingleModeVideo && !!focusCutData?.cut?.id}
+        isHoldEnabled={isHoldEnabled}
+        onHoldToggle={handleSingleModeHoldToggle}
+        showHoldEditor={showHoldEditor}
+        holdDurationInput={holdDurationInput}
+        onHoldDurationInputChange={setHoldDurationInput}
+        onHoldApply={handleSingleModeHoldApply}
+        onHoldCancel={() => setShowHoldEditor(false)}
         isLooping={isLooping}
         toggleLooping={interactionCommands.toggleLooping}
         globalVolume={globalVolume}
@@ -591,7 +659,7 @@ export default function PreviewModal({
       showOverlayNow={showOverlayNow}
       scheduleHideOverlay={scheduleHideOverlay}
       previewDisplayClassName={previewDisplayClassName}
-      items={items}
+      items={sequenceItems}
       missingFocusedCut={missingFocusedCut}
       currentIndex={currentIndex}
       currentItem={currentItem}

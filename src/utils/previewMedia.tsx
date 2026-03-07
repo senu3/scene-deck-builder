@@ -29,6 +29,15 @@ interface VideoMediaSourceOptions extends BaseMediaSourceOptions {
   outPoint?: number;
 }
 
+interface VideoHoldMediaSourceOptions extends BaseMediaSourceOptions {
+  src: string;
+  muted: boolean;
+  duration: number;
+  frameTimeSec: number;
+  refObject?: MutableRefObject<HTMLVideoElement | null>;
+  key?: string;
+}
+
 interface ImageMediaSourceOptions extends BaseMediaSourceOptions {
   src: string;
   alt: string;
@@ -319,6 +328,92 @@ export function createImageMediaSource(options: ImageMediaSourceOptions): MediaS
     },
     dispose() {
       clock.dispose();
+    },
+  };
+}
+
+export function createVideoHoldMediaSource(options: VideoHoldMediaSourceOptions): MediaSource {
+  const clock = new PreviewClock(options.duration, options.onTimeUpdate, options.onEnded);
+  let videoEl: HTMLVideoElement | null = null;
+  let metadataLoaded = false;
+  let shouldPlay = false;
+  let pendingRate = 1;
+
+  const syncFrame = () => {
+    if (!videoEl || !metadataLoaded) return;
+    const duration = Number.isFinite(videoEl.duration) ? videoEl.duration : 0;
+    const target = Math.max(0, Math.min(duration, options.frameTimeSec));
+    if (Math.abs(videoEl.currentTime - target) > 0.001) {
+      videoEl.currentTime = target;
+    }
+  };
+
+  const setVideoEl = (el: HTMLVideoElement | null) => {
+    videoEl = el;
+    if (options.refObject) {
+      options.refObject.current = el;
+    }
+    if (!videoEl) return;
+    videoEl.playbackRate = pendingRate;
+    if (videoEl.readyState >= 1) {
+      metadataLoaded = true;
+      syncFrame();
+      videoEl.pause();
+    }
+    if (shouldPlay) {
+      clock.play();
+    }
+  };
+
+  return {
+    kind: 'video',
+    element: (
+      <video
+        ref={setVideoEl}
+        key={options.key ?? options.src}
+        src={options.src}
+        className={options.className}
+        muted={options.muted}
+        onLoadedMetadata={() => {
+          metadataLoaded = true;
+          syncFrame();
+        }}
+        onSeeked={syncFrame}
+      />
+    ),
+    play() {
+      shouldPlay = true;
+      clock.play();
+      videoEl?.pause();
+      syncFrame();
+    },
+    pause() {
+      shouldPlay = false;
+      clock.pause();
+      videoEl?.pause();
+    },
+    seek(localTimeSec: number) {
+      clock.seek(localTimeSec);
+      syncFrame();
+    },
+    setRate(rate: number) {
+      pendingRate = rate;
+      clock.setRate(rate);
+      if (videoEl) {
+        videoEl.playbackRate = rate;
+      }
+    },
+    getCurrentTime() {
+      return clock.getCurrentTime();
+    },
+    dispose() {
+      clock.dispose();
+      if (videoEl) {
+        videoEl.pause();
+        videoEl.removeAttribute('src');
+        videoEl.load();
+      }
+      videoEl = null;
     },
   };
 }
