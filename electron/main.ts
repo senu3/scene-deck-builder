@@ -2165,13 +2165,15 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
           : 0;
 
         if (holdDuration > 0) {
-          const frameTime = item.outPoint ?? inPoint;
-          const frameSampleSec = Math.max(0.001, 1 / Math.max(1, fps));
-          const holdFilter = `${filter},trim=duration=${formatFilterNumber(frameSampleSec)},setpts=PTS-STARTPTS,` +
-            `tpad=stop_mode=clone:stop_duration=${formatFilterNumber(Math.max(0, holdDuration - frameSampleSec))}`;
+          // Sampling is only for picking a stable tail frame. Hold/clip duration remain item-driven.
+          const holdSampleEpsilonSec = Math.max(0.001, Math.min(1 / Math.max(1, fps), 0.033));
+          const rawHoldSampleTimeSec = item.outPoint ?? inPoint;
+          const holdSampleTimeSec = Math.max(inPoint, rawHoldSampleTimeSec - holdSampleEpsilonSec);
+          const holdFilter = `${filter},trim=duration=${formatFilterNumber(holdSampleEpsilonSec)},setpts=PTS-STARTPTS,` +
+            `tpad=stop_mode=clone:stop_duration=${formatFilterNumber(Math.max(0, holdDuration - holdSampleEpsilonSec))}`;
           const holdArgs = [
             '-y',
-            '-ss', frameTime.toString(),
+            '-ss', holdSampleTimeSec.toString(),
             '-i', item.path,
             '-t', holdDuration.toString(),
             '-vf', holdFilter,
