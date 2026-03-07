@@ -52,22 +52,31 @@ function isCanonicalDurationEqual(left: number, right: number): boolean {
   return Math.abs(left - right) <= 1e-6;
 }
 
+function resolveClipDurationSec(cut: Cut): number | null {
+  if (!cut.isClip) return null;
+  if (!Number.isFinite(cut.inPoint) || !Number.isFinite(cut.outPoint)) return null;
+  const duration = (cut.outPoint as number) - (cut.inPoint as number);
+  if (!Number.isFinite(duration) || duration <= 0) return null;
+  return duration;
+}
+
 export function canonicalizeCutsForExportAudioPlan(
   cuts: Cut[],
   getAssetById: (assetId: string) => Asset | undefined
 ): CanonicalizedAudioPlanCuts {
   const adjustedCutIds: string[] = [];
   const normalizedCuts: ExportAudioPlanCut[] = cuts.map((cut) => {
-    const resolved = resolveCanonicalCutDuration(cut, getAssetById, {
+    const clipDurationSec = resolveClipDurationSec(cut);
+    const resolvedDurationSec = clipDurationSec ?? resolveCanonicalCutDuration(cut, getAssetById, {
       fallbackDurationSec: 1.0,
       preferAssetDuration: true,
-    });
-    if (resolved.adjusted || !isCanonicalDurationEqual(cut.displayTime, resolved.durationSec)) {
+    }).durationSec;
+    if (!isCanonicalDurationEqual(cut.displayTime, resolvedDurationSec)) {
       adjustedCutIds.push(cut.id);
     }
     return {
       ...cut,
-      displayTime: asCanonicalDurationSec(resolved.durationSec),
+      displayTime: asCanonicalDurationSec(resolvedDurationSec),
     };
   });
   return {

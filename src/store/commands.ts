@@ -196,9 +196,10 @@ export class UpdateDisplayTimeCommand implements Command {
     const scene = store.scenes.find((s) => s.id === this.sceneId);
     const cut = scene?.cuts.find((c) => c.id === this.cutId);
 
-    if (cut) {
-      this.oldTime = cut.displayTime;
+    if (!cut || cut.isClip) {
+      return;
     }
+    this.oldTime = cut.displayTime;
 
     store.updateCutDisplayTime(this.sceneId, this.cutId, this.newTime);
   }
@@ -881,13 +882,16 @@ export class BatchUpdateDisplayTimeCommand implements Command {
     this.updates.forEach(({ sceneId, cutId }) => {
       const scene = store.scenes.find((s) => s.id === sceneId);
       const cut = scene?.cuts.find((c) => c.id === cutId);
-      if (cut) {
+      if (cut && !cut.isClip) {
         this.oldTimes.set(cutId, cut.displayTime);
       }
     });
 
     // 新しい値を適用
     this.updates.forEach(({ sceneId, cutId, newTime }) => {
+      const scene = store.scenes.find((s) => s.id === sceneId);
+      const cut = scene?.cuts.find((c) => c.id === cutId);
+      if (!cut || cut.isClip) return;
       store.updateCutDisplayTime(sceneId, cutId, newTime);
     });
   }

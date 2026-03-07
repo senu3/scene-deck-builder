@@ -166,6 +166,7 @@ export default function DetailsPanel() {
     : null;
   const primaryAudioBinding = cut?.audioBindings?.[0];
   const useEmbeddedAudio = cut?.useEmbeddedAudio ?? true;
+  const isClipDurationLocked = !!(cut?.isClip && typeof cut?.inPoint === "number" && typeof cut?.outPoint === "number");
   const attachedAudioSourceName =
     primaryAudioBinding?.sourceName || attachedAudio?.name || "Unknown";
   const hasAttachedAudio = !!primaryAudioBinding?.audioAssetId;
@@ -178,6 +179,7 @@ export default function DetailsPanel() {
   // Check for multi-selection
   const isMultiSelection = selectedCutIds.size > 1;
   const selectedCuts = isMultiSelection ? getSelectedCuts() : [];
+  const hasClipInSelection = selectedCuts.some(({ cut: selectedCut }) => !!selectedCut.isClip);
 
   // Check if a group is selected
   const selectedGroupData = getSelectedGroup();
@@ -380,6 +382,7 @@ export default function DetailsPanel() {
   })();
 
   const handleDisplayTimeChange = (value: string) => {
+    if (isClipDurationLocked) return;
     setLocalDisplayTime(value);
     const numValue = parseFloat(value);
     if (!isNaN(numValue) && numValue > 0 && cutScene && cut) {
@@ -413,6 +416,7 @@ export default function DetailsPanel() {
   };
 
   const handleApplyBatchDisplayTime = () => {
+    if (hasClipInSelection) return;
     const numValue = parseFloat(batchDisplayTime);
     if (isNaN(numValue) || numValue <= 0) return;
 
@@ -1070,11 +1074,15 @@ export default function DetailsPanel() {
                   min="0.1"
                   max="60"
                   className="time-input"
+                  disabled={hasClipInSelection}
+                  title={hasClipInSelection ? "Display time is locked when clip cuts are selected" : undefined}
                 />
                 <span className="time-unit">s</span>
                 <button
                   className="apply-btn"
                   onClick={handleApplyBatchDisplayTime}
+                  disabled={hasClipInSelection}
+                  title={hasClipInSelection ? "Display time is locked when clip cuts are selected" : undefined}
                 >
                   Apply
                 </button>
@@ -1327,6 +1335,8 @@ export default function DetailsPanel() {
                   min="0.1"
                   max="60"
                   className="time-input"
+                  disabled={isClipDurationLocked}
+                  title={isClipDurationLocked ? "Display time is locked for clip cuts" : undefined}
                 />
                 <span className="time-unit">seconds</span>
               </div>
