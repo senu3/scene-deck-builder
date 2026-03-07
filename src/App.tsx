@@ -724,12 +724,18 @@ function App() {
       }
     }
     const sequencePlan = buildSequencePlan({
-      cuts,
+      scenes,
+      sceneOrder,
+    }, {
+      target: {
+        kind: 'cuts',
+        cuts,
+        resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
+      },
       metadataStore: metadataStore ?? null,
       getAssetById: getAsset,
       framingDefaults: EXPORT_FRAMING_DEFAULTS,
       strictLipSync: false,
-      resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
     });
 
     await exportMp4Sequence(sequencePlan, {
@@ -799,12 +805,18 @@ function App() {
         }
       }
       const sequencePlan = buildSequencePlan({
-        cuts: orderedCuts,
+        scenes,
+        sceneOrder,
+      }, {
+        target: {
+          kind: 'cuts',
+          cuts: orderedCuts,
+          resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
+        },
         metadataStore: metadataStore ?? null,
         getAssetById: getAsset,
         framingDefaults: EXPORT_FRAMING_DEFAULTS,
         strictLipSync: false,
-        resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
       });
 
       await exportMp4Sequence(sequencePlan, {

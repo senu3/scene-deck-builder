@@ -25,12 +25,18 @@ export function usePreviewSequenceDerived({
       cutSceneMap.set(item.cut.id, item.sceneId);
     }
     return buildSequencePlan({
-      cuts: planCuts,
+      scenes: [],
+      sceneOrder: [],
+    }, {
+      target: {
+        kind: 'cuts',
+        cuts: planCuts,
+        resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
+      },
       metadataStore,
       getAssetById: getAsset,
       framingDefaults: EXPORT_FRAMING_DEFAULTS,
       strictLipSync: false,
-      resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
     });
   }, [items, metadataStore, getAsset]);
 

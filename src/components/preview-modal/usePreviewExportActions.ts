@@ -49,12 +49,18 @@ export function usePreviewExportActions({
         cutSceneMap.set(item.cut.id, item.sceneId);
       }
       const sequencePlan = buildSequencePlan({
-        cuts: planCuts,
+        scenes: [],
+        sceneOrder: [],
+      }, {
+        target: {
+          kind: 'cuts',
+          cuts: planCuts,
+          resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
+        },
         metadataStore: metadataStore ?? null,
         getAssetById: getAsset,
         framingDefaults: EXPORT_FRAMING_DEFAULTS,
         strictLipSync: false,
-        resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
       });
 
       if (onExportSequence) {
@@ -159,12 +165,18 @@ export function usePreviewExportActions({
         cutSceneMap.set(item.cut.id, item.sceneId);
       }
       const sequencePlan = buildSequencePlan({
-        cuts: rangeCuts,
+        scenes: [],
+        sceneOrder: [],
+      }, {
+        target: {
+          kind: 'cuts',
+          cuts: rangeCuts,
+          resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
+        },
         metadataStore: metadataStore ?? null,
         getAssetById: getAsset,
         framingDefaults: EXPORT_FRAMING_DEFAULTS,
         strictLipSync: false,
-        resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
       });
 
       if (sequencePlan.exportItems.length === 0) {

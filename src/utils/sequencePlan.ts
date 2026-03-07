@@ -1,4 +1,4 @@
-import type { Asset, Cut, MetadataStore } from '../types';
+import type { Asset, Cut, MetadataStore, Project, Scene } from '../types';
 import { resolveCutAsset } from './assetResolve';
 import { buildExportAudioPlan, canonicalizeCutsForExportAudioPlan, type ExportAudioPlan } from './exportAudioPlan';
 import {
@@ -6,6 +6,7 @@ import {
   type BuildExportSequenceOptions,
   type ExportSequenceItem,
 } from './exportSequence';
+import { getScenesAndCutsInTimelineOrder } from './timelineOrder';
 
 export type SequencePlanWarningCode =
   | 'missing-asset'
@@ -66,7 +67,27 @@ export interface SequencePlan {
   exportItemByCutId: Map<string, ExportSequenceItem>;
 }
 
-export interface BuildSequencePlanInput {
+export type SequencePlanProject = Pick<Project, 'scenes' | 'sceneOrder'>;
+
+export type SequencePlanTarget =
+  | { kind: 'all' }
+  | { kind: 'scene'; sceneId: string }
+  | {
+      kind: 'cuts';
+      cuts: Cut[];
+      resolveSceneIdByCutId?: (cutId: string) => string | undefined;
+    };
+
+export interface BuildSequencePlanOptions {
+  target?: SequencePlanTarget;
+  metadataStore: MetadataStore | null;
+  getAssetById: (assetId: string) => Asset | undefined;
+  framingDefaults?: BuildExportSequenceOptions['framingDefaults'];
+  strictLipSync?: boolean;
+  resolveInternalAssetKind?: (assetId: string, cut: Cut) => string | undefined;
+}
+
+interface BuildSequencePlanFromCutsInput {
   cuts: Cut[];
   metadataStore: MetadataStore | null;
   getAssetById: (assetId: string) => Asset | undefined;
@@ -81,7 +102,47 @@ function safeNumber(value: number | undefined, fallback = 0): number {
   return value as number;
 }
 
-export function buildSequencePlan(input: BuildSequencePlanInput): SequencePlan {
+function resolveCutsForPlan(
+  project: SequencePlanProject,
+  target: SequencePlanTarget | undefined
+): {
+  cuts: Cut[];
+  resolveSceneIdByCutId?: (cutId: string) => string | undefined;
+} {
+  if (target?.kind === 'cuts') {
+    return {
+      cuts: target.cuts,
+      resolveSceneIdByCutId: target.resolveSceneIdByCutId,
+    };
+  }
+
+  const orderedScenes: Scene[] = getScenesAndCutsInTimelineOrder(project.scenes, project.sceneOrder);
+  if (target?.kind === 'scene') {
+    const targetScene = orderedScenes.find((scene) => scene.id === target.sceneId);
+    if (!targetScene) {
+      return { cuts: [] };
+    }
+    return {
+      cuts: targetScene.cuts,
+      resolveSceneIdByCutId: () => targetScene.id,
+    };
+  }
+
+  const cutSceneMap = new Map<string, string>();
+  const cuts: Cut[] = [];
+  for (const scene of orderedScenes) {
+    for (const cut of scene.cuts) {
+      cuts.push(cut);
+      cutSceneMap.set(cut.id, scene.id);
+    }
+  }
+  return {
+    cuts,
+    resolveSceneIdByCutId: (cutId: string) => cutSceneMap.get(cutId),
+  };
+}
+
+function buildSequencePlanFromCuts(input: BuildSequencePlanFromCutsInput): SequencePlan {
   const {
     cuts,
     metadataStore,
@@ -217,4 +278,20 @@ export function buildSequencePlan(input: BuildSequencePlanInput): SequencePlan {
     audioPlan,
     exportItemByCutId,
   };
+}
+
+export function buildSequencePlan(
+  project: SequencePlanProject,
+  options: BuildSequencePlanOptions
+): SequencePlan {
+  const { cuts, resolveSceneIdByCutId } = resolveCutsForPlan(project, options.target);
+  return buildSequencePlanFromCuts({
+    cuts,
+    metadataStore: options.metadataStore,
+    getAssetById: options.getAssetById,
+    resolveSceneIdByCutId,
+    framingDefaults: options.framingDefaults,
+    strictLipSync: options.strictLipSync,
+    resolveInternalAssetKind: options.resolveInternalAssetKind,
+  });
 }

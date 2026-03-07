@@ -65,10 +65,11 @@ describe('buildSequencePlan', () => {
     ]);
 
     const plan = buildSequencePlan({
-      cuts,
+      scenes: [{ id: 'scene-1', name: 'Scene 1', cuts, notes: [] }],
+      sceneOrder: ['scene-1'],
+    }, {
       metadataStore: null,
       getAssetById: (assetId) => assets.get(assetId),
-      resolveSceneIdByCutId: () => 'scene-1',
     });
 
     expect(plan.videoItems).toHaveLength(2);
@@ -103,11 +104,60 @@ describe('buildSequencePlan', () => {
     const assets = new Map<string, Asset>([['video-1', VIDEO_ASSET]]);
 
     const plan = buildSequencePlan({
-      cuts,
+      scenes: [{ id: 'scene-1', name: 'Scene 1', cuts, notes: [] }],
+      sceneOrder: ['scene-1'],
+    }, {
       metadataStore: null,
       getAssetById: (assetId) => assets.get(assetId),
     });
 
     expect(plan.warnings.some((warning) => warning.code === 'lipsync-temporary-route')).toBe(true);
+  });
+
+  it('supports scene target and cuts override target', () => {
+    const cutsScene1: Cut[] = [
+      cut({
+        id: 'cut-scene-1',
+        assetId: 'video-1',
+        displayTime: 1.5,
+        order: 0,
+      }),
+    ];
+    const cutsScene2: Cut[] = [
+      cut({
+        id: 'cut-scene-2',
+        assetId: 'video-1',
+        displayTime: 2.5,
+        order: 0,
+      }),
+    ];
+    const assets = new Map<string, Asset>([['video-1', VIDEO_ASSET]]);
+    const project = {
+      scenes: [
+        { id: 'scene-1', name: 'Scene 1', cuts: cutsScene1, notes: [] },
+        { id: 'scene-2', name: 'Scene 2', cuts: cutsScene2, notes: [] },
+      ],
+      sceneOrder: ['scene-1', 'scene-2'],
+    };
+
+    const scenePlan = buildSequencePlan(project, {
+      target: { kind: 'scene', sceneId: 'scene-2' },
+      metadataStore: null,
+      getAssetById: (assetId) => assets.get(assetId),
+    });
+    expect(scenePlan.videoItems).toHaveLength(1);
+    expect(scenePlan.videoItems[0]?.cutId).toBe('cut-scene-2');
+
+    const overridePlan = buildSequencePlan(project, {
+      target: {
+        kind: 'cuts',
+        cuts: cutsScene1,
+        resolveSceneIdByCutId: () => 'scene-override',
+      },
+      metadataStore: null,
+      getAssetById: (assetId) => assets.get(assetId),
+    });
+    expect(overridePlan.videoItems).toHaveLength(1);
+    expect(overridePlan.videoItems[0]?.sceneId).toBe('scene-override');
   });
 });
