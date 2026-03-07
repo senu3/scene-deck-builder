@@ -40,6 +40,7 @@
 - canonical timing は domain 正規化後の値を正本とする。
 - Scene export の scene index 表示値は `sceneOrder` から算出する。
 - AudioPlan は canonical cut 列に整合する時間軸で生成し、時間源にはしない。
+- SequencePlan 入口は `buildSequencePlan(project, opts)` を使用し、Export 側で独自の入口を増やさない。
 
 ## 出力ルール
 - MP4 系出力では sidecar（manifest/timeline）整合を維持する。

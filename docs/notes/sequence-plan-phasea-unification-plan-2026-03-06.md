@@ -5,6 +5,11 @@
 - まずは LIPSync を対象外にして、`normal/clip/hold/mute/black` を Plan で表現できる状態を先に閉じる。
 - LIPSync は SequencePlan の上に載せる拡張フェーズ（Phase B）として分離する。
 
+## Update 2026-03-07 (Phase A-0)
+- SequencePlan の公開入口を `buildSequencePlan(project, opts)` に統一した。
+- Preview/Export は `target.kind='cuts'` を含む `opts` 経由で同一入口を利用する。
+- VIDEO HOLD 本実装前の受け皿として `CutRuntimeState.hold` を追加した（挙動未接続）。
+
 ## 目的
 - Preview/Export parity を「同じ SequencePlan 消費」で担保する。
 - VIDEO HOLD（末尾 duration 拡張）を asset 非破壊で実装できる土台を先に作る。

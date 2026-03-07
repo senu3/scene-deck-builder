@@ -54,6 +54,7 @@
 ## Export連携
 - Preview 起点 export は Export ガイドの正本ルールに従う。
 - Preview 側で独自の export 時間定義を持たない。
+- SequencePlan 入口は `buildSequencePlan(project, opts)` を使用し、`opts.target` で対象 cut 範囲を指定する。
 
 ## Debug Overlay Boundary
 - Debug Overlay の仕様は `docs/guides/implementation/debug-overlay.md` に従う。

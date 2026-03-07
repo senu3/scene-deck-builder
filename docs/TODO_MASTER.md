@@ -73,10 +73,10 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
   - 関連: `docs/notes/lipsync-reassessment-plan-2026-03-06.md`
 - `TODO-INVEST-008` SequencePlan の単一入口化（Phase A: LIPSync除外）を完了し、Preview/Export parity の基線を固定する
   - Track: `Investigation`
-  - Status: `ready`
+  - Status: `in-progress`
   - StartWhen: VIDEO HOLD 実装前の基盤整備に着手するとき
   - BlockedBy: なし
-  - DoneWhen: `buildSequencePlan` が Preview/Export の共通入口となり、`normal/clip/hold/mute/black` を Plan 表現できる
+  - DoneWhen: `buildSequencePlan(project, opts)` が Preview/Export の共通入口となり、`normal/clip/hold/mute/black` を Plan 表現できる
   - 関連: `docs/notes/sequence-plan-phasea-unification-plan-2026-03-06.md`
 - `TODO-INVEST-001` Sequence preview で同一ソース連続 clip 切替時の一瞬の buffering を低減する
   - Track: `Investigation`
