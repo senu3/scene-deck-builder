@@ -52,12 +52,11 @@ function isCanonicalDurationEqual(left: number, right: number): boolean {
   return Math.abs(left - right) <= 1e-6;
 }
 
-function resolveClipDurationSec(cut: Cut): number | null {
-  if (!cut.isClip) return null;
-  if (!Number.isFinite(cut.inPoint) || !Number.isFinite(cut.outPoint)) return null;
-  const duration = (cut.outPoint as number) - (cut.inPoint as number);
-  if (!Number.isFinite(duration) || duration <= 0) return null;
-  return duration;
+function resolveCanonicalAudioCutDuration(cut: Cut, getAssetById: (assetId: string) => Asset | undefined): number {
+  return resolveCanonicalCutDuration(cut, getAssetById, {
+    fallbackDurationSec: 1.0,
+    preferAssetDuration: true,
+  }).durationSec;
 }
 
 export function canonicalizeCutsForExportAudioPlan(
@@ -66,11 +65,7 @@ export function canonicalizeCutsForExportAudioPlan(
 ): CanonicalizedAudioPlanCuts {
   const adjustedCutIds: string[] = [];
   const normalizedCuts: ExportAudioPlanCut[] = cuts.map((cut) => {
-    const clipDurationSec = resolveClipDurationSec(cut);
-    const resolvedDurationSec = clipDurationSec ?? resolveCanonicalCutDuration(cut, getAssetById, {
-      fallbackDurationSec: 1.0,
-      preferAssetDuration: true,
-    }).durationSec;
+    const resolvedDurationSec = resolveCanonicalAudioCutDuration(cut, getAssetById);
     if (!isCanonicalDurationEqual(cut.displayTime, resolvedDurationSec)) {
       adjustedCutIds.push(cut.id);
     }
@@ -90,12 +85,9 @@ export function buildExportAudioPlan(input: BuildExportAudioPlanInput): ExportAu
   const nonCanonicalCutIds: string[] = [];
   const canonicalDurationByCutId = new Map<string, number>();
   for (const cut of input.cuts) {
-    const resolved = resolveCanonicalCutDuration(cut, input.getAssetById, {
-      fallbackDurationSec: 1.0,
-      preferAssetDuration: true,
-    });
-    canonicalDurationByCutId.set(cut.id, resolved.durationSec);
-    if (!isCanonicalDurationEqual(cut.displayTime, resolved.durationSec)) {
+    const resolvedDurationSec = resolveCanonicalAudioCutDuration(cut, input.getAssetById);
+    canonicalDurationByCutId.set(cut.id, resolvedDurationSec);
+    if (!isCanonicalDurationEqual(cut.displayTime, resolvedDurationSec)) {
       nonCanonicalCutIds.push(cut.id);
     }
   }

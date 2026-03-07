@@ -1,8 +1,8 @@
 import type { Asset, Cut } from '../types';
 
-type CutLike = Pick<Cut, 'assetId' | 'asset' | 'isClip' | 'displayTime'>;
+type CutLike = Pick<Cut, 'assetId' | 'asset' | 'isClip' | 'displayTime' | 'inPoint' | 'outPoint'>;
 type GetAssetById = (assetId: string) => Asset | undefined;
-type ResolvedDurationSource = 'displayTime' | 'assetDuration' | 'fallback';
+type ResolvedDurationSource = 'clipDuration' | 'displayTime' | 'assetDuration' | 'fallback';
 
 export interface ResolveCutDisplayTimeOptions {
   fallbackDurationSec?: number;
@@ -13,6 +13,14 @@ export interface ResolvedCutDisplayTime {
   durationSec: number;
   adjusted: boolean;
   source: ResolvedDurationSource;
+}
+
+function resolveClipDuration(cut: CutLike | null | undefined): number | null {
+  if (!cut?.isClip) return null;
+  if (!Number.isFinite(cut.inPoint) || !Number.isFinite(cut.outPoint)) return null;
+  const durationSec = (cut.outPoint as number) - (cut.inPoint as number);
+  if (!Number.isFinite(durationSec) || durationSec <= 0) return null;
+  return durationSec;
 }
 
 export function resolveCutAsset(cut: CutLike | null | undefined, getAsset: GetAssetById): Asset | null {
@@ -63,6 +71,18 @@ export function resolveNormalizedCutDisplayTime(
       durationSec: fallbackDurationSec,
       adjusted: true,
       source: 'fallback',
+    };
+  }
+
+  const clipDurationSec = resolveClipDuration(cut);
+  if (clipDurationSec !== null) {
+    const displayTime = typeof cut.displayTime === 'number' && Number.isFinite(cut.displayTime) && cut.displayTime > 0
+      ? cut.displayTime
+      : null;
+    return {
+      durationSec: clipDurationSec,
+      adjusted: displayTime === null || Math.abs(displayTime - clipDurationSec) > 1e-6,
+      source: 'clipDuration',
     };
   }
 
