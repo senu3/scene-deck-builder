@@ -3,7 +3,7 @@
 ## TL;DR
 - LipSync は現行の部分最適パッチを積み増さず、課題を再棚卸しして再設計する。
 - 既存の `TODO-DEBT-011`（Gate9 thumbnail resolver-only）は本計画に統合し、単独タスクとしてはクローズする。
-- SequencePlan Phase A（LIPSync 除外）の完了後に、Phase B として LipSync v2 を計画する。
+- SequencePlan Phase A（LIPSync 除外）は完了済みとし、その先の Phase B は本ノートで LipSync v2 として扱う。
 
 ## 目的
 - LipSync の課題を「サムネ」だけでなく、生成物管理・再生一致・export 一致・回復性まで含めて再定義する。
@@ -15,8 +15,9 @@
   - LipSync 生成 asset の所有/孤児管理
   - Preview/Export での LipSync 時間解決整合
   - fallback と warning の観測設計
+  - SequencePlan Phase B としての LipSync 接続方式
 - 非対象:
-  - SequencePlan Phase A 自体（`normal/clip/hold/mute/black`）
+  - SequencePlan Phase A 自体（`normal/clip/hold/mute`）
   - 既存仕様と同一の軽微修正のみで閉じる対応
 
 ## Must / Must Not
@@ -41,7 +42,8 @@
 - Gate監査で検知できる範囲を増やす（必要な場合のみ）
 
 ### Phase 2: LipSync v2 Design
-- SequencePlan Phase B との接続方式を決定
+- 旧 SequencePlan ノートで保留していた Phase B を本ノートへ集約する
+- SequencePlan Phase B としての接続方式を決定
 - time remap / frame select / source mapping の責務分離を確定
 - generated asset の所有・孤児管理モデルを確定
 
@@ -55,6 +57,6 @@
 - `TODO-DEBT-011` を含む旧タスクの置換関係が TODO_MASTER で追跡可能。
 
 ## 関連
-- `docs/notes/sequence-plan-phasea-unification-plan-2026-03-06.md`
+- `docs/notes/archive/sequence-plan-phasea-unification-plan-2026-03-06.md`
 - `docs/guides/lip-sync.md`
 - `docs/notes/archive/gate9-provider-unification-update-2026-02-28.md`

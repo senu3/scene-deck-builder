@@ -66,7 +66,6 @@
 ## 運用メモ
 - UI文言の未確定事項は `docs/TODO_MASTER.md` で管理する。
 - 実装手順・性能調整・既知事象は `docs/notes/` へ分離する。
-- SequencePlan 単一入口化（Phase A）は `docs/notes/sequence-plan-phasea-unification-plan-2026-03-06.md` を参照する。
 
 ## 関連ガイド
 - Export正本: `docs/guides/export.md`

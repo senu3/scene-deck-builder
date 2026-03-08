@@ -73,17 +73,10 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
 - `TODO-INVEST-009` LipSync 見直し計画（課題再棚卸し + v2設計 + 段階移行）を確定する
   - Track: `Investigation`
   - Status: `ready`
-  - StartWhen: `TODO-INVEST-008` 完了後
-  - BlockedBy: `TODO-INVEST-008`
+  - StartWhen: LipSync v2 の設計整理に着手するとき
+  - BlockedBy: なし
   - DoneWhen: LipSync 課題一覧（再現条件/優先度/フェーズ）が確定し、v2移行方針が docs で固定される
   - 関連: `docs/notes/lipsync-reassessment-plan-2026-03-06.md`
-- `TODO-INVEST-008` SequencePlan の単一入口化（Phase A: LIPSync除外）を完了し、Preview/Export parity の基線を固定する
-  - Track: `Investigation`
-  - Status: `in-progress`
-  - StartWhen: SequencePlan Phase A の docs/cleanup を進めるとき
-  - BlockedBy: なし
-  - DoneWhen: `buildSequencePlan(project, opts)` が Preview/Export の共通入口として維持され、`normal/clip/hold/mute` を Plan 表現でき、関連 docs/references/テストが現状実装と一致する
-  - 関連: `docs/notes/sequence-plan-phasea-unification-plan-2026-03-06.md`
 - `TODO-INVEST-001` Sequence preview で同一ソース連続 clip 切替時の一瞬の buffering を低減する
   - Track: `Investigation`
   - Status: `backlog`
@@ -113,10 +106,3 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
   - BlockedBy: なし
   - DoneWhen: 監視方針（計測点/しきい値/運用）が docs で確定
   - 関連: `docs/guides/implementation/gate-checks.md`
-- `TODO-INVEST-010` VIDEO HOLD 境界での attachAudio 再生品質（ブツ切り）を最終調整する
-  - Track: `Investigation`
-  - Status: `backlog`
-  - StartWhen: SequencePlan Phase A の最終QAで HOLD 境界の再生品質を確認するとき
-  - BlockedBy: `TODO-INVEST-008`
-  - DoneWhen: HOLD 境界で attachAudio が再発火せず、体感上のブツ切りが発生しない
-  - 関連: `src/components/preview-modal/usePreviewSequenceAudio.ts`, `src/components/preview-modal/__tests__/usePreviewSequenceAudio.test.tsx`

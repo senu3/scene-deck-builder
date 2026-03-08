@@ -52,7 +52,6 @@
 ## 運用メモ
 - 実装到達点・検証手順・日付付き経緯は `docs/notes/` へ分離する。
 - 未確定事項は `docs/TODO_MASTER.md` で管理する。
-- SequencePlan 単一入口化（Phase A）は `docs/notes/sequence-plan-phasea-unification-plan-2026-03-06.md` を参照する。
 
 ## 関連ガイド
 - Preview時間正本: `docs/guides/preview.md`
