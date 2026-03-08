@@ -11,6 +11,7 @@ import type {
   Project,
   SourceViewMode,
   MetadataStore,
+  CutRuntimeHold,
   CutRuntimeState,
 } from '../types';
 import type { StoreEvent } from './events';
@@ -30,6 +31,7 @@ export interface ClipboardCut {
   assetId: string;
   asset?: Asset;
   displayTime: number;
+  hold?: CutRuntimeHold;
   useEmbeddedAudio?: boolean;
   audioBindings?: CutAudioBinding[];
   inPoint?: number;

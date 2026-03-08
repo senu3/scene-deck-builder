@@ -68,4 +68,23 @@ describe('cut runtime state', () => {
     expect(useStore.getState().getCutRuntime(cutId)).toBeUndefined();
   });
 
+  it('preserves hold runtime when copying and pasting cuts', () => {
+    const cutId = useStore.getState().addCutToScene('scene-1', TEST_IMAGE_ASSET);
+    useStore.getState().setCutRuntimeHold(cutId, {
+      enabled: true,
+      mode: 'tail',
+      durationMs: 900,
+    });
+    useStore.getState().selectCut(cutId);
+    useStore.getState().copySelectedCuts();
+
+    const [pastedCutId] = useStore.getState().pasteCuts('scene-1');
+    expect(pastedCutId).toBeTruthy();
+    expect(useStore.getState().getCutRuntime(pastedCutId)?.hold).toEqual({
+      enabled: true,
+      mode: 'tail',
+      durationMs: 900,
+    });
+  });
+
 });

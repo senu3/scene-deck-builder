@@ -669,10 +669,12 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
       if (selectedCuts.length === 0) return;
 
       const clipboardData = selectedCuts.reduce<ClipboardCut[]>((acc, { cut }) => {
+        const hold = state.getCutRuntime(cut.id)?.hold;
         acc.push({
           assetId: cut.assetId,
           asset: resolveCutAsset(cut, state.getAsset) ?? undefined,
           displayTime: cut.displayTime,
+          hold: hold ? { ...hold } : undefined,
           useEmbeddedAudio: cut.useEmbeddedAudio,
           audioBindings: cut.audioBindings?.map((binding) => ({ ...binding })),
           inPoint: cut.inPoint,
@@ -696,10 +698,14 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
 
       const insertIndex = targetIndex ?? targetScene.cuts.length;
       const newCutIds: string[] = [];
+      const pastedHoldByCutId: Record<string, NonNullable<ClipboardCut['hold']>> = {};
 
       const newCuts: Cut[] = state.clipboard.map((clipCut, idx) => {
         const newId = uuidv4();
         newCutIds.push(newId);
+        if (clipCut.hold) {
+          pastedHoldByCutId[newId] = { ...clipCut.hold };
+        }
         const resolvedAsset = state.getAsset(clipCut.assetId) || clipCut.asset;
         return {
           id: newId,
@@ -729,6 +735,19 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
           }
           return s;
         }),
+        cutRuntimeById: (() => {
+          if (Object.keys(pastedHoldByCutId).length === 0) {
+            return currentState.cutRuntimeById;
+          }
+          const next = { ...currentState.cutRuntimeById };
+          for (const [cutId, hold] of Object.entries(pastedHoldByCutId)) {
+            next[cutId] = {
+              ...(next[cutId] || {}),
+              hold: { ...hold },
+            };
+          }
+          return next;
+        })(),
         selectedCutIds: new Set(newCutIds),
         selectedCutId: newCutIds[0] || null,
         lastSelectedCutId: newCutIds[newCutIds.length - 1] || null,
