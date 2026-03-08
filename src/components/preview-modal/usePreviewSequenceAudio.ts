@@ -13,16 +13,15 @@ interface UsePreviewSequenceAudioInput {
   globalVolume: number;
 }
 
-function buildSequenceAudioEventKey(event: ExportAudioEvent, index: number) {
+function buildSequenceAudioEventKey(event: ExportAudioEvent) {
   return [
-    index,
     event.sourceType,
     event.assetId || '',
     event.sceneId || '',
     event.cutId || '',
-    event.timelineStartSec.toFixed(3),
-    event.durationSec.toFixed(3),
     event.sourcePath,
+    Number.isFinite(event.sourceStartSec) ? event.sourceStartSec.toFixed(3) : '0.000',
+    Number.isFinite(event.sourceOffsetSec as number) ? (event.sourceOffsetSec as number).toFixed(3) : '0.000',
   ].join('|');
 }
 
@@ -64,9 +63,8 @@ export function usePreviewSequenceAudio({
     }
 
     const clampedAbsoluteTime = Math.max(0, absoluteTime);
-    const shouldPlay = isPlaying && !isBuffering;
     const activeEntries = previewAudioPlan.events
-      .map((event, index) => ({ event, key: buildSequenceAudioEventKey(event, index) }))
+      .map((event) => ({ event, key: buildSequenceAudioEventKey(event) }))
       .filter(({ event }) => {
         const start = event.timelineStartSec;
         const end = event.timelineStartSec + event.durationSec;
@@ -97,6 +95,7 @@ export function usePreviewSequenceAudio({
       const gain = Number.isFinite(event.gain) ? Math.max(0, event.gain as number) : 1;
       const mixedVolume = Math.max(0, Math.min(1, (globalMuted ? 0 : globalVolume) * gain));
       manager.setVolume(mixedVolume);
+      const shouldPlayEvent = isPlaying && (!isBuffering || event.sourceType !== 'video');
       const sourceOffsetSec = Number.isFinite(event.sourceOffsetSec) ? (event.sourceOffsetSec as number) : 0;
       const playPosition = Math.max(0, clampedAbsoluteTime - event.timelineStartSec + sourceOffsetSec);
 
@@ -107,13 +106,13 @@ export function usePreviewSequenceAudio({
           const expectedLoadId = sequenceAudioLoadIdsRef.current.get(key);
           if (!loaded || expectedLoadId !== startLoadId) return;
           if (!sequenceAudioManagersRef.current.has(key)) return;
-          if (!shouldPlay) return;
+          if (!shouldPlayEvent) return;
           manager!.play(playPosition);
         });
         continue;
       }
 
-      if (!shouldPlay) {
+      if (!shouldPlayEvent) {
         if (manager.getIsPlaying()) {
           manager.pause();
         }
@@ -123,8 +122,9 @@ export function usePreviewSequenceAudio({
       if (!manager.getIsPlaying()) {
         manager.play(playPosition);
       } else {
-        const drift = Math.abs(manager.getCurrentTime() - playPosition);
-        if (drift > 0.25) {
+        const currentTime = manager.getCurrentTime();
+        const lag = playPosition - currentTime;
+        if (lag > 0.5) {
           manager.seek(playPosition);
         }
       }

@@ -140,6 +140,24 @@ const previewAudioPlan: ExportAudioPlan = {
   ],
 };
 
+const attachAudioPlan: ExportAudioPlan = {
+  totalDurationSec: 4,
+  events: [
+    {
+      sourceType: 'cut-attach',
+      sourcePath: '/tmp/attach-audio.wav',
+      assetId: 'asset-a',
+      cutId: 'cut-a',
+      sceneId: 'scene-a',
+      sourceStartSec: 0,
+      timelineStartSec: 0,
+      durationSec: 3,
+      sourceOffsetSec: 0,
+      gain: 1,
+    },
+  ],
+};
+
 describe('usePreviewSequenceAudio', () => {
   afterEach(() => {
     managerInstances.length = 0;
@@ -181,6 +199,97 @@ describe('usePreviewSequenceAudio', () => {
     expect(manager.pauseCalls).toBe(0);
     expect(manager.unloadCalls).toBe(1);
     expect(manager.disposeCalls).toBe(1);
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
+  it('keeps the same manager when event timing metadata changes but identity is the same', async () => {
+    const host = document.createElement('div');
+    const root = createRoot(host);
+
+    await act(async () => {
+      root.render(
+        <Harness
+          absoluteTime={1}
+          previewAudioPlan={previewAudioPlan}
+        />
+      );
+    });
+
+    expect(managerInstances).toHaveLength(1);
+    const manager = managerInstances[0] as {
+      playCalls: number[];
+      stopCalls: number;
+      unloadCalls: number;
+      disposeCalls: number;
+    };
+
+    const updatedPlan: ExportAudioPlan = {
+      totalDurationSec: 5,
+      events: [
+        {
+          ...previewAudioPlan.events[0],
+          durationSec: 3,
+        },
+      ],
+    };
+
+    await act(async () => {
+      root.render(
+        <Harness
+          absoluteTime={2}
+          previewAudioPlan={updatedPlan}
+        />
+      );
+    });
+
+    expect(managerInstances).toHaveLength(1);
+    expect(manager.playCalls.length).toBeGreaterThanOrEqual(1);
+    expect(manager.stopCalls).toBe(0);
+    expect(manager.unloadCalls).toBe(0);
+    expect(manager.disposeCalls).toBe(0);
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
+  it('does not pause attach audio during buffering while sequence is playing', async () => {
+    const host = document.createElement('div');
+    const root = createRoot(host);
+
+    await act(async () => {
+      root.render(
+        <Harness
+          absoluteTime={1}
+          previewAudioPlan={attachAudioPlan}
+          isPlaying
+          isBuffering={false}
+        />
+      );
+    });
+
+    expect(managerInstances).toHaveLength(1);
+    const manager = managerInstances[0] as {
+      pauseCalls: number;
+      playCalls: number[];
+    };
+    expect(manager.playCalls.length).toBeGreaterThanOrEqual(1);
+
+    await act(async () => {
+      root.render(
+        <Harness
+          absoluteTime={1.2}
+          previewAudioPlan={attachAudioPlan}
+          isPlaying
+          isBuffering
+        />
+      );
+    });
+
+    expect(manager.pauseCalls).toBe(0);
 
     act(() => {
       root.unmount();
