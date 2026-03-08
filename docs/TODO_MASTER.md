@@ -107,6 +107,20 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
   - BlockedBy: なし
   - DoneWhen: 監視方針（計測点/しきい値/運用）が docs で確定
   - 関連: `docs/guides/implementation/gate-checks.md`
+- `TODO-INVEST-010` VIDEO HOLD 境界での attachAudio 再生品質（ブツ切り）を最終調整する
+  - Track: `Investigation`
+  - Status: `backlog`
+  - StartWhen: SequencePlan Phase A の最終QAで HOLD 境界の再生品質を確認するとき
+  - BlockedBy: `TODO-INVEST-008`
+  - DoneWhen: HOLD 境界で attachAudio が再発火せず、体感上のブツ切りが発生しない
+  - 関連: `src/components/preview-modal/usePreviewSequenceAudio.ts`, `src/components/preview-modal/__tests__/usePreviewSequenceAudio.test.tsx`
+- `TODO-INVEST-011` Export で HOLD 未反映に見えるケースを切り分ける（Plan生成/IPC受け渡し/ffmpegセグメント）
+  - Track: `Investigation`
+  - Status: `in-progress`
+  - StartWhen: HOLD export 実機検証を行うとき
+  - BlockedBy: なし
+  - DoneWhen: `sequencePlan.exportItems` の hold item 数と `export-sequence-start` の holdItemCount が一致し、MP4 出力で hold が確認できる
+  - 関連: `src/utils/sequencePlan.ts`, `src/components/preview-modal/usePreviewExportActions.ts`, `electron/main.ts`
 
 ## Done (archive)
 - 2026-03-06 | `TODO-DEBT-011` Gate9 の LipSync サムネ resolver-only タスクを見直し計画へ統合し、単独追跡を終了（replaced by `TODO-INVEST-009`） | `docs/notes/archive/gate9-provider-unification-update-2026-02-28.md`, `docs/notes/lipsync-reassessment-plan-2026-03-06.md`
