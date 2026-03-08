@@ -101,9 +101,69 @@ interface BuildSequencePlanFromCutsInput {
 
 const DEFAULT_HOLD_FPS = 30;
 
+interface HoldGap {
+  baseStartSec: number;
+  durationSec: number;
+  cutId: string;
+  sceneId?: string;
+}
+
 function safeNumber(value: number | undefined, fallback = 0): number {
   if (!Number.isFinite(value)) return fallback;
   return value as number;
+}
+
+function applyHoldTimingToAudioPlan(audioPlan: ExportAudioPlan, holdGaps: HoldGap[]): ExportAudioPlan {
+  if (holdGaps.length === 0) {
+    return audioPlan;
+  }
+
+  const sortedGaps = [...holdGaps].sort((left, right) => left.baseStartSec - right.baseStartSec);
+  const events = audioPlan.events.map((event) => {
+    const eventStartSec = safeNumber(event.timelineStartSec, 0);
+    const eventEndSec = eventStartSec + safeNumber(event.durationSec, 0);
+    let shiftedStartSec = eventStartSec;
+    let extendedDurationSec = safeNumber(event.durationSec, 0);
+
+    for (const gap of sortedGaps) {
+      if (gap.baseStartSec <= eventStartSec) {
+        shiftedStartSec += gap.durationSec;
+        continue;
+      }
+      if (event.sourceType === 'video') {
+        continue;
+      }
+      if (event.sourceType === 'scene-attach') {
+        if (event.sceneId && gap.sceneId && event.sceneId === gap.sceneId && gap.baseStartSec <= eventEndSec) {
+          extendedDurationSec += gap.durationSec;
+        }
+        continue;
+      }
+      if ((event.sourceType === 'cut-attach' || event.sourceType === 'group-attach')
+        && event.cutId
+        && event.cutId === gap.cutId
+        && gap.baseStartSec >= eventStartSec
+        && gap.baseStartSec <= eventEndSec) {
+        extendedDurationSec += gap.durationSec;
+      }
+    }
+
+    return {
+      ...event,
+      timelineStartSec: shiftedStartSec,
+      durationSec: extendedDurationSec,
+    };
+  });
+
+  const totalDurationSec = Math.max(
+    safeNumber(audioPlan.totalDurationSec, 0) + sortedGaps.reduce((total, gap) => total + gap.durationSec, 0),
+    events.reduce((max, event) => Math.max(max, safeNumber(event.timelineStartSec, 0) + safeNumber(event.durationSec, 0)), 0)
+  );
+
+  return {
+    totalDurationSec,
+    events,
+  };
 }
 
 function resolveCutsForPlan(
@@ -197,12 +257,16 @@ function buildSequencePlanFromCuts(input: BuildSequencePlanFromCutsInput): Seque
   const exportItemsWithHold: ExportSequenceItem[] = [];
   const exportItemByCutId = new Map<string, ExportSequenceItem>();
   let timelineCursorSec = 0;
+  let baseTimelineCursorSec = 0;
   let exportItemCursor = 0;
+  const holdGaps: HoldGap[] = [];
   for (const cut of canonicalized.cuts) {
     const durationSec = safeNumber(cut.displayTime, 0);
     const dstInSec = timelineCursorSec;
     const dstOutSec = timelineCursorSec + durationSec;
     timelineCursorSec = dstOutSec;
+    const baseDstOutSec = baseTimelineCursorSec + durationSec;
+    baseTimelineCursorSec = baseDstOutSec;
 
     const asset = resolveCutAsset(cut, getAssetById);
     if (!asset || !asset.path) {
@@ -279,6 +343,12 @@ function buildSequencePlanFromCuts(input: BuildSequencePlanFromCutsInput): Seque
     const holdDstInSec = timelineCursorSec;
     const holdDstOutSec = holdDstInSec + holdDurationSec;
     timelineCursorSec = holdDstOutSec;
+    holdGaps.push({
+      baseStartSec: baseDstOutSec,
+      durationSec: holdDurationSec,
+      cutId: cut.id,
+      sceneId: resolveSceneIdByCutId?.(cut.id),
+    });
 
     videoItems.push({
       cutId: cut.id,
@@ -316,7 +386,9 @@ function buildSequencePlanFromCuts(input: BuildSequencePlanFromCutsInput): Seque
     }
   }
 
-  const audioItems: SequenceAudioItem[] = audioPlan.events.map((event, index) => ({
+  const adjustedAudioPlan = applyHoldTimingToAudioPlan(audioPlan, holdGaps);
+
+  const audioItems: SequenceAudioItem[] = adjustedAudioPlan.events.map((event, index) => ({
     assetId: event.assetId || `audio-event-${index}`,
     sourcePath: event.sourcePath,
     srcInSec: safeNumber(event.sourceStartSec, 0),
@@ -335,13 +407,13 @@ function buildSequencePlanFromCuts(input: BuildSequencePlanFromCutsInput): Seque
 
   const maxVideoEnd = videoItems.reduce((max, item) => Math.max(max, item.dstOutSec), 0);
   const maxAudioEnd = audioItems.reduce((max, item) => Math.max(max, item.dstOutSec), 0);
-  const durationSec = Math.max(maxVideoEnd, maxAudioEnd, safeNumber(audioPlan.totalDurationSec, 0));
-  const normalizedAudioPlan: ExportAudioPlan = durationSec > safeNumber(audioPlan.totalDurationSec, 0)
+  const durationSec = Math.max(maxVideoEnd, maxAudioEnd, safeNumber(adjustedAudioPlan.totalDurationSec, 0));
+  const normalizedAudioPlan: ExportAudioPlan = durationSec > safeNumber(adjustedAudioPlan.totalDurationSec, 0)
     ? {
-        ...audioPlan,
+        ...adjustedAudioPlan,
         totalDurationSec: durationSec,
       }
-    : audioPlan;
+    : adjustedAudioPlan;
 
   return {
     videoItems,

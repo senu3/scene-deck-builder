@@ -27,6 +27,7 @@ function cut(input: Partial<Cut> & Pick<Cut, 'id' | 'assetId' | 'displayTime' | 
     isClip: input.isClip,
     inPoint: input.inPoint,
     outPoint: input.outPoint,
+    groupId: input.groupId,
     useEmbeddedAudio: input.useEmbeddedAudio,
     isLipSync: input.isLipSync,
     audioBindings: input.audioBindings || [],
@@ -207,6 +208,108 @@ describe('buildSequencePlan', () => {
     expect((embeddedAudioEvent?.timelineStartSec ?? 0) + (embeddedAudioEvent?.durationSec ?? 0)).toBeLessThan(plan.durationSec);
     expect(plan.durationSec).toBeCloseTo(3.2, 4);
     expect(plan.audioPlan.totalDurationSec).toBeCloseTo(3.2, 4);
+  });
+
+  it('extends attach audio across hold and shifts later events on the canonical timeline', () => {
+    const cuts: Cut[] = [
+      cut({
+        id: 'cut-hold-gap-1',
+        assetId: 'video-1',
+        displayTime: 2,
+        order: 0,
+        groupId: 'group-1',
+        audioBindings: [
+          {
+            id: 'cut-audio-1',
+            audioAssetId: 'audio-1',
+            offsetSec: 0,
+            enabled: true,
+            kind: 'se',
+          },
+        ],
+      }),
+      cut({
+        id: 'cut-hold-gap-2',
+        assetId: 'video-1',
+        displayTime: 1,
+        order: 1,
+      }),
+    ];
+    const assets = new Map<string, Asset>([
+      ['video-1', VIDEO_ASSET],
+      ['audio-1', AUDIO_ASSET],
+    ]);
+
+    const plan = buildSequencePlan({
+      scenes: [{ id: 'scene-1', name: 'Scene 1', cuts, notes: [] }],
+      sceneOrder: ['scene-1'],
+    }, {
+      metadataStore: {
+        version: 1,
+        metadata: {},
+        sceneMetadata: {
+          'scene-1': {
+            id: 'scene-1',
+            name: 'Scene 1',
+            notes: [],
+            updatedAt: 't',
+            attachAudio: {
+              id: 'scene-audio-1',
+              audioAssetId: 'audio-1',
+              enabled: true,
+              kind: 'scene',
+            },
+            groupAudioBindings: {
+              'group-1': {
+                id: 'group-audio-1',
+                groupId: 'group-1',
+                audioAssetId: 'audio-1',
+                enabled: true,
+                kind: 'group',
+              },
+            },
+          },
+        },
+      },
+      getAssetById: (assetId) => assets.get(assetId),
+      resolveCutRuntimeById: (cutId) => {
+        if (cutId !== 'cut-hold-gap-1') return undefined;
+        return {
+          hold: {
+            enabled: true,
+            mode: 'tail',
+            durationMs: 1000,
+            muteAudio: true,
+            composeWithClip: true,
+          },
+        };
+      },
+    });
+
+    const sceneEvent = plan.audioPlan.events.find((event) => event.sourceType === 'scene-attach');
+    const cutAttachEvent = plan.audioPlan.events.find((event) => event.sourceType === 'cut-attach');
+    const groupAttachEvent = plan.audioPlan.events.find((event) => event.sourceType === 'group-attach');
+    const secondVideoEvent = plan.audioPlan.events.find((event) => event.sourceType === 'video' && event.cutId === 'cut-hold-gap-2');
+
+    expect(sceneEvent).toMatchObject({
+      timelineStartSec: 0,
+      durationSec: 4,
+      sourceOffsetSec: 0,
+    });
+    expect(cutAttachEvent).toMatchObject({
+      timelineStartSec: 0,
+      durationSec: 3,
+      sourceOffsetSec: 0,
+    });
+    expect(groupAttachEvent).toMatchObject({
+      timelineStartSec: 0,
+      durationSec: 3,
+      sourceOffsetSec: 0,
+    });
+    expect(secondVideoEvent).toMatchObject({
+      timelineStartSec: 3,
+    });
+    expect(plan.audioPlan.totalDurationSec).toBeCloseTo(4, 4);
   });
 
   it('treats clip in/out duration as canonical when displayTime differs', () => {
