@@ -57,6 +57,7 @@
 - `docs/TODO_MASTER.md`
 
 TODO は各ガイドに散在させない。元ドキュメントには `TODO_MASTER` へのリンクのみ残す。
+`TODO_MASTER` は active item 専用とし、完了項目は残さない。
 
 ## 7) 一時メモ / 調査ログ
 - `docs/notes/`
@@ -71,7 +72,8 @@ TODO は各ガイドに散在させない。元ドキュメントには `TODO_MA
 - 仕様・実装・調査ログは混在させず、`guides` / `implementation` / `notes` に分離する。
 - 一時的な検討メモは `notes` を作成し、 docs へ統合しない。
 - 未解決課題は `TODO_MASTER.md` へ記録し、重複TODOを作らない。
-- 解決済みの仕様・実装・調査ログやTODOは `notes/archive` に移動する。
+- 解決済みの仕様・実装・調査ログは `notes/archive` に移動する。
+- 解決済みTODOは `TODO_MASTER.md` から削除する（active item のみ維持）。
 
 ## 開発時のチェック順
 1. `ARCHITECTURE.md` に反していないか。
