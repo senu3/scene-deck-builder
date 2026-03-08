@@ -1852,6 +1852,18 @@ interface SequenceItem {
   };
 }
 
+function getSequenceItemExpectedDurationSec(item: SequenceItem): number {
+  const holdDurationSec = Number.isFinite(item.holdDurationSec) ? (item.holdDurationSec as number) : 0;
+  if (holdDurationSec > 0) {
+    return Math.max(0, holdDurationSec);
+  }
+  if (item.type === 'video' && Number.isFinite(item.outPoint)) {
+    const inPoint = Number.isFinite(item.inPoint) ? (item.inPoint as number) : 0;
+    return Math.max(0, (item.outPoint as number) - inPoint);
+  }
+  return Math.max(0, Number.isFinite(item.duration) ? item.duration : 0);
+}
+
 interface ExportAudioEvent {
   assetId?: string;
   sourcePath: string;
@@ -2096,6 +2108,9 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
   const tempDir = app.getPath('temp');
   const sessionId = Date.now();
   const tempFiles: string[] = [];
+  let expectedSequenceDurationSec = 0;
+  let expectedHoldDurationSec = 0;
+  let actualHoldDurationSec = 0;
 
   try {
     const outputDir = path.dirname(outputPath);
@@ -2106,6 +2121,8 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
+      const expectedItemDurationSec = getSequenceItemExpectedDurationSec(item);
+      expectedSequenceDurationSec += expectedItemDurationSec;
       const segmentFile = path.join(tempDir, `segment_${sessionId}_${i}.mp4`);
       tempFiles.push(segmentFile);
       const filter = buildFramingVideoFilter({
@@ -2171,19 +2188,28 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
           : 0;
 
         if (holdDuration > 0) {
+          expectedHoldDurationSec += holdDuration;
           // Sampling is only for picking a stable tail frame. Hold/clip duration remain item-driven.
           const holdSampleEpsilonSec = Math.max(0.001, Math.min(1 / Math.max(1, fps), 0.033));
           const rawHoldSampleTimeSec = item.outPoint ?? inPoint;
           const holdSampleTimeSec = Math.max(inPoint, rawHoldSampleTimeSec - holdSampleEpsilonSec);
-          // Keep exactly the first decoded frame and clone it for the hold duration.
-          const holdFilter = `${filter},trim=end_frame=1,setpts=PTS-STARTPTS,` +
-            `tpad=stop_mode=clone:stop_duration=${formatFilterNumber(holdDuration)}`;
-          const holdArgs = [
+          const holdFrameFile = path.join(tempDir, `hold_frame_${sessionId}_${i}.png`);
+          tempFiles.push(holdFrameFile);
+          const extractHoldFrameArgs = [
             '-y',
             '-ss', holdSampleTimeSec.toString(),
             '-i', item.path,
+            '-frames:v', '1',
+            '-vf', filter,
+            holdFrameFile,
+          ];
+          await runFfmpeg(ffmpegBinary, extractHoldFrameArgs);
+
+          const holdArgs = [
+            '-y',
+            '-loop', '1',
+            '-i', holdFrameFile,
             '-t', holdDuration.toString(),
-            '-vf', holdFilter,
             '-r', fps.toString(),
             '-c:v', 'libx264',
             '-preset', 'fast',
@@ -2193,6 +2219,22 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
             segmentFile
           ];
           await runFfmpeg(ffmpegBinary, holdArgs);
+          const segmentMeta = await probeVideoWithFfmpeg(ffmpegBinary, segmentFile);
+          const actualDurationSec = Number.isFinite(segmentMeta.duration) ? (segmentMeta.duration as number) : 0;
+          actualHoldDurationSec += Math.max(0, actualDurationSec);
+          writeRuntimeLog('INFO', 'export-hold-segment', {
+            outputPath,
+            segmentIndex: i,
+            segmentFile,
+            sourcePath: item.path,
+            expectedDurationSec: holdDuration,
+            actualDurationSec,
+            durationDiffSec: actualDurationSec - holdDuration,
+            holdSampleTimeSec,
+            holdSampleEpsilonSec,
+            inPoint,
+            outPoint: item.outPoint,
+          });
         } else {
           const duration = item.outPoint !== undefined
             ? item.outPoint - inPoint
@@ -2272,6 +2314,20 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
       audioOutputPath = mixedAudioResult.audioOutputPath;
       audioFileSize = mixedAudioResult.audioFileSize;
     }
+
+    const outputMeta = await probeVideoWithFfmpeg(ffmpegBinary, outputPath);
+    const outputDurationSec = Number.isFinite(outputMeta.duration) ? (outputMeta.duration as number) : undefined;
+    writeRuntimeLog('INFO', 'export-sequence-duration-check', {
+      outputPath,
+      expectedSequenceDurationSec,
+      outputDurationSec,
+      durationDiffSec: Number.isFinite(outputDurationSec)
+        ? (outputDurationSec as number) - expectedSequenceDurationSec
+        : null,
+      expectedHoldDurationSec,
+      actualHoldDurationSec,
+      holdDurationDiffSec: actualHoldDurationSec - expectedHoldDurationSec,
+    });
 
     cleanupTempFiles(tempFiles);
     writeRuntimeLog('INFO', 'export-sequence-success', {
