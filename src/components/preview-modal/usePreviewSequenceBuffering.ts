@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { createVideoObjectUrl } from '../../utils/videoUtils';
-import type { Asset } from '../../types';
-import type { PreviewItem } from './types';
+import type { PreviewSequencePlaybackItem } from './types';
 
 interface VideoObjectUrlState {
   assetId: string;
@@ -10,11 +9,10 @@ interface VideoObjectUrlState {
 
 interface UsePreviewSequenceBufferingInput {
   isSingleMode: boolean;
-  items: PreviewItem[];
+  items: PreviewSequencePlaybackItem[];
   currentIndex: number;
   videoObjectUrl: VideoObjectUrlState | null;
   setVideoObjectUrl: (next: VideoObjectUrlState | null) => void;
-  resolveAssetForCut: (cut: PreviewItem['cut']) => Asset | null;
   setSequenceBuffering: (isBuffering: boolean) => void;
   sequenceIsPlaying: boolean;
   sequenceIsBuffering: boolean;
@@ -30,7 +28,6 @@ export function usePreviewSequenceBuffering({
   currentIndex,
   videoObjectUrl,
   setVideoObjectUrl,
-  resolveAssetForCut,
   setSequenceBuffering,
   sequenceIsPlaying,
   sequenceIsBuffering,
@@ -45,11 +42,9 @@ export function usePreviewSequenceBuffering({
 
   const getVideoAssetId = useCallback((index: number): string | null => {
     const item = items[index];
-    if (!item) return null;
-    const cutAsset = resolveAssetForCut(item.cut);
-    if (cutAsset?.type !== 'video') return null;
-    return cutAsset.id ?? item.cut.assetId ?? null;
-  }, [items, resolveAssetForCut]);
+    if (!item || item.assetType !== 'video') return null;
+    return item.assetId;
+  }, [items]);
 
   const getItemsInTimeWindow = useCallback((startIndex: number, windowSeconds: number): number[] => {
     const indices: number[] = [];
@@ -67,14 +62,13 @@ export function usePreviewSequenceBuffering({
     const item = items[index];
     if (!item) return false;
 
-    const cutAsset = resolveAssetForCut(item.cut);
-    if (cutAsset?.type === 'video') {
+    if (item.assetType === 'video') {
       const assetId = getVideoAssetId(index);
       if (!assetId) return false;
       return videoUrlCacheRef.current.has(assetId);
     }
     return !!item.thumbnail;
-  }, [items, getVideoAssetId, resolveAssetForCut]);
+  }, [items, getVideoAssetId]);
 
   const preloadItems = useCallback(async (indices: number[]): Promise<void> => {
     const preloadPromises: Promise<void>[] = [];
@@ -83,8 +77,7 @@ export function usePreviewSequenceBuffering({
       const item = items[index];
       if (!item) continue;
 
-      const cutAsset = resolveAssetForCut(item.cut);
-      if (cutAsset?.type === 'video' && cutAsset.path) {
+      if (item.assetType === 'video' && item.sourcePath) {
         const assetId = getVideoAssetId(index);
         if (!assetId) continue;
 
@@ -93,7 +86,7 @@ export function usePreviewSequenceBuffering({
         if (!videoUrlCacheRef.current.has(assetId)) {
           preloadingRef.current.add(assetId);
           preloadPromises.push(
-            createVideoObjectUrl(cutAsset.path).then(url => {
+            createVideoObjectUrl(item.sourcePath).then((url) => {
               if (url) {
                 videoUrlCacheRef.current.set(assetId, url);
                 readyItemsRef.current.add(assetId);
@@ -105,21 +98,18 @@ export function usePreviewSequenceBuffering({
           readyItemsRef.current.add(assetId);
         }
       } else {
-        const assetId = cutAsset?.id ?? item.cut.assetId;
-        if (assetId) {
-          readyItemsRef.current.add(assetId);
-        }
+        readyItemsRef.current.add(item.assetId);
       }
     }
 
     await Promise.all(preloadPromises);
-  }, [items, getVideoAssetId, resolveAssetForCut]);
+  }, [items, getVideoAssetId]);
 
   const checkBufferStatus = useCallback((): { ready: boolean; neededItems: number[] } => {
     if (items.length === 0) return { ready: true, neededItems: [] };
 
     const neededItems = getItemsInTimeWindow(currentIndex, playSafeAhead);
-    const allReady = neededItems.every(idx => isItemReady(idx));
+    const allReady = neededItems.every((idx) => isItemReady(idx));
 
     return { ready: allReady, neededItems };
   }, [items, currentIndex, playSafeAhead, getItemsInTimeWindow, isItemReady]);
@@ -181,7 +171,7 @@ export function usePreviewSequenceBuffering({
       await preloadItems(timeWindowItems);
     };
 
-    initialPreload();
+    void initialPreload();
   }, [isSingleMode, items, initialPreloadItems, preloadAhead, preloadItems, getItemsInTimeWindow]);
 
   useEffect(() => {
@@ -189,18 +179,17 @@ export function usePreviewSequenceBuffering({
 
     const manageBuffer = async () => {
       const itemsToPreload = getItemsInTimeWindow(currentIndex, preloadAhead);
-      preloadItems(itemsToPreload);
+      void preloadItems(itemsToPreload);
 
       const currentItem = items[currentIndex];
       const assetId = getVideoAssetId(currentIndex);
       const cachedUrl = assetId ? videoUrlCacheRef.current.get(assetId) : undefined;
-      const currentAsset = currentItem ? resolveAssetForCut(currentItem.cut) : undefined;
 
-      if (currentAsset?.type === 'video') {
+      if (currentItem?.assetType === 'video') {
         if (cachedUrl && assetId && (!videoObjectUrl || videoObjectUrl.assetId !== assetId || videoObjectUrl.url !== cachedUrl)) {
           setVideoObjectUrl({ assetId, url: cachedUrl });
-        } else if (!cachedUrl && currentAsset.path && assetId) {
-          const url = await createVideoObjectUrl(currentAsset.path);
+        } else if (!cachedUrl && currentItem.sourcePath && assetId) {
+          const url = await createVideoObjectUrl(currentItem.sourcePath);
           if (url) {
             videoUrlCacheRef.current.set(assetId, url);
             readyItemsRef.current.add(assetId);
@@ -224,7 +213,7 @@ export function usePreviewSequenceBuffering({
       cleanupOldUrls(currentIndex);
     };
 
-    manageBuffer();
+    void manageBuffer();
   }, [
     isSingleMode,
     items,
@@ -237,7 +226,6 @@ export function usePreviewSequenceBuffering({
     getVideoAssetId,
     checkBufferStatus,
     isItemReady,
-    resolveAssetForCut,
     sequenceIsPlaying,
     sequenceIsBuffering,
     setSequenceBuffering,

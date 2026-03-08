@@ -1,9 +1,8 @@
 import type React from 'react';
-import type { Asset } from '../../types';
 import type { ExportAudioPlan } from '../../utils/exportAudioPlan';
 import type { ExportSequenceItem } from '../../utils/exportSequence';
 import type { MediaSource } from '../../utils/previewMedia';
-import type { PreviewItem } from './types';
+import type { PreviewSequencePlaybackItem } from './types';
 import { usePreviewSequenceAudio } from './usePreviewSequenceAudio';
 import { usePreviewSequenceBuffering } from './usePreviewSequenceBuffering';
 import { usePreviewSequenceMediaSource } from './usePreviewSequenceMediaSource';
@@ -11,12 +10,11 @@ import { usePreviewSequenceMediaSource } from './usePreviewSequenceMediaSource';
 interface UsePreviewSequenceSessionInput {
   isSingleMode: boolean;
   usesSequenceController: boolean;
-  items: PreviewItem[];
+  items: PreviewSequencePlaybackItem[];
   currentIndex: number;
   sequenceCurrentIndex: number;
   videoObjectUrl: { assetId: string; url: string } | null;
   setVideoObjectUrl: (next: { assetId: string; url: string } | null) => void;
-  resolveAssetForCut: (cut: PreviewItem['cut'] | null | undefined) => Asset | null;
   setSequenceBuffering: (isBuffering: boolean) => void;
   sequenceIsPlaying: boolean;
   sequenceIsBuffering: boolean;
@@ -45,7 +43,6 @@ export function usePreviewSequenceSession({
   sequenceCurrentIndex,
   videoObjectUrl,
   setVideoObjectUrl,
-  resolveAssetForCut,
   setSequenceBuffering,
   sequenceIsPlaying,
   sequenceIsBuffering,
@@ -71,7 +68,6 @@ export function usePreviewSequenceSession({
     currentIndex,
     videoObjectUrl,
     setVideoObjectUrl,
-    resolveAssetForCut,
     setSequenceBuffering,
     sequenceIsPlaying,
     sequenceIsBuffering,
@@ -92,7 +88,6 @@ export function usePreviewSequenceSession({
     previewSequenceItemByIndex,
     getSequenceLiveAbsoluteTime,
     showMiniToast,
-    resolveAssetForCut,
     videoRef,
   });
 

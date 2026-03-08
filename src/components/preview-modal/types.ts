@@ -47,6 +47,21 @@ export interface PreviewItem {
   thumbnail: string | null;
 }
 
+export interface PreviewSequencePlaybackItem {
+  cutId: string;
+  assetId: string;
+  assetType: 'image' | 'video';
+  sourcePath: string;
+  srcInSec: number;
+  srcOutSec: number;
+  normalizedDisplayTime: CanonicalDurationSec;
+  sceneId: string;
+  sceneName: string;
+  cutIndex: number;
+  thumbnail: string | null;
+  isHold: boolean;
+}
+
 export interface ResolutionPreset {
   name: string;
   width: number;

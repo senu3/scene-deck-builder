@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Asset, Cut } from '../../types';
 import { buildSequencePlan } from '../sequencePlan';
 
@@ -31,10 +31,15 @@ function cut(input: Partial<Cut> & Pick<Cut, 'id' | 'assetId' | 'displayTime' | 
     useEmbeddedAudio: input.useEmbeddedAudio,
     isLipSync: input.isLipSync,
     audioBindings: input.audioBindings || [],
+    framing: input.framing,
   };
 }
 
 describe('buildSequencePlan', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('builds minimal sequence plan and compatibility payloads', () => {
     const cuts: Cut[] = [
       cut({
@@ -93,6 +98,8 @@ describe('buildSequencePlan', () => {
   });
 
   it('adds temporary warning for lipsync cuts', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
     const cuts: Cut[] = [
       cut({
         id: 'cut-lipsync',
@@ -113,6 +120,49 @@ describe('buildSequencePlan', () => {
     });
 
     expect(plan.warnings.some((warning) => warning.code === 'lipsync-temporary-route')).toBe(true);
+    expect(plan.warnings.some((warning) => warning.code === 'lipsync-export-fallback')).toBe(true);
+    expect(warnSpy).not.toHaveBeenCalled();
+    expect(infoSpy).not.toHaveBeenCalled();
+  });
+
+  it('routes framing debug through plan warnings instead of console logging', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+    const observedWarnings: string[] = [];
+    const cuts: Cut[] = [
+      cut({
+        id: 'cut-framing',
+        assetId: 'video-1',
+        displayTime: 2,
+        order: 0,
+        framing: {
+          anchor: 'bottom-right',
+        },
+      }),
+    ];
+    const assets = new Map<string, Asset>([['video-1', VIDEO_ASSET]]);
+
+    const plan = buildSequencePlan({
+      scenes: [{ id: 'scene-1', name: 'Scene 1', cuts, notes: [] }],
+      sceneOrder: ['scene-1'],
+    }, {
+      metadataStore: null,
+      getAssetById: (assetId) => assets.get(assetId),
+      framingDefaults: { mode: 'fit', anchor: 'left' },
+      debugFraming: true,
+      onWarning: (warning) => observedWarnings.push(warning.code),
+    });
+
+    expect(plan.warnings).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code: 'debug-framing-resolved',
+        cutId: 'cut-framing',
+        message: expect.stringContaining('mode=fit anchor=bottom-right source=cut'),
+      }),
+    ]));
+    expect(observedWarnings).toContain('debug-framing-resolved');
+    expect(warnSpy).not.toHaveBeenCalled();
+    expect(infoSpy).not.toHaveBeenCalled();
   });
 
   it('supports scene target and cuts override target', () => {

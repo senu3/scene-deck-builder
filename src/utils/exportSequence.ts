@@ -27,6 +27,20 @@ export interface ExportSequenceItem {
   };
 }
 
+export type ExportSequenceBuildWarningCode =
+  | 'missing-asset'
+  | 'audio-only-cut-skipped'
+  | 'non-canonical-cut-adjusted'
+  | 'lipsync-export-fallback';
+
+export interface ExportSequenceBuildWarning {
+  code: ExportSequenceBuildWarningCode;
+  cutId: string;
+  sceneId?: string;
+  assetId?: string;
+  message: string;
+}
+
 export interface ExportFramingDefaults {
   mode?: FramingMode;
   anchor?: FramingAnchor;
@@ -34,10 +48,10 @@ export interface ExportFramingDefaults {
 
 export interface BuildExportSequenceOptions {
   framingDefaults?: ExportFramingDefaults;
-  debugFraming?: boolean;
   metadataByAssetId?: Record<string, AssetMetadata>;
   resolveAssetById?: (assetId: string) => Asset | undefined;
   strictLipSync?: boolean;
+  onWarning?: (warning: ExportSequenceBuildWarning) => void;
 }
 
 interface ResolvedFramingParams {
@@ -48,6 +62,10 @@ interface ResolvedFramingParams {
 
 const DEFAULT_FRAMING_MODE: FramingMode = 'cover';
 const DEFAULT_FRAMING_ANCHOR: FramingAnchor = 'center';
+
+function emitWarning(options: BuildExportSequenceOptions, warning: ExportSequenceBuildWarning) {
+  options.onWarning?.(warning);
+}
 
 function resolveAssetForExport(cut: Cut, options: BuildExportSequenceOptions): Asset | null {
   return resolveCutAsset(cut, (assetId) => options.resolveAssetById?.(assetId));
@@ -91,32 +109,41 @@ function buildExportSequenceItemFromCut(
   const cutAsset = resolveAssetForExport(cut, options);
   const path = cutAsset?.path || '';
   if (!path) {
-    console.warn(
-      `[export] Skipping cut ${context.cutId}${context.sceneId ? ` in scene ${context.sceneId}` : ''}: asset path is unresolved.`
-    );
+    emitWarning(options, {
+      code: 'missing-asset',
+      cutId: context.cutId,
+      sceneId: context.sceneId,
+      assetId: cut.assetId,
+      message: `Cut ${context.cutId}${context.sceneId ? ` in scene ${context.sceneId}` : ''} has unresolved asset path.`,
+    });
     return null;
   }
 
   if (cutAsset?.type === 'audio') {
-    console.warn(`[export] Skipping audio-only cut ${context.cutId}${context.sceneId ? ` in scene ${context.sceneId}` : ''}.`);
+    emitWarning(options, {
+      code: 'audio-only-cut-skipped',
+      cutId: context.cutId,
+      sceneId: context.sceneId,
+      assetId: cutAsset.id,
+      message: `Cut ${context.cutId}${context.sceneId ? ` in scene ${context.sceneId}` : ''} is audio-only and does not produce a visual item.`,
+    });
     return null;
   }
 
   const { duration, adjusted } = durationInfo;
   if (adjusted) {
-    console.warn(
-      `[export] Invalid displayTime detected for cut ${context.cutId}${context.sceneId ? ` in scene ${context.sceneId}` : ''}. ` +
-      `Using fallback duration ${duration.toFixed(3)}s.`
-    );
+    emitWarning(options, {
+      code: 'non-canonical-cut-adjusted',
+      cutId: context.cutId,
+      sceneId: context.sceneId,
+      assetId: cut.assetId,
+      message:
+        `Cut ${context.cutId}${context.sceneId ? ` in scene ${context.sceneId}` : ''} had invalid displayTime. ` +
+        `Using canonical duration ${duration.toFixed(3)}s.`,
+    });
   }
 
   const framing = resolveFramingParams(cut, options.framingDefaults);
-  if (options.debugFraming) {
-    console.info(
-      `[export][framing] cut=${context.cutId} mode=${framing.mode} anchor=${framing.anchor} source=${framing.source}`
-    );
-  }
-
   const lipSync = resolveLipSyncExport(cut, options, context);
   return {
     type: cutAsset?.type || 'image',
@@ -158,7 +185,13 @@ function resolveLipSyncExport(
     if (strictLipSync) {
       throw new Error(`[export] ${message}`);
     }
-    console.warn(`[export] ${message}`);
+    emitWarning(options, {
+      code: 'lipsync-export-fallback',
+      cutId: context.cutId,
+      sceneId: context.sceneId,
+      assetId: cut.assetId,
+      message,
+    });
     return null;
   };
 

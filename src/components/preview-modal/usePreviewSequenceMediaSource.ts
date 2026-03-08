@@ -1,6 +1,5 @@
 import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
-import type { Asset, Cut } from '../../types';
 import { getAssetThumbnail } from '../../features/thumbnails/api';
 import type { ExportSequenceItem } from '../../utils/exportSequence';
 import {
@@ -10,16 +9,11 @@ import {
   createVideoMediaSource,
   type MediaSource,
 } from '../../utils/previewMedia';
+import type { PreviewSequencePlaybackItem } from './types';
 
 interface UsePreviewSequenceMediaSourceInput {
   usesSequenceController: boolean;
-  items: Array<{
-    cut: Cut;
-    sceneName: string;
-    cutIndex: number;
-    normalizedDisplayTime: number;
-    thumbnail: string | null;
-  }>;
+  items: PreviewSequencePlaybackItem[];
   currentIndex: number;
   videoObjectUrl: { assetId: string; url: string } | null;
   setSequenceSource: (source: MediaSource | null) => void;
@@ -28,7 +22,6 @@ interface UsePreviewSequenceMediaSourceInput {
   previewSequenceItemByIndex: Map<number, ExportSequenceItem>;
   getSequenceLiveAbsoluteTime: () => number;
   showMiniToast: (message: string, variant?: 'success' | 'info' | 'warning' | 'error') => void;
-  resolveAssetForCut: (cut: Cut | null | undefined) => Asset | null;
   videoRef: React.RefObject<HTMLVideoElement>;
 }
 
@@ -43,7 +36,6 @@ export function usePreviewSequenceMediaSource({
   previewSequenceItemByIndex,
   getSequenceLiveAbsoluteTime,
   showMiniToast,
-  resolveAssetForCut,
   videoRef,
 }: UsePreviewSequenceMediaSourceInput) {
   const [sequenceMediaElement, setSequenceMediaElement] = useState<JSX.Element | null>(null);
@@ -60,8 +52,7 @@ export function usePreviewSequenceMediaSource({
     setSequenceMediaElement(null);
 
     const currentItem = items[currentIndex];
-    const asset = resolveAssetForCut(currentItem?.cut);
-    if (!currentItem || !asset) return;
+    if (!currentItem) return;
 
     const currentSpec = previewSequenceItemByIndex.get(currentIndex);
     if (currentSpec?.lipSync) {
@@ -86,8 +77,8 @@ export function usePreviewSequenceMediaSource({
         const resolvedSources = sources.map((src) => src || baseFallback);
 
         if (!currentSpec.lipSync!.rms?.length) {
-          if (!lipSyncToastShownRef.current.has(asset.id)) {
-            lipSyncToastShownRef.current.add(asset.id);
+          if (!lipSyncToastShownRef.current.has(currentItem.assetId)) {
+            lipSyncToastShownRef.current.add(currentItem.assetId);
             showMiniToast('Lip sync RMS not available', 'warning');
           }
           const fallbackSource = createImageMediaSource({
@@ -129,22 +120,21 @@ export function usePreviewSequenceMediaSource({
       };
     }
 
-    if (asset.type === 'video') {
-      const assetId = asset.id ?? currentItem.cut.assetId ?? null;
-      if (!videoObjectUrl || !assetId || videoObjectUrl.assetId !== assetId) {
+    if (currentItem.assetType === 'video') {
+      if (!videoObjectUrl || videoObjectUrl.assetId !== currentItem.assetId) {
         return;
       }
 
-      if (currentSpec?.holdDurationSec && currentSpec.holdDurationSec > 0) {
-        const holdSourceKey = `${currentItem.cut.id}:${videoObjectUrl.url}:hold:${currentSpec.inPoint ?? 0}:${currentSpec.holdDurationSec}`;
+      if (currentItem.isHold) {
+        const holdSourceKey = `${currentItem.cutId}:${videoObjectUrl.url}:hold:${currentItem.srcInSec}:${currentItem.normalizedDisplayTime}`;
         const holdSource = createVideoHoldMediaSource({
           src: videoObjectUrl.url,
           key: holdSourceKey,
           className: 'preview-media',
           muted: true,
           refObject: videoRef,
-          frameTimeSec: currentSpec.outPoint ?? currentSpec.inPoint ?? 0,
-          duration: currentSpec.duration,
+          frameTimeSec: currentItem.srcOutSec,
+          duration: currentItem.normalizedDisplayTime,
           onTimeUpdate: sequenceTick,
           onEnded: () => sequenceGoToNext(currentIndex),
         });
@@ -153,22 +143,15 @@ export function usePreviewSequenceMediaSource({
         return;
       }
 
-      const clipInPoint = currentItem.cut.isClip && currentItem.cut.inPoint !== undefined
-        ? currentSpec?.inPoint ?? currentItem.cut.inPoint
-        : 0;
-      const clipOutPoint = currentItem.cut.isClip && currentItem.cut.outPoint !== undefined
-        ? currentSpec?.outPoint ?? currentItem.cut.outPoint
-        : undefined;
-
-      const videoSourceKey = `${currentItem.cut.id}:${videoObjectUrl.url}:${clipInPoint}:${clipOutPoint ?? 'end'}`;
+      const videoSourceKey = `${currentItem.cutId}:${videoObjectUrl.url}:${currentItem.srcInSec}:${currentItem.srcOutSec}`;
       const source = createVideoMediaSource({
         src: videoObjectUrl.url,
         key: videoSourceKey,
         className: 'preview-media',
         muted: true,
         refObject: videoRef,
-        inPoint: clipInPoint,
-        outPoint: clipOutPoint,
+        inPoint: currentItem.srcInSec,
+        outPoint: currentItem.srcOutSec,
         onTimeUpdate: sequenceTick,
         onEnded: () => sequenceGoToNext(currentIndex),
       });
@@ -177,7 +160,7 @@ export function usePreviewSequenceMediaSource({
       return;
     }
 
-    if (asset.type === 'image' && currentItem.thumbnail) {
+    if (currentItem.assetType === 'image' && currentItem.thumbnail) {
       const source = createImageMediaSource({
         src: currentItem.thumbnail,
         alt: `${currentItem.sceneName} - Cut ${currentItem.cutIndex + 1}`,
@@ -200,7 +183,6 @@ export function usePreviewSequenceMediaSource({
     previewSequenceItemByIndex,
     getSequenceLiveAbsoluteTime,
     showMiniToast,
-    resolveAssetForCut,
     videoRef,
   ]);
 

@@ -53,7 +53,7 @@ describe('buildSequenceItemsForExport', () => {
   });
 
   it('guards invalid displayTime with fallback and warning', () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const warnings: string[] = [];
     const scenes: Scene[] = [{
       id: 'scene-1',
       name: 'Scene 1',
@@ -69,12 +69,17 @@ describe('buildSequenceItemsForExport', () => {
     const assets = mapAssetsById([imageAsset, videoAsset]);
     const items = buildSequenceItemsForExport(scenes, {
       resolveAssetById: (assetId) => assets.get(assetId),
+      onWarning: (warning) => warnings.push(warning.code),
     });
 
     expect(items).toHaveLength(2);
     expect(items[0].duration).toBe(4.2);
     expect(items[1].duration).toBe(1.0);
-    expect(warnSpy).toHaveBeenCalledTimes(3);
+    expect(warnings).toEqual([
+      'non-canonical-cut-adjusted',
+      'non-canonical-cut-adjusted',
+      'missing-asset',
+    ]);
   });
 
   it('resolves framing with cut > global > fixed priority', () => {
@@ -101,7 +106,7 @@ describe('buildSequenceItemsForExport', () => {
   });
 
   it('builds sequence items from cuts and skips audio cuts', () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const warnings: string[] = [];
     const cuts = [
       { id: 'cut-image', assetId: 'asset-image', asset: imageAsset, order: 0, displayTime: 1.2 },
       {
@@ -121,12 +126,13 @@ describe('buildSequenceItemsForExport', () => {
     const items = buildSequenceItemsForCuts(cuts, {
       framingDefaults: { mode: 'fit', anchor: 'left' },
       resolveAssetById: (assetId) => assets.get(assetId),
+      onWarning: (warning) => warnings.push(warning.code),
     });
 
     expect(items).toHaveLength(1);
     expect(items[0].framingMode).toBe('fit');
     expect(items[0].framingAnchor).toBe('left');
-    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnings).toEqual(['audio-only-cut-skipped']);
   });
 
   it('attaches lipSync payload when metadata and frame assets are available', () => {
@@ -214,7 +220,7 @@ describe('buildSequenceItemsForExport', () => {
   });
 
   it('can opt out of strict lipSync errors', () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const warnings: string[] = [];
     const lipOwner = {
       id: 'asset-lip-owner',
       name: 'lip.png',
@@ -231,11 +237,12 @@ describe('buildSequenceItemsForExport', () => {
     }], {
       strictLipSync: false,
       resolveAssetById: (assetId) => (assetId === lipOwner.id ? lipOwner : undefined),
+      onWarning: (warning) => warnings.push(warning.code),
     });
 
     expect(items).toHaveLength(1);
     expect(items[0].lipSync).toBeUndefined();
-    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnings).toEqual(['lipsync-export-fallback']);
   });
 
   it('keeps timeline order and preserves clip/lipsync/framing in one export build', () => {

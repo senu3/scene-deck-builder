@@ -144,6 +144,7 @@ export default function PreviewModal({
   });
   const {
     previewSequenceItems,
+    previewSequencePlaybackItems,
     previewSequenceItemByCutId,
     previewSequenceItemByIndex,
     previewAudioPlan,
@@ -155,8 +156,10 @@ export default function PreviewModal({
   });
   const sequenceItems = usesSequenceController ? previewSequenceItems : items;
   const sequenceDurations = useMemo(
-    () => sequenceItems.map((item) => item.normalizedDisplayTime),
-    [sequenceItems]
+    () => usesSequenceController
+      ? previewSequencePlaybackItems.map((item) => item.normalizedDisplayTime)
+      : items.map((item) => item.normalizedDisplayTime),
+    [usesSequenceController, previewSequencePlaybackItems, items]
   );
   const sequencePlayback = useSequencePlaybackController(sequenceDurations);
   const {
@@ -346,12 +349,11 @@ export default function PreviewModal({
   const { checkBufferStatus, sequenceMediaElement } = usePreviewSequenceSession({
     isSingleMode,
     usesSequenceController,
-    items: sequenceItems,
+    items: previewSequencePlaybackItems,
     currentIndex,
     sequenceCurrentIndex: sequenceState.currentIndex,
     videoObjectUrl,
     setVideoObjectUrl,
-    resolveAssetForCut,
     setSequenceBuffering,
     sequenceIsPlaying: sequenceState.isPlaying,
     sequenceIsBuffering: sequenceState.isBuffering,

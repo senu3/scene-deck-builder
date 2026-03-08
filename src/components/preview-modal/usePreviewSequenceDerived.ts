@@ -4,7 +4,7 @@ import { EXPORT_FRAMING_DEFAULTS } from '../../constants/framing';
 import { buildSequencePlan } from '../../utils/sequencePlan';
 import { asCanonicalDurationSec } from '../../utils/storyTiming';
 import { buildSequencePlanTargetFromPreviewItems } from './sequencePlanInput';
-import type { PreviewItem } from './types';
+import type { PreviewItem, PreviewSequencePlaybackItem } from './types';
 
 interface UsePreviewSequenceDerivedInput {
   items: PreviewItem[];
@@ -75,6 +75,29 @@ export function usePreviewSequenceDerived({
     });
   }, [previewSequencePlan.videoItems, sourceItemByCutId, items]);
 
+  const previewSequencePlaybackItems = useMemo<PreviewSequencePlaybackItem[]>(() => {
+    return previewSequencePlan.videoItems.map((videoItem, index) => {
+      const sourceItem = sourceItemByCutId.get(videoItem.cutId);
+      const fallback = items[0];
+      const base = sourceItem ?? fallback;
+      const durationSec = Math.max(0, videoItem.dstOutSec - videoItem.dstInSec);
+      return {
+        cutId: videoItem.cutId,
+        assetId: videoItem.assetId,
+        assetType: videoItem.assetType,
+        sourcePath: videoItem.sourcePath,
+        srcInSec: videoItem.srcInSec,
+        srcOutSec: videoItem.srcOutSec,
+        normalizedDisplayTime: asCanonicalDurationSec(durationSec),
+        sceneId: videoItem.sceneId ?? base?.sceneId ?? 'sequence',
+        sceneName: base?.sceneName ?? videoItem.sceneId ?? 'Sequence',
+        cutIndex: base?.cutIndex ?? index,
+        thumbnail: base?.thumbnail ?? null,
+        isHold: !!videoItem.flags.isHold,
+      };
+    });
+  }, [previewSequencePlan.videoItems, sourceItemByCutId, items]);
+
   const previewSequenceItemByCutId = useMemo(
     () => previewSequencePlan.exportItemByCutId,
     [previewSequencePlan]
@@ -89,6 +112,7 @@ export function usePreviewSequenceDerived({
   return {
     previewSequencePlan,
     previewSequenceItems,
+    previewSequencePlaybackItems,
     previewSequenceItemByCutId,
     previewSequenceItemByIndex,
     previewAudioPlan,
