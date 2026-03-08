@@ -10,6 +10,7 @@
 - Must: Gate 5 parity を維持する経路では、`buildExportAudioPlan` へ渡す cut 列を canonical duration（`resolveCanonicalCutDuration` 系）で正規化済みにする。
 - Must: 分離音声は `filter_complex` 1回レンダーで生成する。
 - Must: `useEmbeddedAudio=false` は映像由来音声のみを無効化する。
+- Must: attachAudio は種別に関わらず canonical timeline 上のイベントとして扱う。
 - Must Not: 旧セグメント連結経路（wav concat）を再導入しない。
 - Must Not: Preview/Export で別時間定義を持ち込まない。
 
@@ -33,6 +34,11 @@
 
 ## イベント生成ルール
 - 定義実装: `src/utils/exportAudioPlan.ts`。
+- AttachAudio 共通:
+  - `cut-attach` / `scene-attach` / `group-attach` は canonical timeline 上へ配置する。
+  - `useEmbeddedAudio=false` は attachAudio を無効化しない。
+  - `VIDEO_HOLD` が canonical timeline を延ばす場合、attachAudio もその延長を含む event 尺で継続する。
+  - `VIDEO_HOLD` は embedded video audio の再生有無にのみ影響し、attachAudio を無音化しない。
 - VideoAudioEvent:
   - `resolveCutAsset(cut, getAssetById)?.type === 'video'` かつ `cut.useEmbeddedAudio !== false` のときのみ生成。
   - `sourceStartSec` は clip の `inPoint`（なければ 0）。
@@ -57,12 +63,6 @@
   - `adelay=<dstMs>:all=1`
 - 最後に `[base][a0]...[aN]amix=inputs=<N+1>:normalize=0` を適用。
 - 入力に音声ストリームが無い場合は、そのイベントをスキップする（個別無音イベントは作らない）。
-
-## 変更時チェック
-1. `useEmbeddedAudio=false` の video cut で映像音声が混ざらないこと。
-2. attachAudio（cut/scene/group）は `useEmbeddedAudio` に関係なく混ざること。
-3. 分離音声の総尺が export 対象の totalDuration と一致すること。
-4. 旧 `wav` セグメント連結経路を再導入しないこと。
 
 ## Canonical Guard
 - `buildExportAudioPlan` の入口は canonical cut（`ExportAudioPlanCut`）を前提とする。
