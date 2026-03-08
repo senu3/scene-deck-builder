@@ -75,8 +75,6 @@ function normalizePersistedHold(hold: unknown): CutRuntimeHold | undefined {
     enabled: true,
     mode: 'tail',
     durationMs: Math.round(durationMs),
-    muteAudio: candidate.muteAudio !== false,
-    composeWithClip: candidate.composeWithClip !== false,
   };
 }
 

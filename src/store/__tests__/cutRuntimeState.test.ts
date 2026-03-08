@@ -56,19 +56,16 @@ describe('cut runtime state', () => {
       enabled: true,
       mode: 'tail',
       durationMs: 1200,
-      muteAudio: true,
-      composeWithClip: true,
     });
 
     expect(useStore.getState().getCutRuntime(cutId)?.hold).toEqual({
       enabled: true,
       mode: 'tail',
       durationMs: 1200,
-      muteAudio: true,
-      composeWithClip: true,
     });
 
     useStore.getState().clearCutRuntimeHold(cutId);
     expect(useStore.getState().getCutRuntime(cutId)).toBeUndefined();
   });
+
 });

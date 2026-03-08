@@ -554,8 +554,6 @@ export default function PreviewModal({
       enabled: true,
       mode: 'tail',
       durationMs: Math.round(seconds * 1000),
-      muteAudio: true,
-      composeWithClip: true,
     });
     setShowHoldModal(false);
     showMiniToast(`VIDEO Hold enabled (${seconds.toFixed(2)}s)`, 'success');

@@ -362,7 +362,7 @@ function buildSequencePlanFromCuts(input: BuildSequencePlanFromCutsInput): Seque
       rate: 1,
       flags: {
         isClip: !!cut.isClip,
-        isMuted: !!hold?.muteAudio,
+        isMuted: true,
         isHold: true,
       },
       internalAssetKind: resolveInternalAssetKind?.(asset.id || cut.assetId, cut),
@@ -379,7 +379,7 @@ function buildSequencePlanFromCuts(input: BuildSequencePlanFromCutsInput): Seque
         flags: {
           ...exportItem.flags,
           isClip: !!cut.isClip,
-          isMuted: !!hold?.muteAudio,
+          isMuted: true,
           isHold: true,
         },
       });

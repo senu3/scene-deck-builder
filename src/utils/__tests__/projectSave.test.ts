@@ -44,8 +44,6 @@ describe('projectSave', () => {
             enabled: true,
             mode: 'tail',
             durationMs: 1200,
-            muteAudio: true,
-            composeWithClip: true,
           },
         },
       },
@@ -63,8 +61,6 @@ describe('projectSave', () => {
           enabled: true,
           mode: 'tail',
           durationMs: 1200,
-          muteAudio: true,
-          composeWithClip: true,
         },
       },
     });
@@ -139,8 +135,6 @@ describe('projectSave', () => {
           enabled: true,
           mode: 'tail',
           durationMs: 1000,
-          muteAudio: true,
-          composeWithClip: true,
         },
       },
     }, scenes);
@@ -166,8 +160,6 @@ describe('projectSave', () => {
           enabled: true,
           mode: 'tail',
           durationMs: 1500.4,
-          muteAudio: true,
-          composeWithClip: true,
         },
       },
       'cut-x': {
@@ -175,8 +167,6 @@ describe('projectSave', () => {
           enabled: true,
           mode: 'tail',
           durationMs: 2000,
-          muteAudio: true,
-          composeWithClip: true,
         },
       },
       'cut-1-bad': {
@@ -184,8 +174,6 @@ describe('projectSave', () => {
           enabled: false,
           mode: 'tail',
           durationMs: 1000,
-          muteAudio: true,
-          composeWithClip: true,
         },
       },
     }, scenes);
@@ -196,8 +184,48 @@ describe('projectSave', () => {
           enabled: true,
           mode: 'tail',
           durationMs: 1500,
-          muteAudio: true,
-          composeWithClip: true,
+        },
+      },
+    });
+  });
+
+  it('round-trips persisted hold runtime through save payload JSON', () => {
+    const scenes: Scene[] = [{
+      id: 'scene-1',
+      name: 'Scene 1',
+      order: 0,
+      notes: [],
+      cuts: [{
+        id: 'cut-1',
+        order: 0,
+        assetId: 'asset-1',
+        displayTime: 2,
+      }],
+    }];
+    const payload = buildProjectSavePayload({
+      ...base,
+      scenes,
+      sceneOrder: ['scene-1'],
+      cutRuntimeById: {
+        'cut-1': {
+          hold: {
+            enabled: true,
+            mode: 'tail',
+            durationMs: 1100,
+          },
+        },
+      },
+    });
+    const serialized = serializeProjectSavePayload(payload);
+    const parsed = JSON.parse(serialized);
+    const normalized = normalizePersistedCutRuntimeById(parsed.cutRuntimeById, scenes);
+
+    expect(normalized).toEqual({
+      'cut-1': {
+        hold: {
+          enabled: true,
+          mode: 'tail',
+          durationMs: 1100,
         },
       },
     });

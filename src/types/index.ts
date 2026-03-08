@@ -110,8 +110,6 @@ export interface CutRuntimeHold {
   enabled: boolean;
   mode: 'tail';
   durationMs: number;
-  muteAudio: boolean;
-  composeWithClip: boolean;
 }
 
 export type FramingMode = 'cover' | 'fit';

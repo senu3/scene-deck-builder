@@ -63,8 +63,6 @@ describe('autosave selector', () => {
             enabled: true,
             mode: 'tail',
             durationMs: 1200,
-            muteAudio: true,
-            composeWithClip: true,
           },
         },
       },

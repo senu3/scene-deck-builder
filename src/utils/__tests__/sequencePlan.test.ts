@@ -187,8 +187,6 @@ describe('buildSequencePlan', () => {
           enabled: true,
           mode: 'tail',
           durationMs: 1200,
-          muteAudio: true,
-          composeWithClip: true,
         },
       }),
     });
@@ -279,8 +277,6 @@ describe('buildSequencePlan', () => {
             enabled: true,
             mode: 'tail',
             durationMs: 1000,
-            muteAudio: true,
-            composeWithClip: true,
           },
         };
       },
