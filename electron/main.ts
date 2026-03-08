@@ -2076,6 +2076,12 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
     width,
     height,
     itemCount: Array.isArray(items) ? items.length : 0,
+    holdItemCount: Array.isArray(items)
+      ? items.filter((item) =>
+        (Number.isFinite(item.holdDurationSec) && (item.holdDurationSec as number) > 0)
+        || item.flags?.isHold
+      ).length
+      : 0,
     hasAudioPlan: Boolean(options.audioPlan),
     audioEventCount: options.audioPlan?.events?.length ?? 0,
   });
@@ -2169,8 +2175,9 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
           const holdSampleEpsilonSec = Math.max(0.001, Math.min(1 / Math.max(1, fps), 0.033));
           const rawHoldSampleTimeSec = item.outPoint ?? inPoint;
           const holdSampleTimeSec = Math.max(inPoint, rawHoldSampleTimeSec - holdSampleEpsilonSec);
-          const holdFilter = `${filter},trim=duration=${formatFilterNumber(holdSampleEpsilonSec)},setpts=PTS-STARTPTS,` +
-            `tpad=stop_mode=clone:stop_duration=${formatFilterNumber(Math.max(0, holdDuration - holdSampleEpsilonSec))}`;
+          // Keep exactly the first decoded frame and clone it for the hold duration.
+          const holdFilter = `${filter},trim=end_frame=1,setpts=PTS-STARTPTS,` +
+            `tpad=stop_mode=clone:stop_duration=${formatFilterNumber(holdDuration)}`;
           const holdArgs = [
             '-y',
             '-ss', holdSampleTimeSec.toString(),
