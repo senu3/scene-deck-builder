@@ -3,6 +3,7 @@ import type { Asset, CutRuntimeState, MetadataStore } from '../../types';
 import { EXPORT_FRAMING_DEFAULTS } from '../../constants/framing';
 import { buildSequencePlan } from '../../utils/sequencePlan';
 import { asCanonicalDurationSec } from '../../utils/storyTiming';
+import { buildSequencePlanTargetFromPreviewItems } from './sequencePlanInput';
 import type { PreviewItem } from './types';
 
 interface UsePreviewSequenceDerivedInput {
@@ -19,23 +20,11 @@ export function usePreviewSequenceDerived({
   getCutRuntime,
 }: UsePreviewSequenceDerivedInput) {
   const previewSequencePlan = useMemo(() => {
-    const planCuts = items.map((item) => ({
-      ...item.cut,
-      displayTime: item.normalizedDisplayTime,
-    }));
-    const cutSceneMap = new Map<string, string>();
-    for (const item of items) {
-      cutSceneMap.set(item.cut.id, item.sceneId);
-    }
     return buildSequencePlan({
       scenes: [],
       sceneOrder: [],
     }, {
-      target: {
-        kind: 'cuts',
-        cuts: planCuts,
-        resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
-      },
+      target: buildSequencePlanTargetFromPreviewItems(items),
       metadataStore,
       getAssetById: getAsset,
       resolveCutRuntimeById: getCutRuntime,

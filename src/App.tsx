@@ -719,12 +719,6 @@ function App() {
 
     if (plan.format !== 'mp4') return;
 
-    const cutSceneMap = new Map<string, string>();
-    for (const scene of orderedScenes) {
-      for (const sceneCut of scene.cuts) {
-        cutSceneMap.set(sceneCut.id, scene.id);
-      }
-    }
     const sequencePlan = buildSequencePlan({
       scenes,
       sceneOrder,
@@ -732,7 +726,6 @@ function App() {
       target: {
         kind: 'cuts',
         cuts,
-        resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
       },
       metadataStore: metadataStore ?? null,
       getAssetById: getAsset,
@@ -801,12 +794,6 @@ function App() {
         return;
       }
 
-      const cutSceneMap = new Map<string, string>();
-      for (const scene of orderedScenes) {
-        for (const sceneCut of scene.cuts) {
-          cutSceneMap.set(sceneCut.id, scene.id);
-        }
-      }
       const sequencePlan = buildSequencePlan({
         scenes,
         sceneOrder,
@@ -814,7 +801,6 @@ function App() {
         target: {
           kind: 'cuts',
           cuts: orderedCuts,
-          resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
         },
         metadataStore: metadataStore ?? null,
         getAssetById: getAsset,

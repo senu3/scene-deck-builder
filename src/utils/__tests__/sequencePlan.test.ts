@@ -162,6 +162,56 @@ describe('buildSequencePlan', () => {
     expect(overridePlan.videoItems[0]?.sceneId).toBe('scene-override');
   });
 
+  it('infers scene ids for cuts target from project when resolver is omitted', () => {
+    const cutsScene1: Cut[] = [
+      cut({
+        id: 'cut-scene-1',
+        assetId: 'video-1',
+        displayTime: 1.5,
+        order: 0,
+      }),
+    ];
+    const assets = new Map<string, Asset>([
+      ['video-1', VIDEO_ASSET],
+      ['audio-1', AUDIO_ASSET],
+    ]);
+    const project = {
+      scenes: [
+        { id: 'scene-1', name: 'Scene 1', cuts: cutsScene1, notes: [] },
+      ],
+      sceneOrder: ['scene-1'],
+    };
+
+    const plan = buildSequencePlan(project, {
+      target: {
+        kind: 'cuts',
+        cuts: cutsScene1,
+      },
+      metadataStore: {
+        version: 1,
+        metadata: {},
+        sceneMetadata: {
+          'scene-1': {
+            id: 'scene-1',
+            name: 'Scene 1',
+            notes: [],
+            updatedAt: 't',
+            attachAudio: {
+              id: 'scene-audio-1',
+              audioAssetId: 'audio-1',
+              enabled: true,
+              kind: 'scene',
+            },
+          },
+        },
+      },
+      getAssetById: (assetId) => assets.get(assetId),
+    });
+
+    expect(plan.videoItems[0]?.sceneId).toBe('scene-1');
+    expect(plan.audioPlan.events.some((event) => event.sourceType === 'scene-attach' && event.sceneId === 'scene-1')).toBe(true);
+  });
+
   it('appends tail hold video/export items from runtime hold settings', () => {
     const cuts: Cut[] = [
       cut({

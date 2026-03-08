@@ -173,14 +173,21 @@ function resolveCutsForPlan(
   cuts: Cut[];
   resolveSceneIdByCutId?: (cutId: string) => string | undefined;
 } {
+  const orderedScenes: Scene[] = getScenesAndCutsInTimelineOrder(project.scenes, project.sceneOrder);
+  const projectCutSceneMap = new Map<string, string>();
+  for (const scene of orderedScenes) {
+    for (const cut of scene.cuts) {
+      projectCutSceneMap.set(cut.id, scene.id);
+    }
+  }
+
   if (target?.kind === 'cuts') {
     return {
       cuts: target.cuts,
-      resolveSceneIdByCutId: target.resolveSceneIdByCutId,
+      resolveSceneIdByCutId: target.resolveSceneIdByCutId ?? ((cutId: string) => projectCutSceneMap.get(cutId)),
     };
   }
 
-  const orderedScenes: Scene[] = getScenesAndCutsInTimelineOrder(project.scenes, project.sceneOrder);
   if (target?.kind === 'scene') {
     const targetScene = orderedScenes.find((scene) => scene.id === target.sceneId);
     if (!targetScene) {

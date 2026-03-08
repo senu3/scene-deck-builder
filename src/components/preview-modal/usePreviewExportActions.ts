@@ -4,6 +4,7 @@ import { formatTime } from '../../utils/timeUtils';
 import { DEFAULT_EXPORT_RESOLUTION } from '../../constants/export';
 import { EXPORT_FRAMING_DEFAULTS } from '../../constants/framing';
 import { buildSequencePlan, type SequencePlan } from '../../utils/sequencePlan';
+import { buildSequencePlanTargetFromPreviewItems } from './sequencePlanInput';
 import type { PreviewItem, ResolutionPreset } from './types';
 
 interface UsePreviewExportActionsInput {
@@ -42,23 +43,11 @@ export function usePreviewExportActions({
     try {
       const exportWidth = selectedResolution.width > 0 ? selectedResolution.width : DEFAULT_EXPORT_RESOLUTION.width;
       const exportHeight = selectedResolution.height > 0 ? selectedResolution.height : DEFAULT_EXPORT_RESOLUTION.height;
-      const planCuts = items.map((item) => ({
-        ...item.cut,
-        displayTime: item.normalizedDisplayTime,
-      }));
-      const cutSceneMap = new Map<string, string>();
-      for (const item of items) {
-        cutSceneMap.set(item.cut.id, item.sceneId);
-      }
       const sequencePlan = buildSequencePlan({
         scenes: [],
         sceneOrder: [],
       }, {
-        target: {
-          kind: 'cuts',
-          cuts: planCuts,
-          resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
-        },
+        target: buildSequencePlanTargetFromPreviewItems(items),
         metadataStore: metadataStore ?? null,
         getAssetById: getAsset,
         resolveCutRuntimeById: getCutRuntime,
@@ -163,19 +152,11 @@ export function usePreviewExportActions({
         }
       }
 
-      const cutSceneMap = new Map<string, string>();
-      for (const item of items) {
-        cutSceneMap.set(item.cut.id, item.sceneId);
-      }
       const sequencePlan = buildSequencePlan({
         scenes: [],
         sceneOrder: [],
       }, {
-        target: {
-          kind: 'cuts',
-          cuts: rangeCuts,
-          resolveSceneIdByCutId: (cutId) => cutSceneMap.get(cutId),
-        },
+        target: buildSequencePlanTargetFromPreviewItems(items, rangeCuts),
         metadataStore: metadataStore ?? null,
         getAssetById: getAsset,
         resolveCutRuntimeById: getCutRuntime,
