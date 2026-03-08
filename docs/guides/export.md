@@ -24,6 +24,7 @@
 - Must: Export consumer は `buildSequencePlan(project, opts)` を公開入口として使う。
 - Must: `displayTime` は export前に有限正数へ正規化する。
 - Must: Export の正規化は出力整形に限定する。
+- Must: SequencePlan consumer は warning を戻り値として扱い、implicit console logging に依存しない。
 - Must Not: `scenes` 配列順を Scene index 算出の根拠にしない。
 - Must Not: AudioPlan を時間源として扱わない。
 - Must Not: Export consumer が `buildSequenceItemsForCuts` / `buildSequenceItemsForExport` を直接公開入口として増やさない。
@@ -44,6 +45,7 @@
 - AudioPlan は canonical cut 列に整合する時間軸で生成し、時間源にはしない。
 - SequencePlan 入口は `buildSequencePlan(project, opts)` を使用し、Export 側で独自の入口を増やさない。
 - `buildSequenceItemsForCuts` / `buildSequenceItemsForExport` は lower-level helper であり、主要 consumer は `SequencePlan.exportItems` を渡す。
+- export helper の warning は構造化して上位へ返し、consumer 側で UI / telemetry / test に利用する。
 
 ## 出力ルール
 - MP4 系出力では sidecar（manifest/timeline）整合を維持する。

@@ -67,7 +67,8 @@
 ## Canonical API 方針（Gate 3/4/5）
 - Gate 4（`displayTime` 正規化）の正本入口は `resolveCanonicalCutDuration` に固定する。
 - Gate 3（開始秒・合計尺計算）の正本入口は `computeCanonicalStoryTimingsForCuts` に固定する。
-- Gate 5（export sequence item 生成）の正本入口は `buildSequenceItemsForCuts` に固定する。
+- Gate 5（Preview/Export 共通 sequence assembly）の公開正本入口は `buildSequencePlan` に固定する。
+- `buildSequenceItemsForCuts` は Gate 5 の lower-level export helper として扱い、主要 consumer の公開入口にしない。
 - `resolveNormalizedCutDisplayTime` / `computeStoryTimingsForCuts` は lower-level helper として扱い、公開正本APIとして運用しない。
 
 ## 監査対象外（手動レビュー必須）

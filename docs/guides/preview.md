@@ -51,6 +51,9 @@
   - 更新入力は playhead、基準は canonical timing。
   - clamp/normalize/swap/reject は `clipRangeOps` の純関数に集約し、`PreviewModal.tsx` に戻さない。
   - clip 保存/clear 後のサムネイル更新は command 外の非同期 queue（`features/cut`）で追随させる。
+- Sequence Playback Spec:
+  - Sequence 再生時の clip/hold/media source 判定は `buildSequencePlan` 由来の playback spec を使う。
+  - `PreviewItem.cut` は表示文脈や command 入力の参照に留め、Sequence media source の時間 spec に使わない。
 - 表示（View）:
   - UI playhead time の丸め/fps/表示単位は View 側の純関数で完結し、controller/domain に混ぜない。
 ## Export連携

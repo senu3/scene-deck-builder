@@ -20,6 +20,7 @@
 - Must: `VIDEO_HOLD` は cut 末尾に追加される延長として扱う。
 - Must: Preview / Export は同じ variant 解釈を共有する。
 - Must: embedded video audio は hold 区間で再生しない。
+- Must: Sequence Preview の clip / hold 再生 spec は SequencePlan 由来の値を正本とする。
 - Must Not: Hold を派生 mp4 生成で実装しない。
 - Must Not: Preview / Export で variant ごとに別時間定義を持たない。
 - Must Not: store / UI で variant ごとの ad-hoc 時間補正を持ち込まない。
