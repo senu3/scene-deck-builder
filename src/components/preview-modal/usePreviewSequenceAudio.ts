@@ -5,7 +5,7 @@ import { AudioManager } from '../../utils/audioUtils';
 interface UsePreviewSequenceAudioInput {
   isSingleMode: boolean;
   itemsLength: number;
-  getAbsoluteTime: () => number;
+  absoluteTime: number;
   isPlaying: boolean;
   isBuffering: boolean;
   previewAudioPlan: ExportAudioPlan;
@@ -29,7 +29,7 @@ function buildSequenceAudioEventKey(event: ExportAudioEvent, index: number) {
 export function usePreviewSequenceAudio({
   isSingleMode,
   itemsLength,
-  getAbsoluteTime,
+  absoluteTime,
   isPlaying,
   isBuffering,
   previewAudioPlan,
@@ -63,20 +63,20 @@ export function usePreviewSequenceAudio({
       return;
     }
 
-    const absoluteTime = Math.max(0, getAbsoluteTime());
+    const clampedAbsoluteTime = Math.max(0, absoluteTime);
     const shouldPlay = isPlaying && !isBuffering;
     const activeEntries = previewAudioPlan.events
       .map((event, index) => ({ event, key: buildSequenceAudioEventKey(event, index) }))
       .filter(({ event }) => {
         const start = event.timelineStartSec;
         const end = event.timelineStartSec + event.durationSec;
-        return absoluteTime >= start && absoluteTime < end;
+        return clampedAbsoluteTime >= start && clampedAbsoluteTime < end;
       });
     const activeKeys = new Set(activeEntries.map((entry) => entry.key));
 
     for (const [key, manager] of sequenceAudioManagersRef.current.entries()) {
       if (activeKeys.has(key)) continue;
-      manager.pause();
+      manager.stop();
       manager.unload();
       manager.dispose();
       sequenceAudioManagersRef.current.delete(key);
@@ -98,7 +98,7 @@ export function usePreviewSequenceAudio({
       const mixedVolume = Math.max(0, Math.min(1, (globalMuted ? 0 : globalVolume) * gain));
       manager.setVolume(mixedVolume);
       const sourceOffsetSec = Number.isFinite(event.sourceOffsetSec) ? (event.sourceOffsetSec as number) : 0;
-      const playPosition = Math.max(0, absoluteTime - event.timelineStartSec + sourceOffsetSec);
+      const playPosition = Math.max(0, clampedAbsoluteTime - event.timelineStartSec + sourceOffsetSec);
 
       if (!manager.isLoaded()) {
         const startLoadId = manager.getLoadId() + 1;
@@ -132,7 +132,7 @@ export function usePreviewSequenceAudio({
   }, [
     isSingleMode,
     itemsLength,
-    getAbsoluteTime,
+    absoluteTime,
     isPlaying,
     isBuffering,
     previewAudioPlan,

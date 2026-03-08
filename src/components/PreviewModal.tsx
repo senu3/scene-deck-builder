@@ -179,6 +179,7 @@ export default function PreviewModal({
 
   const currentIndex = usesSequenceController ? sequenceState.currentIndex : 0;
   const isBuffering = usesSequenceController ? sequenceState.isBuffering : false;
+  const sequenceAbsoluteTime = usesSequenceController ? sequenceSelectors.getAbsoluteTime() : 0;
 
   const modalRef = useRef<HTMLDivElement>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
@@ -365,7 +366,7 @@ export default function PreviewModal({
     getSequenceLiveAbsoluteTime,
     showMiniToast,
     videoRef,
-    getSequenceAbsoluteTime: sequenceSelectors.getAbsoluteTime,
+    sequenceAbsoluteTime,
     previewAudioPlan,
     globalMuted,
     globalVolume,

@@ -31,7 +31,7 @@ interface UsePreviewSequenceSessionInput {
   getSequenceLiveAbsoluteTime: () => number;
   showMiniToast: (message: string, variant?: 'success' | 'info' | 'warning' | 'error') => void;
   videoRef: React.RefObject<HTMLVideoElement>;
-  getSequenceAbsoluteTime: () => number;
+  sequenceAbsoluteTime: number;
   previewAudioPlan: ExportAudioPlan;
   globalMuted: boolean;
   globalVolume: number;
@@ -60,7 +60,7 @@ export function usePreviewSequenceSession({
   getSequenceLiveAbsoluteTime,
   showMiniToast,
   videoRef,
-  getSequenceAbsoluteTime,
+  sequenceAbsoluteTime,
   previewAudioPlan,
   globalMuted,
   globalVolume,
@@ -99,7 +99,7 @@ export function usePreviewSequenceSession({
   usePreviewSequenceAudio({
     isSingleMode,
     itemsLength: items.length,
-    getAbsoluteTime: getSequenceAbsoluteTime,
+    absoluteTime: sequenceAbsoluteTime,
     isPlaying: sequenceIsPlaying,
     isBuffering: sequenceIsBuffering,
     previewAudioPlan,
