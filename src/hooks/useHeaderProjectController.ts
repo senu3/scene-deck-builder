@@ -8,6 +8,8 @@ import { createAutosaveController, subscribeProjectChanges } from '../utils/auto
 import { collectAssetRefs, findDanglingAssetRefs } from '../utils/assetRefs';
 import {
   buildProjectSavePayload,
+  type PersistedCutRuntimeById,
+  normalizePersistedCutRuntimeById,
   serializeProjectSavePayload,
   prepareScenesForSave,
   getOrderedAssetIdsFromScenes,
@@ -32,6 +34,7 @@ interface PendingProject {
   scenes: Scene[];
   sceneOrder?: string[];
   targetTotalDurationSec?: number;
+  cutRuntimeById?: PersistedCutRuntimeById;
   sourcePanelState?: SourcePanelState;
   projectPath: string;
   shouldResaveVersion?: boolean;
@@ -47,6 +50,7 @@ export function useHeaderProjectController() {
     clearProject,
     projectName,
     targetTotalDurationSec,
+    cutRuntimeById,
     metadataStore,
     setProjectLoaded,
     setProjectPath,
@@ -55,6 +59,7 @@ export function useHeaderProjectController() {
     initializeSourcePanel,
     loadMetadata,
     loadProject,
+    setCutRuntimeHold,
     createStoreEventOperation,
     runWithStoreEventContext,
     emitCutRelinked,
@@ -141,6 +146,7 @@ export function useHeaderProjectController() {
       vaultPath,
       scenes: scenesToSave,
       sceneOrder: normalizedSceneOrder,
+      cutRuntimeById,
       targetTotalDurationSec,
       sourcePanel: sourcePanelState,
       savedAt: new Date().toISOString(),
@@ -170,7 +176,7 @@ export function useHeaderProjectController() {
         await window.electronAPI.saveRecentProjects([newRecent, ...filtered.slice(0, 9)]);
       }
     }
-  }, [dialogAlert, getAsset, getSourcePanelState, loadProject, metadataStore, projectName, sceneOrder, scenes, setProjectPath, targetTotalDurationSec, toast, vaultPath]);
+  }, [cutRuntimeById, dialogAlert, getAsset, getSourcePanelState, loadProject, metadataStore, projectName, sceneOrder, scenes, setProjectPath, targetTotalDurationSec, toast, vaultPath]);
 
   const handleSaveProject = useCallback(async () => {
     await saveProjectInternal();
@@ -198,6 +204,13 @@ export function useHeaderProjectController() {
       sceneOrder: project.sceneOrder,
       targetTotalDurationSec: project.targetTotalDurationSec,
     });
+    if (project.cutRuntimeById) {
+      for (const [cutId, runtime] of Object.entries(project.cutRuntimeById)) {
+        if (runtime?.hold) {
+          setCutRuntimeHold(cutId, runtime.hold);
+        }
+      }
+    }
     setProjectPath(project.projectPath);
 
     // Load metadata store (audio attachments, etc.)
@@ -245,6 +258,7 @@ export function useHeaderProjectController() {
           vaultPath: project.vaultPath,
           scenes: scenesToSave,
           sceneOrder: normalizedSceneOrder,
+          cutRuntimeById: project.cutRuntimeById,
           targetTotalDurationSec: project.targetTotalDurationSec,
           sourcePanel: project.sourcePanelState,
           savedAt: new Date().toISOString(),
@@ -266,6 +280,7 @@ export function useHeaderProjectController() {
     initializeSourcePanel,
     loadMetadata,
     runWithStoreEventContext,
+    setCutRuntimeHold,
     setProjectPath,
   ]);
 
@@ -300,6 +315,7 @@ export function useHeaderProjectController() {
         sceneOrder?: string[];
         version?: number;
         targetTotalDurationSec?: number;
+        cutRuntimeById?: unknown;
         sourcePanel?: SourcePanelState;
       };
 
@@ -319,6 +335,7 @@ export function useHeaderProjectController() {
         loadedScenes = resolved.scenes;
         foundMissingAssets = resolved.missingAssets;
       }
+      const loadedCutRuntimeById = normalizePersistedCutRuntimeById(projectData.cutRuntimeById, loadedScenes);
 
       // If there are missing assets, show recovery dialog
       if (foundMissingAssets.length > 0) {
@@ -329,6 +346,7 @@ export function useHeaderProjectController() {
           scenes: loadedScenes,
           sceneOrder: projectData.sceneOrder,
           targetTotalDurationSec: projectData.targetTotalDurationSec,
+          cutRuntimeById: loadedCutRuntimeById,
           sourcePanelState: projectData.sourcePanel,
           projectPath: path,
           shouldResaveVersion: normalizedVersion.wasMissing,
@@ -344,6 +362,7 @@ export function useHeaderProjectController() {
         scenes: loadedScenes,
         sceneOrder: projectData.sceneOrder,
         targetTotalDurationSec: projectData.targetTotalDurationSec,
+        cutRuntimeById: loadedCutRuntimeById,
         sourcePanelState: projectData.sourcePanel,
         projectPath: path,
         shouldResaveVersion: normalizedVersion.wasMissing,

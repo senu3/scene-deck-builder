@@ -1,8 +1,14 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { Asset, AssetUsageRef, Scene, SourcePanelState } from '../types';
+import type { Asset, AssetUsageRef, CutRuntimeHold, CutRuntimeState, Scene, SourcePanelState } from '../types';
 import { getScenesAndCutsInTimelineOrder } from './timelineOrder';
 import { normalizeSceneOrder } from './sceneOrder';
 import { resolveCutAssetFromAssetId, resolveCutAssetId } from './assetResolve';
+
+export interface PersistedCutRuntimeEntry {
+  hold: CutRuntimeHold;
+}
+
+export type PersistedCutRuntimeById = Record<string, PersistedCutRuntimeEntry>;
 
 export interface ProjectSavePayload {
   version: number;
@@ -10,6 +16,7 @@ export interface ProjectSavePayload {
   vaultPath: string | null;
   scenes: Scene[];
   sceneOrder: string[];
+  cutRuntimeById?: PersistedCutRuntimeById;
   targetTotalDurationSec?: number;
   sourcePanel: SourcePanelState | undefined;
   savedAt: string;
@@ -21,6 +28,7 @@ export function buildProjectSavePayload(input: {
   vaultPath: string | null;
   scenes: Scene[];
   sceneOrder?: string[];
+  cutRuntimeById?: Record<string, CutRuntimeState>;
   targetTotalDurationSec?: number;
   sourcePanel: SourcePanelState | undefined;
   savedAt: string;
@@ -35,6 +43,10 @@ export function buildProjectSavePayload(input: {
     sourcePanel: input.sourcePanel,
     savedAt: input.savedAt,
   };
+  const persistedCutRuntimeById = collectPersistedCutRuntimeById(input.cutRuntimeById, input.scenes);
+  if (Object.keys(persistedCutRuntimeById).length > 0) {
+    payload.cutRuntimeById = persistedCutRuntimeById;
+  }
 
   if (Number.isFinite(input.targetTotalDurationSec) && (input.targetTotalDurationSec as number) > 0) {
     payload.targetTotalDurationSec = Math.floor(input.targetTotalDurationSec as number);
@@ -45,6 +57,71 @@ export function buildProjectSavePayload(input: {
 
 export function serializeProjectSavePayload(payload: ProjectSavePayload): string {
   return JSON.stringify(payload);
+}
+
+function normalizePersistedHold(hold: unknown): CutRuntimeHold | undefined {
+  if (!hold || typeof hold !== 'object') return undefined;
+  const candidate = hold as Partial<CutRuntimeHold>;
+  const durationMs = Number(candidate.durationMs);
+  if (
+    candidate.enabled !== true
+    || candidate.mode !== 'tail'
+    || !Number.isFinite(durationMs)
+    || durationMs <= 0
+  ) {
+    return undefined;
+  }
+  return {
+    enabled: true,
+    mode: 'tail',
+    durationMs: Math.round(durationMs),
+    muteAudio: candidate.muteAudio !== false,
+    composeWithClip: candidate.composeWithClip !== false,
+  };
+}
+
+function collectSceneCutIds(scenes: Scene[]): Set<string> {
+  const cutIds = new Set<string>();
+  for (const scene of scenes) {
+    for (const cut of scene.cuts) {
+      if (cut.id) cutIds.add(cut.id);
+    }
+  }
+  return cutIds;
+}
+
+export function collectPersistedCutRuntimeById(
+  cutRuntimeById: Record<string, CutRuntimeState> | undefined,
+  scenes: Scene[]
+): PersistedCutRuntimeById {
+  if (!cutRuntimeById) return {};
+  const sceneCutIds = collectSceneCutIds(scenes);
+  const persisted: PersistedCutRuntimeById = {};
+  for (const [cutId, runtime] of Object.entries(cutRuntimeById)) {
+    if (!sceneCutIds.has(cutId)) continue;
+    const hold = normalizePersistedHold(runtime?.hold);
+    if (!hold) continue;
+    persisted[cutId] = { hold };
+  }
+  return persisted;
+}
+
+export function normalizePersistedCutRuntimeById(
+  raw: unknown,
+  scenes: Scene[]
+): PersistedCutRuntimeById {
+  if (!raw || typeof raw !== 'object') return {};
+  const record = raw as Record<string, unknown>;
+  const sceneCutIds = collectSceneCutIds(scenes);
+  const normalized: PersistedCutRuntimeById = {};
+  for (const [cutId, runtime] of Object.entries(record)) {
+    if (!sceneCutIds.has(cutId)) continue;
+    if (!runtime || typeof runtime !== 'object') continue;
+    const hold = normalizePersistedHold((runtime as { hold?: unknown }).hold);
+    if (!hold) continue;
+    normalized[cutId] = { hold };
+  }
+  return normalized;
 }
 
 // Convert assets to use relative paths for saving
