@@ -92,7 +92,6 @@ export interface BuildSequencePlanOptions {
   strictLipSync?: boolean;
   resolveInternalAssetKind?: (assetId: string, cut: Cut) => string | undefined;
   resolveCutRuntimeById?: (cutId: string) => CutRuntimeState | undefined;
-  onWarning?: (warning: SequencePlanWarning) => void;
 }
 
 interface BuildSequencePlanFromCutsInput {
@@ -105,7 +104,6 @@ interface BuildSequencePlanFromCutsInput {
   strictLipSync?: boolean;
   resolveInternalAssetKind?: (assetId: string, cut: Cut) => string | undefined;
   resolveCutRuntimeById?: (cutId: string) => CutRuntimeState | undefined;
-  onWarning?: (warning: SequencePlanWarning) => void;
 }
 
 const DEFAULT_HOLD_FPS = 30;
@@ -233,14 +231,12 @@ function buildSequencePlanFromCuts(input: BuildSequencePlanFromCutsInput): Seque
     strictLipSync = false,
     resolveInternalAssetKind,
     resolveCutRuntimeById,
-    onWarning,
   } = input;
 
   const canonicalized = canonicalizeCutsForExportAudioPlan(cuts, getAssetById);
   const warnings: SequencePlanWarning[] = [];
   const pushWarning = (warning: SequencePlanWarning) => {
     warnings.push(warning);
-    onWarning?.(warning);
   };
 
   for (const cutId of canonicalized.adjustedCutIds) {
@@ -486,6 +482,5 @@ export function buildSequencePlan(
     strictLipSync: options.strictLipSync,
     resolveInternalAssetKind: options.resolveInternalAssetKind,
     resolveCutRuntimeById: options.resolveCutRuntimeById,
-    onWarning: options.onWarning,
   });
 }

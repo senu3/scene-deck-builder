@@ -15,6 +15,7 @@ Accepted (2026-02-17)
 - `buildSequenceItemsForCuts` は export sequence item 生成の lower-level helper として残し、主要 consumer の公開入口にはしない。
 - 新規実装では、同等処理のローカル再実装を原則禁止する。
 - 既存コードの移行は段階導入とし、最終的にPreview/Exportとも `buildSequencePlan` の結果を消費する形へ寄せる。
+- `buildSequencePlan` は純粋関数とし、外部通知は返り値 `warnings` を呼び出し側で処理する。
 - 補助API（`resolveNormalizedCutDisplayTime` / `computeStoryTimingsForCuts`）は lower-level helper として残すが、Gate 3/4 の公開正本としては扱わない。
 
 ## Consequences

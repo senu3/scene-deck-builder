@@ -128,7 +128,6 @@ describe('buildSequencePlan', () => {
   it('routes framing debug through plan warnings instead of console logging', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
-    const observedWarnings: string[] = [];
     const cuts: Cut[] = [
       cut({
         id: 'cut-framing',
@@ -150,7 +149,6 @@ describe('buildSequencePlan', () => {
       getAssetById: (assetId) => assets.get(assetId),
       framingDefaults: { mode: 'fit', anchor: 'left' },
       debugFraming: true,
-      onWarning: (warning) => observedWarnings.push(warning.code),
     });
 
     expect(plan.warnings).toEqual(expect.arrayContaining([
@@ -160,7 +158,6 @@ describe('buildSequencePlan', () => {
         message: expect.stringContaining('mode=fit anchor=bottom-right source=cut'),
       }),
     ]));
-    expect(observedWarnings).toContain('debug-framing-resolved');
     expect(warnSpy).not.toHaveBeenCalled();
     expect(infoSpy).not.toHaveBeenCalled();
   });
