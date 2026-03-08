@@ -295,4 +295,59 @@ describe('usePreviewSequenceAudio', () => {
       root.unmount();
     });
   });
+
+  it('keeps attach audio alive across extended hold duration without recreating the manager', async () => {
+    const host = document.createElement('div');
+    const root = createRoot(host);
+
+    await act(async () => {
+      root.render(
+        <Harness
+          absoluteTime={2.8}
+          previewAudioPlan={attachAudioPlan}
+          isPlaying
+          isBuffering={false}
+        />
+      );
+    });
+
+    expect(managerInstances).toHaveLength(1);
+    const manager = managerInstances[0] as {
+      playCalls: number[];
+      stopCalls: number;
+      unloadCalls: number;
+      disposeCalls: number;
+    };
+
+    const extendedAttachAudioPlan: ExportAudioPlan = {
+      totalDurationSec: 5,
+      events: [
+        {
+          ...attachAudioPlan.events[0],
+          durationSec: 4,
+        },
+      ],
+    };
+
+    await act(async () => {
+      root.render(
+        <Harness
+          absoluteTime={3.2}
+          previewAudioPlan={extendedAttachAudioPlan}
+          isPlaying
+          isBuffering={false}
+        />
+      );
+    });
+
+    expect(managerInstances).toHaveLength(1);
+    expect(manager.playCalls.length).toBeGreaterThanOrEqual(1);
+    expect(manager.stopCalls).toBe(0);
+    expect(manager.unloadCalls).toBe(0);
+    expect(manager.disposeCalls).toBe(0);
+
+    act(() => {
+      root.unmount();
+    });
+  });
 });
