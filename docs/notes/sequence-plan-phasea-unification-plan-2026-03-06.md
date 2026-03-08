@@ -10,6 +10,22 @@
 - Preview/Export は `target.kind='cuts'` を含む `opts` 経由で同一入口を利用する。
 - VIDEO HOLD 本実装前の受け皿として `CutRuntimeState.hold` を追加した（挙動未接続）。
 
+## Update 2026-03-08 (Temporary Persistence Exception)
+- VIDEO HOLD は `CutRuntimeState.hold` に置かれているが、現時点では **project 保存対象の例外** として扱う。
+- 実装上は `cutRuntimeById` 全体を永続化せず、`hold` のみを抽出して保存/復元する。
+- `isLoading` / `clipRevision` など他の runtime 値は非永続のまま維持する。
+- これは仮実装フェーズでの暫定対応であり、最終的には永続前提の専用フィールドへ移設する。
+
+### 将来の移設候補（案）
+- `Cut.hold`
+- `cutDerivedById`
+- `project.videoHoldByCutId`
+
+### 注意点（方針上のリスク）
+- runtime と永続の責務が一時的に混在するため、境界がにじみやすい。
+- 混在を広げないため、例外は `hold` のみに限定し、他 runtime 値の永続化を追加しない。
+- 移設時は旧 `cutRuntimeById.hold` 互換を残さず、永続前提の新フィールドへ切り替える。
+
 ## 目的
 - Preview/Export parity を「同じ SequencePlan 消費」で担保する。
 - VIDEO HOLD（末尾 duration 拡張）を asset 非破壊で実装できる土台を先に作る。
