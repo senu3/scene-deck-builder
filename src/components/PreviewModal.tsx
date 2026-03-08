@@ -462,7 +462,7 @@ export default function PreviewModal({
     onToggleMute: interactionCommands.toggleMute,
   });
 
-  const { isExporting, handleExportFull, handleExportRange } = usePreviewExportActions({
+  const { isExporting, handleExportFull } = usePreviewExportActions({
     items,
     selectedResolution,
     metadataStore: metadataStore ?? null,
@@ -470,12 +470,7 @@ export default function PreviewModal({
     getCutRuntime,
     onExportSequence,
     pauseBeforeExport,
-    inPoint,
-    outPoint,
-    resolveAssetForCut,
   });
-  // Suppress unused variable warning - code kept for future use
-  void handleExportRange;
 
   // ===== SHARED COMPUTED VALUES =====
   const {
@@ -514,11 +509,6 @@ export default function PreviewModal({
     progressFillRef,
     progressHandleRef,
   });
-
-  // _hasRange kept for future range export UI implementation
-  const _hasRange = inPoint !== null && outPoint !== null;
-  // Suppress unused variable warnings - code kept for future use
-  void _hasRange;
 
   // Single Mode: show Save button only when both IN/OUT are set
   const hasSingleModeRange = isSingleModeVideo && inPoint !== null && outPoint !== null;

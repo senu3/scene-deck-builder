@@ -1,12 +1,8 @@
-import type { Cut } from '../../types';
 import type { SequencePlanTarget } from '../../utils/sequencePlan';
 import type { PreviewItem } from './types';
 
-export function buildSequencePlanTargetFromPreviewItems(
-  items: PreviewItem[],
-  cutsOverride?: Cut[]
-): SequencePlanTarget {
-  const cuts = cutsOverride ?? items.map((item) => ({
+export function buildSequencePlanTargetFromPreviewItems(items: PreviewItem[]): SequencePlanTarget {
+  const cuts = items.map((item) => ({
     ...item.cut,
     displayTime: item.normalizedDisplayTime,
   }));
