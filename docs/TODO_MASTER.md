@@ -73,16 +73,16 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
 - `TODO-INVEST-009` LipSync 見直し計画（課題再棚卸し + v2設計 + 段階移行）を確定する
   - Track: `Investigation`
   - Status: `ready`
-  - StartWhen: SequencePlan Phase A の入口統一タスクが着手済みになったとき
+  - StartWhen: `TODO-INVEST-008` 完了後
   - BlockedBy: `TODO-INVEST-008`
   - DoneWhen: LipSync 課題一覧（再現条件/優先度/フェーズ）が確定し、v2移行方針が docs で固定される
   - 関連: `docs/notes/lipsync-reassessment-plan-2026-03-06.md`
 - `TODO-INVEST-008` SequencePlan の単一入口化（Phase A: LIPSync除外）を完了し、Preview/Export parity の基線を固定する
   - Track: `Investigation`
   - Status: `in-progress`
-  - StartWhen: VIDEO HOLD 実装前の基盤整備に着手するとき
+  - StartWhen: SequencePlan Phase A の docs/cleanup を進めるとき
   - BlockedBy: なし
-  - DoneWhen: `buildSequencePlan(project, opts)` が Preview/Export の共通入口となり、`normal/clip/hold/mute/black` を Plan 表現できる
+  - DoneWhen: `buildSequencePlan(project, opts)` が Preview/Export の共通入口として維持され、`normal/clip/hold/mute` を Plan 表現でき、関連 docs/references/テストが現状実装と一致する
   - 関連: `docs/notes/sequence-plan-phasea-unification-plan-2026-03-06.md`
 - `TODO-INVEST-001` Sequence preview で同一ソース連続 clip 切替時の一瞬の buffering を低減する
   - Track: `Investigation`

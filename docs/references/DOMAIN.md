@@ -21,7 +21,8 @@
   - 出力軸:
     - 実行計画: `ExportPlan` / `Mp4ExportPlan`
     - 計画解決: `resolveExportPlan`
-    - 出力シーケンス: `ExportSequenceItem` / `buildSequenceItemsForExport`
+    - 共通シーケンス計画: `SequencePlan` / `buildSequencePlan`
+    - 出力シーケンス: `ExportSequenceItem` / `SequencePlan.exportItems`
     - 実行境界(IPC): `window.electronAPI.exportSequence`
 - `MediaSource` は Web API 名と衝突しやすいため、docsでは「Preview向けの app-specific abstraction」を明記する。
 - `source` は文脈ごとに分離する:
@@ -79,8 +80,9 @@
 | **プレビュー項目** | `PreviewItem` は Sequence 用の派生構造体。 | **含む:** cut/sceneName/thumbnail。 | **構築:** `previewItemsBuilder` + `usePreviewItemsState`。 | `previewItemsBuilder.ts`、`usePreviewItemsState.ts` |
 | **プレビュー制御** | Sequence再生は `useSequencePlaybackController`、Preview操作入口は `usePreviewInteractionCommands`、内部概念は `SequenceClock`。 | **含む:** currentIndex/localProgress/range/loop/buffering。 | **操作:** command API / `setSource/seek/skip` 等。 | `PlaybackState`、`previewPlaybackController.ts`、`usePreviewInteractionCommands.ts` |
 | **プレビューメディアソース** | `MediaSource` は Preview再生専用の app-specific abstraction（Web APIの `MediaSource` とは別）。 | **含む:** play/pause/seek/setRate/getCurrentTime/dispose と JSX 要素。 | **生成:** `createVideoMediaSource` / `createImageMediaSource`。 | `previewMedia.tsx` |
+| **シーケンス計画** | `SequencePlan` は cut 列から組み立てる Preview/Export 共通の canonical sequence assembly。 | **含む:** `videoItems` / `audioItems` / `exportItems` / `audioPlan` / warnings。**含まない:** UI state、ffmpeg settings。 | **生成:** `buildSequencePlan(project, opts)`。 | `sequencePlan.ts` |
 | **エクスポート実行計画** | `ExportPlan` は出力実行パラメータを保持する。 | **含む:** `Mp4ExportPlan`。**含まない:** Preview再生状態。 | **生成:** `resolveExportPlan`。 | `src/features/export/plan.ts` |
-| **エクスポート出力シーケンス** | `ExportSequenceItem` は export 実行用の時系列素材列を表す。 | **含む:** path/duration/clip/framing/lipSync payload。**含まない:** UI状態。 | **生成:** `buildSequenceItemsForCuts` / `buildSequenceItemsForExport`。 | `src/utils/exportSequence.ts` |
+| **エクスポート出力シーケンス** | `ExportSequenceItem` は export 実行用 wire payload。 | **含む:** path/duration/clip/framing/lipSync payload。**含まない:** UI状態。 | **主経路:** `SequencePlan.exportItems`。**補助:** `buildSequenceItemsForCuts` / `buildSequenceItemsForExport`。 | `src/utils/exportSequence.ts` |
 
 ## Vault / Sync
 

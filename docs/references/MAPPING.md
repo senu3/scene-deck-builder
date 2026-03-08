@@ -34,8 +34,9 @@
 | プレビュー | `PreviewMode`（scene/all）。 | `setPreviewMode`。 | `PreviewModal` |
 | プレビュー制御 | `PlaybackState`。 | Sequence制御: `useSequencePlaybackController` / 操作入口: `usePreviewInteractionCommands` / internal concept: `SequenceClock`。 | `PreviewModal` |
 | プレビューメディアソース | `MediaSource`（Preview専用 abstraction）。 | `createVideoMediaSource` / `createImageMediaSource`。 | `PreviewModal` |
+| シーケンス計画 | `SequencePlan`。 | `buildSequencePlan`。 | `PreviewModal`、`App` |
 | エクスポート実行計画 | `ExportPlan` / `Mp4ExportPlan`。 | `resolveExportPlan`。 | `ExportModal`、`App` |
-| エクスポート出力シーケンス | `ExportSequenceItem`。 | `buildSequenceItemsForCuts` / `buildSequenceItemsForExport`。 | `PreviewModal`、`App` |
+| エクスポート出力シーケンス | `ExportSequenceItem`。 | `SequencePlan.exportItems`（主経路） / `buildSequenceItemsForCuts` / `buildSequenceItemsForExport`（補助）。 | `PreviewModal`、`App` |
 | エクスポート音声計画 | `ExportAudioPlan` / `ExportAudioEvent`。 | `buildExportAudioPlan`（`useEmbeddedAudio` と `group-attach` を含む）。 | `App`、`PreviewModal` |
 | エクスポート実行境界 | `ExportSequenceOptions` / `ExportSequenceResult`（IPC payload, `audioPlan` 含む）。 | `window.electronAPI.exportSequence`。 | `App`、`PreviewModal` |
 | カット可能メディア判定 | `CuttableMediaType`（`image`/`video`）。 | `getCuttableMediaType`（新規） / `getTimelineMediaType`（互換エイリアス・移行中）。 | `Sidebar`、`StartupModal`、`dragDrop` |

@@ -21,10 +21,12 @@
 - Must: Export は domain 構造を変更しない。
 - Must: canonical timing が破綻している場合は fail-fast する。
 - Must: Preview と Export は同一の framing/time 解決ルールを維持する。
+- Must: Export consumer は `buildSequencePlan(project, opts)` を公開入口として使う。
 - Must: `displayTime` は export前に有限正数へ正規化する。
 - Must: Export の正規化は出力整形に限定する。
 - Must Not: `scenes` 配列順を Scene index 算出の根拠にしない。
 - Must Not: AudioPlan を時間源として扱わない。
+- Must Not: Export consumer が `buildSequenceItemsForCuts` / `buildSequenceItemsForExport` を直接公開入口として増やさない。
 - Must Not: parity を壊す変更を片側（Preview/Export）だけに入れない。
 
 ## 境界ルール
@@ -41,6 +43,7 @@
 - Scene export の scene index 表示値は `sceneOrder` から算出する。
 - AudioPlan は canonical cut 列に整合する時間軸で生成し、時間源にはしない。
 - SequencePlan 入口は `buildSequencePlan(project, opts)` を使用し、Export 側で独自の入口を増やさない。
+- `buildSequenceItemsForCuts` / `buildSequenceItemsForExport` は lower-level helper であり、主要 consumer は `SequencePlan.exportItems` を渡す。
 
 ## 出力ルール
 - MP4 系出力では sidecar（manifest/timeline）整合を維持する。

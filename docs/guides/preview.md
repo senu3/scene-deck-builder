@@ -18,10 +18,12 @@
 - Must: Sequence 再生は `useSequencePlaybackController` を単一制御面として使う。
 - Must: Preview 操作（play/pause/seek/step/skip/in/out/loop/mute/marker）は `usePreviewInteractionCommands` を単一入口として通す。
 - Must: timing 解決は domain 正規化後の canonical cut timing を正本とする。
+- Must: Sequence consumer は `buildSequencePlan(project, opts)` を公開入口として使う。
 - Must: `sequenceCuts` 指定時はその範囲のみで sequence を構築する。
 - Must: `PreviewModal.tsx` は Composition Root とし、配線（hook 呼び出し＋View props 組み立て）に限定する。
 - Must: Debug Overlay は Preview の時間正本を変更しない。
 - Must Not: Preview/Export で時間定義を分岐させない（ad-hoc タイマー含む）。
+- Must Not: Preview consumer が `buildSequenceItemsForCuts` / `buildSequenceItemsForExport` を直接公開入口として使わない。
 - Must Not: Sequence Mode を `<video>` 直接制御へ戻さない。
 - Must Not: Controller はドメイン構造を書き換えない。
 
@@ -55,6 +57,7 @@
 - Preview 起点 export は Export ガイドの正本ルールに従う。
 - Preview 側で独自の export 時間定義を持たない。
 - SequencePlan 入口は `buildSequencePlan(project, opts)` を使用し、`opts.target` で対象 cut 範囲を指定する。
+- `buildSequenceItemsForCuts` / `buildSequenceItemsForExport` は lower-level helper として扱い、Preview の主要 consumer から直接呼ばない。
 
 ## Debug Overlay Boundary
 - Debug Overlay の仕様は `docs/guides/implementation/debug-overlay.md` に従う。
