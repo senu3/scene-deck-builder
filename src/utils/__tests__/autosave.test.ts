@@ -46,6 +46,35 @@ describe('autosave selector', () => {
     expect(isProjectDirty(snapA, snapB)).toBe(true);
   });
 
+  it('detects hold runtime changes as dirty', () => {
+    const stateA = baseState();
+    const stateB = {
+      ...stateA,
+      scenes: [{
+        id: 's1',
+        name: 'Scene 1',
+        cuts: [{ id: 'cut-1', assetId: 'a1', displayTime: 1, order: 0 }],
+        order: 0,
+        notes: [],
+      }],
+      cutRuntimeById: {
+        'cut-1': {
+          hold: {
+            enabled: true,
+            mode: 'tail',
+            durationMs: 1200,
+            muteAudio: true,
+            composeWithClip: true,
+          },
+        },
+      },
+    };
+
+    const snapA = pickProjectStateForSave(stateA);
+    const snapB = pickProjectStateForSave(stateB);
+    expect(isProjectDirty(snapA, snapB)).toBe(true);
+  });
+
   it('subscription ignores UI-only changes', () => {
     const listeners = new Set<(next: any, prev: any) => void>();
     const store = {

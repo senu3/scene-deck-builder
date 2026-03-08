@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { Asset, Scene } from '../../types';
-import { buildProjectSavePayload, prepareScenesForSave, serializeProjectSavePayload } from '../projectSave';
+import {
+  buildProjectSavePayload,
+  collectPersistedCutRuntimeById,
+  normalizePersistedCutRuntimeById,
+  prepareScenesForSave,
+  serializeProjectSavePayload,
+} from '../projectSave';
 
 const base = {
   version: 3,
@@ -27,6 +33,41 @@ describe('projectSave', () => {
   it('includes target duration when provided', () => {
     const payload = buildProjectSavePayload({ ...base, targetTotalDurationSec: 1500 });
     expect(payload.targetTotalDurationSec).toBe(1500);
+  });
+
+  it('includes persisted hold runtime when present', () => {
+    const payload = buildProjectSavePayload({
+      ...base,
+      cutRuntimeById: {
+        'cut-hold': {
+          hold: {
+            enabled: true,
+            mode: 'tail',
+            durationMs: 1200,
+            muteAudio: true,
+            composeWithClip: true,
+          },
+        },
+      },
+      scenes: [{
+        id: 's1',
+        name: 'Scene 1',
+        notes: [],
+        cuts: [{ id: 'cut-hold', assetId: 'a1', displayTime: 1, order: 0 }],
+      }],
+      sceneOrder: ['s1'],
+    });
+    expect(payload.cutRuntimeById).toEqual({
+      'cut-hold': {
+        hold: {
+          enabled: true,
+          mode: 'tail',
+          durationMs: 1200,
+          muteAudio: true,
+          composeWithClip: true,
+        },
+      },
+    });
   });
 
   it('prepares cut asset snapshot from assetId lookup only', () => {
@@ -74,5 +115,91 @@ describe('projectSave', () => {
 
     const prepared = prepareScenesForSave(scenes, () => undefined);
     expect(prepared[0].cuts[0].asset).toBeUndefined();
+  });
+
+  it('drops non-hold runtime and unknown cutIds from persisted runtime map', () => {
+    const scenes: Scene[] = [{
+      id: 'scene-1',
+      name: 'Scene 1',
+      order: 0,
+      notes: [],
+      cuts: [{
+        id: 'cut-1',
+        order: 0,
+        assetId: 'asset-1',
+        displayTime: 2,
+      }],
+    }];
+    const persisted = collectPersistedCutRuntimeById({
+      'cut-1': {
+        isLoading: true,
+      },
+      'cut-2': {
+        hold: {
+          enabled: true,
+          mode: 'tail',
+          durationMs: 1000,
+          muteAudio: true,
+          composeWithClip: true,
+        },
+      },
+    }, scenes);
+    expect(persisted).toEqual({});
+  });
+
+  it('normalizes raw persisted runtime and keeps only valid hold entries', () => {
+    const scenes: Scene[] = [{
+      id: 'scene-1',
+      name: 'Scene 1',
+      order: 0,
+      notes: [],
+      cuts: [{
+        id: 'cut-1',
+        order: 0,
+        assetId: 'asset-1',
+        displayTime: 2,
+      }],
+    }];
+    const normalized = normalizePersistedCutRuntimeById({
+      'cut-1': {
+        hold: {
+          enabled: true,
+          mode: 'tail',
+          durationMs: 1500.4,
+          muteAudio: true,
+          composeWithClip: true,
+        },
+      },
+      'cut-x': {
+        hold: {
+          enabled: true,
+          mode: 'tail',
+          durationMs: 2000,
+          muteAudio: true,
+          composeWithClip: true,
+        },
+      },
+      'cut-1-bad': {
+        hold: {
+          enabled: false,
+          mode: 'tail',
+          durationMs: 1000,
+          muteAudio: true,
+          composeWithClip: true,
+        },
+      },
+    }, scenes);
+
+    expect(normalized).toEqual({
+      'cut-1': {
+        hold: {
+          enabled: true,
+          mode: 'tail',
+          durationMs: 1500,
+          muteAudio: true,
+          composeWithClip: true,
+        },
+      },
+    });
   });
 });
