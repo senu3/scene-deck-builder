@@ -36,7 +36,6 @@ import {
   selectGetSelectedGroup,
   selectToggleGroupCollapsed,
   selectCacheAsset,
-  selectUpdateCutAsset,
   selectVaultPath,
   selectMetadataStore,
   selectAttachAudioToCut,
@@ -94,7 +93,6 @@ export default function DetailsPanel() {
   const getSelectedGroup = useStore(selectGetSelectedGroup);
   const toggleGroupCollapsed = useStore(selectToggleGroupCollapsed);
   const cacheAsset = useStore(selectCacheAsset);
-  const updateCutAsset = useStore(selectUpdateCutAsset);
   const vaultPath = useStore(selectVaultPath);
   const metadataStore = useStore(selectMetadataStore);
   const attachAudioToCut = useStore(selectAttachAudioToCut);
@@ -466,9 +464,7 @@ export default function DetailsPanel() {
             return targetScene?.cuts.find((c) => c.id === cutId);
           },
           getCurrentClipRevision: (cutId) => useStore.getState().getCutRuntime(cutId)?.clipRevision ?? 0,
-          updateCutAsset,
           thumbnailProfile: "details-panel",
-          onThumbnailUpdated: setThumbnail,
         },
         options,
       );
@@ -491,9 +487,7 @@ export default function DetailsPanel() {
             return targetScene?.cuts.find((c) => c.id === cutId);
           },
           getCurrentClipRevision: (cutId) => useStore.getState().getCutRuntime(cutId)?.clipRevision ?? 0,
-          updateCutAsset,
           thumbnailProfile: "details-panel",
-          onThumbnailUpdated: setThumbnail,
         },
       );
     }

@@ -1,4 +1,6 @@
 import { Command } from './historyStore';
+import { createCommandApplyResult } from './commandCore';
+import type { AppEffect } from '../features/platform/effects';
 import { useStore } from './useStore';
 import type { Asset, Cut, Scene, CutGroup, SceneAudioBinding, GroupAudioBinding, AudioAnalysis } from '../types';
 import { syncSceneMetadata } from '../utils/metadataStore';
@@ -10,7 +12,9 @@ import {
   type SimpleAutoClipMode,
 } from '../features/cut/simpleAutoClip';
 import { generateVideoClipThumbnail } from '../features/cut/clipThumbnail';
+import { buildRegenThumbnailsEffect } from '../features/cut/thumbnailEffects';
 import { resolveCutAsset as resolveCutAssetById } from '../utils/assetResolve';
+import type { ThumbnailProfile } from '../utils/thumbnailCache';
 import { normalizeGroupsInScenes } from '../utils/cutGroupOps';
 
 function restoreCutState(
@@ -602,18 +606,58 @@ export class UpdateClipPointsCommand implements Command {
   private cutId: string;
   private newInPoint: number;
   private newOutPoint: number;
+  private thumbnailProfile?: ThumbnailProfile;
   private oldInPoint?: number;
   private oldOutPoint?: number;
   private oldDisplayTime?: number;
   private wasClip?: boolean;
 
-  constructor(sceneId: string, cutId: string, inPoint: number, outPoint: number) {
+  constructor(
+    sceneId: string,
+    cutId: string,
+    inPoint: number,
+    outPoint: number,
+    thumbnailProfile?: ThumbnailProfile
+  ) {
     this.sceneId = sceneId;
     this.cutId = cutId;
     this.newInPoint = inPoint;
     this.newOutPoint = outPoint;
+    this.thumbnailProfile = thumbnailProfile;
     const duration = Math.abs(outPoint - inPoint);
     this.description = `Set clip points: ${inPoint.toFixed(2)}s - ${outPoint.toFixed(2)}s (${duration.toFixed(2)}s)`;
+  }
+
+  apply() {
+    if (this.thumbnailProfile !== 'timeline-card') {
+      return createCommandApplyResult<AppEffect>();
+    }
+
+    const store = useStore.getState();
+    const scene = store.scenes.find((entry) => entry.id === this.sceneId);
+    const cut = scene?.cuts.find((entry) => entry.id === this.cutId);
+    const asset = cut ? resolveCutAsset(store, cut) : undefined;
+
+    if (asset?.type !== 'video' || !asset.path) {
+      return createCommandApplyResult<AppEffect>();
+    }
+
+    return createCommandApplyResult<AppEffect>([
+      buildRegenThumbnailsEffect({
+        profile: this.thumbnailProfile,
+        reason: 'clip-points-saved',
+        requests: [
+          {
+            sceneId: this.sceneId,
+            cutId: this.cutId,
+            assetPath: asset.path,
+            mode: 'clip',
+            inPointSec: this.newInPoint,
+            outPointSec: this.newOutPoint,
+          },
+        ],
+      }),
+    ]);
   }
 
   async execute(): Promise<void> {
@@ -657,12 +701,45 @@ export class ClearClipPointsCommand implements Command {
 
   private sceneId: string;
   private cutId: string;
+  private thumbnailProfile?: ThumbnailProfile;
   private oldInPoint?: number;
   private oldOutPoint?: number;
 
-  constructor(sceneId: string, cutId: string) {
+  constructor(sceneId: string, cutId: string, thumbnailProfile?: ThumbnailProfile) {
     this.sceneId = sceneId;
     this.cutId = cutId;
+    this.thumbnailProfile = thumbnailProfile;
+  }
+
+  apply() {
+    if (this.thumbnailProfile !== 'timeline-card') {
+      return createCommandApplyResult<AppEffect>();
+    }
+
+    const store = useStore.getState();
+    const scene = store.scenes.find((entry) => entry.id === this.sceneId);
+    const cut = scene?.cuts.find((entry) => entry.id === this.cutId);
+    const asset = cut ? resolveCutAsset(store, cut) : undefined;
+
+    if (asset?.type !== 'video' || !asset.path) {
+      return createCommandApplyResult<AppEffect>();
+    }
+
+    return createCommandApplyResult<AppEffect>([
+      buildRegenThumbnailsEffect({
+        profile: this.thumbnailProfile,
+        reason: 'clip-points-cleared',
+        requests: [
+          {
+            sceneId: this.sceneId,
+            cutId: this.cutId,
+            assetPath: asset.path,
+            mode: 'clear',
+            inPointSec: 0,
+          },
+        ],
+      }),
+    ]);
   }
 
   async execute(): Promise<void> {

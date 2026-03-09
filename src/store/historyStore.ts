@@ -1,6 +1,8 @@
 import { create } from 'zustand';
+import type { AppEffect } from '../features/platform/effects';
+import { dispatchAppEffects } from '../features/platform/effects';
 import { useStore } from './useStore';
-import type { CommandApplyResult } from './commandCore';
+import { createCommandApplyResult, type CommandApplyResult } from './commandCore';
 
 /**
  * Command Pattern Interface
@@ -13,7 +15,7 @@ export interface Command {
    * Migration shape for command core unification.
    * Existing commands may keep execute/undo while apply() is introduced incrementally.
    */
-  apply?: () => CommandApplyResult | Promise<CommandApplyResult>;
+  apply?: () => CommandApplyResult<AppEffect> | Promise<CommandApplyResult<AppEffect>>;
   execute: () => void | Promise<void>;
   undo: () => void | Promise<void>;
 }
@@ -52,9 +54,26 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
     try {
       const store = useStore.getState();
       const context = store.createStoreEventOperation('user');
+      const applyResult = command.apply
+        ? await command.apply()
+        : createCommandApplyResult<AppEffect>();
       await store.runWithStoreEventContext(context, async () => {
         await command.execute();
       });
+
+      if (applyResult.effects.length > 0) {
+        const dispatchResult = await dispatchAppEffects(applyResult.effects, {
+          origin: 'command',
+          commandId: context.opId,
+          commandType: command.type,
+        });
+        for (const warning of dispatchResult.warnings) {
+          console.warn('[Effects] command warning', warning);
+        }
+      }
+      for (const warning of applyResult.warnings) {
+        console.warn('[Command] apply warning', warning);
+      }
 
       // 履歴に追加
       set((state) => {

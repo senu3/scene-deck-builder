@@ -1,7 +1,6 @@
 import { ClearClipPointsCommand, UpdateClipPointsCommand } from '../../store/commands';
 import type { Command } from '../../store/historyStore';
 import type { Cut } from '../../types';
-import { emitRegenThumbnailsEffect } from './thumbnailEffects';
 import type { ThumbnailProfile } from '../../utils/thumbnailCache';
 
 interface PreviewClipAssetInput {
@@ -20,9 +19,7 @@ interface PreviewClipDeps {
   executeCommand: (command: Command) => Promise<void>;
   getCurrentCut: (sceneId: string, cutId: string) => Cut | undefined;
   getCurrentClipRevision: (cutId: string) => number;
-  updateCutAsset: (sceneId: string, cutId: string, updates: { thumbnail?: string }) => void;
   thumbnailProfile: ThumbnailProfile;
-  onThumbnailUpdated?: (thumbnail: string) => void;
 }
 
 const CLIP_POINT_EPSILON = 0.0001;
@@ -57,28 +54,8 @@ export async function savePreviewClipPoints(
     return;
   }
 
-  await deps.executeCommand(new UpdateClipPointsCommand(context.sceneId, context.cutId, start, end));
-
-  if (deps.thumbnailProfile !== 'timeline-card') return;
-  if (context.asset?.type !== 'video' || !context.asset.path) return;
-  await emitRegenThumbnailsEffect(
-    {
-      profile: deps.thumbnailProfile,
-      reason: 'clip-points-saved',
-      requests: [{
-        sceneId: context.sceneId,
-        cutId: context.cutId,
-        assetPath: context.asset.path,
-        mode: 'clip',
-        inPointSec: start,
-        outPointSec: end,
-      }],
-    },
-    {
-      getCurrentCut: deps.getCurrentCut,
-      updateCutAsset: deps.updateCutAsset,
-      onThumbnailUpdated: deps.onThumbnailUpdated,
-    }
+  await deps.executeCommand(
+    new UpdateClipPointsCommand(context.sceneId, context.cutId, start, end, deps.thumbnailProfile)
   );
 }
 
@@ -88,26 +65,7 @@ export async function clearPreviewClipPoints(
 ): Promise<void> {
   const currentCut = deps.getCurrentCut(context.sceneId, context.cutId);
   if (!currentCut?.isClip && !context.isClip) return;
-  await deps.executeCommand(new ClearClipPointsCommand(context.sceneId, context.cutId));
-
-  if (deps.thumbnailProfile !== 'timeline-card') return;
-  if (context.asset?.type !== 'video' || !context.asset.path) return;
-  await emitRegenThumbnailsEffect(
-    {
-      profile: deps.thumbnailProfile,
-      reason: 'clip-points-cleared',
-      requests: [{
-        sceneId: context.sceneId,
-        cutId: context.cutId,
-        assetPath: context.asset.path,
-        mode: 'clear',
-        inPointSec: 0,
-      }],
-    },
-    {
-      getCurrentCut: deps.getCurrentCut,
-      updateCutAsset: deps.updateCutAsset,
-      onThumbnailUpdated: deps.onThumbnailUpdated,
-    }
+  await deps.executeCommand(
+    new ClearClipPointsCommand(context.sceneId, context.cutId, deps.thumbnailProfile)
   );
 }

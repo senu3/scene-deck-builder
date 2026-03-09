@@ -1,19 +1,14 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearPreviewClipPoints, savePreviewClipPoints } from '../previewClipUpdate';
-import { emitRegenThumbnailsEffect } from '../thumbnailEffects';
-
-vi.mock('../thumbnailEffects', () => ({
-  emitRegenThumbnailsEffect: vi.fn(async () => undefined),
-}));
+import { ClearClipPointsCommand, UpdateClipPointsCommand } from '../../../store/commands';
 
 describe('previewClipUpdate', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('saves clip points and enqueues thumbnail regeneration', async () => {
+  it('saves clip points through command execution', async () => {
     const executeCommand = vi.fn(async () => undefined);
-    const updateCutAsset = vi.fn();
     const getCurrentCut = vi.fn(() => ({
       id: 'cut-1',
       assetId: 'asset-1',
@@ -36,33 +31,16 @@ describe('previewClipUpdate', () => {
         executeCommand,
         getCurrentCut,
         getCurrentClipRevision,
-        updateCutAsset,
         thumbnailProfile: 'timeline-card',
       },
     );
 
     expect(executeCommand).toHaveBeenCalledTimes(1);
-    expect(emitRegenThumbnailsEffect).toHaveBeenCalledWith({
-      profile: 'timeline-card',
-      reason: 'clip-points-saved',
-      requests: [{
-        sceneId: 'scene-1',
-        cutId: 'cut-1',
-        assetPath: '/vault/assets/a.mp4',
-        mode: 'clip',
-        inPointSec: 1,
-        outPointSec: 3,
-      }],
-    }, {
-      getCurrentCut,
-      updateCutAsset,
-      onThumbnailUpdated: undefined,
-    });
+    expect(executeCommand).toHaveBeenCalledWith(expect.any(UpdateClipPointsCommand));
   });
 
   it('does not execute command when clip points are unchanged', async () => {
     const executeCommand = vi.fn(async () => undefined);
-    const updateCutAsset = vi.fn();
     const getCurrentCut = vi.fn(() => ({
       id: 'cut-1',
       assetId: 'asset-1',
@@ -87,18 +65,15 @@ describe('previewClipUpdate', () => {
         executeCommand,
         getCurrentCut,
         getCurrentClipRevision,
-        updateCutAsset,
         thumbnailProfile: 'timeline-card',
       },
     );
 
     expect(executeCommand).not.toHaveBeenCalled();
-    expect(emitRegenThumbnailsEffect).not.toHaveBeenCalled();
   });
 
-  it('does not enqueue clear thumbnail regeneration for non timeline-card profile', async () => {
+  it('passes non timeline-card profile to command without extra branching', async () => {
     const executeCommand = vi.fn(async () => undefined);
-    const updateCutAsset = vi.fn();
     const getCurrentCut = vi.fn(() => ({
       id: 'cut-2',
       assetId: 'asset-2',
@@ -121,18 +96,16 @@ describe('previewClipUpdate', () => {
         executeCommand,
         getCurrentCut,
         getCurrentClipRevision,
-        updateCutAsset,
         thumbnailProfile: 'details-panel',
       },
     );
 
     expect(executeCommand).toHaveBeenCalledTimes(1);
-    expect(emitRegenThumbnailsEffect).not.toHaveBeenCalled();
+    expect(executeCommand).toHaveBeenCalledWith(expect.any(ClearClipPointsCommand));
   });
 
   it('does nothing for clear when cut is not clip', async () => {
     const executeCommand = vi.fn(async () => undefined);
-    const updateCutAsset = vi.fn();
     const getCurrentCut = vi.fn(() => undefined);
     const getCurrentClipRevision = vi.fn(() => 0);
 
@@ -147,19 +120,15 @@ describe('previewClipUpdate', () => {
         executeCommand,
         getCurrentCut,
         getCurrentClipRevision,
-        updateCutAsset,
         thumbnailProfile: 'timeline-card',
       },
     );
 
     expect(executeCommand).not.toHaveBeenCalled();
-    expect(updateCutAsset).not.toHaveBeenCalled();
-    expect(emitRegenThumbnailsEffect).not.toHaveBeenCalled();
   });
 
   it('clears clip using current cut state even when context is stale', async () => {
     const executeCommand = vi.fn(async () => undefined);
-    const updateCutAsset = vi.fn();
     const getCurrentCut = vi.fn(() => ({
       id: 'cut-3',
       assetId: 'asset-3',
@@ -182,18 +151,15 @@ describe('previewClipUpdate', () => {
         executeCommand,
         getCurrentCut,
         getCurrentClipRevision,
-        updateCutAsset,
         thumbnailProfile: 'timeline-card',
       },
     );
 
     expect(executeCommand).toHaveBeenCalledTimes(1);
-    expect(emitRegenThumbnailsEffect).toHaveBeenCalledTimes(1);
   });
 
   it('skips save when expected clip revision is stale', async () => {
     const executeCommand = vi.fn(async () => undefined);
-    const updateCutAsset = vi.fn();
     const getCurrentCut = vi.fn(() => ({
       id: 'cut-stale',
       assetId: 'asset-stale',
@@ -216,13 +182,11 @@ describe('previewClipUpdate', () => {
         executeCommand,
         getCurrentCut,
         getCurrentClipRevision,
-        updateCutAsset,
         thumbnailProfile: 'timeline-card',
       },
       { expectedClipRevision: 4 },
     );
 
     expect(executeCommand).not.toHaveBeenCalled();
-    expect(emitRegenThumbnailsEffect).not.toHaveBeenCalled();
   });
 });

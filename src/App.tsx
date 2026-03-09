@@ -17,7 +17,6 @@ import {
   selectSequencePreviewCutId,
   selectCloseSequencePreview,
   selectCacheAssetAction,
-  selectUpdateCutAssetAction,
   selectCreateCutFromImport,
   selectToggleAssetDrawer,
   selectSidebarOpen,
@@ -101,7 +100,6 @@ function App() {
   const sequencePreviewCutId = useStore(selectSequencePreviewCutId);
   const closeSequencePreview = useStore(selectCloseSequencePreview);
   const cacheAsset = useStore(selectCacheAssetAction);
-  const updateCutAsset = useStore(selectUpdateCutAssetAction);
   const createCutFromImport = useStore(selectCreateCutFromImport);
   const toggleAssetDrawer = useStore(selectToggleAssetDrawer);
   const sidebarOpen = useStore(selectSidebarOpen);
@@ -888,12 +886,11 @@ function App() {
             return targetScene?.cuts.find((c) => c.id === cutId);
           },
           getCurrentClipRevision: (cutId) => useStore.getState().getCutRuntime(cutId)?.clipRevision ?? 0,
-          updateCutAsset,
           thumbnailProfile: 'timeline-card',
         },
         options,
     );
-  }, [previewData, executeCommand, updateCutAsset]);
+  }, [previewData, executeCommand]);
 
   const handleVideoPreviewClipClear = useCallback(async () => {
     if (!previewData) return;
@@ -912,11 +909,10 @@ function App() {
             return targetScene?.cuts.find((c) => c.id === cutId);
           },
           getCurrentClipRevision: (cutId) => useStore.getState().getCutRuntime(cutId)?.clipRevision ?? 0,
-          updateCutAsset,
           thumbnailProfile: 'timeline-card',
         },
     );
-  }, [previewData, executeCommand, updateCutAsset]);
+  }, [previewData, executeCommand]);
 
   // Handle frame capture from video preview modal
   const handleVideoPreviewFrameCapture = useCallback(async (timestamp: number): Promise<string | void> => {
