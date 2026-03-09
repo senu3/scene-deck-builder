@@ -58,6 +58,7 @@ export interface SequenceAudioItem {
   sourceOffsetSec?: number;
   sourceType?: 'video' | 'cut-attach' | 'scene-attach' | 'group-attach';
   sceneId?: string;
+  groupId?: string;
   cutId?: string;
 }
 
@@ -146,7 +147,13 @@ function applyHoldTimingToAudioPlan(audioPlan: ExportAudioPlan, holdGaps: HoldGa
         }
         continue;
       }
-      if ((event.sourceType === 'cut-attach' || event.sourceType === 'group-attach')
+      if (event.sourceType === 'group-attach') {
+        if (gap.baseStartSec >= eventStartSec && gap.baseStartSec <= eventEndSec) {
+          extendedDurationSec += gap.durationSec;
+        }
+        continue;
+      }
+      if (event.sourceType === 'cut-attach'
         && event.cutId
         && event.cutId === gap.cutId
         && gap.baseStartSec >= eventStartSec
@@ -443,6 +450,7 @@ function buildSequencePlanFromCuts(input: BuildSequencePlanFromCutsInput): Seque
     sourceOffsetSec: safeNumber(event.sourceOffsetSec, 0),
     sourceType: event.sourceType,
     sceneId: event.sceneId,
+    groupId: event.groupId,
     cutId: event.cutId,
   }));
 

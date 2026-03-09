@@ -230,6 +230,7 @@ interface ExportAudioEvent {
   durationSec: number;
   gain?: number;
   sceneId?: string;
+  groupId?: string;
   cutId?: string;
   sourceType: 'video' | 'cut-attach' | 'scene-attach' | 'group-attach';
 }

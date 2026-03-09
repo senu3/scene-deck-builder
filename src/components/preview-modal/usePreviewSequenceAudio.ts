@@ -18,6 +18,7 @@ function buildSequenceAudioEventKey(event: ExportAudioEvent) {
     event.sourceType,
     event.assetId || '',
     event.sceneId || '',
+    event.groupId || '',
     event.cutId || '',
     event.sourcePath,
     Number.isFinite(event.sourceStartSec) ? event.sourceStartSec.toFixed(3) : '0.000',

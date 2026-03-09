@@ -173,18 +173,18 @@ describe('gate5 audio parity', () => {
 
     const groupedEvents = audioPlan.events
       .filter((event) => event.sourceType === 'group-attach')
-      .sort((a, b) => (a.timelineStartSec - b.timelineStartSec) || (a.cutId || '').localeCompare(b.cutId || ''));
-    expect(groupedEvents).toHaveLength(2);
+      .sort((a, b) => a.timelineStartSec - b.timelineStartSec);
+    expect(groupedEvents).toHaveLength(1);
     expect(groupedEvents.every((event) => event.sceneId === 'scene-1')).toBe(true);
-    expect(groupedEvents.some((event) => event.cutId === 'cut-n1')).toBe(false);
+    expect(groupedEvents[0]?.groupId).toBe('group-1');
+    expect(groupedEvents[0]?.cutId).toBeUndefined();
 
     const cutG1Timing = canonical.cutTimings.get('cut-g1');
     const cutG2Timing = canonical.cutTimings.get('cut-g2');
-    expect(groupedEvents[0]?.cutId).toBe('cut-g1');
     expect(groupedEvents[0]?.timelineStartSec).toBe(cutG1Timing?.startSec);
-    expect(groupedEvents[0]?.durationSec).toBe(cutG1Timing?.durationSec);
-    expect(groupedEvents[1]?.cutId).toBe('cut-g2');
-    expect(groupedEvents[1]?.timelineStartSec).toBe(cutG2Timing?.startSec);
-    expect(groupedEvents[1]?.durationSec).toBe(cutG2Timing?.durationSec);
+    expect(groupedEvents[0]?.durationSec).toBeCloseTo(
+      (cutG2Timing?.startSec ?? 0) + (cutG2Timing?.durationSec ?? 0) - (cutG1Timing?.startSec ?? 0),
+      6
+    );
   });
 });

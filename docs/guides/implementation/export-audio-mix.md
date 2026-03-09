@@ -51,8 +51,11 @@
   - `sourceStartSec=0`、`durationSec=sceneDuration`。
 - Group attachAudio:
   - `metadataStore.sceneMetadata[sceneId].groupAudioBindings[groupId].enabled !== false` のとき生成。
-  - `cut.groupId === groupId` の cut ごとにイベントを生成する（group範囲一括ではなく cut 単位）。
-  - `sourceStartSec=0`、`durationSec=cutDuration`。
+  - 同一 scene 内の `groupId` 所属 cut 群を 1 つの連続 span として扱い、group ごとに単一 event を生成する。
+  - 開始時刻は group 先頭 cut の canonical 開始時刻。
+  - `sourceStartSec=0`。
+  - `durationSec` は `min(audioAssetDuration, groupSpanDuration)`。
+  - group 終端を超えて別 group / 別 scene へはみ出さない。
 - `useEmbeddedAudio=false` は「映像由来音声のみ無効化」であり、attachAudio には影響しない。
 
 ## main 側レンダー

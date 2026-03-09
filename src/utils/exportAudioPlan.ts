@@ -17,6 +17,7 @@ export interface ExportAudioEvent {
   durationSec: number;
   gain?: number;
   sceneId?: string;
+  groupId?: string;
   cutId?: string;
   sourceType: 'video' | 'cut-attach' | 'scene-attach' | 'group-attach';
 }
@@ -57,6 +58,19 @@ function resolveCanonicalAudioCutDuration(cut: Cut, getAssetById: (assetId: stri
     fallbackDurationSec: 1.0,
     preferAssetDuration: true,
   }).durationSec;
+}
+
+function buildSceneGroupKey(sceneId: string, groupId: string): string {
+  return `${sceneId}::${groupId}`;
+}
+
+function resolveClampedAudioDuration(asset: Asset | undefined, spanDurationSec: number): number {
+  const normalizedSpanDurationSec = Math.max(0, spanDurationSec);
+  if (normalizedSpanDurationSec <= 0) return 0;
+  const assetDuration = asset?.type === 'audio' && Number.isFinite(asset.duration) && asset.duration > 0
+    ? asset.duration
+    : normalizedSpanDurationSec;
+  return Math.min(normalizedSpanDurationSec, assetDuration);
 }
 
 export function canonicalizeCutsForExportAudioPlan(
@@ -108,6 +122,12 @@ export function buildExportAudioPlan(input: BuildExportAudioPlanInput): ExportAu
   }));
   const timings = computeStoryTimingsForCuts(cutTimingInputs);
   const events: ExportAudioEvent[] = [];
+  const groupSpanByKey = new Map<string, {
+    sceneId: string;
+    groupId: string;
+    startSec: number;
+    endSec: number;
+  }>();
 
   for (const cut of input.cuts) {
     const cutTiming = timings.cutTimings.get(cut.id);
@@ -152,28 +172,20 @@ export function buildExportAudioPlan(input: BuildExportAudioPlanInput): ExportAu
     const sceneId = cutTiming.sceneId;
     const groupId = cut.groupId;
     if (!sceneId || !groupId) continue;
-    const groupBinding = input.metadataStore?.sceneMetadata?.[sceneId]?.groupAudioBindings?.[groupId];
-    if (!groupBinding?.audioAssetId || groupBinding.enabled === false) continue;
-    const coreGroupBinding: AudioBindingCore = {
-      assetId: groupBinding.audioAssetId,
-      enabled: groupBinding.enabled,
-      gain: groupBinding.gain,
-      offsetSec: 0,
-    };
-    const groupAudioAsset = input.getAssetById(coreGroupBinding.assetId);
-    if (!groupAudioAsset?.path || groupAudioAsset.type !== 'audio') continue;
-    events.push({
-      assetId: groupAudioAsset.id,
-      sourcePath: groupAudioAsset.path,
-      sourceStartSec: 0,
-      sourceOffsetSec: normalizeSeconds(coreGroupBinding.offsetSec, 0),
-      timelineStartSec: cutTiming.startSec,
-      durationSec: cutTiming.durationSec,
-      gain: Number.isFinite(coreGroupBinding.gain) ? coreGroupBinding.gain : 1,
-      sceneId,
-      cutId: cut.id,
-      sourceType: 'group-attach',
-    });
+    const groupKey = buildSceneGroupKey(sceneId, groupId);
+    const currentSpan = groupSpanByKey.get(groupKey);
+    const cutEndSec = cutTiming.startSec + cutTiming.durationSec;
+    if (!currentSpan) {
+      groupSpanByKey.set(groupKey, {
+        sceneId,
+        groupId,
+        startSec: cutTiming.startSec,
+        endSec: cutEndSec,
+      });
+      continue;
+    }
+    currentSpan.startSec = Math.min(currentSpan.startSec, cutTiming.startSec);
+    currentSpan.endSec = Math.max(currentSpan.endSec, cutEndSec);
   }
 
   const sceneMetadata = input.metadataStore?.sceneMetadata || {};
@@ -194,6 +206,33 @@ export function buildExportAudioPlan(input: BuildExportAudioPlanInput): ExportAu
       gain: Number.isFinite(coreBinding.gain) ? coreBinding.gain : 1,
       sceneId,
       sourceType: 'scene-attach',
+    });
+  }
+
+  for (const groupSpan of groupSpanByKey.values()) {
+    const groupBinding = input.metadataStore?.sceneMetadata?.[groupSpan.sceneId]?.groupAudioBindings?.[groupSpan.groupId];
+    if (!groupBinding?.audioAssetId || groupBinding.enabled === false) continue;
+    const coreGroupBinding: AudioBindingCore = {
+      assetId: groupBinding.audioAssetId,
+      enabled: groupBinding.enabled,
+      gain: groupBinding.gain,
+      offsetSec: 0,
+    };
+    const groupAudioAsset = input.getAssetById(coreGroupBinding.assetId);
+    if (!groupAudioAsset?.path || groupAudioAsset.type !== 'audio') continue;
+    const durationSec = resolveClampedAudioDuration(groupAudioAsset, groupSpan.endSec - groupSpan.startSec);
+    if (durationSec <= 0) continue;
+    events.push({
+      assetId: groupAudioAsset.id,
+      sourcePath: groupAudioAsset.path,
+      sourceStartSec: 0,
+      sourceOffsetSec: normalizeSeconds(coreGroupBinding.offsetSec, 0),
+      timelineStartSec: groupSpan.startSec,
+      durationSec,
+      gain: Number.isFinite(coreGroupBinding.gain) ? coreGroupBinding.gain : 1,
+      sceneId: groupSpan.sceneId,
+      groupId: groupSpan.groupId,
+      sourceType: 'group-attach',
     });
   }
 
