@@ -58,9 +58,7 @@
   - UI playhead time の丸め/fps/表示単位は View 側の純関数で完結し、controller/domain に混ぜない。
 ## Export連携
 - Preview 起点 export は Export ガイドの正本ルールに従う。
-- Preview 側で独自の export 時間定義を持たない。
-- SequencePlan 入口は `buildSequencePlan(project, opts)` を使用し、`opts.target` で対象 cut 範囲を指定する。
-- `buildSequenceItemsForCuts` / `buildSequenceItemsForExport` は lower-level helper として扱い、Preview の主要 consumer から直接呼ばない。
+- Preview 側で独自の export 時間定義を持たず、`buildSequencePlan(project, opts)` で生成した Plan を Export へ渡す。
 
 ## Debug Overlay Boundary
 - Debug Overlay の仕様は `docs/guides/implementation/debug-overlay.md` に従う。

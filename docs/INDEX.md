@@ -14,6 +14,7 @@
 - Vault / Assets: `docs/guides/vault-assets.md`
 - Storyline（SceneDurationBar 境界を含む）: `docs/guides/storyline.md`
 - Cut/History: `docs/guides/cut-history.md`
+- Timeline Canonical: `docs/guides/timeline-canonical.md`
 - Preview: `docs/guides/preview.md`
 - Export: `docs/guides/export.md`
 - LipSync: `docs/guides/lip-sync.md`
