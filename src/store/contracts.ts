@@ -19,6 +19,7 @@ import type {
 } from '../types';
 import type { CutImportSource } from '../utils/cutImport';
 import type { AssetRef } from '../utils/assetRefs';
+import type { AppEffectWarning } from '../features/platform/effects';
 import type {
   StoreEvent,
   StoreEventInput,
@@ -155,7 +156,7 @@ export interface MetadataSliceContract {
     assetPath: string;
     assetIds: string[];
     reason?: string;
-  }) => Promise<{ success: boolean; reason?: string; blockingRefs?: AssetRef[] }>;
+  }) => Promise<{ success: boolean; reason?: string; blockingRefs?: AssetRef[]; warnings?: AppEffectWarning[] }>;
   relinkCutAsset: (
     sceneId: string,
     cutId: string,

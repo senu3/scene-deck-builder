@@ -1,12 +1,21 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildRegenThumbnailsEffect, emitRegenThumbnailsEffect } from '../thumbnailEffects';
 import { enqueueClipThumbnailRegeneration } from '../clipThumbnailRegenerationQueue';
+import { useStore } from '../../../store/useStore';
+import { resetElectronMocks } from '../../../test/setup.renderer';
 
 vi.mock('../clipThumbnailRegenerationQueue', () => ({
   enqueueClipThumbnailRegeneration: vi.fn(),
+  __resetClipThumbnailRegenerationQueueForTests: vi.fn(),
 }));
 
 describe('thumbnailEffects', () => {
+  beforeEach(() => {
+    resetElectronMocks();
+    vi.clearAllMocks();
+    useStore.setState(useStore.getInitialState(), true);
+  });
+
   it('builds REGEN_THUMBNAILS effect payload', () => {
     const effect = buildRegenThumbnailsEffect({
       profile: 'timeline-card',
@@ -24,6 +33,11 @@ describe('thumbnailEffects', () => {
     });
 
     expect(effect).toEqual({
+      channel: 'deferred',
+      orderingKey: 'thumbnail:timeline-card',
+      idempotent: true,
+      coalescible: true,
+      failurePolicy: 'warn',
       type: 'REGEN_THUMBNAILS',
       payload: {
         profile: 'timeline-card',

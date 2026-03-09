@@ -1,5 +1,10 @@
-import { runEffects, type AppEffect, type RegenThumbnailsRequest } from '../platform/effects';
-import { enqueueClipThumbnailRegeneration, type ClipThumbnailRegenerationDeps } from './clipThumbnailRegenerationQueue';
+import {
+  createRegenThumbnailsEffect,
+  dispatchAppEffects,
+  type AppEffect,
+  type RegenThumbnailsRequest,
+} from '../platform/effects';
+import type { ClipThumbnailRegenerationDeps } from './clipThumbnailRegenerationQueue';
 import type { ThumbnailProfile } from '../../utils/thumbnailCache';
 
 export interface RegenThumbnailsEffectInput {
@@ -9,15 +14,12 @@ export interface RegenThumbnailsEffectInput {
 }
 
 export function buildRegenThumbnailsEffect(input: RegenThumbnailsEffectInput): AppEffect {
-  return {
-    type: 'REGEN_THUMBNAILS',
-    payload: {
-      profile: input.profile,
-      cutIds: Array.from(new Set(input.requests.map((request) => request.cutId))),
-      reason: input.reason,
-      requests: input.requests,
-    },
-  };
+  return createRegenThumbnailsEffect({
+    profile: input.profile,
+    cutIds: Array.from(new Set(input.requests.map((request) => request.cutId))),
+    reason: input.reason,
+    requests: input.requests,
+  });
 }
 
 export async function emitRegenThumbnailsEffect(
@@ -25,16 +27,9 @@ export async function emitRegenThumbnailsEffect(
   deps: ClipThumbnailRegenerationDeps
 ): Promise<void> {
   const effect = buildRegenThumbnailsEffect(input);
-  const results = await runEffects([effect], {
-    deleteAssetFile: async () => ({ success: true }),
-    removeAssetsFromIndex: async () => ({ success: true }),
-    deleteMetadata: () => {},
-    requestThumbnailRegeneration: async (payload) => {
-      if (payload.profile !== 'timeline-card') return;
-      for (const request of payload.requests) {
-        enqueueClipThumbnailRegeneration(request, deps);
-      }
-    },
+  const { results } = await dispatchAppEffects([effect], {
+    origin: 'feature',
+    thumbnailDeps: deps,
   });
 
   const failed = results.find((result) => !result.success);

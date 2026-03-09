@@ -52,10 +52,16 @@ describe('metadataSlice deleteAssetWithPolicy effects flow', () => {
       reason: 'test-delete',
     });
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       success: true,
       reason: 'index-sync-failed',
     });
+    expect(result.warnings).toEqual([
+      expect.objectContaining({
+        effectType: 'INDEX_UPDATE',
+        reason: 'index-update-failed',
+      }),
+    ]);
     expect(useStore.getState().metadataStore?.metadata['asset-1']).toBeDefined();
     expect(useStore.getState().assetCache.has('asset-1')).toBe(true);
   });
@@ -74,9 +80,10 @@ describe('metadataSlice deleteAssetWithPolicy effects flow', () => {
       reason: 'test-delete',
     });
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       success: true,
     });
+    expect(result.warnings).toBeUndefined();
     expect(useStore.getState().metadataStore?.metadata['asset-1']).toBeUndefined();
     expect(useStore.getState().assetCache.has('asset-1')).toBe(false);
   });

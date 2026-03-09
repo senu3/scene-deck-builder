@@ -4,65 +4,140 @@ function resolveFailureReason(effectType: AppEffect['type'], reason?: string): s
   if (reason) return reason;
   if (effectType === 'FILES_DELETE') return 'trash-move-failed';
   if (effectType === 'INDEX_UPDATE') return 'index-update-failed';
+  if (effectType === 'SAVE_METADATA') return 'metadata-save-failed';
   if (effectType === 'REGEN_THUMBNAILS') return 'thumbnail-regeneration-failed';
   return 'metadata-delete-failed';
 }
 
+interface RunEffectsOptions {
+  onEffectEvent?: (input: {
+    stage: 'start' | 'success' | 'failure';
+    effect: AppEffect;
+    reason?: string;
+  }) => void;
+}
+
 export async function runEffects(
   effects: AppEffect[],
-  deps: EffectRunnerDeps
+  deps: EffectRunnerDeps,
+  options: RunEffectsOptions = {}
 ): Promise<EffectRunResult[]> {
   const results: EffectRunResult[] = [];
 
   for (const effect of effects) {
+    options.onEffectEvent?.({
+      stage: 'start',
+      effect,
+    });
+
     if (effect.type === 'FILES_DELETE') {
       const result = await deps.deleteAssetFile(effect.payload);
       if (!result.success) {
+        const reason = resolveFailureReason(effect.type, result.reason);
         results.push({
           effect,
           success: false,
-          reason: resolveFailureReason(effect.type, result.reason),
+          reason,
+        });
+        options.onEffectEvent?.({
+          stage: 'failure',
+          effect,
+          reason,
         });
         return results;
       }
       results.push({ effect, success: true });
+      options.onEffectEvent?.({
+        stage: 'success',
+        effect,
+      });
       continue;
     }
 
     if (effect.type === 'INDEX_UPDATE') {
       const result = await deps.removeAssetsFromIndex(effect.payload);
       if (!result.success) {
+        const reason = resolveFailureReason(effect.type, result.reason);
         results.push({
           effect,
           success: false,
-          reason: resolveFailureReason(effect.type, result.reason),
+          reason,
+        });
+        options.onEffectEvent?.({
+          stage: 'failure',
+          effect,
+          reason,
         });
         return results;
       }
       results.push({ effect, success: true });
+      options.onEffectEvent?.({
+        stage: 'success',
+        effect,
+      });
+      continue;
+    }
+
+    if (effect.type === 'SAVE_METADATA') {
+      const success = await deps.saveMetadata(effect.payload);
+      if (!success) {
+        const reason = resolveFailureReason(effect.type);
+        results.push({
+          effect,
+          success: false,
+          reason,
+        });
+        options.onEffectEvent?.({
+          stage: 'failure',
+          effect,
+          reason,
+        });
+        return results;
+      }
+      results.push({ effect, success: true });
+      options.onEffectEvent?.({
+        stage: 'success',
+        effect,
+      });
       continue;
     }
 
     if (effect.type === 'REGEN_THUMBNAILS') {
       if (!deps.requestThumbnailRegeneration) {
+        const reason = resolveFailureReason(effect.type, 'thumbnail-regeneration-handler-missing');
         results.push({
           effect,
           success: false,
-          reason: resolveFailureReason(effect.type, 'thumbnail-regeneration-handler-missing'),
+          reason,
+        });
+        options.onEffectEvent?.({
+          stage: 'failure',
+          effect,
+          reason,
         });
         return results;
       }
       try {
         await deps.requestThumbnailRegeneration(effect.payload);
         results.push({ effect, success: true });
+        options.onEffectEvent?.({
+          stage: 'success',
+          effect,
+        });
       } catch (error) {
+        const reason = resolveFailureReason(
+          effect.type,
+          error instanceof Error ? error.message : undefined
+        );
         results.push({
           effect,
           success: false,
-          reason: resolveFailureReason(
-            effect.type,
-            error instanceof Error ? error.message : undefined
-          ),
+          reason,
+        });
+        options.onEffectEvent?.({
+          stage: 'failure',
+          effect,
+          reason,
         });
         return results;
       }
@@ -72,14 +147,24 @@ export async function runEffects(
     try {
       await deps.deleteMetadata(effect.payload.assetIds);
       results.push({ effect, success: true });
+      options.onEffectEvent?.({
+        stage: 'success',
+        effect,
+      });
     } catch (error) {
+      const reason = resolveFailureReason(
+        effect.type,
+        error instanceof Error ? error.message : undefined
+      );
       results.push({
         effect,
         success: false,
-        reason: resolveFailureReason(
-          effect.type,
-          error instanceof Error ? error.message : undefined
-        ),
+        reason,
+      });
+      options.onEffectEvent?.({
+        stage: 'failure',
+        effect,
+        reason,
       });
       return results;
     }

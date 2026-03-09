@@ -2,7 +2,6 @@ import { v4 as uuidv4 } from 'uuid';
 import type { LipSyncSettings } from '../../types';
 import {
   loadMetadataStore,
-  saveMetadataStore,
   updateAudioAnalysis,
   updateLipSyncSettings,
   removeLipSyncSettings,
@@ -13,8 +12,15 @@ import {
 } from '../../utils/metadataStore';
 import { analyzeAudioRms } from '../../utils/audioUtils';
 import { collectAssetRefs, getBlockingRefsForAssetIds } from '../../utils/assetRefs';
-import { deleteAssetFile, hydrateAssetsByIdsFromIndex, removeAssetsFromIndex } from '../../features/metadata/provider';
-import { runEffects, type AppEffect } from '../../features/platform/effects';
+import { hydrateAssetsByIdsFromIndex } from '../../features/metadata/provider';
+import {
+  type AppEffect,
+  createFilesDeleteEffect,
+  createIndexUpdateEffect,
+  createMetadataDeleteEffect,
+  createSaveMetadataEffect,
+  dispatchAppEffects,
+} from '../../features/platform/effects';
 import type { MetadataStore } from '../../types';
 import type { MetadataSliceContract } from '../contracts';
 import type { SliceGet, SliceSet } from './sliceTypes';
@@ -88,7 +94,17 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
       if (state.vaultPath && state.metadataStore) {
         const syncedStore = syncSceneMetadata(state.metadataStore, state.scenes);
         set({ metadataStore: syncedStore });
-        await saveMetadataStore(state.vaultPath, syncedStore);
+        const { warnings } = await dispatchAppEffects([
+          createSaveMetadataEffect({
+            vaultPath: state.vaultPath,
+            store: syncedStore,
+          }),
+        ], {
+          origin: 'store',
+        });
+        for (const warning of warnings) {
+          console.warn('[metadata] save warning', warning);
+        }
       }
     },
 
@@ -411,51 +427,51 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
       }
 
       const effects: AppEffect[] = [
-        {
-          type: 'FILES_DELETE',
-          payload: {
-            assetPath,
-            trashPath: targetTrashPath,
-            assetIds: targetAssetIds,
-            reason,
-          },
-        },
+        createFilesDeleteEffect({
+          assetPath,
+          trashPath: targetTrashPath,
+          assetIds: targetAssetIds,
+          reason,
+        }),
       ];
       if (state.vaultPath) {
-        effects.push({
-          type: 'INDEX_UPDATE',
-          payload: {
-            vaultPath: state.vaultPath,
-            assetIds: targetAssetIds,
-          },
-        });
-      }
-      effects.push({
-        type: 'METADATA_DELETE',
-        payload: {
+        effects.push(createIndexUpdateEffect({
+          vaultPath: state.vaultPath,
           assetIds: targetAssetIds,
-        },
-      });
+        }));
+      }
+      effects.push(createMetadataDeleteEffect({
+        assetIds: targetAssetIds,
+      }));
 
-      const results = await runEffects(effects, {
-        deleteAssetFile,
-        removeAssetsFromIndex,
-        deleteMetadata: (ids) => {
-          get().removeAssetReferences(ids);
-        },
+      const { results, warnings } = await dispatchAppEffects(effects, {
+        origin: 'store',
       });
+      const warningResult = warnings.length > 0 ? { warnings } : {};
       const failed = results.find((entry) => !entry.success);
       if (!failed) {
-        return { success: true };
+        return { success: true, ...warningResult };
       }
 
       if (failed.effect.type === 'FILES_DELETE') {
-        return { success: false, reason: failed.reason || 'trash-move-failed' };
+        return {
+          success: false,
+          reason: failed.reason || 'trash-move-failed',
+          ...warningResult,
+        };
       }
       if (failed.effect.type === 'INDEX_UPDATE') {
-        return { success: true, reason: 'index-sync-failed' };
+        return {
+          success: true,
+          reason: 'index-sync-failed',
+          ...warningResult,
+        };
       }
-      return { success: false, reason: failed.reason || 'metadata-delete-failed' };
+      return {
+        success: false,
+        reason: failed.reason || 'metadata-delete-failed',
+        ...warningResult,
+      };
     },
 
     relinkCutAsset: (sceneId, cutId, newAsset, options) => {
