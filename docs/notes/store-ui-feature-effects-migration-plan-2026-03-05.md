@@ -50,9 +50,13 @@
   - `src/features/project/load.ts` の project load 補助も bridge 経由へ寄せ、project feature 配下の `window.electronAPI` 直呼びを撤去。
   - `src/features/project/apply.ts` を追加し、load 後の共通 apply/finalize を `finalizePendingProjectLoad` に集約。Startup / Header / path 指定が同じ store 適用・recent 更新・migration save 経路を通るようにした。
   - recovery で cut が削除された場合は、その cut の `cutRuntimeById.hold` を復元しないようにし、load 完了後 state の runtime 残骸を防止。
+  - LipSync metadata 登録は `src/features/metadata/lipSyncActions.ts` の feature entry へ移し、`metadataSlice.setLipSyncForAsset` / `clearLipSyncForAsset` の auto-save を撤去した。
+  - cut relink 時の LipSync generated asset cleanup も feature entry で明示的に起動し、`metadataSlice.relinkCutAsset` から async cleanup を外した。
+  - `src/features/project/sourcePanelProvider.ts` を拡張し、`Sidebar` の source folder 選択/refresh/drop も provider/bridge 経由へ寄せた。
+  - `AssetPanel` の asset folder 読み込み / bulk import / pathExists の read-import 入口も既存 bridge/provider 経由へ寄せ、UI 直 `window.electronAPI` を縮退した。
 - 未完了:
-  - `projectSlice` と metadata/lipsync 系に残る `saveMetadata()` 依存のさらに外側の直呼び棚卸し。
-  - load/init 後の UI 状態更新と desktop unavailable 分岐のさらなる縮退。
+  - `projectSlice` と metadata 系に残る `saveMetadata()` 依存のさらに外側の直呼び棚卸し。
+  - asset panel / details panel などに残る desktop unavailable 分岐と drag/export 系 UI 入口の整理。
   - Preview / Export parity に影響する timing 再計算の棚卸し表固定。
   - effect activity の簡易ビュー実装。
 
@@ -79,6 +83,9 @@
 - scene/group audio binding の保存も command effect 化済み。
 - project save / recent projects / asset index save も effect 化済み。
 - load/init 系 I/O は `project/session`、load 完了後の state 適用・recovery finalize は `project/apply` に寄せたので、残りは lipsync 系の保存責務整理と UI 側の軽量化。
+- LipSync metadata 登録/cleanup も feature entry 化したので、残りは metadata 系の保存責務整理と UI 側の軽量化。
+- source panel の read path も provider/bridge 化を進め、残りは asset panel など他 UI 入口の棚卸し。
+- asset panel の read/import 入口も bridge/provider 化を進め、残りは drag/export 系と details 側 UI 入口の棚卸し。
 - Preview / Export は `SequencePlan` を正本にし、timing 再計算の散在を新規追加禁止とする。
 
 ## metadata 削除ポリシー（Follow-up Update）
