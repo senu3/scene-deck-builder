@@ -45,9 +45,10 @@
   - scene / scene note 系 command が `SAVE_METADATA` effect を返すようになり、`cutTimelineSlice` の scene metadata 保存直呼びを撤去。
   - scene/group audio binding は setter の自動保存をやめ、初回 execute 時のみ command effect で metadata 保存する形に移行。
   - `StartupModal` / `useHeaderProjectController` の project save/load / recent projects / asset index save は `electronGateway` bridge 経由へ寄せ、UI 直 `window.electronAPI` 呼びを縮退。
+  - `SAVE_PROJECT` / `SAVE_RECENT_PROJECTS` / `SAVE_ASSET_INDEX` effect を追加し、header/startup の save 系 write は `dispatchAppEffects` 経由へ移行。
 - 未完了:
   - `projectSlice` と metadata/lipsync 系に残る `saveMetadata()` 依存のさらに外側の直呼び棚卸し。
-  - project save/load の完全な effect 分離（現状は bridge 経由まで）。
+  - project load / createVault / ensureAssetsFolder など read/init 系 I/O の feature action 整理。
   - Preview / Export parity に影響する timing 再計算の棚卸し表固定。
   - effect activity の簡易ビュー実装。
 
@@ -72,7 +73,7 @@
 - metadata save/delete と clip thumbnail regeneration は実装済み。
 - scene / scene note metadata 保存も command effect 化済み。
 - scene/group audio binding の保存も command effect 化済み。
-- project save/load は UI 直呼びを bridge に寄せたので、次は effect 化と payload/戻り値設計を切り分ける。
+- project save / recent projects / asset index save も effect 化済み。残りは load/init 系の入口整理。
 - Preview / Export は `SequencePlan` を正本にし、timing 再計算の散在を新規追加禁止とする。
 
 ## metadata 削除ポリシー（Follow-up Update）
