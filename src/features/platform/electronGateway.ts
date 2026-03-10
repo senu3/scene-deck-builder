@@ -1,4 +1,4 @@
-import type { FileItem } from '../../types';
+import type { AssetIndex, FileItem } from '../../types';
 
 type BridgeElectronAPI = NonNullable<Window['electronAPI']>;
 
@@ -16,9 +16,10 @@ type PathResolveResult = {
   error?: string;
 };
 
-type AssetIndexLike = {
-  version: number;
-  assets: unknown[];
+type RecentProjectLike = {
+  name: string;
+  path: string;
+  date: string;
 };
 
 type VaultImportResult = {
@@ -28,6 +29,11 @@ type VaultImportResult = {
   hash?: string;
   isDuplicate?: boolean;
   error?: string;
+};
+
+type VaultInfoLike = {
+  path: string;
+  name?: string;
 };
 
 type VideoMetadataLike = {
@@ -94,12 +100,32 @@ export async function getFolderContentsBridge(folderPath: string): Promise<FileI
   return (await getElectronAPI()?.getFolderContents?.(folderPath)) ?? null;
 }
 
+export async function selectVaultBridge(): Promise<string | null> {
+  return getElectronAPI()?.selectVault?.() ?? null;
+}
+
+export async function createVaultBridge(vaultPath: string, projectName: string): Promise<VaultInfoLike | null> {
+  return getElectronAPI()?.createVault?.(vaultPath, projectName) ?? null;
+}
+
 export async function loadProjectFromPathBridge(projectPath: string): Promise<{ data: unknown; path: string } | null> {
   return getElectronAPI()?.loadProjectFromPath?.(projectPath) ?? null;
 }
 
+export async function loadProjectBridge(): Promise<{ data: unknown; path: string } | null> {
+  return getElectronAPI()?.loadProject?.() ?? null;
+}
+
 export async function saveProjectBridge(projectData: string, projectPath?: string): Promise<string | null> {
   return getElectronAPI()?.saveProject?.(projectData, projectPath) ?? null;
+}
+
+export async function getRecentProjectsBridge(): Promise<RecentProjectLike[]> {
+  return (await getElectronAPI()?.getRecentProjects?.()) ?? [];
+}
+
+export async function saveRecentProjectsBridge(projects: RecentProjectLike[]): Promise<boolean> {
+  return (await getElectronAPI()?.saveRecentProjects?.(projects as any)) ?? false;
 }
 
 export async function getRelativePathBridge(vaultPath: string, absolutePath: string): Promise<string | null> {
@@ -114,8 +140,12 @@ export async function getFileInfoBridge(filePath: string): Promise<{ size?: numb
   return getElectronAPI()?.getFileInfo?.(filePath) ?? null;
 }
 
-export async function loadAssetIndexBridge(vaultPath: string): Promise<AssetIndexLike | null> {
+export async function loadAssetIndexBridge(vaultPath: string): Promise<AssetIndex | null> {
   return getElectronAPI()?.loadAssetIndex?.(vaultPath) ?? null;
+}
+
+export async function ensureAssetsFolderBridge(vaultPath: string): Promise<string | null> {
+  return getElectronAPI()?.ensureAssetsFolder?.(vaultPath) ?? null;
 }
 
 export async function withSerializedAssetIndexMutationBridge<T>(run: () => Promise<T>): Promise<T> {
@@ -144,7 +174,7 @@ export function hasVaultGatewayBridge(): boolean {
   return !!getElectronAPI()?.vaultGateway;
 }
 
-export async function saveAssetIndexBridge(vaultPath: string, index: AssetIndexLike): Promise<boolean> {
+export async function saveAssetIndexBridge(vaultPath: string, index: AssetIndex): Promise<boolean> {
   return (await getElectronAPI()?.vaultGateway?.saveAssetIndex?.(vaultPath, index as any)) ?? false;
 }
 
@@ -170,4 +200,16 @@ export async function importDataUrlAssetBridge(
   assetId: string
 ): Promise<VaultImportResult | null> {
   return getElectronAPI()?.vaultGateway?.importDataUrlAsset?.(dataUrl, vaultPath, assetId) ?? null;
+}
+
+export async function setAutosaveEnabledBridge(enabled: boolean): Promise<boolean> {
+  return (await getElectronAPI()?.setAutosaveEnabled?.(enabled)) ?? false;
+}
+
+export function onAutosaveFlushRequestBridge(callback: () => void | Promise<void>): (() => void) | null {
+  return getElectronAPI()?.onAutosaveFlushRequest?.(callback) ?? null;
+}
+
+export function notifyAutosaveFlushedBridge(): void {
+  getElectronAPI()?.notifyAutosaveFlushed?.();
 }

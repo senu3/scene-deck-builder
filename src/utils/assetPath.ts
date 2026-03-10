@@ -1,4 +1,4 @@
-import { Asset } from '../types';
+import type { Asset, AssetIndex } from '../types';
 import {
   calculateFileHashBridge,
   getFileInfoBridge,
@@ -142,8 +142,8 @@ export async function importFileToVault(
     const fileSize = existingAsset?.fileSize || (await getFileInfoBridge(sourcePath))?.size || 0;
     const mediaType = existingAsset?.type || getMediaTypeFromPath(sourcePath);
 
-    const index = (await loadAssetIndexBridge(vaultPath)) || { version: 1, assets: [] as Record<string, unknown>[] };
-    const nextAssets = [...(index.assets as Record<string, unknown>[])];
+    const index = (await loadAssetIndexBridge(vaultPath)) || { version: 1, assets: [] as AssetIndex['assets'] };
+    const nextAssets = [...index.assets];
     const entry = {
       id: assetId,
       hash,

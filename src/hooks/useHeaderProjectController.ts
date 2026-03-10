@@ -26,6 +26,17 @@ import {
   resolveLoadedVaultPath,
   resolveScenesAssets,
 } from '../features/project/load';
+import {
+  getRecentProjectsBridge,
+  loadAssetIndexBridge,
+  loadProjectBridge,
+  notifyAutosaveFlushedBridge,
+  onAutosaveFlushRequestBridge,
+  saveAssetIndexBridge,
+  saveProjectBridge,
+  saveRecentProjectsBridge,
+  setAutosaveEnabledBridge,
+} from '../features/platform/electronGateway';
 
 // Pending project data for recovery dialog
 interface PendingProject {
@@ -106,11 +117,14 @@ export function useHeaderProjectController() {
     const sourcePanelState = getSourcePanelState();
 
     // Reorder asset index by Storyline order (scene/cut order)
-    if (vaultPath && window.electronAPI.loadAssetIndex && window.electronAPI.vaultGateway?.saveAssetIndex) {
+    if (vaultPath) {
       try {
         const orderedIds = getOrderedAssetIdsFromScenes(normalizedScenes, normalizedSceneOrder);
         const usageRefs = buildAssetUsageRefs(normalizedScenes, normalizedSceneOrder);
-        const index = await window.electronAPI.loadAssetIndex(vaultPath);
+        const index = await loadAssetIndexBridge(vaultPath);
+        if (!index) {
+          throw new Error('Failed to load asset index');
+        }
         const refs = collectAssetRefs(normalizedScenes, metadataStore);
         const existingAssetIds = new Set(index.assets.map((entry) => entry.id));
         const danglingRefs = findDanglingAssetRefs(refs, existingAssetIds);
@@ -134,7 +148,7 @@ export function useHeaderProjectController() {
           ...index,
           assets: [...ordered, ...remaining],
         };
-        await window.electronAPI.vaultGateway.saveAssetIndex(vaultPath, newIndex);
+        await saveAssetIndexBridge(vaultPath, newIndex);
       } catch (error) {
         console.error('Failed to reorder asset index:', error);
       }
@@ -153,7 +167,7 @@ export function useHeaderProjectController() {
     });
     const projectData = serializeProjectSavePayload(projectPayload);
 
-    const savedPath = await window.electronAPI.saveProject(projectData, vaultPath ? `${vaultPath}/project.sdp` : undefined);
+    const savedPath = await saveProjectBridge(projectData, vaultPath ? `${vaultPath}/project.sdp` : undefined);
     if (savedPath) {
       setProjectPath(savedPath);
       if (options?.notify !== false) {
@@ -166,14 +180,14 @@ export function useHeaderProjectController() {
 
       if (options?.updateRecent !== false) {
         // Update recent projects
-        const recentProjects = await window.electronAPI.getRecentProjects();
+        const recentProjects = await getRecentProjectsBridge();
         const newRecent = {
           name: projectName,
           path: savedPath,
           date: new Date().toISOString(),
         };
         const filtered = recentProjects.filter(p => p.path !== savedPath);
-        await window.electronAPI.saveRecentProjects([newRecent, ...filtered.slice(0, 9)]);
+        await saveRecentProjectsBridge([newRecent, ...filtered.slice(0, 9)]);
       }
     }
   }, [cutRuntimeById, dialogAlert, getAsset, getSourcePanelState, loadProject, metadataStore, projectName, sceneOrder, scenes, setProjectPath, targetTotalDurationSec, toast, vaultPath]);
@@ -229,14 +243,14 @@ export function useHeaderProjectController() {
     }
 
     // Update recent projects
-    const recentProjects = await window.electronAPI?.getRecentProjects() || [];
+    const recentProjects = await getRecentProjectsBridge();
     const newRecent = {
       name: project.name,
       path: project.projectPath,
       date: new Date().toISOString(),
     };
     const filtered = recentProjects.filter((p: any) => p.path !== project.projectPath);
-    await window.electronAPI?.saveRecentProjects([newRecent, ...filtered.slice(0, 9)]);
+    await saveRecentProjectsBridge([newRecent, ...filtered.slice(0, 9)]);
 
     if (project.shouldResaveVersion && window.electronAPI) {
       try {
@@ -263,7 +277,7 @@ export function useHeaderProjectController() {
           sourcePanel: project.sourcePanelState,
           savedAt: new Date().toISOString(),
         });
-        await window.electronAPI.saveProject(serializeProjectSavePayload(payload), project.projectPath);
+        await saveProjectBridge(serializeProjectSavePayload(payload), project.projectPath);
       } catch (error) {
         console.warn('[ProjectLoad] Failed to persist version migration:', error);
       }
@@ -305,7 +319,7 @@ export function useHeaderProjectController() {
       return;
     }
 
-    const result = await window.electronAPI.loadProject();
+    const result = await loadProjectBridge();
     if (result) {
       const { data, path } = result;
       const projectData = data as {
@@ -415,17 +429,16 @@ export function useHeaderProjectController() {
   }, [autosaveActive, handleAutosaveProject, toast]);
 
   useEffect(() => {
-    if (!window.electronAPI?.setAutosaveEnabled) return;
-    window.electronAPI.setAutosaveEnabled(autosaveActive).catch(() => {});
+    setAutosaveEnabledBridge(autosaveActive).catch(() => {});
   }, [autosaveActive]);
 
   useEffect(() => {
     if (!autosaveActive) return;
-    if (!window.electronAPI?.onAutosaveFlushRequest || !window.electronAPI?.notifyAutosaveFlushed) return;
-    const unsubscribe = window.electronAPI.onAutosaveFlushRequest(async () => {
+    const unsubscribe = onAutosaveFlushRequestBridge(async () => {
       await handleAutosaveProject();
-      window.electronAPI?.notifyAutosaveFlushed();
+      notifyAutosaveFlushedBridge();
     });
+    if (!unsubscribe) return;
     return () => unsubscribe();
   }, [autosaveActive, handleAutosaveProject]);
 

@@ -32,6 +32,18 @@ import {
   resolveLoadedVaultPath,
   resolveScenesAssets,
 } from '../features/project/load';
+import {
+  createVaultBridge,
+  ensureAssetsFolderBridge,
+  getFolderContentsBridge,
+  getRecentProjectsBridge,
+  loadProjectBridge,
+  loadProjectFromPathBridge,
+  pathExistsBridge,
+  saveProjectBridge,
+  saveRecentProjectsBridge,
+  selectVaultBridge,
+} from '../features/platform/electronGateway';
 import './StartupModal.css';
 
 interface RecentProject {
@@ -93,25 +105,25 @@ export default function StartupModal() {
   }, []);
 
   const loadRecentProjects = async () => {
-    if (window.electronAPI) {
-      const projects = await window.electronAPI.getRecentProjects();
+    if (!window.electronAPI) return;
 
-      // Filter out projects that no longer exist
-      const validProjects: RecentProject[] = [];
-      for (const project of projects) {
-        const exists = await window.electronAPI.pathExists(project.path);
-        if (exists) {
-          validProjects.push(project);
-        }
+    const projects = await getRecentProjectsBridge();
+
+    // Filter out projects that no longer exist
+    const validProjects: RecentProject[] = [];
+    for (const project of projects) {
+      const exists = await pathExistsBridge(project.path);
+      if (exists) {
+        validProjects.push(project);
       }
-
-      // Update recent projects if any were removed
-      if (validProjects.length !== projects.length) {
-        await window.electronAPI.saveRecentProjects(validProjects);
-      }
-
-      setRecentProjects(validProjects);
     }
+
+    // Update recent projects if any were removed
+    if (validProjects.length !== projects.length) {
+      await saveRecentProjectsBridge(validProjects);
+    }
+
+    setRecentProjects(validProjects);
   };
 
   const handleSelectVault = async () => {
@@ -121,7 +133,7 @@ export default function StartupModal() {
       return;
     }
 
-    const path = await window.electronAPI.selectVault();
+    const path = await selectVaultBridge();
     if (path) {
       setVaultPath(path);
     }
@@ -135,7 +147,7 @@ export default function StartupModal() {
     try {
       if (window.electronAPI) {
         // Create vault structure
-        const vault = await window.electronAPI.createVault(vaultPath, projectName);
+        const vault = await createVaultBridge(vaultPath, projectName);
         if (!vault) {
           alert('Failed to create vault folder');
           setIsCreating(false);
@@ -143,7 +155,7 @@ export default function StartupModal() {
         }
 
         // Create assets folder for file-based asset sync
-        await window.electronAPI.ensureAssetsFolder(vault.path);
+        await ensureAssetsFolderBridge(vault.path);
 
         // Initialize project with default 3 scenes
         const defaultScenes = [
@@ -166,7 +178,7 @@ export default function StartupModal() {
         });
 
         const projectFilePath = `${vault.path}/project.sdp`;
-        await window.electronAPI.saveProject(projectData, projectFilePath);
+        await saveProjectBridge(projectData, projectFilePath);
 
         // Update recent projects
         const newRecent: RecentProject = {
@@ -174,8 +186,8 @@ export default function StartupModal() {
           path: projectFilePath,
           date: new Date().toISOString(),
         };
-        const existingRecent = await window.electronAPI.getRecentProjects();
-        await window.electronAPI.saveRecentProjects([newRecent, ...existingRecent.slice(0, 9)]);
+        const existingRecent = await getRecentProjectsBridge();
+        await saveRecentProjectsBridge([newRecent, ...existingRecent.slice(0, 9)]);
 
         // Initialize project with the scenes we created
         initializeProject({
@@ -190,11 +202,11 @@ export default function StartupModal() {
         await loadMetadata(vault.path);
 
         // Set root folder to vault
-        const structure = await window.electronAPI.getFolderContents(vault.path);
+        const structure = await getFolderContentsBridge(vault.path);
         setRootFolder({
           path: vault.path,
           name: projectName,
-          structure,
+          structure: structure || [],
         });
 
         // Initialize source panel with default vault assets folder
@@ -224,7 +236,7 @@ export default function StartupModal() {
       return;
     }
 
-    const result = await window.electronAPI.loadProject();
+    const result = await loadProjectBridge();
     if (!result) return;
     const outcome = await loadProjectCore(dataAsLoadedProject(result.data), result.path, 'Loaded Project');
     await applyProjectLoadOutcome(outcome);
@@ -274,7 +286,7 @@ export default function StartupModal() {
     const filtered = recentProjects.filter(p => p.path !== project.projectPath);
     const updated = [newRecent, ...filtered.slice(0, 9)];
     setRecentProjects(updated);
-    await window.electronAPI?.saveRecentProjects(updated);
+    await saveRecentProjectsBridge(updated);
 
     if (project.shouldResaveVersion && window.electronAPI) {
       try {
@@ -300,7 +312,7 @@ export default function StartupModal() {
           sourcePanel: project.sourcePanelState,
           savedAt: new Date().toISOString(),
         });
-        await window.electronAPI.saveProject(serializeProjectSavePayload(payload), project.projectPath);
+        await saveProjectBridge(serializeProjectSavePayload(payload), project.projectPath);
       } catch (error) {
         console.warn('[ProjectLoad] Failed to persist version migration:', error);
       }
@@ -396,19 +408,19 @@ export default function StartupModal() {
   const handleOpenRecent = async (project: RecentProject) => {
     if (!window.electronAPI) return;
 
-    const exists = await window.electronAPI.pathExists(project.path);
+    const exists = await pathExistsBridge(project.path);
     if (!exists) {
       alert('Project file not found. It may have been moved or deleted.');
       // Remove from recent
       const filtered = recentProjects.filter(p => p.path !== project.path);
       setRecentProjects(filtered);
-      await window.electronAPI.saveRecentProjects(filtered);
+      await saveRecentProjectsBridge(filtered);
       return;
     }
 
     // Load the project file directly from the specified path
     try {
-      const result = await window.electronAPI.loadProjectFromPath(project.path);
+      const result = await loadProjectFromPathBridge(project.path);
       if (!result) return;
       const outcome = await loadProjectCore(dataAsLoadedProject(result.data), project.path, project.name);
       await applyProjectLoadOutcome(outcome);
