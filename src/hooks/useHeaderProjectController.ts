@@ -1,15 +1,11 @@
 import { useCallback, useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { useDialog, useToast } from '../ui';
-import type { Scene, Asset, SourcePanelState } from '../types';
 import type { MissingAssetInfo, RecoveryDecision } from '../components/MissingAssetRecoveryModal';
-import { resolveCutAsset } from '../utils/assetResolve';
 import { createAutosaveController, subscribeProjectChanges } from '../utils/autosave';
 import { collectAssetRefs, findDanglingAssetRefs } from '../utils/assetRefs';
 import {
   buildProjectSavePayload,
-  type PersistedCutRuntimeById,
-  normalizePersistedCutRuntimeById,
   serializeProjectSavePayload,
   prepareScenesForSave,
   getOrderedAssetIdsFromScenes,
@@ -18,14 +14,14 @@ import {
   ensureSceneOrder,
 } from '../utils/projectSave';
 import {
-  applyRecoveryDecisionsToScenes,
-  collectRecoveryRelinkEventCandidates,
-  hasLegacyRelativeAssetPaths,
-  normalizeLoadedProjectVersion,
-  regenerateCutClipThumbnails,
-  resolveLoadedVaultPath,
-  resolveScenesAssets,
-} from '../features/project/load';
+  finalizePendingProjectLoad,
+} from '../features/project/apply';
+import {
+  type PendingProject,
+  buildProjectLoadOutcome,
+  loadRecentProjectsWithCleanup,
+  requestProjectSelection,
+} from '../features/project/session';
 import {
   type AppEffect,
   createSaveAssetIndexEffect,
@@ -35,26 +31,11 @@ import {
   type AppEffectDispatchResult,
 } from '../features/platform/effects';
 import {
-  getRecentProjectsBridge,
   loadAssetIndexBridge,
-  loadProjectBridge,
   notifyAutosaveFlushedBridge,
   onAutosaveFlushRequestBridge,
   setAutosaveEnabledBridge,
 } from '../features/platform/electronGateway';
-
-// Pending project data for recovery dialog
-interface PendingProject {
-  name: string;
-  vaultPath: string;
-  scenes: Scene[];
-  sceneOrder?: string[];
-  targetTotalDurationSec?: number;
-  cutRuntimeById?: PersistedCutRuntimeById;
-  sourcePanelState?: SourcePanelState;
-  projectPath: string;
-  shouldResaveVersion?: boolean;
-}
 
 function logFeatureEffectWarnings(scope: string, result: AppEffectDispatchResult): void {
   for (const warning of result.warnings) {
@@ -202,7 +183,7 @@ export function useHeaderProjectController() {
         ]
       : [];
     if (options?.updateRecent !== false && targetProjectPath) {
-      const recentProjects = await getRecentProjectsBridge();
+      const recentProjects = await loadRecentProjectsWithCleanup();
       const newRecent = {
         name: projectName,
         path: targetProjectPath,
@@ -241,100 +222,20 @@ export function useHeaderProjectController() {
   }, [saveProjectInternal, vaultPath]);
 
   const finalizeProjectLoad = useCallback(async (project: PendingProject, recoveryDecisions?: RecoveryDecision[]) => {
-    const beforeRecoveryScenes = project.scenes;
-    let finalScenes = await applyRecoveryDecisionsToScenes(
-      project.scenes,
-      project.vaultPath,
-      recoveryDecisions
-    );
-    const recoveryRelinks = collectRecoveryRelinkEventCandidates(beforeRecoveryScenes, finalScenes, recoveryDecisions);
-    finalScenes = await regenerateCutClipThumbnails(finalScenes);
+    const result = await finalizePendingProjectLoad(project, {
+      initializeProject,
+      setCutRuntimeHold,
+      setProjectPath,
+      loadMetadata,
+      initializeSourcePanel,
+      createStoreEventOperation,
+      runWithStoreEventContext,
+      emitCutRelinked,
+    }, recoveryDecisions);
 
-    initializeProject({
-      name: project.name,
-      vaultPath: project.vaultPath,
-      scenes: finalScenes,
-      sceneOrder: project.sceneOrder,
-      targetTotalDurationSec: project.targetTotalDurationSec,
-    });
-    if (project.cutRuntimeById) {
-      for (const [cutId, runtime] of Object.entries(project.cutRuntimeById)) {
-        if (runtime?.hold) {
-          setCutRuntimeHold(cutId, runtime.hold);
-        }
-      }
-    }
-    setProjectPath(project.projectPath);
-
-    // Load metadata store (audio attachments, etc.)
-    await loadMetadata(project.vaultPath);
-
-    // Initialize source panel state
-    await initializeSourcePanel(project.sourcePanelState, project.vaultPath);
-
-    if (recoveryRelinks.length > 0) {
-      const context = createStoreEventOperation('recovery');
-      await runWithStoreEventContext(context, async () => {
-        for (const relink of recoveryRelinks) {
-          emitCutRelinked(relink);
-        }
-      });
-    }
-
-    // Update recent projects
-    const recentProjects = await getRecentProjectsBridge();
-    const newRecent = {
-      name: project.name,
-      path: project.projectPath,
-      date: new Date().toISOString(),
-    };
-    const filtered = recentProjects.filter((p: any) => p.path !== project.projectPath);
-    const recentResult = await dispatchAppEffects([
-      createSaveRecentProjectsEffect({
-        projects: [newRecent, ...filtered.slice(0, 9)],
-      }),
-    ], {
-      origin: 'feature',
-    });
-    logFeatureEffectWarnings('save-recent-projects', recentResult);
-
-    if (project.shouldResaveVersion && window.electronAPI) {
-      try {
-        const assetById = new Map<string, Asset>();
-        for (const scene of finalScenes) {
-          for (const cut of scene.cuts) {
-            const asset = resolveCutAsset(cut, () => undefined);
-            if (!asset) continue;
-            const resolvedId = cut.assetId || asset.id;
-            if (!resolvedId) continue;
-            assetById.set(resolvedId, { ...asset, id: resolvedId });
-          }
-        }
-        const scenesToSave = prepareScenesForSave(finalScenes, (assetId) => assetById.get(assetId));
-        const { sceneOrder: normalizedSceneOrder } = ensureSceneOrder(project.sceneOrder, finalScenes);
-        const payload = buildProjectSavePayload({
-          version: 3,
-          name: project.name,
-          vaultPath: project.vaultPath,
-          scenes: scenesToSave,
-          sceneOrder: normalizedSceneOrder,
-          cutRuntimeById: project.cutRuntimeById,
-          targetTotalDurationSec: project.targetTotalDurationSec,
-          sourcePanel: project.sourcePanelState,
-          savedAt: new Date().toISOString(),
-        });
-        const migrationSaveResult = await dispatchAppEffects([
-          createSaveProjectEffect({
-            projectPath: project.projectPath,
-            projectData: serializeProjectSavePayload(payload),
-          }),
-        ], {
-          origin: 'feature',
-        });
-        logFeatureEffectWarnings('save-project-migration', migrationSaveResult);
-      } catch (error) {
-        console.warn('[ProjectLoad] Failed to persist version migration:', error);
-      }
+    logFeatureEffectWarnings('save-recent-projects', result.recentSaveResult);
+    if (result.migrationSaveResult) {
+      logFeatureEffectWarnings('save-project-migration', result.migrationSaveResult);
     }
 
     // Clear recovery state
@@ -373,68 +274,17 @@ export function useHeaderProjectController() {
       return;
     }
 
-    const result = await loadProjectBridge();
+    const result = await requestProjectSelection();
     if (result) {
-      const { data, path } = result;
-      const projectData = data as {
-        name?: string;
-        vaultPath?: string;
-        scenes?: Scene[];
-        sceneOrder?: string[];
-        version?: number;
-        targetTotalDurationSec?: number;
-        cutRuntimeById?: unknown;
-        sourcePanel?: SourcePanelState;
-      };
-
-      // Determine vault path
-      const loadedVaultPath = resolveLoadedVaultPath(projectData.vaultPath, path);
-
-      // Resolve asset paths (v2+ uses relative paths)
-      let loadedScenes = projectData.scenes || [];
-      let foundMissingAssets: MissingAssetInfo[] = [];
-      const normalizedVersion = normalizeLoadedProjectVersion(projectData.version, loadedScenes);
-
-      if (
-        normalizedVersion.version >= 2 ||
-        hasLegacyRelativeAssetPaths(loadedScenes)
-      ) {
-        const resolved = await resolveScenesAssets(loadedScenes, loadedVaultPath);
-        loadedScenes = resolved.scenes;
-        foundMissingAssets = resolved.missingAssets;
-      }
-      const loadedCutRuntimeById = normalizePersistedCutRuntimeById(projectData.cutRuntimeById, loadedScenes);
-
-      // If there are missing assets, show recovery dialog
-      if (foundMissingAssets.length > 0) {
-        setMissingAssets(foundMissingAssets);
-        setPendingProject({
-          name: projectData.name || 'Loaded Project',
-          vaultPath: loadedVaultPath,
-          scenes: loadedScenes,
-          sceneOrder: projectData.sceneOrder,
-          targetTotalDurationSec: projectData.targetTotalDurationSec,
-          cutRuntimeById: loadedCutRuntimeById,
-          sourcePanelState: projectData.sourcePanel,
-          projectPath: path,
-          shouldResaveVersion: normalizedVersion.wasMissing,
-        });
+      const outcome = await buildProjectLoadOutcome(result.data, result.path, 'Loaded Project');
+      if (outcome.kind === 'pending') {
+        setMissingAssets(outcome.missingAssets);
+        setPendingProject(outcome.payload);
         setShowRecoveryDialog(true);
         return;
       }
 
-      // No missing assets, proceed directly
-      await finalizeProjectLoad({
-        name: projectData.name || 'Loaded Project',
-        vaultPath: loadedVaultPath,
-        scenes: loadedScenes,
-        sceneOrder: projectData.sceneOrder,
-        targetTotalDurationSec: projectData.targetTotalDurationSec,
-        cutRuntimeById: loadedCutRuntimeById,
-        sourcePanelState: projectData.sourcePanel,
-        projectPath: path,
-        shouldResaveVersion: normalizedVersion.wasMissing,
-      });
+      await finalizeProjectLoad(outcome.payload);
     }
   }, [dialogAlert, finalizeProjectLoad]);
 

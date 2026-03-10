@@ -14,73 +14,29 @@ import {
   Database,
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
-import type { Scene, Asset, SourcePanelState } from '../types';
 import MissingAssetRecoveryModal, { MissingAssetInfo, RecoveryDecision } from './MissingAssetRecoveryModal';
-import { resolveCutAsset } from '../utils/assetResolve';
 import {
-  buildProjectSavePayload,
-  serializeProjectSavePayload,
-  prepareScenesForSave,
-  ensureSceneOrder,
-} from '../utils/projectSave';
+  finalizePendingProjectLoad,
+} from '../features/project/apply';
 import {
-  applyRecoveryDecisionsToScenes,
-  collectRecoveryRelinkEventCandidates,
-  hasLegacyRelativeAssetPaths,
-  normalizeLoadedProjectVersion,
-  regenerateCutClipThumbnails,
-  resolveLoadedVaultPath,
-  resolveScenesAssets,
-} from '../features/project/load';
+  type PendingProject,
+  type ProjectLoadOutcome,
+  type RecentProjectEntry,
+  buildProjectLoadOutcome,
+  createProjectBootstrap,
+  loadRecentProjectsWithCleanup,
+  projectPathExists,
+  requestProjectFromPath,
+  requestProjectSelection,
+  selectProjectVaultPath,
+} from '../features/project/session';
 import {
   createSaveProjectEffect,
   createSaveRecentProjectsEffect,
   dispatchAppEffects,
   type AppEffectDispatchResult,
 } from '../features/platform/effects';
-import {
-  createVaultBridge,
-  ensureAssetsFolderBridge,
-  getFolderContentsBridge,
-  getRecentProjectsBridge,
-  loadProjectBridge,
-  loadProjectFromPathBridge,
-  pathExistsBridge,
-  selectVaultBridge,
-} from '../features/platform/electronGateway';
 import './StartupModal.css';
-
-interface RecentProject {
-  name: string;
-  path: string;
-  date: string;
-}
-
-// Pending project data for recovery dialog
-interface PendingProject {
-  name: string;
-  vaultPath: string;
-  scenes: Scene[];
-  sceneOrder?: string[];
-  targetTotalDurationSec?: number;
-  sourcePanelState?: SourcePanelState;
-  projectPath: string;
-  shouldResaveVersion?: boolean;
-}
-
-interface LoadedProjectData {
-  name?: string;
-  vaultPath?: string;
-  scenes?: Scene[];
-  sceneOrder?: string[];
-  version?: number;
-  targetTotalDurationSec?: number;
-  sourcePanel?: SourcePanelState;
-}
-
-type ProjectLoadOutcome =
-  | { kind: 'pending'; payload: PendingProject; missingAssets: MissingAssetInfo[] }
-  | { kind: 'ready'; payload: PendingProject };
 
 function logFeatureEffectWarnings(scope: string, result: AppEffectDispatchResult): void {
   for (const warning of result.warnings) {
@@ -99,6 +55,7 @@ export default function StartupModal() {
     initializeSourcePanel,
     loadMetadata,
     setProjectPath,
+    setCutRuntimeHold,
     createStoreEventOperation,
     runWithStoreEventContext,
     emitCutRelinked,
@@ -106,7 +63,7 @@ export default function StartupModal() {
   const [step, setStep] = useState<'choice' | 'new-project'>('choice');
   const [projectName, setProjectName] = useState('');
   const [vaultPath, setVaultPath] = useState('');
-  const [recentProjects, setRecentProjects] = useState<RecentProject[]>([]);
+  const [recentProjects, setRecentProjects] = useState<RecentProjectEntry[]>([]);
   const [isCreating, setIsCreating] = useState(false);
 
   // Recovery dialog state
@@ -120,30 +77,16 @@ export default function StartupModal() {
 
   const loadRecentProjects = async () => {
     if (!window.electronAPI) return;
-
-    const projects = await getRecentProjectsBridge();
-
-    // Filter out projects that no longer exist
-    const validProjects: RecentProject[] = [];
-    for (const project of projects) {
-      const exists = await pathExistsBridge(project.path);
-      if (exists) {
-        validProjects.push(project);
-      }
-    }
-
-    // Update recent projects if any were removed
-    if (validProjects.length !== projects.length) {
+    const validProjects = await loadRecentProjectsWithCleanup(async (projects) => {
       const cleanupResult = await dispatchAppEffects([
         createSaveRecentProjectsEffect({
-          projects: validProjects,
+          projects,
         }),
       ], {
         origin: 'feature',
       });
       logFeatureEffectWarnings('startup-cleanup-recents', cleanupResult);
-    }
-
+    });
     setRecentProjects(validProjects);
   };
 
@@ -154,7 +97,7 @@ export default function StartupModal() {
       return;
     }
 
-    const path = await selectVaultBridge();
+    const path = await selectProjectVaultPath();
     if (path) {
       setVaultPath(path);
     }
@@ -167,48 +110,23 @@ export default function StartupModal() {
 
     try {
       if (window.electronAPI) {
-        // Create vault structure
-        const vault = await createVaultBridge(vaultPath, projectName);
-        if (!vault) {
+        const bootstrap = await createProjectBootstrap(vaultPath, projectName);
+        if (!bootstrap) {
           alert('Failed to create vault folder');
           setIsCreating(false);
           return;
         }
 
-        // Create assets folder for file-based asset sync
-        await ensureAssetsFolderBridge(vault.path);
-
-        // Initialize project with default 3 scenes
-        const defaultScenes = [
-          { id: crypto.randomUUID(), name: 'Scene 1', cuts: [] },
-          { id: crypto.randomUUID(), name: 'Scene 2', cuts: [] },
-          { id: crypto.randomUUID(), name: 'Scene 3', cuts: [] },
-        ];
-        const defaultSceneOrder = defaultScenes.map((scene) => scene.id);
-
-        // Save initial empty project file immediately
-        const projectData = JSON.stringify({
-          version: 3,
+        const existingRecent = await loadRecentProjectsWithCleanup();
+        const newRecent: RecentProjectEntry = {
           name: projectName,
-          vaultPath: vault.path,
-          scenes: defaultScenes,
-          sceneOrder: defaultSceneOrder,
-          targetTotalDurationSec: undefined,
-          sourcePanel: undefined,
-          savedAt: new Date().toISOString(),
-        });
-
-        const projectFilePath = `${vault.path}/project.sdp`;
-        const existingRecent = await getRecentProjectsBridge();
-        const newRecent: RecentProject = {
-          name: projectName,
-          path: projectFilePath,
+          path: bootstrap.projectFilePath,
           date: new Date().toISOString(),
         };
         const createResult = await dispatchAppEffects([
           createSaveProjectEffect({
-            projectPath: projectFilePath,
-            projectData,
+            projectPath: bootstrap.projectFilePath,
+            projectData: bootstrap.projectData,
           }),
           createSaveRecentProjectsEffect({
             projects: [newRecent, ...existingRecent.slice(0, 9)],
@@ -226,25 +144,24 @@ export default function StartupModal() {
         // Initialize project with the scenes we created
         initializeProject({
           name: projectName,
-          vaultPath: vault.path,
-          sceneOrder: defaultSceneOrder,
-          scenes: defaultScenes as any,
+          vaultPath: bootstrap.vaultPath,
+          sceneOrder: bootstrap.defaultSceneOrder,
+          scenes: bootstrap.defaultScenes,
         });
-        setProjectPath(projectFilePath);
+        setProjectPath(bootstrap.projectFilePath);
 
         // Load metadata store (will be empty for new project)
-        await loadMetadata(vault.path);
+        await loadMetadata(bootstrap.vaultPath);
 
         // Set root folder to vault
-        const structure = await getFolderContentsBridge(vault.path);
         setRootFolder({
-          path: vault.path,
+          path: bootstrap.vaultPath,
           name: projectName,
-          structure: structure || [],
+          structure: bootstrap.structure,
         });
 
         // Initialize source panel with default vault assets folder
-        await initializeSourcePanel(undefined, vault.path);
+        await initializeSourcePanel(undefined, bootstrap.vaultPath);
       } else {
         // Demo mode
         initializeProject({
@@ -270,163 +187,35 @@ export default function StartupModal() {
       return;
     }
 
-    const result = await loadProjectBridge();
+    const result = await requestProjectSelection();
     if (!result) return;
-    const outcome = await loadProjectCore(dataAsLoadedProject(result.data), result.path, 'Loaded Project');
+    const outcome = await buildProjectLoadOutcome(result.data, result.path, 'Loaded Project');
     await applyProjectLoadOutcome(outcome);
   };
 
   // Finalize project loading after recovery decisions (if any)
   const finalizeProjectLoad = async (project: PendingProject, recoveryDecisions?: RecoveryDecision[]) => {
-    const beforeRecoveryScenes = project.scenes;
-    let finalScenes = await applyRecoveryDecisionsToScenes(
-      project.scenes,
-      project.vaultPath,
-      recoveryDecisions
-    );
-    const recoveryRelinks = collectRecoveryRelinkEventCandidates(beforeRecoveryScenes, finalScenes, recoveryDecisions);
-    finalScenes = await regenerateCutClipThumbnails(finalScenes);
+    const result = await finalizePendingProjectLoad(project, {
+      initializeProject,
+      setCutRuntimeHold,
+      setProjectPath,
+      loadMetadata,
+      initializeSourcePanel,
+      createStoreEventOperation,
+      runWithStoreEventContext,
+      emitCutRelinked,
+    }, recoveryDecisions);
 
-    initializeProject({
-      name: project.name,
-      vaultPath: project.vaultPath,
-      targetTotalDurationSec: project.targetTotalDurationSec,
-      sceneOrder: project.sceneOrder,
-      scenes: finalScenes as ReturnType<typeof useStore.getState>['scenes'],
-    });
-    setProjectPath(project.projectPath);
-
-    // Load metadata store (audio attachments, etc.)
-    await loadMetadata(project.vaultPath);
-
-    // Initialize source panel state
-    await initializeSourcePanel(project.sourcePanelState, project.vaultPath);
-
-    if (recoveryRelinks.length > 0) {
-      const context = createStoreEventOperation('recovery');
-      await runWithStoreEventContext(context, async () => {
-        for (const relink of recoveryRelinks) {
-          emitCutRelinked(relink);
-        }
-      });
-    }
-
-    // Update recent projects
-    const newRecent: RecentProject = {
-      name: project.name,
-      path: project.projectPath,
-      date: new Date().toISOString(),
-    };
-    const filtered = recentProjects.filter(p => p.path !== project.projectPath);
-    const updated = [newRecent, ...filtered.slice(0, 9)];
-    setRecentProjects(updated);
-    const recentResult = await dispatchAppEffects([
-      createSaveRecentProjectsEffect({
-        projects: updated,
-      }),
-    ], {
-      origin: 'feature',
-    });
-    logFeatureEffectWarnings('startup-save-recents', recentResult);
-
-    if (project.shouldResaveVersion && window.electronAPI) {
-      try {
-        const assetById = new Map<string, Asset>();
-        for (const scene of finalScenes) {
-          for (const cut of scene.cuts) {
-            const asset = resolveCutAsset(cut, () => undefined);
-            if (!asset) continue;
-            const resolvedId = cut.assetId || asset.id;
-            if (!resolvedId) continue;
-            assetById.set(resolvedId, { ...asset, id: resolvedId });
-          }
-        }
-        const scenesToSave = prepareScenesForSave(finalScenes, (assetId) => assetById.get(assetId));
-        const { sceneOrder: normalizedSceneOrder } = ensureSceneOrder(project.sceneOrder, finalScenes);
-        const payload = buildProjectSavePayload({
-          version: 3,
-          name: project.name,
-          vaultPath: project.vaultPath,
-          scenes: scenesToSave,
-          sceneOrder: normalizedSceneOrder,
-          targetTotalDurationSec: project.targetTotalDurationSec,
-          sourcePanel: project.sourcePanelState,
-          savedAt: new Date().toISOString(),
-        });
-        const migrationSaveResult = await dispatchAppEffects([
-          createSaveProjectEffect({
-            projectPath: project.projectPath,
-            projectData: serializeProjectSavePayload(payload),
-          }),
-        ], {
-          origin: 'feature',
-        });
-        logFeatureEffectWarnings('startup-save-project-migration', migrationSaveResult);
-      } catch (error) {
-        console.warn('[ProjectLoad] Failed to persist version migration:', error);
-      }
+    setRecentProjects(result.persistencePlan.recentProjects);
+    logFeatureEffectWarnings('startup-save-recents', result.recentSaveResult);
+    if (result.migrationSaveResult) {
+      logFeatureEffectWarnings('startup-save-project-migration', result.migrationSaveResult);
     }
 
     // Clear recovery state
     setShowRecoveryDialog(false);
     setPendingProject(null);
     setMissingAssets([]);
-  };
-
-  const shouldResolveProjectAssets = (version: number | undefined, scenes: Scene[]) => {
-    const normalizedVersion = normalizeLoadedProjectVersion(version, scenes);
-    return {
-      normalizedVersion,
-      shouldResolve: normalizedVersion.version >= 2 || hasLegacyRelativeAssetPaths(scenes),
-    };
-  };
-
-  const buildPendingProject = (
-    projectData: LoadedProjectData,
-    projectPath: string,
-    loadedVaultPath: string,
-    scenes: Scene[],
-    shouldResaveVersion: boolean,
-    fallbackName: string
-  ): PendingProject => ({
-    name: projectData.name || fallbackName,
-    vaultPath: loadedVaultPath,
-    scenes,
-    sceneOrder: projectData.sceneOrder,
-    targetTotalDurationSec: projectData.targetTotalDurationSec,
-    sourcePanelState: projectData.sourcePanel,
-    projectPath,
-    shouldResaveVersion,
-  });
-
-  const loadProjectCore = async (
-    projectData: LoadedProjectData,
-    projectPath: string,
-    fallbackName: string
-  ): Promise<ProjectLoadOutcome> => {
-    const loadedVaultPath = resolveLoadedVaultPath(projectData.vaultPath, projectPath);
-    let scenes = projectData.scenes || [];
-    let foundMissingAssets: MissingAssetInfo[] = [];
-    const { normalizedVersion, shouldResolve } = shouldResolveProjectAssets(projectData.version, scenes);
-
-    if (shouldResolve) {
-      const resolved = await resolveScenesAssets(scenes, loadedVaultPath);
-      scenes = resolved.scenes;
-      foundMissingAssets = resolved.missingAssets;
-    }
-
-    const payload = buildPendingProject(
-      projectData,
-      projectPath,
-      loadedVaultPath,
-      scenes,
-      normalizedVersion.wasMissing,
-      fallbackName
-    );
-    if (foundMissingAssets.length > 0) {
-      return { kind: 'pending', payload, missingAssets: foundMissingAssets };
-    }
-    return { kind: 'ready', payload };
   };
 
   const applyProjectLoadOutcome = async (outcome: ProjectLoadOutcome) => {
@@ -438,8 +227,6 @@ export default function StartupModal() {
     }
     await finalizeProjectLoad(outcome.payload);
   };
-
-  const dataAsLoadedProject = (data: unknown): LoadedProjectData => data as LoadedProjectData;
 
   // Handle recovery dialog completion
   const handleRecoveryComplete = async (decisions: RecoveryDecision[]) => {
@@ -454,10 +241,10 @@ export default function StartupModal() {
     setMissingAssets([]);
   };
 
-  const handleOpenRecent = async (project: RecentProject) => {
+  const handleOpenRecent = async (project: RecentProjectEntry) => {
     if (!window.electronAPI) return;
 
-    const exists = await pathExistsBridge(project.path);
+    const exists = await projectPathExists(project.path);
     if (!exists) {
       alert('Project file not found. It may have been moved or deleted.');
       // Remove from recent
@@ -476,9 +263,9 @@ export default function StartupModal() {
 
     // Load the project file directly from the specified path
     try {
-      const result = await loadProjectFromPathBridge(project.path);
+      const result = await requestProjectFromPath(project.path);
       if (!result) return;
-      const outcome = await loadProjectCore(dataAsLoadedProject(result.data), project.path, project.name);
+      const outcome = await buildProjectLoadOutcome(result.data, project.path, project.name);
       await applyProjectLoadOutcome(outcome);
     } catch (error) {
       console.error('Failed to load project:', error);

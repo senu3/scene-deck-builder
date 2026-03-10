@@ -6,6 +6,11 @@ import { getAssetThumbnail } from '../thumbnails/api';
 import { generateVideoClipThumbnail } from '../cut/clipThumbnail';
 import { getCuttableMediaType } from '../../utils/mediaType';
 import { cutAssetPathStartsWith, resolveCutAsset, resolveCutAssetId } from '../../utils/assetResolve';
+import {
+  loadAssetIndexBridge,
+  pathExistsBridge,
+  resolveVaultPathBridge,
+} from '../platform/electronGateway';
 
 export interface CutRelinkEventCandidate {
   sceneId: string;
@@ -16,7 +21,7 @@ export interface CutRelinkEventCandidate {
 
 async function resolveAssetPath(asset: Asset, vaultPath: string): Promise<Asset> {
   if (asset.path.startsWith('assets/')) {
-    const result = await window.electronAPI?.resolveVaultPath(vaultPath, asset.path);
+    const result = await resolveVaultPathBridge(vaultPath, asset.path);
     if (result?.exists) {
       return {
         ...asset,
@@ -26,8 +31,8 @@ async function resolveAssetPath(asset: Asset, vaultPath: string): Promise<Asset>
     }
   }
 
-  if (asset.vaultRelativePath && window.electronAPI) {
-    const result = await window.electronAPI.resolveVaultPath(vaultPath, asset.vaultRelativePath);
+  if (asset.vaultRelativePath) {
+    const result = await resolveVaultPathBridge(vaultPath, asset.vaultRelativePath);
     if (result?.exists) {
       return {
         ...asset,
@@ -45,17 +50,15 @@ export async function resolveScenesAssets(scenes: Scene[], vaultPath: string): P
   const assetIndexById = new Map<string, AssetIndexEntry>();
   const hydratedAssetById = new Map<string, Asset>();
 
-  if (window.electronAPI?.loadAssetIndex) {
-    try {
-      const index = await window.electronAPI.loadAssetIndex(vaultPath);
-      for (const entry of index.assets || []) {
-        if (entry?.id) {
-          assetIndexById.set(entry.id, entry);
-        }
+  try {
+    const index = await loadAssetIndexBridge(vaultPath);
+    for (const entry of index?.assets || []) {
+      if (entry?.id) {
+        assetIndexById.set(entry.id, entry);
       }
-    } catch {
-      // Keep best-effort path.
     }
+  } catch {
+    // Keep best-effort path.
   }
 
   const hydrateAssetFromIndex = async (assetId: string, fallback?: Asset): Promise<Asset | undefined> => {
@@ -68,15 +71,13 @@ export async function resolveScenesAssets(scenes: Scene[], vaultPath: string): P
 
     const vaultRelativePath = `assets/${indexEntry.filename}`;
     let absolutePath = fallback?.path || '';
-    if (window.electronAPI?.resolveVaultPath) {
-      try {
-        const resolved = await window.electronAPI.resolveVaultPath(vaultPath, vaultRelativePath);
-        if (resolved?.exists && resolved.absolutePath) {
-          absolutePath = resolved.absolutePath;
-        }
-      } catch {
-        // Keep fallback path.
+    try {
+      const resolved = await resolveVaultPathBridge(vaultPath, vaultRelativePath);
+      if (resolved?.exists && resolved.absolutePath) {
+        absolutePath = resolved.absolutePath;
       }
+    } catch {
+      // Keep fallback path.
     }
 
     const hydrated: Asset = {
@@ -112,8 +113,8 @@ export async function resolveScenesAssets(scenes: Scene[], vaultPath: string): P
             resolvedAsset = (await hydrateAssetFromIndex(cutAssetId, resolvedAsset)) || resolvedAsset;
           }
 
-          if (resolvedAsset.path && window.electronAPI) {
-            const exists = await window.electronAPI.pathExists(resolvedAsset.path);
+          if (resolvedAsset.path) {
+            const exists = await pathExistsBridge(resolvedAsset.path);
             if (!exists) {
               missingAssets.push({
                 name: resolvedAsset.name || resolvedAsset.path,
