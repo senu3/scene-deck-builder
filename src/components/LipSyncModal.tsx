@@ -16,6 +16,7 @@ import { useToast } from "../ui";
 import { generateAssetId } from "../utils/assetPath";
 import { getLipSyncFrameAssetIds, importDataUrlAssetToVault } from "../utils/lipSyncUtils";
 import { getMediaUrl } from "../utils/videoUtils";
+import { saveLipSyncSettings } from "../features/metadata/lipSyncActions";
 import { resolveAssetThumbnailSource } from "../features/thumbnails/api";
 import { useLipSyncPreview } from "../hooks/useLipSyncPreview";
 import AssetModal from "./AssetModal";
@@ -138,7 +139,7 @@ async function createCompositedFrameDataUrl(
 }
 
 export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSyncModalProps) {
-  const { vaultPath, metadataStore, scenes, setLipSyncForAsset, cacheAsset, updateCutLipSync, getAsset } = useStore();
+  const { vaultPath, metadataStore, scenes, cacheAsset, getAsset } = useStore();
   const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -623,7 +624,7 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
         ? compositedFrameAssetIds
         : [baseImageAssetId, ...variantAssetIds];
 
-    setLipSyncForAsset(asset.id, {
+    await saveLipSyncSettings(asset.id, {
       baseImageAssetId,
       variantAssetIds,
       maskAssetId,
@@ -638,12 +639,11 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
       fps: 60,
       sourceVideoAssetId: isVideo ? asset.id : undefined,
       version: 2,
-    });
-
-    if (cutId) {
-      const frameCount = 1 + variantAssetIds.length;
-      updateCutLipSync(sceneId, cutId, true, frameCount);
-    }
+    }, cutId ? {
+      sceneId,
+      cutId,
+      frameCount: 1 + variantAssetIds.length,
+    } : undefined);
 
     toast.success("Lip Sync registered", "Settings saved to metadata.");
     onClose();

@@ -299,8 +299,6 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
         const updated = updateLipSyncSettings(store, assetId, nextSettings);
         return { metadataStore: updated };
       });
-
-      void persistMetadataStore();
     },
 
     clearLipSyncForAsset: (assetId) => {
@@ -309,8 +307,6 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
         const updated = removeLipSyncSettings(state.metadataStore, assetId);
         return { metadataStore: updated };
       });
-
-      void persistMetadataStore();
     },
 
     cleanupLipSyncAssetsForDeletedCut: async (assetId) => {
@@ -332,6 +328,7 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
 
       // Remove lipsync metadata first so generated assets are no longer treated as in-use references.
       get().clearLipSyncForAsset(assetId);
+      await persistMetadataStore();
 
       if (generatedAssetIds.length === 0) {
         return;
@@ -509,7 +506,7 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
       }
 
       if (hadLipSyncSettings && previousAssetId && previousAssetId !== newAsset.id) {
-        void get().cleanupLipSyncAssetsForDeletedCut(previousAssetId);
+        // Cleanup is handled by the feature entry so relink remains a pure store mutation path.
       }
 
       if (!previousCut) return;

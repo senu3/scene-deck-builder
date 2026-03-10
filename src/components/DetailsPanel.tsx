@@ -43,7 +43,6 @@ import {
   selectGetAttachedAudioForCut,
   selectUpdateCutAudioOffset,
   selectSetCutUseEmbeddedAudio,
-  selectRelinkCutAsset,
   selectCreateStoreEventOperation,
 } from "../store/selectors";
 import { useHistoryStore } from "../store/historyStore";
@@ -64,6 +63,7 @@ import {
   getAssetThumbnail,
   resolveCutThumbnailFromCache,
 } from "../features/thumbnails/api";
+import { relinkCutAssetWithLipSyncCleanup } from "../features/metadata/lipSyncActions";
 import { readImageMetadataForPath } from "../features/metadata/provider";
 import { clearPreviewClipPoints, savePreviewClipPoints } from "../features/cut/previewClipUpdate";
 import { resolveCutAsset } from "../utils/assetResolve";
@@ -100,7 +100,6 @@ export default function DetailsPanel() {
   const getAttachedAudioForCut = useStore(selectGetAttachedAudioForCut);
   const updateCutAudioOffset = useStore(selectUpdateCutAudioOffset);
   const setCutUseEmbeddedAudio = useStore(selectSetCutUseEmbeddedAudio);
-  const relinkCutAsset = useStore(selectRelinkCutAsset);
   const createStoreEventOperation = useStore(selectCreateStoreEventOperation);
 
   const { executeCommand } = useHistoryStore();
@@ -667,7 +666,7 @@ export default function DetailsPanel() {
       }
 
       // Relink cut to new asset
-      relinkCutAsset(cutScene.id, cut.id, newAsset, {
+      await relinkCutAssetWithLipSyncCleanup(cutScene.id, cut.id, newAsset, {
         eventContext: createStoreEventOperation('user'),
       });
     } catch (error) {

@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import {
+  relinkCutAssetWithLipSyncCleanup,
+  saveLipSyncSettings,
+} from '../../features/metadata/lipSyncActions';
 import { useStore } from '../useStore';
 import { resetElectronMocks } from '../../test/setup.renderer';
 
 describe('lip sync store integration', () => {
-  it('persists lip sync settings to metadata store payload', () => {
+  it('persists lip sync settings to metadata store payload through feature action', async () => {
     resetElectronMocks();
     const initialState = useStore.getState();
 
@@ -22,7 +26,7 @@ describe('lip sync store integration', () => {
       version: 1,
     };
 
-    useStore.getState().setLipSyncForAsset('asset-1', settings as any);
+    await saveLipSyncSettings('asset-1', settings as any);
 
     const store = useStore.getState();
     expect(store.metadataStore?.metadata['asset-1']?.lipSync?.baseImageAssetId).toBe('img-closed');
@@ -32,6 +36,31 @@ describe('lip sync store integration', () => {
     const lastPayload = saveProject.mock.calls.at(-1)?.[0];
     const parsed = JSON.parse(lastPayload);
     expect(parsed.metadata['asset-1'].lipSync.rmsSourceAudioAssetId).toBe('aud-1');
+
+    useStore.setState(initialState, true);
+  });
+
+  it('updates lip sync settings without implicit save in store setter', () => {
+    resetElectronMocks();
+    const initialState = useStore.getState();
+
+    useStore.setState({
+      ...initialState,
+      vaultPath: 'C:/vault',
+      metadataStore: { version: 1, metadata: {}, sceneMetadata: {} },
+    }, false);
+
+    useStore.getState().setLipSyncForAsset('asset-1', {
+      baseImageAssetId: 'img-closed',
+      variantAssetIds: ['img-half1', 'img-half2', 'img-open'],
+      rmsSourceAudioAssetId: 'aud-1',
+      thresholds: { t1: 0.1, t2: 0.2, t3: 0.3 },
+      fps: 60,
+      version: 1,
+    } as any);
+
+    const saveProject = window.electronAPI?.saveProject as unknown as { mock: { calls: unknown[] } };
+    expect(saveProject?.mock.calls.length || 0).toBe(0);
 
     useStore.setState(initialState, true);
   });
@@ -192,13 +221,12 @@ describe('lip sync store integration', () => {
       },
     }, false);
 
-    useStore.getState().relinkCutAsset('scene-1', 'cut-1', {
+    await relinkCutAssetWithLipSyncCleanup('scene-1', 'cut-1', {
       id: 'asset-new',
       name: 'replacement.png',
       path: 'C:/vault/assets/replacement.png',
       type: 'image',
     });
-    await new Promise((resolve) => setTimeout(resolve, 0));
 
     const latest = useStore.getState();
     const cut = latest.scenes[0]?.cuts[0];
