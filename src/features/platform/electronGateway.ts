@@ -46,6 +46,19 @@ type ExportSequenceBridgeResult = {
   error?: string;
 };
 
+type WriteExportSidecarsOptionsLike = {
+  outputDir: string;
+  manifestJson: string;
+  timelineText: string;
+};
+
+type WriteExportSidecarsResultLike = {
+  success: boolean;
+  manifestPath?: string;
+  timelinePath?: string;
+  error?: string;
+};
+
 type FfmpegQueueStatsLike = {
   running: number;
   queued: number;
@@ -54,6 +67,14 @@ type FfmpegQueueStatsLike = {
 type FfmpegQueueOverviewLike = {
   light: FfmpegQueueStatsLike;
   heavy: FfmpegQueueStatsLike;
+};
+
+type FfmpegLimitsLike = {
+  stderrMaxBytes: number;
+  maxClipSeconds: number;
+  maxTotalSeconds: number;
+  maxClipBytes: number;
+  maxTotalBytes: number;
 };
 
 type FinalizeClipOptionsLike = {
@@ -221,6 +242,13 @@ type ImageMetadataLike = {
   fileSize?: number;
 };
 
+type AppVersionsLike = {
+  electron: string;
+  chrome: string;
+  node: string;
+  v8: string;
+};
+
 type TrashMetaLike = {
   assetId?: string;
   reason?: string;
@@ -237,6 +265,10 @@ function getElectronAPI(): BridgeElectronAPI | null {
 }
 
 let assetIndexMutationQueue: Promise<void> = Promise.resolve();
+
+export function hasElectronBridge(): boolean {
+  return !!getElectronAPI();
+}
 
 export function getPathForFileBridge(file: File): string | undefined {
   return getElectronAPI()?.getPathForFile?.(file);
@@ -256,6 +288,16 @@ export async function readAudioPcmBridge(filePath: string): Promise<AudioPcmResu
 
 export async function getFfmpegQueueStatsBridge(): Promise<FfmpegQueueOverviewLike | null> {
   return getElectronAPI()?.getFfmpegQueueStats?.() ?? null;
+}
+
+export async function getFfmpegLimitsBridge(): Promise<FfmpegLimitsLike | null> {
+  return getElectronAPI()?.getFfmpegLimits?.() ?? null;
+}
+
+export async function setFfmpegLimitsBridge(
+  limits: Partial<FfmpegLimitsLike>
+): Promise<FfmpegLimitsLike | null> {
+  return getElectronAPI()?.setFfmpegLimits?.(limits) ?? null;
 }
 
 export async function resolveVaultPathBridge(vaultPath: string, relativePath: string): Promise<PathResolveResult> {
@@ -332,6 +374,14 @@ export async function showOpenFileDialogBridge(
 
 export async function readFileAsBase64Bridge(filePath: string): Promise<string | null> {
   return getElectronAPI()?.readFileAsBase64?.(filePath) ?? null;
+}
+
+export async function generateThumbnailBridge(
+  filePath: string,
+  type: string,
+  options: { timeOffset?: number; profile: string }
+): Promise<{ success: boolean; thumbnail?: string; error?: string } | null> {
+  return getElectronAPI()?.generateThumbnail?.(filePath, type as any, options as any) ?? null;
 }
 
 export async function loadAssetIndexBridge(vaultPath: string): Promise<AssetIndex | null> {
@@ -454,12 +504,29 @@ export async function exportSequenceBridge(
   };
 }
 
+export async function writeExportSidecarsBridge(
+  options: WriteExportSidecarsOptionsLike
+): Promise<WriteExportSidecarsResultLike> {
+  return (await getElectronAPI()?.writeExportSidecars?.(options as any)) ?? {
+    success: false,
+    error: 'electron-unavailable',
+  };
+}
+
+export function getVersionsBridge(): AppVersionsLike | null {
+  return getElectronAPI()?.getVersions?.() ?? null;
+}
+
 export async function setAutosaveEnabledBridge(enabled: boolean): Promise<boolean> {
   return (await getElectronAPI()?.setAutosaveEnabled?.(enabled)) ?? false;
 }
 
 export function onAutosaveFlushRequestBridge(callback: () => void | Promise<void>): (() => void) | null {
   return getElectronAPI()?.onAutosaveFlushRequest?.(callback) ?? null;
+}
+
+export function onToggleSidebarBridge(callback: () => void): (() => void) | null {
+  return getElectronAPI()?.onToggleSidebar?.(callback) ?? null;
 }
 
 export function notifyAutosaveFlushedBridge(): void {

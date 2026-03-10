@@ -36,6 +36,7 @@ import {
   dispatchAppEffects,
   type AppEffectDispatchResult,
 } from '../features/platform/effects';
+import { hasElectronBridge } from '../features/platform/electronGateway';
 import './StartupModal.css';
 
 function logFeatureEffectWarnings(scope: string, result: AppEffectDispatchResult): void {
@@ -76,7 +77,7 @@ export default function StartupModal() {
   }, []);
 
   const loadRecentProjects = async () => {
-    if (!window.electronAPI) return;
+    if (!hasElectronBridge()) return;
     const validProjects = await loadRecentProjectsWithCleanup(async (projects) => {
       const cleanupResult = await dispatchAppEffects([
         createSaveRecentProjectsEffect({
@@ -91,7 +92,7 @@ export default function StartupModal() {
   };
 
   const handleSelectVault = async () => {
-    if (!window.electronAPI) {
+    if (!hasElectronBridge()) {
       // Demo mode
       setVaultPath('/demo/vault');
       return;
@@ -109,7 +110,7 @@ export default function StartupModal() {
     setIsCreating(true);
 
     try {
-      if (window.electronAPI) {
+      if (hasElectronBridge()) {
         const bootstrap = await createProjectBootstrap(vaultPath, projectName);
         if (!bootstrap) {
           alert('Failed to create vault folder');
@@ -178,7 +179,7 @@ export default function StartupModal() {
   };
 
   const handleLoadProject = async () => {
-    if (!window.electronAPI) {
+    if (!hasElectronBridge()) {
       // Demo mode - just initialize with demo data
       initializeProject({
         name: 'Demo Project',
@@ -242,7 +243,7 @@ export default function StartupModal() {
   };
 
   const handleOpenRecent = async (project: RecentProjectEntry) => {
-    if (!window.electronAPI) return;
+    if (!hasElectronBridge()) return;
 
     const exists = await projectPathExists(project.path);
     if (!exists) {

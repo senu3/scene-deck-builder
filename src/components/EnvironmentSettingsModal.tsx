@@ -41,6 +41,11 @@ import {
   SettingsRow,
   type TabItem,
 } from '../ui';
+import {
+  getFfmpegLimitsBridge,
+  getVersionsBridge,
+  setFfmpegLimitsBridge,
+} from '../features/platform/electronGateway';
 import { getThumbnailCacheStats, setThumbnailCacheLimits, clearThumbnailCache } from '../utils/thumbnailCache';
 import styles from './EnvironmentSettingsModal.module.css';
 
@@ -232,9 +237,8 @@ export default function EnvironmentSettingsModal({
     // Load FFmpeg limits from API
     let active = true;
     const loadFfmpegLimits = async () => {
-      const api = window.electronAPI;
-      if (!api?.getFfmpegLimits) return;
-      const limits = await api.getFfmpegLimits();
+      const limits = await getFfmpegLimitsBridge();
+      if (!limits) return;
       if (!active) return;
       setStderrMaxKb(Math.round(limits.stderrMaxBytes / KB));
       setMaxClipSeconds(limits.maxClipSeconds);
@@ -288,7 +292,7 @@ export default function EnvironmentSettingsModal({
     const safeClipMb = Number.isFinite(maxClipMb) ? Math.max(1, Math.floor(maxClipMb)) : 1;
     const safeTotalMb = Number.isFinite(maxTotalMb) ? Math.max(1, Math.floor(maxTotalMb)) : 1;
 
-    window.electronAPI?.setFfmpegLimits?.({
+    void setFfmpegLimitsBridge({
       stderrMaxBytes: safeStderrKb * KB,
       maxClipSeconds: safeClipSeconds,
       maxTotalSeconds: safeTotalSeconds,
@@ -341,6 +345,7 @@ export default function EnvironmentSettingsModal({
   if (!open) return null;
 
   const currentBytesMb = Math.round(stats.bytes / MB);
+  const versions = getVersionsBridge();
 
   return (
     <Overlay onClick={onClose} blur>
@@ -1009,7 +1014,7 @@ export default function EnvironmentSettingsModal({
                     <span className={styles.aboutLabel}>Version</span>
                     <span className={styles.aboutValue}>1.0.0</span>
                     <span className={styles.aboutLabel}>Electron</span>
-                    <span className={styles.aboutValue}>{window.electronAPI?.getVersions?.()?.electron || 'N/A'}</span>
+                    <span className={styles.aboutValue}>{versions?.electron || 'N/A'}</span>
                   </div>
                 </div>
               </div>

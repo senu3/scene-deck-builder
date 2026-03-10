@@ -22,6 +22,7 @@ import {
   readFolderContentsForSourcePanel,
   selectSourceFolderForSourcePanel,
 } from '../features/project/sourcePanelProvider';
+import { hasElectronBridge } from '../features/platform/electronGateway';
 import { getAssetThumbnail, getCachedAssetThumbnail } from '../features/thumbnails/api';
 import { getCuttableMediaType } from '../utils/mediaType';
 import { getFirstSceneId } from '../utils/sceneOrder';
@@ -62,7 +63,7 @@ export default function Sidebar() {
   }, [contextMenu]);
 
   const handleSelectFolder = async () => {
-    if (!window.electronAPI) {
+    if (!hasElectronBridge()) {
       alert('File system access is only available in the desktop app.');
       // For demo purposes, create a mock structure
       addSourceFolder({

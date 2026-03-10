@@ -1,4 +1,8 @@
 import { generateVideoThumbnail } from '../../utils/videoUtils';
+import {
+  generateThumbnailBridge,
+  readFileAsBase64Bridge,
+} from '../platform/electronGateway';
 import type { ThumbnailMediaType, ThumbnailProfile } from '../../utils/thumbnailCache';
 
 interface ResolveThumbnailOptions {
@@ -16,9 +20,8 @@ async function requestThumbnailViaIpc(
   type: ThumbnailMediaType,
   options: ResolveThumbnailOptions
 ): Promise<string | null> {
-  if (!window.electronAPI?.generateThumbnail) return null;
   try {
-    const result = await window.electronAPI.generateThumbnail(path, type, {
+    const result = await generateThumbnailBridge(path, type, {
       timeOffset: options.timeOffset,
       profile: options.profile,
     });
@@ -36,11 +39,8 @@ async function fallbackInRenderer(
   if (type === 'video') {
     return generateVideoThumbnail(path, normalizeTimeOffset(options.timeOffset));
   }
-  if (window.electronAPI?.readFileAsBase64) {
-    // Fallback for image path reads if thumbnail IPC is unavailable.
-    return window.electronAPI.readFileAsBase64(path);
-  }
-  return null;
+  // Fallback for image path reads if thumbnail IPC is unavailable.
+  return readFileAsBase64Bridge(path);
 }
 
 export async function resolveThumbnailData(

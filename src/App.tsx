@@ -63,6 +63,15 @@ import type { ResolutionInput } from './features/export/plan';
 import type { ExportSettings } from './features/export/types';
 import { buildSceneScopedExportPath } from './features/export/sceneScope';
 import { buildExportTimelineEntries, buildManifestJson, buildTimelineText } from './features/export/manifest';
+import {
+  ensureAssetsFolderBridge,
+  exportSequenceBridge,
+  extractVideoFrameBridge,
+  hasElectronBridge,
+  onToggleSidebarBridge,
+  showSaveSequenceDialogBridge,
+  writeExportSidecarsBridge,
+} from './features/platform/electronGateway';
 import { buildSequencePlan, type SequencePlan } from './utils/sequencePlan';
 import { resolveCutAsset } from './utils/assetResolve';
 import { useBanner, useToast } from './ui';
@@ -256,10 +265,10 @@ function App() {
 
   // App menu shortcut (native menubar)
   useEffect(() => {
-    if (!window.electronAPI?.onToggleSidebar) return undefined;
-    const unsubscribe = window.electronAPI.onToggleSidebar(() => {
+    const unsubscribe = onToggleSidebarBridge(() => {
       toggleSidebar();
     });
+    if (!unsubscribe) return undefined;
     return () => unsubscribe();
   }, [toggleSidebar]);
 
@@ -583,7 +592,7 @@ function App() {
     sequencePlan: SequencePlan,
     config: ResolutionInput & { fps: number; outputFilePath?: string; outputDir?: string; cutsForSidecar?: Cut[] }
   ) => {
-    if (!window.electronAPI || isExporting) return;
+    if (!hasElectronBridge() || isExporting) return;
 
     setIsExporting(true);
     banner.show({
@@ -607,7 +616,7 @@ function App() {
 
       let outputPath = config.outputFilePath;
       if (!outputPath) {
-        outputPath = await window.electronAPI.showSaveSequenceDialog('sequence_export.mp4') || '';
+        outputPath = await showSaveSequenceDialogBridge('sequence_export.mp4') || '';
       }
       if (!outputPath) {
         toast.info('Export cancelled');
@@ -622,7 +631,7 @@ function App() {
         progress: 35,
       });
 
-      const result = await window.electronAPI.exportSequence({
+      const result = await exportSequenceBridge({
         items: sequencePlan.exportItems,
         outputPath,
         width,
@@ -654,7 +663,7 @@ function App() {
             outputDir: config.outputDir,
           });
           const timelineText = buildTimelineText(timelineEntries);
-          const sidecarsResult = await window.electronAPI.writeExportSidecars({
+          const sidecarsResult = await writeExportSidecarsBridge({
             outputDir: config.outputDir,
             manifestJson,
             timelineText,
@@ -758,7 +767,7 @@ function App() {
 
   // Handle export from ExportModal
   const handleExport = useCallback(async (settings: ExportSettings) => {
-    if (!window.electronAPI || isExporting) return;
+    if (!hasElectronBridge() || isExporting) return;
 
     setShowExportModal(false);
 
@@ -922,12 +931,12 @@ function App() {
 
     const { scene, asset } = previewData;
 
-    if (!window.electronAPI?.extractVideoFrame || !window.electronAPI?.ensureAssetsFolder) {
+    if (!hasElectronBridge()) {
       throw new Error('Frame capture requires app restart after update.');
     }
 
     try {
-      const assetsFolder = await window.electronAPI.ensureAssetsFolder(vaultPath);
+      const assetsFolder = await ensureAssetsFolderBridge(vaultPath);
       if (!assetsFolder) {
         throw new Error('Failed to access assets folder');
       }
@@ -938,7 +947,7 @@ function App() {
       const frameFileName = `${baseName}_frame_${timeStr}_${uniqueId}.png`;
       const outputPath = `${assetsFolder}/${frameFileName}`.replace(/\\/g, '/');
 
-      const result = await window.electronAPI.extractVideoFrame({
+      const result = await extractVideoFrameBridge({
         sourcePath: asset.path,
         outputPath,
         timestamp,

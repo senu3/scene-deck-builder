@@ -31,6 +31,7 @@ import {
   type AppEffectDispatchResult,
 } from '../features/platform/effects';
 import {
+  hasElectronBridge,
   loadAssetIndexBridge,
   notifyAutosaveFlushedBridge,
   onAutosaveFlushRequestBridge,
@@ -80,7 +81,7 @@ export function useHeaderProjectController() {
   const [pendingProject, setPendingProject] = useState<PendingProject | null>(null);
 
   const saveProjectInternal = useCallback(async (options?: { notify?: boolean; updateRecent?: boolean; allowPrompt?: boolean }) => {
-    if (!window.electronAPI) {
+    if (!hasElectronBridge()) {
       if (options?.notify !== false) {
         await dialogAlert({
           title: 'Unavailable',
@@ -265,7 +266,7 @@ export function useHeaderProjectController() {
   }, []);
 
   const handleLoadProject = useCallback(async () => {
-    if (!window.electronAPI) {
+    if (!hasElectronBridge()) {
       await dialogAlert({
         title: 'Unavailable',
         message: 'File system access is only available in the desktop app.',

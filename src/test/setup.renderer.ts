@@ -8,14 +8,38 @@ import { vi } from 'vitest';
 
 // Minimal window.electronAPI mock for renderer unit tests.
 const electronAPIMock = {
+  getVersions: vi.fn(() => ({
+    electron: '1.0.0',
+    chrome: '1.0.0',
+    node: '1.0.0',
+    v8: '1.0.0',
+  })),
   pathExists: vi.fn(async () => true),
   getPathForFile: vi.fn((file: File) => (file as File & { path?: string }).path || ''),
   startAssetFileDrag: vi.fn(() => true),
+  onToggleSidebar: vi.fn(() => () => {}),
   getFolderContents: vi.fn(async () => []),
   readImageMetadata: vi.fn(async () => null),
   getVideoMetadata: vi.fn(async () => null),
   loadProjectFromPath: vi.fn(async () => ({ data: null, path: '' })),
   saveProject: vi.fn(async () => 'mocked-path'),
+  showSaveSequenceDialog: vi.fn(async () => 'C:/mock/sequence_export.mp4'),
+  exportSequence: vi.fn(async () => ({
+    success: true,
+    outputPath: 'C:/mock/sequence_export.mp4',
+    fileSize: 1024,
+  })),
+  writeExportSidecars: vi.fn(async () => ({
+    success: true,
+    manifestPath: 'C:/mock/manifest.json',
+    timelinePath: 'C:/mock/timeline.txt',
+  })),
+  ensureAssetsFolder: vi.fn(async () => 'C:/mock/vault/assets'),
+  extractVideoFrame: vi.fn(async () => ({
+    success: true,
+    outputPath: 'C:/mock/vault/assets/frame.png',
+    fileSize: 1024,
+  })),
   resolveVaultPath: vi.fn(async (_vaultPath: string, relativePath: string) => ({
     absolutePath: `C:/mock/${relativePath}`,
     exists: true,
@@ -30,6 +54,20 @@ const electronAPIMock = {
     thumbnail: 'data:image/jpeg;base64,mock-thumb',
   })),
   readFileAsBase64: vi.fn(async () => 'data:image/png;base64,mock-base64'),
+  getFfmpegLimits: vi.fn(async () => ({
+    stderrMaxBytes: 256 * 1024,
+    maxClipSeconds: 120,
+    maxTotalSeconds: 600,
+    maxClipBytes: 64 * 1024 * 1024,
+    maxTotalBytes: 256 * 1024 * 1024,
+  })),
+  setFfmpegLimits: vi.fn(async (limits: Record<string, number>) => ({
+    stderrMaxBytes: limits.stderrMaxBytes ?? 256 * 1024,
+    maxClipSeconds: limits.maxClipSeconds ?? 120,
+    maxTotalSeconds: limits.maxTotalSeconds ?? 600,
+    maxClipBytes: limits.maxClipBytes ?? 64 * 1024 * 1024,
+    maxTotalBytes: limits.maxTotalBytes ?? 256 * 1024 * 1024,
+  })),
   calculateFileHash: vi.fn(async () => 'abc'),
   getFileInfo: vi.fn(async () => ({ size: 1234 })),
   loadAssetIndex: vi.fn(async () => ({ version: 1, assets: [] })),
