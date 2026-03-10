@@ -54,9 +54,12 @@
   - cut relink 時の LipSync generated asset cleanup も feature entry で明示的に起動し、`metadataSlice.relinkCutAsset` から async cleanup を外した。
   - `src/features/project/sourcePanelProvider.ts` を拡張し、`Sidebar` の source folder 選択/refresh/drop も provider/bridge 経由へ寄せた。
   - `AssetPanel` の asset folder 読み込み / bulk import / pathExists の read-import 入口も既存 bridge/provider 経由へ寄せ、UI 直 `window.electronAPI` を縮退した。
+  - `src/features/asset/import.ts` を追加し、`AssetModal` / `DetailsPanel` の asset import と `MissingAssetRecoveryModal` の file dialog を bridge/helper 経由へ寄せた。
+  - `usePreviewExportActions` の sequence export、`DetailsPanel` の frame capture、`src/features/cut/actions.ts` の ffmpeg queue / finalize / extract / crop も `electronGateway` bridge 経由へ移した。
+  - `AssetPanel` の OS drag 開始と `ImageCropModal` の preview file read も bridge 経由へ寄せた。
 - 未完了:
   - `projectSlice` と metadata 系に残る `saveMetadata()` 依存のさらに外側の直呼び棚卸し。
-  - asset panel / details panel などに残る desktop unavailable 分岐と drag/export 系 UI 入口の整理。
+  - startup / header / environment settings / lipsync preprocess などに残る desktop unavailable 分岐と一部 gateway 直呼びの整理。
   - Preview / Export parity に影響する timing 再計算の棚卸し表固定。
   - effect activity の簡易ビュー実装。
 
@@ -86,6 +89,8 @@
 - LipSync metadata 登録/cleanup も feature entry 化したので、残りは metadata 系の保存責務整理と UI 側の軽量化。
 - source panel の read path も provider/bridge 化を進め、残りは asset panel など他 UI 入口の棚卸し。
 - asset panel の read/import 入口も bridge/provider 化を進め、残りは drag/export 系と details 側 UI 入口の棚卸し。
+- asset import/export と cut feature の ffmpeg 系も bridge 化を進め、残りの直 gateway は demo/unavailable 分岐と一部 drag/provider に集約されつつある。
+- 主要な preview export / asset import / relink / frame capture / missing recovery は bridge/helper 経由に揃ったので、残りは設定系と lipsync preprocess のような特殊入口が中心。
 - Preview / Export は `SequencePlan` を正本にし、timing 再計算の散在を新規追加禁止とする。
 
 ## metadata 削除ポリシー（Follow-up Update）
