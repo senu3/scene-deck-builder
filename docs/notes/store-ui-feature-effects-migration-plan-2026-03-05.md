@@ -40,10 +40,11 @@
 - 実装済み:
   - `src/features/platform/effects` に effect 属性、`SAVE_METADATA`、warning 生成、開発時 activity 記録を追加。
   - `dispatchAppEffects` を導入し、`metadataSlice.saveMetadata` / `deleteAssetWithPolicy` / thumbnail effect 発行を同じ出口へ統一。
-  - `historyStore.executeCommand` が `command.apply()` を読んで初回 execute 後に effects を dispatch する経路を追加。
+  - `historyStore.executeCommand` が `command.apply()` を初回 execute 後に評価し、effects を dispatch する経路を追加。
   - `UpdateClipPointsCommand` / `ClearClipPointsCommand` を `apply()` 対応し、timeline-card thumbnail 再生成を command effect 化。
+  - scene / scene note 系 command が `SAVE_METADATA` effect を返すようになり、`cutTimelineSlice` の scene metadata 保存直呼びを撤去。
 - 未完了:
-  - `cutTimelineSlice` / `projectSlice` / `commands.ts` に残る `saveMetadata()` 依存のさらに外側の直呼び棚卸し。
+  - `projectSlice` と metadata audio binding 系に残る `saveMetadata()` 依存のさらに外側の直呼び棚卸し。
   - project save/load の完全な effect 分離。
   - Preview / Export parity に影響する timing 再計算の棚卸し表固定。
   - effect activity の簡易ビュー実装。
@@ -67,6 +68,7 @@
 
 ### 3. 個別経路移行
 - metadata save/delete と clip thumbnail regeneration は実装済み。
+- scene / scene note metadata 保存も command effect 化済み。
 - 次は project save/load と、store 内に残る save 呼び出しの外側責務を切り分ける。
 - Preview / Export は `SequencePlan` を正本にし、timing 再計算の散在を新規追加禁止とする。
 
