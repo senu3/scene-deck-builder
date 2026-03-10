@@ -87,7 +87,6 @@ export function usePreviewSingleModeSession({
   const [singleModeIsPlaying, setSingleModeIsPlaying] = useState(false);
   const [isSingleModeClipEnabled, setIsSingleModeClipEnabled] = useState(false);
   const [isSingleModeClipPending, setIsSingleModeClipPending] = useState(false);
-  const singleModeRafRef = useRef<number | null>(null);
 
   const lastCommittedClipPointsRef = useRef<{ start: number; end: number } | null>(null);
   const singleModeClipDragDirtyRef = useRef(false);
@@ -232,7 +231,7 @@ export function usePreviewSingleModeSession({
   const handleSingleModeSetInPoint = useCallback(() => {
     if (!isSingleModeVideo) return;
     const nextRange = computeNextRangeForSetIn({
-      playheadTime: singleModeCurrentTime,
+      playheadTime: videoRef.current?.currentTime ?? singleModeCurrentTime,
       duration: singleModeDuration,
       inPoint,
       outPoint,
@@ -249,18 +248,20 @@ export function usePreviewSingleModeSession({
     isSingleModeVideo,
     singleModeCurrentTime,
     singleModeDuration,
+    inPoint,
     outPoint,
     focusedMarker,
     setFocusedMarker,
     notifyRangeChange,
     commitSingleModeClipPoints,
     setSingleModeRange,
+    videoRef,
   ]);
 
   const handleSingleModeSetOutPoint = useCallback(() => {
     if (!isSingleModeVideo) return;
     const nextRange = computeNextRangeForSetOut({
-      playheadTime: singleModeCurrentTime,
+      playheadTime: videoRef.current?.currentTime ?? singleModeCurrentTime,
       duration: singleModeDuration,
       inPoint,
       outPoint,
@@ -278,11 +279,13 @@ export function usePreviewSingleModeSession({
     singleModeCurrentTime,
     singleModeDuration,
     inPoint,
+    outPoint,
     focusedMarker,
     setFocusedMarker,
     notifyRangeChange,
     commitSingleModeClipPoints,
     setSingleModeRange,
+    videoRef,
   ]);
 
   const handleSingleModeClearClip = useCallback(async () => {
@@ -459,31 +462,6 @@ export function usePreviewSingleModeSession({
       videoRef.current.playbackRate = playbackSpeed;
     }
   }, [isSingleModeVideo, videoRef, playbackSpeed]);
-
-  useEffect(() => {
-    if (!isSingleModeVideo || !singleModeIsPlaying || !videoRef.current) {
-      if (singleModeRafRef.current !== null) {
-        window.cancelAnimationFrame(singleModeRafRef.current);
-        singleModeRafRef.current = null;
-      }
-      return;
-    }
-
-    const updateCurrentTime = () => {
-      const video = videoRef.current;
-      if (!video) return;
-      setSingleModeCurrentTime(video.currentTime);
-      singleModeRafRef.current = window.requestAnimationFrame(updateCurrentTime);
-    };
-
-    singleModeRafRef.current = window.requestAnimationFrame(updateCurrentTime);
-    return () => {
-      if (singleModeRafRef.current !== null) {
-        window.cancelAnimationFrame(singleModeRafRef.current);
-        singleModeRafRef.current = null;
-      }
-    };
-  }, [isSingleModeVideo, singleModeIsPlaying, videoRef, setSingleModeCurrentTime]);
 
   return {
     singleModeIsPlaying,

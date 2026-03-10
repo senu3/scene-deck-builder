@@ -18,6 +18,7 @@ interface UsePreviewSharedViewStateInput {
   getSequenceAbsoluteTime: () => number;
   getSequenceLiveAbsoluteTime: () => number;
   sequenceIsPlaying: boolean;
+  singleModeIsPlaying: boolean;
   singleModeDuration: number;
   singleModeCurrentTime: number;
   asset: Asset | undefined;
@@ -45,6 +46,7 @@ export function usePreviewSharedViewState({
   getSequenceAbsoluteTime,
   getSequenceLiveAbsoluteTime,
   sequenceIsPlaying,
+  singleModeIsPlaying,
   singleModeDuration,
   singleModeCurrentTime,
   asset,
@@ -92,6 +94,7 @@ export function usePreviewSharedViewState({
   const singleModeProgressPercent = singleModePlaybackDuration > 0
     ? (singleModePlaybackTime / singleModePlaybackDuration) * 100
     : 0;
+  const progressPercent = isSingleMode ? singleModeProgressPercent : globalProgress;
   const isFreeResolution = selectedResolution.width === 0;
   const previewDisplayClassName = isFreeResolution
     ? 'preview-display'
@@ -116,12 +119,12 @@ export function usePreviewSharedViewState({
 
   useEffect(() => {
     if (progressFillRef.current) {
-      progressFillRef.current.style.width = `${globalProgress}%`;
+      progressFillRef.current.style.width = `${progressPercent}%`;
     }
     if (progressHandleRef.current) {
-      progressHandleRef.current.style.left = `${globalProgress}%`;
+      progressHandleRef.current.style.left = `${progressPercent}%`;
     }
-  }, [progressFillRef, progressHandleRef, globalProgress]);
+  }, [progressFillRef, progressHandleRef, progressPercent]);
 
   useEffect(() => {
     if (!usesSequenceController || !sequenceIsPlaying || isDragging) return;
@@ -150,6 +153,38 @@ export function usePreviewSharedViewState({
     sequenceTotalDuration,
     isDragging,
     getSequenceLiveAbsoluteTime,
+    progressFillRef,
+    progressHandleRef,
+  ]);
+
+  useEffect(() => {
+    if (!isSingleModeVideo || !singleModeIsPlaying || isDragging) return;
+
+    let rafId = 0;
+    const update = () => {
+      const duration = singleModeDuration;
+      const liveTime = videoRef.current?.currentTime ?? singleModeCurrentTime;
+      const percent = duration > 0
+        ? Math.max(0, Math.min(100, (liveTime / duration) * 100))
+        : 0;
+      if (progressFillRef.current) {
+        progressFillRef.current.style.width = `${percent}%`;
+      }
+      if (progressHandleRef.current) {
+        progressHandleRef.current.style.left = `${percent}%`;
+      }
+      rafId = window.requestAnimationFrame(update);
+    };
+
+    rafId = window.requestAnimationFrame(update);
+    return () => window.cancelAnimationFrame(rafId);
+  }, [
+    isSingleModeVideo,
+    singleModeIsPlaying,
+    isDragging,
+    singleModeDuration,
+    singleModeCurrentTime,
+    videoRef,
     progressFillRef,
     progressHandleRef,
   ]);

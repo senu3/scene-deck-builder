@@ -363,6 +363,7 @@ export default function PreviewModal({
     outPoint,
     singleModeIsPlaying,
     singleModeCurrentTime,
+    videoRef,
     sequenceIsPlaying: sequenceState.isPlaying,
     sequenceIsBuffering: sequenceState.isBuffering,
     sequenceAbsoluteTime,
@@ -540,6 +541,7 @@ export default function PreviewModal({
     getSequenceAbsoluteTime: sequenceSelectors.getAbsoluteTime,
     getSequenceLiveAbsoluteTime,
     sequenceIsPlaying: sequenceState.isPlaying,
+    singleModeIsPlaying,
     singleModeDuration,
     singleModeCurrentTime,
     asset,
@@ -607,6 +609,8 @@ export default function PreviewModal({
           modalRef={modalRef}
           displayContainerRef={displayContainerRef}
           progressBarRef={progressBarRef}
+          progressFillRef={progressFillRef}
+          progressHandleRef={progressHandleRef}
           videoRef={videoRef}
           onClose={onClose}
           onContainerMouseDown={handleContainerMouseDown}

@@ -1,10 +1,11 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { ExportAudioPlan, ExportAudioEvent } from '../../utils/exportAudioPlan';
 import { AudioManager } from '../../utils/audioUtils';
 
 interface UsePreviewAudioPlanPlaybackInput {
   enabled: boolean;
   absoluteTime: number;
+  getLiveAbsoluteTime?: () => number;
   isPlaying: boolean;
   isBuffering: boolean;
   previewAudioPlan: ExportAudioPlan;
@@ -33,6 +34,7 @@ function buildPreviewAudioEventKey(event: ExportAudioEvent) {
 export function usePreviewAudioPlanPlayback({
   enabled,
   absoluteTime,
+  getLiveAbsoluteTime,
   isPlaying,
   isBuffering,
   previewAudioPlan,
@@ -42,31 +44,23 @@ export function usePreviewAudioPlanPlayback({
   const audioManagersRef = useRef<Map<string, AudioManager>>(new Map());
   const audioLoadIdsRef = useRef<Map<string, number>>(new Map());
 
-  useEffect(() => {
-    return () => {
-      for (const manager of audioManagersRef.current.values()) {
-        manager.pause();
-        manager.unload();
-        manager.dispose();
-      }
-      audioManagersRef.current.clear();
-      audioLoadIdsRef.current.clear();
-    };
+  const disposeManagers = useCallback(() => {
+    for (const manager of audioManagersRef.current.values()) {
+      manager.pause();
+      manager.unload();
+      manager.dispose();
+    }
+    audioManagersRef.current.clear();
+    audioLoadIdsRef.current.clear();
   }, []);
 
-  useEffect(() => {
+  const syncPlayback = useCallback((nextAbsoluteTime: number) => {
     if (!enabled || previewAudioPlan.events.length === 0) {
-      for (const manager of audioManagersRef.current.values()) {
-        manager.pause();
-        manager.unload();
-        manager.dispose();
-      }
-      audioManagersRef.current.clear();
-      audioLoadIdsRef.current.clear();
+      disposeManagers();
       return;
     }
 
-    const clampedAbsoluteTime = Math.max(0, absoluteTime);
+    const clampedAbsoluteTime = Math.max(0, nextAbsoluteTime);
     const activeEntries = previewAudioPlan.events
       .map((event) => ({ event, key: buildPreviewAudioEventKey(event) }))
       .filter(({ event }) => {
@@ -136,11 +130,34 @@ export function usePreviewAudioPlanPlayback({
     }
   }, [
     enabled,
-    absoluteTime,
     isPlaying,
     isBuffering,
     previewAudioPlan,
     globalMuted,
     globalVolume,
+    disposeManagers,
   ]);
+
+  useEffect(() => {
+    return () => {
+      disposeManagers();
+    };
+  }, [disposeManagers]);
+
+  useEffect(() => {
+    syncPlayback(absoluteTime);
+  }, [absoluteTime, syncPlayback]);
+
+  useEffect(() => {
+    if (!enabled || !isPlaying || !getLiveAbsoluteTime) return;
+
+    let rafId = 0;
+    const update = () => {
+      syncPlayback(getLiveAbsoluteTime());
+      rafId = window.requestAnimationFrame(update);
+    };
+
+    rafId = window.requestAnimationFrame(update);
+    return () => window.cancelAnimationFrame(rafId);
+  }, [enabled, getLiveAbsoluteTime, isPlaying, syncPlayback]);
 }

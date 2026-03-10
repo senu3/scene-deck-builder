@@ -13,6 +13,8 @@ interface PreviewModalSingleViewProps {
   modalRef: React.RefObject<HTMLDivElement>;
   displayContainerRef: React.RefObject<HTMLDivElement>;
   progressBarRef: React.RefObject<HTMLDivElement>;
+  progressFillRef: React.RefObject<HTMLDivElement>;
+  progressHandleRef: React.RefObject<HTMLDivElement>;
   videoRef: React.RefObject<HTMLVideoElement>;
   onClose: () => void;
   onContainerMouseDown: (e: React.MouseEvent) => void;
@@ -79,6 +81,8 @@ export function PreviewModalSingleView({
   modalRef,
   displayContainerRef,
   progressBarRef,
+  progressFillRef,
+  progressHandleRef,
   videoRef,
   onClose,
   onContainerMouseDown,
@@ -272,8 +276,16 @@ export function PreviewModalSingleView({
                       onMarkerDragEnd={onMarkerDragEnd}
                       progressBarRef={progressBarRef}
                     />
-                    <div className="preview-progress-fill" style={{ width: `${singleModeProgressPercent}%` }} />
-                    <div className="preview-progress-handle" style={{ left: `${singleModeProgressPercent}%` }} />
+                    <div
+                      ref={progressFillRef}
+                      className="preview-progress-fill"
+                      style={{ width: `${singleModeProgressPercent}%` }}
+                    />
+                    <div
+                      ref={progressHandleRef}
+                      className="preview-progress-handle"
+                      style={{ left: `${singleModeProgressPercent}%` }}
+                    />
                   </div>
                   <div className="preview-progress-info">
                     <TimeDisplay
