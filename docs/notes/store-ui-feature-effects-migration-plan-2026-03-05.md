@@ -36,7 +36,7 @@
 - metadata 削除不整合（先に metadata 消去して削除失敗など）が順序固定で抑止されている。
 - Preview / Export の parity 影響領域で `SequencePlan` を通らない timing 再計算が新規に増えていない。
 
-## 現在の実装状況 (2026-03-09)
+## 現在の実装状況 (2026-03-10)
 - 実装済み:
   - `src/features/platform/effects` に effect 属性、`SAVE_METADATA`、warning 生成、開発時 activity 記録を追加。
   - `dispatchAppEffects` を導入し、`metadataSlice.saveMetadata` / `deleteAssetWithPolicy` / thumbnail effect 発行を同じ出口へ統一。
@@ -57,16 +57,18 @@
   - `src/features/asset/import.ts` を追加し、`AssetModal` / `DetailsPanel` の asset import と `MissingAssetRecoveryModal` の file dialog を bridge/helper 経由へ寄せた。
   - `usePreviewExportActions` の sequence export、`DetailsPanel` の frame capture、`src/features/cut/actions.ts` の ffmpeg queue / finalize / extract / crop も `electronGateway` bridge 経由へ移した。
   - `AssetPanel` の OS drag 開始と `ImageCropModal` の preview file read も bridge 経由へ寄せた。
-- 未完了:
-  - `projectSlice` と metadata 系に残る `saveMetadata()` 依存のさらに外側の直呼び棚卸し。
-  - startup / header / environment settings / lipsync preprocess などに残る desktop unavailable 分岐と一部 gateway 直呼びの整理。
-  - Preview / Export parity に影響する timing 再計算の棚卸し表固定。
-  - effect activity の簡易ビュー実装。
+  - `App.tsx` の export / frame capture、`EnvironmentSettingsModal` の FFmpeg settings / versions、`thumbnails/provider` の thumbnail read も bridge 経由へ寄せ、通常 UI からの `window.electronAPI` 直参照を `electronGateway` へ集約した。
+  - Startup / Header / Sidebar の desktop unavailable 判定も `hasElectronBridge()` へ寄せ、demo/unavailable 分岐の `window` 依存を薄くした。
+  - dev overlay に effect activity panel を追加し、`issued / start / success / failure` と `effectType / orderingKey / commandType` を開発時に追跡できるようにした。
+  - `docs/notes/sequence-plan-timing-inventory-2026-03-10.md` を追加し、Preview / Export parity へ影響する timing 経路と preview-only helper を棚卸し表で固定した。
+- 残タスク:
+  - 新規 Preview / Export parity 変更時に、timing 経路が inventory の `Keep` / `Contain` を逸脱していないかを継続確認する。
 
 ## フェーズ計画
 ### 0.5. インベントリ固定
 - 置換対象を `I/O / timing再計算 / metadata整合 / thumbnail` で分類して棚卸し表にする。
 - 現時点の優先監査対象は `metadataSlice`, `projectSlice`, `cutTimelineSlice`, Preview/Export の timing 入口。
+- timing 経路の棚卸しは `docs/notes/sequence-plan-timing-inventory-2026-03-10.md` に固定した。
 
 ### 1. Effects / dispatcher 基盤
 - `AppEffect` に属性分類を持たせ、`dispatchAppEffects` を commit/deferred 分岐込みの単一出口にする。
@@ -79,6 +81,7 @@
 ### 2.5. 観測性
 - effect 発行 / 開始 / 完了 / 失敗を開発時のみ activity log に残す。
 - `commandId` / `commandType` と effect を紐付けて追跡可能にする。
+- dev overlay 上の `EffectActivityDebugModule` で直近 activity を確認できるようにした。
 
 ### 3. 個別経路移行
 - metadata save/delete と clip thumbnail regeneration は実装済み。
@@ -90,7 +93,7 @@
 - source panel の read path も provider/bridge 化を進め、残りは asset panel など他 UI 入口の棚卸し。
 - asset panel の read/import 入口も bridge/provider 化を進め、残りは drag/export 系と details 側 UI 入口の棚卸し。
 - asset import/export と cut feature の ffmpeg 系も bridge 化を進め、残りの直 gateway は demo/unavailable 分岐と一部 drag/provider に集約されつつある。
-- 主要な preview export / asset import / relink / frame capture / missing recovery は bridge/helper 経由に揃ったので、残りは設定系と lipsync preprocess のような特殊入口が中心。
+- 主要な preview export / asset import / relink / frame capture / missing recovery に加え、settings / thumbnail provider / unavailable 判定も bridge/helper 経由に揃った。
 - Preview / Export は `SequencePlan` を正本にし、timing 再計算の散在を新規追加禁止とする。
 
 ## metadata 削除ポリシー（Follow-up Update）
