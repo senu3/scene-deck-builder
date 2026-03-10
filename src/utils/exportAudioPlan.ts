@@ -67,8 +67,9 @@ function buildSceneGroupKey(sceneId: string, groupId: string): string {
 function resolveClampedAudioDuration(asset: Asset | undefined, spanDurationSec: number): number {
   const normalizedSpanDurationSec = Math.max(0, spanDurationSec);
   if (normalizedSpanDurationSec <= 0) return 0;
-  const assetDuration = asset?.type === 'audio' && Number.isFinite(asset.duration) && asset.duration > 0
-    ? asset.duration
+  const assetDurationCandidate = asset?.type === 'audio' ? asset.duration : undefined;
+  const assetDuration = Number.isFinite(assetDurationCandidate) && (assetDurationCandidate as number) > 0
+    ? (assetDurationCandidate as number)
     : normalizedSpanDurationSec;
   return Math.min(normalizedSpanDurationSec, assetDuration);
 }

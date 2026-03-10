@@ -350,4 +350,44 @@ describe('usePreviewSequenceAudio', () => {
       root.unmount();
     });
   });
+
+  it('seeks from sourceStartSec and sourceOffsetSec together', async () => {
+    const host = document.createElement('div');
+    const root = createRoot(host);
+    const clippedAudioPlan: ExportAudioPlan = {
+      totalDurationSec: 4,
+      events: [
+        {
+          sourceType: 'video',
+          sourcePath: '/tmp/clipped.mp4',
+          assetId: 'asset-clip',
+          cutId: 'cut-clip',
+          sourceStartSec: 1.25,
+          sourceOffsetSec: 0.5,
+          timelineStartSec: 0,
+          durationSec: 2,
+          gain: 1,
+        },
+      ],
+    };
+
+    await act(async () => {
+      root.render(
+        <Harness
+          absoluteTime={0.75}
+          previewAudioPlan={clippedAudioPlan}
+        />
+      );
+    });
+
+    expect(managerInstances).toHaveLength(1);
+    const manager = managerInstances[0] as {
+      playCalls: number[];
+    };
+    expect(manager.playCalls[0]).toBeCloseTo(2.5, 6);
+
+    act(() => {
+      root.unmount();
+    });
+  });
 });

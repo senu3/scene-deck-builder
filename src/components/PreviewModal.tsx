@@ -18,7 +18,10 @@ import {
 import type { Cut } from '../types';
 import { useSequencePlaybackController } from '../utils/previewPlaybackController';
 import { getScenesInOrder } from '../utils/sceneOrder';
+import { buildSequencePlan } from '../utils/sequencePlan';
 import { cyclePlaybackSpeed } from '../utils/timeUtils';
+import { slicePreviewAudioPlan } from '../utils/previewAudioPlanSlice';
+import { EXPORT_FRAMING_DEFAULTS } from '../constants/framing';
 import { useMiniToast } from '../ui';
 import type { PreviewModalProps, ResolutionPreset } from './preview-modal/types';
 import {
@@ -154,6 +157,51 @@ export default function PreviewModal({
     getAsset,
     getCutRuntime,
   });
+  const focusedPreviewBasePlan = useMemo(() => {
+    if (!focusCutData?.cut?.id) return null;
+    return buildSequencePlan({
+      scenes,
+      sceneOrder,
+    }, {
+      metadataStore: metadataStore ?? null,
+      getAssetById: getAsset,
+      resolveCutRuntimeById: getCutRuntime,
+      framingDefaults: EXPORT_FRAMING_DEFAULTS,
+      strictLipSync: false,
+    });
+  }, [focusCutData?.cut?.id, scenes, sceneOrder, metadataStore, getAsset, getCutRuntime]);
+  const focusedPreviewWindow = useMemo(() => {
+    const cutId = focusCutData?.cut?.id;
+    if (!cutId || !focusedPreviewBasePlan) return null;
+    const matchingItems = focusedPreviewBasePlan.videoItems.filter((item) => item.cutId === cutId);
+    if (matchingItems.length === 0) return null;
+    const primaryItem = matchingItems.find((item) => !item.flags.isHold) ?? matchingItems[0];
+    const windowStartSec = primaryItem?.dstInSec ?? 0;
+    const windowEndSec = isSingleMode
+      ? (primaryItem?.dstOutSec ?? windowStartSec)
+      : matchingItems.reduce((max, item) => Math.max(max, item.dstOutSec), primaryItem?.dstOutSec ?? windowStartSec);
+    if (windowEndSec <= windowStartSec) return null;
+    return {
+      startSec: windowStartSec,
+      endSec: windowEndSec,
+    };
+  }, [focusCutData?.cut?.id, focusedPreviewBasePlan, isSingleMode]);
+  const focusedPreviewAudioPlan = useMemo(() => {
+    if (!focusedPreviewBasePlan || !focusedPreviewWindow) return null;
+    return slicePreviewAudioPlan(focusedPreviewBasePlan.audioPlan, focusedPreviewWindow);
+  }, [focusedPreviewBasePlan, focusedPreviewWindow]);
+  const focusedAttachAudioPlan = useMemo(() => {
+    if (!focusedPreviewBasePlan || !focusedPreviewWindow) return null;
+    return slicePreviewAudioPlan(focusedPreviewBasePlan.audioPlan, focusedPreviewWindow, {
+      excludeSourceTypes: ['video'],
+    });
+  }, [focusedPreviewBasePlan, focusedPreviewWindow]);
+  const effectiveSequenceAudioPlan = useMemo(() => {
+    if (!focusCutData?.cut?.id || sequenceCuts || items.length !== 1) {
+      return previewAudioPlan;
+    }
+    return focusedPreviewAudioPlan ?? previewAudioPlan;
+  }, [focusCutData?.cut?.id, sequenceCuts, items.length, focusedPreviewAudioPlan, previewAudioPlan]);
   const sequenceItems = usesSequenceController ? previewSequenceItems : items;
   const sequenceDurations = useMemo(
     () => usesSequenceController
@@ -310,18 +358,14 @@ export default function PreviewModal({
     isSingleModeVideo,
     hasCutContext,
     assetId: asset?.id,
-    focusCut: focusCutData?.cut ?? null,
-    focusScene: focusCutData?.scene ?? null,
-    metadataStore: metadataStore ?? null,
-    getAsset,
-    resolveAudioBindingForCut,
+    previewAudioPlan: focusedAttachAudioPlan ?? { totalDurationSec: 0, events: [] },
     inPoint,
     outPoint,
-    videoRef,
     singleModeIsPlaying,
+    singleModeCurrentTime,
     sequenceIsPlaying: sequenceState.isPlaying,
     sequenceIsBuffering: sequenceState.isBuffering,
-    getSequenceAbsoluteTime: sequenceSelectors.getAbsoluteTime,
+    sequenceAbsoluteTime,
     globalMuted,
     globalVolume,
   });
@@ -369,7 +413,7 @@ export default function PreviewModal({
     showMiniToast,
     videoRef,
     sequenceAbsoluteTime,
-    previewAudioPlan,
+    previewAudioPlan: effectiveSequenceAudioPlan,
     globalMuted,
     globalVolume,
   });
