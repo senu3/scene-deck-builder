@@ -390,4 +390,38 @@ describe('usePreviewSequenceAudio', () => {
       root.unmount();
     });
   });
+
+  it('seeks backward when the playhead jumps earlier within the same event', async () => {
+    const host = document.createElement('div');
+    const root = createRoot(host);
+
+    await act(async () => {
+      root.render(
+        <Harness
+          absoluteTime={2.4}
+          previewAudioPlan={attachAudioPlan}
+        />
+      );
+    });
+
+    expect(managerInstances).toHaveLength(1);
+    const manager = managerInstances[0] as {
+      seekCalls: number[];
+    };
+
+    await act(async () => {
+      root.render(
+        <Harness
+          absoluteTime={0.3}
+          previewAudioPlan={attachAudioPlan}
+        />
+      );
+    });
+
+    expect(manager.seekCalls).toEqual([0.3]);
+
+    act(() => {
+      root.unmount();
+    });
+  });
 });

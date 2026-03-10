@@ -123,7 +123,7 @@ export function usePreviewAudioPlanPlayback({
       } else {
         const currentTime = manager.getCurrentTime();
         const lag = playPosition - currentTime;
-        if (lag > 0.5) {
+        if (Math.abs(lag) > 0.5) {
           manager.seek(playPosition);
         }
       }
