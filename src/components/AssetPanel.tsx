@@ -59,6 +59,7 @@ import {
   hasVaultGatewayBridge,
   importAndRegisterAssetBridge,
   pathExistsBridge,
+  startAssetFileDragBridge,
 } from '../features/platform/electronGateway';
 import {
   checkPathExistsForSourcePanel,
@@ -935,7 +936,7 @@ export default function AssetPanel({
 
     if (vaultPath && asset.path) {
       try {
-        const started = window.electronAPI?.startAssetFileDrag?.({
+        const started = startAssetFileDragBridge({
           filePath: asset.path,
           vaultPath,
         });

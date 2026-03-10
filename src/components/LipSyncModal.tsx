@@ -9,6 +9,10 @@ import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X, Camera, Play, Pause, Mic, Volume2, Film, Check, Brush } from "lucide-react";
 import type { Asset } from "../types";
+import {
+  hasVaultGatewayBridge,
+  precomposeLipSyncFramesBridge,
+} from "../features/platform/electronGateway";
 import { Slider } from "../ui/primitives/Slider";
 import MaskPaintModal from "./MaskPaintModal";
 import { useStore } from "../store/useStore";
@@ -459,7 +463,7 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
       return;
     }
 
-    if ((isVideo || maskDataUrl) && typeof window.electronAPI?.vaultGateway?.importDataUrlAsset !== "function") {
+    if ((isVideo || maskDataUrl) && !hasVaultGatewayBridge()) {
       toast.error(
         "Lip Sync registration failed",
         "importDataUrlAsset is unavailable. Please restart the app after update."
@@ -569,9 +573,8 @@ export default function LipSyncModal({ asset, sceneId, cutId, onClose }: LipSync
       maskAssetId = maskAsset.id;
 
       let compositedDataUrls: Array<string | null> = [];
-      const precomposeLipSyncFrames = window.electronAPI?.precomposeLipSyncFrames;
-      if (typeof precomposeLipSyncFrames === "function" && frameSourcePaths.length === frameSourceDataUrls.length && maskAsset.path) {
-        const precomposeResult = await precomposeLipSyncFrames({
+      if (frameSourcePaths.length === frameSourceDataUrls.length && maskAsset.path) {
+        const precomposeResult = await precomposeLipSyncFramesBridge({
           baseImagePath: frameSourcePaths[0],
           frameImagePaths: frameSourcePaths,
           maskImagePath: maskAsset.path,

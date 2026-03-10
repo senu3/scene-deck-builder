@@ -2,6 +2,13 @@ import { v4 as uuidv4 } from 'uuid';
 import type { CutImportSource } from '../../utils/cutImport';
 import type { CutGroup } from '../../types';
 import { importFileToVault } from '../../utils/assetPath';
+import {
+  cropImageToAspectBridge,
+  ensureAssetsFolderBridge,
+  extractAudioBridge,
+  finalizeClipBridge,
+  getFfmpegQueueStatsBridge,
+} from '../platform/electronGateway';
 
 function getFileNameFromPath(filePath: string): string {
   const normalized = filePath.replace(/\\/g, '/');
@@ -129,9 +136,9 @@ interface FinalizeClipDeriveFileResult {
 }
 
 async function isHeavyFfmpegQueueBusy(): Promise<boolean> {
-  if (!window.electronAPI?.getFfmpegQueueStats) return false;
   try {
-    const stats = await window.electronAPI.getFfmpegQueueStats();
+    const stats = await getFfmpegQueueStatsBridge();
+    if (!stats) return false;
     return (stats.heavy.running + stats.heavy.queued) > 0;
   } catch {
     return false;
@@ -146,17 +153,11 @@ async function finalizeClipToDerivedFile({
   reverseOutput,
   vaultPath,
 }: FinalizeClipDeriveFileParams): Promise<FinalizeClipDeriveFileResult> {
-  if (!window.electronAPI) {
-    return { success: false, reason: 'runtime', error: 'electronAPI not available. Please restart the app.' };
-  }
-  if (typeof window.electronAPI.finalizeClip !== 'function' || typeof window.electronAPI.ensureAssetsFolder !== 'function') {
-    return { success: false, reason: 'runtime', error: 'Finalize Clip feature requires app restart after update.' };
-  }
   if (await isHeavyFfmpegQueueBusy()) {
     return { success: false, reason: 'queue-busy', error: 'FFmpeg queue is busy. Please wait for current operation to finish.' };
   }
 
-  const assetsFolder = await window.electronAPI.ensureAssetsFolder(vaultPath);
+  const assetsFolder = await ensureAssetsFolderBridge(vaultPath);
   if (!assetsFolder) {
     return { success: false, reason: 'runtime', error: 'Failed to access assets folder in vault.' };
   }
@@ -172,7 +173,7 @@ async function finalizeClipToDerivedFile({
   );
   const outputPath = `${assetsFolder}/${fileName}`.replace(/\\/g, '/');
 
-  const result = await window.electronAPI.finalizeClip({
+  const result = await finalizeClipBridge({
     sourcePath: sourceAssetPath,
     outputPath,
     inPoint: clipStart,
@@ -440,17 +441,11 @@ export async function extractAudioAndRegisterAsset({
   inPoint,
   outPoint,
 }: ExtractAudioAssetOnlyParams): Promise<ExtractAudioAssetOnlyResult> {
-  if (!window.electronAPI) {
-    return { success: false, reason: 'runtime', error: 'electronAPI not available. Please restart the app.' };
-  }
-  if (typeof window.electronAPI.extractAudio !== 'function' || typeof window.electronAPI.ensureAssetsFolder !== 'function') {
-    return { success: false, reason: 'runtime', error: 'Extract Audio feature requires app restart after update.' };
-  }
   if (await isHeavyFfmpegQueueBusy()) {
     return { success: false, reason: 'queue-busy', error: 'FFmpeg queue is busy. Please wait for current operation to finish.' };
   }
 
-  const assetsFolder = await window.electronAPI.ensureAssetsFolder(vaultPath);
+  const assetsFolder = await ensureAssetsFolderBridge(vaultPath);
   if (!assetsFolder) {
     return { success: false, reason: 'runtime', error: 'Failed to access assets folder in vault.' };
   }
@@ -465,7 +460,7 @@ export async function extractAudioAndRegisterAsset({
     'wav'
   );
   const outputPath = `${assetsFolder}/${fileName}`.replace(/\\/g, '/');
-  const extractResult = await window.electronAPI.extractAudio({
+  const extractResult = await extractAudioBridge({
     sourcePath: sourceAssetPath,
     outputPath,
     inPoint: start,
@@ -565,14 +560,7 @@ export async function cropImageAndAddCut({
   getCutGroup,
   updateGroupCutOrder,
 }: CropImageAddCutParams): Promise<CropImageAddCutResult> {
-  if (!window.electronAPI) {
-    return { success: false, error: 'electronAPI not available. Please restart the app.' };
-  }
-  if (typeof window.electronAPI.cropImageToAspect !== 'function' || typeof window.electronAPI.ensureAssetsFolder !== 'function') {
-    return { success: false, error: 'Crop feature requires app restart after update.' };
-  }
-
-  const assetsFolder = await window.electronAPI.ensureAssetsFolder(vaultPath);
+  const assetsFolder = await ensureAssetsFolderBridge(vaultPath);
   if (!assetsFolder) {
     return { success: false, error: 'Failed to access assets folder in vault.' };
   }
@@ -586,7 +574,7 @@ export async function cropImageAndAddCut({
   );
   const outputPath = `${assetsFolder}/${fileName}`.replace(/\\/g, '/');
 
-  const result = await window.electronAPI.cropImageToAspect({
+  const result = await cropImageToAspectBridge({
     sourcePath: sourceAssetPath,
     outputPath,
     targetWidth,
