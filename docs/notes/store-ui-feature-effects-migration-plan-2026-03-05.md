@@ -43,9 +43,11 @@
   - `historyStore.executeCommand` が `command.apply()` を初回 execute 後に評価し、effects を dispatch する経路を追加。
   - `UpdateClipPointsCommand` / `ClearClipPointsCommand` を `apply()` 対応し、timeline-card thumbnail 再生成を command effect 化。
   - scene / scene note 系 command が `SAVE_METADATA` effect を返すようになり、`cutTimelineSlice` の scene metadata 保存直呼びを撤去。
+  - scene/group audio binding は setter の自動保存をやめ、初回 execute 時のみ command effect で metadata 保存する形に移行。
+  - `StartupModal` / `useHeaderProjectController` の project save/load / recent projects / asset index save は `electronGateway` bridge 経由へ寄せ、UI 直 `window.electronAPI` 呼びを縮退。
 - 未完了:
-  - `projectSlice` と metadata audio binding 系に残る `saveMetadata()` 依存のさらに外側の直呼び棚卸し。
-  - project save/load の完全な effect 分離。
+  - `projectSlice` と metadata/lipsync 系に残る `saveMetadata()` 依存のさらに外側の直呼び棚卸し。
+  - project save/load の完全な effect 分離（現状は bridge 経由まで）。
   - Preview / Export parity に影響する timing 再計算の棚卸し表固定。
   - effect activity の簡易ビュー実装。
 
@@ -69,7 +71,8 @@
 ### 3. 個別経路移行
 - metadata save/delete と clip thumbnail regeneration は実装済み。
 - scene / scene note metadata 保存も command effect 化済み。
-- 次は project save/load と、store 内に残る save 呼び出しの外側責務を切り分ける。
+- scene/group audio binding の保存も command effect 化済み。
+- project save/load は UI 直呼びを bridge に寄せたので、次は effect 化と payload/戻り値設計を切り分ける。
 - Preview / Export は `SequencePlan` を正本にし、timing 再計算の散在を新規追加禁止とする。
 
 ## metadata 削除ポリシー（Follow-up Update）
