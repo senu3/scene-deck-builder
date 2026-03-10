@@ -17,6 +17,13 @@ export interface AppEffectActivityEntry {
 const MAX_ACTIVITY_ENTRIES = 200;
 let nextSeq = 1;
 const activityEntries: AppEffectActivityEntry[] = [];
+const listeners = new Set<() => void>();
+
+function notifyListeners(): void {
+  for (const listener of listeners) {
+    listener();
+  }
+}
 
 export function recordEffectActivity(entry: Omit<AppEffectActivityEntry, 'seq' | 'at'>): void {
   if (!import.meta.env.DEV) return;
@@ -30,13 +37,23 @@ export function recordEffectActivity(entry: Omit<AppEffectActivityEntry, 'seq' |
   if (activityEntries.length > MAX_ACTIVITY_ENTRIES) {
     activityEntries.splice(0, activityEntries.length - MAX_ACTIVITY_ENTRIES);
   }
+
+  notifyListeners();
 }
 
 export function getEffectActivityEntries(): AppEffectActivityEntry[] {
   return [...activityEntries];
 }
 
+export function subscribeEffectActivity(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
 export function __resetEffectActivityForTests(): void {
   activityEntries.length = 0;
   nextSeq = 1;
+  listeners.clear();
 }

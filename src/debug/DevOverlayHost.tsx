@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import type { CSSProperties } from 'react';
 import { useDragDropDebugModule } from './modules/dragDropDebug';
+import { useEffectActivityDebugModule } from './modules/effectActivityDebug';
 import { usePreviewDebugModule } from './modules/previewDebug';
 
 export interface DevOverlayPanel {
@@ -25,10 +26,11 @@ function panelStyle(): CSSProperties {
 export default function DevOverlayHost() {
   const previewPanel = usePreviewDebugModule();
   const dragDropPanel = useDragDropDebugModule();
+  const effectActivityPanel = useEffectActivityDebugModule();
 
   const panels = useMemo(() => {
-    return [previewPanel, dragDropPanel].filter((panel): panel is DevOverlayPanel => panel !== null);
-  }, [previewPanel, dragDropPanel]);
+    return [previewPanel, dragDropPanel, effectActivityPanel].filter((panel): panel is DevOverlayPanel => panel !== null);
+  }, [previewPanel, dragDropPanel, effectActivityPanel]);
 
   if (panels.length === 0) return null;
 
