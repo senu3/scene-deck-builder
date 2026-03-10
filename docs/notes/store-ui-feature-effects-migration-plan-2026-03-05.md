@@ -46,9 +46,13 @@
   - scene/group audio binding は setter の自動保存をやめ、初回 execute 時のみ command effect で metadata 保存する形に移行。
   - `StartupModal` / `useHeaderProjectController` の project save/load / recent projects / asset index save は `electronGateway` bridge 経由へ寄せ、UI 直 `window.electronAPI` 呼びを縮退。
   - `SAVE_PROJECT` / `SAVE_RECENT_PROJECTS` / `SAVE_ASSET_INDEX` effect を追加し、header/startup の save 系 write は `dispatchAppEffects` 経由へ移行。
+  - `src/features/project/session.ts` を追加し、recent cleanup / vault選択 / project作成初期化 / project選択読込 / path指定読込 / load outcome 構築を feature 入口へ集約。
+  - `src/features/project/load.ts` の project load 補助も bridge 経由へ寄せ、project feature 配下の `window.electronAPI` 直呼びを撤去。
+  - `src/features/project/apply.ts` を追加し、load 後の共通 apply/finalize を `finalizePendingProjectLoad` に集約。Startup / Header / path 指定が同じ store 適用・recent 更新・migration save 経路を通るようにした。
+  - recovery で cut が削除された場合は、その cut の `cutRuntimeById.hold` を復元しないようにし、load 完了後 state の runtime 残骸を防止。
 - 未完了:
   - `projectSlice` と metadata/lipsync 系に残る `saveMetadata()` 依存のさらに外側の直呼び棚卸し。
-  - project load / createVault / ensureAssetsFolder など read/init 系 I/O の feature action 整理。
+  - load/init 後の UI 状態更新と desktop unavailable 分岐のさらなる縮退。
   - Preview / Export parity に影響する timing 再計算の棚卸し表固定。
   - effect activity の簡易ビュー実装。
 
@@ -73,7 +77,8 @@
 - metadata save/delete と clip thumbnail regeneration は実装済み。
 - scene / scene note metadata 保存も command effect 化済み。
 - scene/group audio binding の保存も command effect 化済み。
-- project save / recent projects / asset index save も effect 化済み。残りは load/init 系の入口整理。
+- project save / recent projects / asset index save も effect 化済み。
+- load/init 系 I/O は `project/session`、load 完了後の state 適用・recovery finalize は `project/apply` に寄せたので、残りは lipsync 系の保存責務整理と UI 側の軽量化。
 - Preview / Export は `SequencePlan` を正本にし、timing 再計算の散在を新規追加禁止とする。
 
 ## metadata 削除ポリシー（Follow-up Update）
