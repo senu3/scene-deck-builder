@@ -51,7 +51,7 @@ Accepted (2026-03-02)
 
 ## Follow-up Update (2026-03-05)
 - 2026-03-05 時点の移行詳細（削除順序固定、失敗時ガード、effects 実行方針）は notes へ分離した。
-- 参照: `docs/notes/store-ui-feature-effects-migration-plan-2026-03-05.md`
+- 参照: `docs/notes/archive/store-ui-feature-effects-migration-plan-implemented-2026-03-05.md`
 
 ## Related
 - `docs/notes/archive/store-io-boundary-migration-plan-2026-03-02.md`

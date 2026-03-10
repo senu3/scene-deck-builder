@@ -61,5 +61,5 @@
 ## 関連ガイド
 - Export canonical flow の正本: `docs/guides/export.md`
 - media I/O と queue 運用: `docs/guides/media-handling.md`
-- store/UI/feature にじみ防止の移行計画: `docs/notes/store-ui-feature-effects-migration-plan-2026-03-05.md`
+- store/UI/feature にじみ防止の移行計画: `docs/notes/archive/store-ui-feature-effects-migration-plan-implemented-2026-03-05.md`
 - 詳細運用・経緯メモ: `docs/notes/`
