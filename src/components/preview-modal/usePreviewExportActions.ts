@@ -2,6 +2,10 @@ import { useCallback, useState } from 'react';
 import type { Asset, CutRuntimeState, MetadataStore } from '../../types';
 import { DEFAULT_EXPORT_RESOLUTION } from '../../constants/export';
 import { EXPORT_FRAMING_DEFAULTS } from '../../constants/framing';
+import {
+  exportSequenceBridge,
+  showSaveSequenceDialogBridge,
+} from '../../features/platform/electronGateway';
 import { buildSequencePlan, type SequencePlan } from '../../utils/sequencePlan';
 import { buildSequencePlanTargetFromPreviewItems } from './sequencePlanInput';
 import type { PreviewItem, ResolutionPreset } from './types';
@@ -53,16 +57,12 @@ export function usePreviewExportActions({
         return;
       }
 
-      if (!window.electronAPI) {
-        return;
-      }
-
-      const outputPath = await window.electronAPI.showSaveSequenceDialog('sequence_export.mp4');
+      const outputPath = await showSaveSequenceDialogBridge('sequence_export.mp4');
       if (!outputPath) {
         return;
       }
 
-      const result = await window.electronAPI.exportSequence({
+      const result = await exportSequenceBridge({
         items: sequencePlan.exportItems,
         outputPath,
         width: exportWidth,

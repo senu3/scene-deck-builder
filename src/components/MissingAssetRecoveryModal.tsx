@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AlertTriangle, FolderOpen, Trash2, SkipForward, Check, X } from 'lucide-react';
 import type { Asset } from '../types';
+import { showOpenFileDialogBridge } from '../features/platform/electronGateway';
 import { Overlay, useModalKeyboard } from '../ui/primitives/Modal';
 import './MissingAssetRecoveryModal.css';
 
@@ -41,10 +42,10 @@ export default function MissingAssetRecoveryModal({
   const currentDecision = decisions.get(currentAsset?.cutId);
 
   const handleRelink = async () => {
-    if (!window.electronAPI || !currentAsset) return;
+    if (!currentAsset) return;
 
     // Open file dialog to select replacement file
-    const filePath = await window.electronAPI.showOpenFileDialog({
+    const filePath = await showOpenFileDialogBridge({
       title: `Select replacement for: ${currentAsset.name}`,
       filters: [
         { name: 'Media Files', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4', 'webm', 'mov', 'avi', 'mkv'] }

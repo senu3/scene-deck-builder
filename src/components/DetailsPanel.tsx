@@ -63,8 +63,14 @@ import {
   getAssetThumbnail,
   resolveCutThumbnailFromCache,
 } from "../features/thumbnails/api";
+import { selectAndImportAssetToVault } from "../features/asset/import";
 import { relinkCutAssetWithLipSyncCleanup } from "../features/metadata/lipSyncActions";
 import { readImageMetadataForPath } from "../features/metadata/provider";
+import {
+  ensureAssetsFolderBridge,
+  extractVideoFrameBridge,
+  getFileInfoBridge,
+} from "../features/platform/electronGateway";
 import { clearPreviewClipPoints, savePreviewClipPoints } from "../features/cut/previewClipUpdate";
 import { resolveCutAsset } from "../utils/assetResolve";
 import { extractVideoMetadata } from "../utils/videoUtils";
@@ -591,7 +597,7 @@ export default function DetailsPanel() {
 
   // Relink file handler
   const handleRelinkFile = async () => {
-    if (!cutScene || !cut || !vaultPath || !window.electronAPI?.vaultGateway) return;
+    if (!cutScene || !cut || !vaultPath) return;
     const hasLipSyncConfig = !!(cut.assetId && metadataStore?.metadata[cut.assetId]?.lipSync);
     if (cut.isLipSync || hasLipSyncConfig) {
       const confirmed = await confirm({
@@ -606,60 +612,34 @@ export default function DetailsPanel() {
       if (!confirmed) return;
     }
 
-    const filePath = await window.electronAPI.showOpenFileDialog({
-      title: 'Select New File',
-      filters: [{ name: 'Media', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4', 'webm', 'mov', 'avi', 'mkv'] }],
-    });
-
-    if (!filePath) return;
-
     try {
-      const newAssetId = uuidv4();
-
-      // Import to vault
-      const importResult = await window.electronAPI.vaultGateway.importAndRegisterAsset(
-        filePath,
+      const importedAsset = await selectAndImportAssetToVault({
         vaultPath,
-        newAssetId
-      );
-
-      if (!importResult.success) {
-        alert(`Failed to import file: ${importResult.error}`);
+        filterType: 'all',
+        dialogTitle: 'Select New File',
+      });
+      if (!importedAsset) {
         return;
       }
 
-      // Get file info
-      const fileInfo = await window.electronAPI.getFileInfo(importResult.vaultPath!);
-      const ext = fileInfo?.extension?.toLowerCase() || '';
-      const isVideo = ['.mp4', '.webm', '.mov', '.avi', '.mkv'].includes(ext);
-      const type: Asset['type'] = isVideo ? 'video' : 'image';
-
       let duration: number | undefined;
-      if (isVideo) {
-        const videoMeta = await extractVideoMetadata(importResult.vaultPath!);
+      if (importedAsset.type === 'video') {
+        const videoMeta = await extractVideoMetadata(importedAsset.path);
         if (videoMeta) {
           duration = videoMeta.duration;
         }
       }
 
-      // Create new asset
       const newAsset: Asset = {
-        id: newAssetId,
-        name: fileInfo?.name || 'asset',
-        path: importResult.vaultPath!,
-        type,
-        vaultRelativePath: importResult.relativePath,
-        originalPath: filePath,
-        hash: importResult.hash,
-        fileSize: fileInfo?.size,
+        ...importedAsset,
         duration,
       };
 
       // Load thumbnail for images or generate for videos
       const thumbnail = await getAssetThumbnail('timeline-card', {
-        assetId: newAssetId,
-        path: importResult.vaultPath!,
-        type: isVideo ? 'video' : 'image',
+        assetId: newAsset.id,
+        path: newAsset.path,
+        type: newAsset.type === 'video' ? 'video' : 'image',
       });
       if (thumbnail) {
         newAsset.thumbnail = thumbnail;
@@ -700,17 +680,9 @@ export default function DetailsPanel() {
       throw new Error('Cannot capture frame: missing required data');
     }
 
-    if (
-      !window.electronAPI?.extractVideoFrame ||
-      !window.electronAPI?.ensureAssetsFolder
-    ) {
-      throw new Error('Frame capture requires app restart after update.');
-    }
-
     try {
       // Ensure assets folder exists
-      const assetsFolder =
-        await window.electronAPI.ensureAssetsFolder(vaultPath);
+      const assetsFolder = await ensureAssetsFolderBridge(vaultPath);
       if (!assetsFolder) {
         throw new Error('Failed to access assets folder');
       }
@@ -723,7 +695,7 @@ export default function DetailsPanel() {
       const outputPath = `${assetsFolder}/${frameFileName}`.replace(/\\/g, "/");
 
       // Extract frame using ffmpeg
-      const result = await window.electronAPI.extractVideoFrame({
+      const result = await extractVideoFrameBridge({
         sourcePath: asset.path,
         outputPath,
         timestamp,
@@ -749,10 +721,8 @@ export default function DetailsPanel() {
       }
 
       let fileSize: number | undefined;
-      if (window.electronAPI.getFileInfo) {
-        const info = await window.electronAPI.getFileInfo(outputPath);
-        fileSize = info?.size;
-      }
+      const info = await getFileInfoBridge(outputPath);
+      fileSize = info?.size;
 
       // Create new asset for the captured frame
       const newAssetId = uuidv4();

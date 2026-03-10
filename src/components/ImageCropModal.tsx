@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Crop } from 'lucide-react';
+import { readFileAsBase64Bridge } from '../features/platform/electronGateway';
 import {
   Overlay,
   Container,
@@ -90,11 +91,11 @@ export default function ImageCropModal({
         setResolvedPreviewSrc(previewSrc);
         return;
       }
-      if (!sourcePath || !window.electronAPI?.readFileAsBase64) {
+      if (!sourcePath) {
         setResolvedPreviewSrc(null);
         return;
       }
-      const dataUrl = await window.electronAPI.readFileAsBase64(sourcePath);
+      const dataUrl = await readFileAsBase64Bridge(sourcePath);
       if (!cancelled) {
         setResolvedPreviewSrc(dataUrl);
       }

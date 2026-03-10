@@ -31,6 +31,170 @@ type VaultImportResult = {
   error?: string;
 };
 
+type OpenFileDialogOptions = {
+  title?: string;
+  filters?: { name: string; extensions: string[] }[];
+  defaultPath?: string;
+};
+
+type ExportSequenceBridgeResult = {
+  success: boolean;
+  outputPath?: string;
+  fileSize?: number;
+  audioOutputPath?: string;
+  audioFileSize?: number;
+  error?: string;
+};
+
+type FfmpegQueueStatsLike = {
+  running: number;
+  queued: number;
+};
+
+type FfmpegQueueOverviewLike = {
+  light: FfmpegQueueStatsLike;
+  heavy: FfmpegQueueStatsLike;
+};
+
+type FinalizeClipOptionsLike = {
+  sourcePath: string;
+  outputPath: string;
+  inPoint: number;
+  outPoint: number;
+  reverse?: boolean;
+};
+
+type FinalizeClipResultLike = {
+  success: boolean;
+  outputPath?: string;
+  fileSize?: number;
+  error?: string;
+};
+
+type ExtractAudioOptionsLike = {
+  sourcePath: string;
+  outputPath: string;
+  inPoint?: number;
+  outPoint?: number;
+  format?: 'wav';
+};
+
+type ExtractAudioResultLike = {
+  success: boolean;
+  outputPath?: string;
+  fileSize?: number;
+  error?: string;
+};
+
+type ExtractFrameOptionsLike = {
+  sourcePath: string;
+  outputPath: string;
+  timestamp: number;
+};
+
+type ExtractFrameResultLike = {
+  success: boolean;
+  outputPath?: string;
+  fileSize?: number;
+  error?: string;
+};
+
+type CropImageOptionsLike = {
+  sourcePath: string;
+  outputPath: string;
+  targetWidth: number;
+  targetHeight: number;
+  anchorX: number;
+  anchorY: number;
+};
+
+type CropImageResultLike = {
+  success: boolean;
+  outputPath?: string;
+  fileSize?: number;
+  error?: string;
+};
+
+type PrecomposeLipSyncFramesOptionsLike = {
+  baseImagePath: string;
+  frameImagePaths: string[];
+  maskImagePath: string;
+};
+
+type PrecomposeLipSyncFramesResultLike = {
+  success: boolean;
+  frameDataUrls?: string[];
+  error?: string;
+};
+
+type FileInfoLike = {
+  name: string;
+  path: string;
+  size: number;
+  modified: Date;
+  type: 'image' | 'video' | 'audio' | null;
+  extension: string;
+};
+
+type SequenceItemLike = {
+  type: 'image' | 'video' | 'audio';
+  path: string;
+  duration: number;
+  inPoint?: number;
+  outPoint?: number;
+  holdDurationSec?: number;
+  framingMode?: 'cover' | 'fit';
+  framingAnchor?:
+    | 'top-left'
+    | 'top'
+    | 'top-right'
+    | 'left'
+    | 'center'
+    | 'right'
+    | 'bottom-left'
+    | 'bottom'
+    | 'bottom-right';
+  lipSync?: {
+    framePaths: string[];
+    rms: number[];
+    rmsFps: number;
+    thresholds: { t1: number; t2: number; t3: number };
+    audioOffsetSec: number;
+  };
+  flags?: {
+    isClip?: boolean;
+    isMuted?: boolean;
+    isHold?: boolean;
+  };
+};
+
+type ExportAudioEventLike = {
+  assetId?: string;
+  sourcePath: string;
+  sourceStartSec: number;
+  sourceOffsetSec?: number;
+  timelineStartSec: number;
+  durationSec: number;
+  gain?: number;
+  sceneId?: string;
+  cutId?: string;
+  sourceType: 'video' | 'cut-attach' | 'scene-attach' | 'group-attach';
+};
+
+type ExportAudioPlanLike = {
+  totalDurationSec: number;
+  events: ExportAudioEventLike[];
+};
+
+type ExportSequenceOptionsLike = {
+  items: SequenceItemLike[];
+  outputPath: string;
+  width: number;
+  height: number;
+  fps: number;
+  audioPlan?: ExportAudioPlanLike;
+};
+
 type VaultInfoLike = {
   path: string;
   name?: string;
@@ -78,8 +242,20 @@ export function getPathForFileBridge(file: File): string | undefined {
   return getElectronAPI()?.getPathForFile?.(file);
 }
 
+export function startAssetFileDragBridge(payload: {
+  filePath: string;
+  vaultPath: string;
+  iconDataUrl?: string;
+}): boolean {
+  return getElectronAPI()?.startAssetFileDrag?.(payload) ?? false;
+}
+
 export async function readAudioPcmBridge(filePath: string): Promise<AudioPcmResult | null> {
   return getElectronAPI()?.readAudioPcm?.(filePath) ?? null;
+}
+
+export async function getFfmpegQueueStatsBridge(): Promise<FfmpegQueueOverviewLike | null> {
+  return getElectronAPI()?.getFfmpegQueueStats?.() ?? null;
 }
 
 export async function resolveVaultPathBridge(vaultPath: string, relativePath: string): Promise<PathResolveResult> {
@@ -144,8 +320,18 @@ export async function calculateFileHashBridge(filePath: string): Promise<string 
   return getElectronAPI()?.calculateFileHash?.(filePath) ?? null;
 }
 
-export async function getFileInfoBridge(filePath: string): Promise<{ size?: number } | null> {
+export async function getFileInfoBridge(filePath: string): Promise<FileInfoLike | null> {
   return getElectronAPI()?.getFileInfo?.(filePath) ?? null;
+}
+
+export async function showOpenFileDialogBridge(
+  options?: OpenFileDialogOptions
+): Promise<string | null> {
+  return getElectronAPI()?.showOpenFileDialog?.(options) ?? null;
+}
+
+export async function readFileAsBase64Bridge(filePath: string): Promise<string | null> {
+  return getElectronAPI()?.readFileAsBase64?.(filePath) ?? null;
 }
 
 export async function loadAssetIndexBridge(vaultPath: string): Promise<AssetIndex | null> {
@@ -154,6 +340,51 @@ export async function loadAssetIndexBridge(vaultPath: string): Promise<AssetInde
 
 export async function ensureAssetsFolderBridge(vaultPath: string): Promise<string | null> {
   return getElectronAPI()?.ensureAssetsFolder?.(vaultPath) ?? null;
+}
+
+export async function finalizeClipBridge(
+  options: FinalizeClipOptionsLike
+): Promise<FinalizeClipResultLike> {
+  return (await getElectronAPI()?.finalizeClip?.(options)) ?? {
+    success: false,
+    error: 'electron-unavailable',
+  };
+}
+
+export async function extractAudioBridge(
+  options: ExtractAudioOptionsLike
+): Promise<ExtractAudioResultLike> {
+  return (await getElectronAPI()?.extractAudio?.(options)) ?? {
+    success: false,
+    error: 'electron-unavailable',
+  };
+}
+
+export async function extractVideoFrameBridge(
+  options: ExtractFrameOptionsLike
+): Promise<ExtractFrameResultLike> {
+  return (await getElectronAPI()?.extractVideoFrame?.(options)) ?? {
+    success: false,
+    error: 'electron-unavailable',
+  };
+}
+
+export async function cropImageToAspectBridge(
+  options: CropImageOptionsLike
+): Promise<CropImageResultLike> {
+  return (await getElectronAPI()?.cropImageToAspect?.(options)) ?? {
+    success: false,
+    error: 'electron-unavailable',
+  };
+}
+
+export async function precomposeLipSyncFramesBridge(
+  options: PrecomposeLipSyncFramesOptionsLike
+): Promise<PrecomposeLipSyncFramesResultLike> {
+  return (await getElectronAPI()?.precomposeLipSyncFrames?.(options)) ?? {
+    success: false,
+    error: 'electron-unavailable',
+  };
 }
 
 export async function withSerializedAssetIndexMutationBridge<T>(run: () => Promise<T>): Promise<T> {
@@ -208,6 +439,19 @@ export async function importDataUrlAssetBridge(
   assetId: string
 ): Promise<VaultImportResult | null> {
   return getElectronAPI()?.vaultGateway?.importDataUrlAsset?.(dataUrl, vaultPath, assetId) ?? null;
+}
+
+export async function showSaveSequenceDialogBridge(defaultName: string): Promise<string | null> {
+  return getElectronAPI()?.showSaveSequenceDialog?.(defaultName) ?? null;
+}
+
+export async function exportSequenceBridge(
+  options: ExportSequenceOptionsLike
+): Promise<ExportSequenceBridgeResult> {
+  return (await getElectronAPI()?.exportSequence?.(options)) ?? {
+    success: false,
+    error: 'electron-unavailable',
+  };
 }
 
 export async function setAutosaveEnabledBridge(enabled: boolean): Promise<boolean> {
