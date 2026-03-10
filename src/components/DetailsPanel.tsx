@@ -30,8 +30,6 @@ import {
   selectSelectionType,
   selectSelectedGroupId,
   selectGetAsset,
-  selectAddSceneNote,
-  selectRemoveSceneNote,
   selectGetSelectedCuts,
   selectGetSelectedGroup,
   selectToggleGroupCollapsed,
@@ -54,8 +52,10 @@ import {
   RemoveCutCommand,
   BatchUpdateDisplayTimeCommand,
   AddCutCommand,
+  AddSceneNoteCommand,
   CreateGroupCommand,
   DeleteGroupCommand,
+  RemoveSceneNoteCommand,
   RenameGroupCommand,
   SetGroupAttachAudioCommand,
   SetSceneAttachAudioCommand,
@@ -87,8 +87,6 @@ export default function DetailsPanel() {
   const selectionType = useStore(selectSelectionType);
   const selectedGroupId = useStore(selectSelectedGroupId);
   const getAsset = useStore(selectGetAsset);
-  const addSceneNote = useStore(selectAddSceneNote);
-  const removeSceneNote = useStore(selectRemoveSceneNote);
   const getSelectedCuts = useStore(selectGetSelectedCuts);
   const getSelectedGroup = useStore(selectGetSelectedGroup);
   const toggleGroupCollapsed = useStore(selectToggleGroupCollapsed);
@@ -394,9 +392,11 @@ export default function DetailsPanel() {
 
   const handleAddNote = () => {
     if (selectedScene && noteText.trim()) {
-      addSceneNote(selectedScene.id, {
+      executeCommand(new AddSceneNoteCommand(selectedScene.id, {
         type: "text",
         content: noteText.trim(),
+      })).catch((error) => {
+        console.error("Failed to add scene note:", error);
       });
       setNoteText("");
     }
@@ -404,7 +404,9 @@ export default function DetailsPanel() {
 
   const handleDeleteNote = (noteId: string) => {
     if (selectedScene) {
-      removeSceneNote(selectedScene.id, noteId);
+      executeCommand(new RemoveSceneNoteCommand(selectedScene.id, noteId)).catch((error) => {
+        console.error("Failed to remove scene note:", error);
+      });
     }
   };
 

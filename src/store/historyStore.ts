@@ -54,12 +54,12 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
     try {
       const store = useStore.getState();
       const context = store.createStoreEventOperation('user');
-      const applyResult = command.apply
-        ? await command.apply()
-        : createCommandApplyResult<AppEffect>();
       await store.runWithStoreEventContext(context, async () => {
         await command.execute();
       });
+      const applyResult = command.apply
+        ? await command.apply()
+        : createCommandApplyResult<AppEffect>();
 
       if (applyResult.effects.length > 0) {
         const dispatchResult = await dispatchAppEffects(applyResult.effects, {

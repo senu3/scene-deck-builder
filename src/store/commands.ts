@@ -1,9 +1,9 @@
 import { Command } from './historyStore';
 import { createCommandApplyResult } from './commandCore';
-import type { AppEffect } from '../features/platform/effects';
+import { createSaveMetadataEffect, type AppEffect } from '../features/platform/effects';
 import { useStore } from './useStore';
-import type { Asset, Cut, Scene, CutGroup, SceneAudioBinding, GroupAudioBinding, AudioAnalysis } from '../types';
-import { syncSceneMetadata } from '../utils/metadataStore';
+import type { Asset, Cut, Scene, CutGroup, SceneAudioBinding, GroupAudioBinding, AudioAnalysis, SceneNote } from '../types';
+import { upsertSceneMetadata } from '../utils/metadataStore';
 import { v4 as uuidv4 } from 'uuid';
 import { analyzeAudioRms } from '../utils/audioUtils';
 import {
@@ -78,6 +78,19 @@ function replaceScene(sceneId: string, nextScene: Scene): void {
   useStore.setState((state) => ({
     scenes: state.scenes.map((scene) => (scene.id === sceneId ? cloneScene(nextScene) : scene)),
   }));
+}
+
+function buildSaveMetadataEffectsFromStore(): AppEffect[] {
+  const state = useStore.getState();
+  if (!state.vaultPath || !state.metadataStore) {
+    return [];
+  }
+  return [
+    createSaveMetadataEffect({
+      vaultPath: state.vaultPath,
+      store: state.metadataStore,
+    }),
+  ];
 }
 
 /**
@@ -393,6 +406,10 @@ export class DuplicateSceneCommand implements Command {
     this.description = `Duplicate scene`;
   }
 
+  apply() {
+    return createCommandApplyResult<AppEffect>(buildSaveMetadataEffectsFromStore());
+  }
+
   async execute(): Promise<void> {
     const store = useStore.getState();
     const sourceScene = store.scenes.find((s) => s.id === this.sourceSceneId);
@@ -441,6 +458,10 @@ export class AddSceneCommand implements Command {
     this.description = `Add scene: ${sceneName}`;
   }
 
+  apply() {
+    return createCommandApplyResult<AppEffect>(buildSaveMetadataEffectsFromStore());
+  }
+
   async execute(): Promise<void> {
     const store = useStore.getState();
     this.sceneId = store.addScene(this.sceneName);
@@ -470,6 +491,10 @@ export class RemoveSceneCommand implements Command {
     this.description = `Remove scene`;
   }
 
+  apply() {
+    return createCommandApplyResult<AppEffect>(buildSaveMetadataEffectsFromStore());
+  }
+
   async execute(): Promise<void> {
     const store = useStore.getState();
     this.removedSceneIndex = store.sceneOrder.findIndex((id) => id === this.sceneId);
@@ -496,7 +521,7 @@ export class RemoveSceneCommand implements Command {
       const sceneOrder = [...state.sceneOrder];
       sceneOrder.splice(restoreIndex, 0, (this.removedScene as Scene).id);
       const currentStore = state.metadataStore || { version: 1, metadata: {}, sceneMetadata: {} };
-      const metadataStore = syncSceneMetadata(currentStore, scenes);
+      const metadataStore = upsertSceneMetadata(currentStore, this.removedScene as Scene);
 
       return {
         scenes,
@@ -504,8 +529,6 @@ export class RemoveSceneCommand implements Command {
         metadataStore,
       };
     });
-
-    store.saveMetadata();
   }
 }
 
@@ -576,6 +599,10 @@ export class RenameSceneCommand implements Command {
     this.description = `Rename scene to ${newName}`;
   }
 
+  apply() {
+    return createCommandApplyResult<AppEffect>(buildSaveMetadataEffectsFromStore());
+  }
+
   async execute(): Promise<void> {
     const store = useStore.getState();
     const scene = store.scenes.find((s) => s.id === this.sceneId);
@@ -592,6 +619,80 @@ export class RenameSceneCommand implements Command {
 
     const store = useStore.getState();
     store.renameScene(this.sceneId, this.oldName);
+  }
+}
+
+export class AddSceneNoteCommand implements Command {
+  type = 'ADD_SCENE_NOTE';
+  description: string;
+
+  private sceneId: string;
+  private note: Omit<SceneNote, 'id' | 'createdAt'>;
+  private noteId?: string;
+
+  constructor(sceneId: string, note: Omit<SceneNote, 'id' | 'createdAt'>) {
+    this.sceneId = sceneId;
+    this.note = note;
+    this.description = `Add scene note`;
+  }
+
+  apply() {
+    return createCommandApplyResult<AppEffect>(buildSaveMetadataEffectsFromStore());
+  }
+
+  async execute(): Promise<void> {
+    const store = useStore.getState();
+    const beforeScene = store.scenes.find((scene) => scene.id === this.sceneId);
+    const beforeIds = new Set((beforeScene?.notes || []).map((note) => note.id));
+
+    store.addSceneNote(this.sceneId, this.note);
+
+    const afterScene = useStore.getState().scenes.find((scene) => scene.id === this.sceneId);
+    this.noteId = afterScene?.notes.find((note) => !beforeIds.has(note.id))?.id;
+  }
+
+  async undo(): Promise<void> {
+    if (!this.noteId) return;
+    useStore.getState().removeSceneNote(this.sceneId, this.noteId);
+  }
+}
+
+export class RemoveSceneNoteCommand implements Command {
+  type = 'REMOVE_SCENE_NOTE';
+  description = 'Remove scene note';
+
+  private sceneId: string;
+  private noteId: string;
+  private removedScene?: Scene;
+
+  constructor(sceneId: string, noteId: string) {
+    this.sceneId = sceneId;
+    this.noteId = noteId;
+  }
+
+  apply() {
+    return createCommandApplyResult<AppEffect>(buildSaveMetadataEffectsFromStore());
+  }
+
+  async execute(): Promise<void> {
+    const store = useStore.getState();
+    const scene = store.scenes.find((entry) => entry.id === this.sceneId);
+    this.removedScene = scene ? cloneScene(scene) : undefined;
+    store.removeSceneNote(this.sceneId, this.noteId);
+  }
+
+  async undo(): Promise<void> {
+    if (!this.removedScene) return;
+
+    useStore.setState((state) => {
+      const currentStore = state.metadataStore || { version: 1, metadata: {}, sceneMetadata: {} };
+      return {
+        scenes: state.scenes.map((scene) => (
+          scene.id === this.sceneId ? cloneScene(this.removedScene as Scene) : scene
+        )),
+        metadataStore: upsertSceneMetadata(currentStore, this.removedScene as Scene),
+      };
+    });
   }
 }
 

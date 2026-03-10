@@ -134,7 +134,6 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
           metadataStore: updatedStore,
         };
       });
-      void get().saveMetadata();
       return id;
     },
 
@@ -170,7 +169,6 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
         });
       }
       get().applyStoreEvents();
-      void get().saveMetadata();
     },
 
     renameScene: (sceneId, name) => {
@@ -185,7 +183,6 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
         const updatedStore = updatedScene ? upsertSceneMetadata(currentStore, updatedScene) : currentStore;
         return { scenes, metadataStore: updatedStore };
       });
-      void get().saveMetadata();
     },
 
     reorderScenes: (fromIndex, toIndex) =>
@@ -226,7 +223,6 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
         const updatedStore = updatedScene ? upsertSceneMetadata(currentStore, updatedScene) : currentStore;
         return { scenes, metadataStore: updatedStore };
       });
-      void get().saveMetadata();
     },
 
     updateSceneNote: (sceneId, noteId, content) => {
@@ -244,7 +240,6 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
         const updatedStore = updatedScene ? upsertSceneMetadata(currentStore, updatedScene) : currentStore;
         return { scenes, metadataStore: updatedStore };
       });
-      void get().saveMetadata();
     },
 
     removeSceneNote: (sceneId, noteId) => {
@@ -262,7 +257,6 @@ export function createCutTimelineSlice(set: SliceSet, get: SliceGet): CutTimelin
         const updatedStore = updatedScene ? upsertSceneMetadata(currentStore, updatedScene) : currentStore;
         return { scenes, metadataStore: updatedStore };
       });
-      void get().saveMetadata();
     },
 
     addCutToScene: (sceneId, asset, insertIndex) => {
