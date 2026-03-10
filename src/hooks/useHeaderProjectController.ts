@@ -27,14 +27,19 @@ import {
   resolveScenesAssets,
 } from '../features/project/load';
 import {
+  type AppEffect,
+  createSaveAssetIndexEffect,
+  createSaveProjectEffect,
+  createSaveRecentProjectsEffect,
+  dispatchAppEffects,
+  type AppEffectDispatchResult,
+} from '../features/platform/effects';
+import {
   getRecentProjectsBridge,
   loadAssetIndexBridge,
   loadProjectBridge,
   notifyAutosaveFlushedBridge,
   onAutosaveFlushRequestBridge,
-  saveAssetIndexBridge,
-  saveProjectBridge,
-  saveRecentProjectsBridge,
   setAutosaveEnabledBridge,
 } from '../features/platform/electronGateway';
 
@@ -51,12 +56,23 @@ interface PendingProject {
   shouldResaveVersion?: boolean;
 }
 
+function logFeatureEffectWarnings(scope: string, result: AppEffectDispatchResult): void {
+  for (const warning of result.warnings) {
+    console.warn(`[ProjectEffects] ${scope} warning`, warning);
+  }
+}
+
+function hasFailedEffect(result: AppEffectDispatchResult, effectType: string): boolean {
+  return result.results.some((entry) => !entry.success && entry.effect.type === effectType);
+}
+
 export function useHeaderProjectController() {
   const {
     projectLoaded,
     scenes,
     sceneOrder,
     vaultPath,
+    projectPath,
     getAsset,
     clearProject,
     projectName,
@@ -110,6 +126,8 @@ export function useHeaderProjectController() {
       loadProject(normalizedScenes, normalizedSceneOrder);
     }
 
+    const targetProjectPath = projectPath || (vaultPath ? `${vaultPath}/project.sdp` : undefined);
+
     // Prepare scenes with relative paths for portability
     const scenesToSave = prepareScenesForSave(normalizedScenes, getAsset);
 
@@ -148,7 +166,15 @@ export function useHeaderProjectController() {
           ...index,
           assets: [...ordered, ...remaining],
         };
-        await saveAssetIndexBridge(vaultPath, newIndex);
+        const indexSaveResult = await dispatchAppEffects([
+          createSaveAssetIndexEffect({
+            vaultPath,
+            index: newIndex,
+          }),
+        ], {
+          origin: 'feature',
+        });
+        logFeatureEffectWarnings('save-asset-index', indexSaveResult);
       } catch (error) {
         console.error('Failed to reorder asset index:', error);
       }
@@ -167,9 +193,34 @@ export function useHeaderProjectController() {
     });
     const projectData = serializeProjectSavePayload(projectPayload);
 
-    const savedPath = await saveProjectBridge(projectData, vaultPath ? `${vaultPath}/project.sdp` : undefined);
-    if (savedPath) {
-      setProjectPath(savedPath);
+    const saveEffects: AppEffect[] = targetProjectPath
+      ? [
+          createSaveProjectEffect({
+            projectPath: targetProjectPath,
+            projectData,
+          }),
+        ]
+      : [];
+    if (options?.updateRecent !== false && targetProjectPath) {
+      const recentProjects = await getRecentProjectsBridge();
+      const newRecent = {
+        name: projectName,
+        path: targetProjectPath,
+        date: new Date().toISOString(),
+      };
+      const filtered = recentProjects.filter(p => p.path !== targetProjectPath);
+      saveEffects.push(createSaveRecentProjectsEffect({
+        projects: [newRecent, ...filtered.slice(0, 9)],
+      }));
+    }
+
+    const saveResult = await dispatchAppEffects(saveEffects, {
+      origin: 'feature',
+    });
+    logFeatureEffectWarnings('save-project', saveResult);
+
+    if (targetProjectPath && !hasFailedEffect(saveResult, 'SAVE_PROJECT')) {
+      setProjectPath(targetProjectPath);
       if (options?.notify !== false) {
         await dialogAlert({
           title: 'Saved',
@@ -177,20 +228,8 @@ export function useHeaderProjectController() {
           variant: 'info',
         });
       }
-
-      if (options?.updateRecent !== false) {
-        // Update recent projects
-        const recentProjects = await getRecentProjectsBridge();
-        const newRecent = {
-          name: projectName,
-          path: savedPath,
-          date: new Date().toISOString(),
-        };
-        const filtered = recentProjects.filter(p => p.path !== savedPath);
-        await saveRecentProjectsBridge([newRecent, ...filtered.slice(0, 9)]);
-      }
     }
-  }, [cutRuntimeById, dialogAlert, getAsset, getSourcePanelState, loadProject, metadataStore, projectName, sceneOrder, scenes, setProjectPath, targetTotalDurationSec, toast, vaultPath]);
+  }, [cutRuntimeById, dialogAlert, getAsset, getSourcePanelState, loadProject, metadataStore, projectName, projectPath, sceneOrder, scenes, setProjectPath, targetTotalDurationSec, toast, vaultPath]);
 
   const handleSaveProject = useCallback(async () => {
     await saveProjectInternal();
@@ -250,7 +289,14 @@ export function useHeaderProjectController() {
       date: new Date().toISOString(),
     };
     const filtered = recentProjects.filter((p: any) => p.path !== project.projectPath);
-    await saveRecentProjectsBridge([newRecent, ...filtered.slice(0, 9)]);
+    const recentResult = await dispatchAppEffects([
+      createSaveRecentProjectsEffect({
+        projects: [newRecent, ...filtered.slice(0, 9)],
+      }),
+    ], {
+      origin: 'feature',
+    });
+    logFeatureEffectWarnings('save-recent-projects', recentResult);
 
     if (project.shouldResaveVersion && window.electronAPI) {
       try {
@@ -277,7 +323,15 @@ export function useHeaderProjectController() {
           sourcePanel: project.sourcePanelState,
           savedAt: new Date().toISOString(),
         });
-        await saveProjectBridge(serializeProjectSavePayload(payload), project.projectPath);
+        const migrationSaveResult = await dispatchAppEffects([
+          createSaveProjectEffect({
+            projectPath: project.projectPath,
+            projectData: serializeProjectSavePayload(payload),
+          }),
+        ], {
+          origin: 'feature',
+        });
+        logFeatureEffectWarnings('save-project-migration', migrationSaveResult);
       } catch (error) {
         console.warn('[ProjectLoad] Failed to persist version migration:', error);
       }

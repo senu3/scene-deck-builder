@@ -33,6 +33,12 @@ import {
   resolveScenesAssets,
 } from '../features/project/load';
 import {
+  createSaveProjectEffect,
+  createSaveRecentProjectsEffect,
+  dispatchAppEffects,
+  type AppEffectDispatchResult,
+} from '../features/platform/effects';
+import {
   createVaultBridge,
   ensureAssetsFolderBridge,
   getFolderContentsBridge,
@@ -40,8 +46,6 @@ import {
   loadProjectBridge,
   loadProjectFromPathBridge,
   pathExistsBridge,
-  saveProjectBridge,
-  saveRecentProjectsBridge,
   selectVaultBridge,
 } from '../features/platform/electronGateway';
 import './StartupModal.css';
@@ -77,6 +81,16 @@ interface LoadedProjectData {
 type ProjectLoadOutcome =
   | { kind: 'pending'; payload: PendingProject; missingAssets: MissingAssetInfo[] }
   | { kind: 'ready'; payload: PendingProject };
+
+function logFeatureEffectWarnings(scope: string, result: AppEffectDispatchResult): void {
+  for (const warning of result.warnings) {
+    console.warn(`[ProjectEffects] ${scope} warning`, warning);
+  }
+}
+
+function hasFailedEffect(result: AppEffectDispatchResult, effectType: string): boolean {
+  return result.results.some((entry) => !entry.success && entry.effect.type === effectType);
+}
 
 export default function StartupModal() {
   const {
@@ -120,7 +134,14 @@ export default function StartupModal() {
 
     // Update recent projects if any were removed
     if (validProjects.length !== projects.length) {
-      await saveRecentProjectsBridge(validProjects);
+      const cleanupResult = await dispatchAppEffects([
+        createSaveRecentProjectsEffect({
+          projects: validProjects,
+        }),
+      ], {
+        origin: 'feature',
+      });
+      logFeatureEffectWarnings('startup-cleanup-recents', cleanupResult);
     }
 
     setRecentProjects(validProjects);
@@ -178,16 +199,29 @@ export default function StartupModal() {
         });
 
         const projectFilePath = `${vault.path}/project.sdp`;
-        await saveProjectBridge(projectData, projectFilePath);
-
-        // Update recent projects
+        const existingRecent = await getRecentProjectsBridge();
         const newRecent: RecentProject = {
           name: projectName,
           path: projectFilePath,
           date: new Date().toISOString(),
         };
-        const existingRecent = await getRecentProjectsBridge();
-        await saveRecentProjectsBridge([newRecent, ...existingRecent.slice(0, 9)]);
+        const createResult = await dispatchAppEffects([
+          createSaveProjectEffect({
+            projectPath: projectFilePath,
+            projectData,
+          }),
+          createSaveRecentProjectsEffect({
+            projects: [newRecent, ...existingRecent.slice(0, 9)],
+          }),
+        ], {
+          origin: 'feature',
+        });
+        logFeatureEffectWarnings('startup-create-project', createResult);
+        if (hasFailedEffect(createResult, 'SAVE_PROJECT')) {
+          alert('Failed to save project file');
+          setIsCreating(false);
+          return;
+        }
 
         // Initialize project with the scenes we created
         initializeProject({
@@ -286,7 +320,14 @@ export default function StartupModal() {
     const filtered = recentProjects.filter(p => p.path !== project.projectPath);
     const updated = [newRecent, ...filtered.slice(0, 9)];
     setRecentProjects(updated);
-    await saveRecentProjectsBridge(updated);
+    const recentResult = await dispatchAppEffects([
+      createSaveRecentProjectsEffect({
+        projects: updated,
+      }),
+    ], {
+      origin: 'feature',
+    });
+    logFeatureEffectWarnings('startup-save-recents', recentResult);
 
     if (project.shouldResaveVersion && window.electronAPI) {
       try {
@@ -312,7 +353,15 @@ export default function StartupModal() {
           sourcePanel: project.sourcePanelState,
           savedAt: new Date().toISOString(),
         });
-        await saveProjectBridge(serializeProjectSavePayload(payload), project.projectPath);
+        const migrationSaveResult = await dispatchAppEffects([
+          createSaveProjectEffect({
+            projectPath: project.projectPath,
+            projectData: serializeProjectSavePayload(payload),
+          }),
+        ], {
+          origin: 'feature',
+        });
+        logFeatureEffectWarnings('startup-save-project-migration', migrationSaveResult);
       } catch (error) {
         console.warn('[ProjectLoad] Failed to persist version migration:', error);
       }
@@ -414,7 +463,14 @@ export default function StartupModal() {
       // Remove from recent
       const filtered = recentProjects.filter(p => p.path !== project.path);
       setRecentProjects(filtered);
-      await saveRecentProjectsBridge(filtered);
+      const filteredSaveResult = await dispatchAppEffects([
+        createSaveRecentProjectsEffect({
+          projects: filtered,
+        }),
+      ], {
+        origin: 'feature',
+      });
+      logFeatureEffectWarnings('startup-remove-missing-recent', filteredSaveResult);
       return;
     }
 

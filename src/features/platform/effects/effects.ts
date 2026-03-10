@@ -1,6 +1,6 @@
 import type { DeleteAssetFileResult, RemoveAssetsFromIndexResult } from '../../metadata/provider';
 import type { ThumbnailProfile } from '../../../utils/thumbnailCache';
-import type { MetadataStore } from '../../../types';
+import type { AssetIndex, MetadataStore } from '../../../types';
 
 export type ClipThumbnailRegenMode = 'clip' | 'clear';
 export type AppEffectChannel = 'commit' | 'deferred';
@@ -54,6 +54,30 @@ export type AppEffect =
       };
     })
   | (AppEffectBase & {
+      type: 'SAVE_PROJECT';
+      payload: {
+        projectPath: string;
+        projectData: string;
+      };
+    })
+  | (AppEffectBase & {
+      type: 'SAVE_RECENT_PROJECTS';
+      payload: {
+        projects: Array<{
+          name: string;
+          path: string;
+          date: string;
+        }>;
+      };
+    })
+  | (AppEffectBase & {
+      type: 'SAVE_ASSET_INDEX';
+      payload: {
+        vaultPath: string;
+        index: AssetIndex;
+      };
+    })
+  | (AppEffectBase & {
       type: 'REGEN_THUMBNAILS';
       payload: {
         profile: ThumbnailProfile;
@@ -91,6 +115,21 @@ export interface EffectRunnerDeps {
   saveMetadata: (input: {
     vaultPath: string;
     store: MetadataStore;
+  }) => Promise<boolean>;
+  saveProject: (input: {
+    projectPath: string;
+    projectData: string;
+  }) => Promise<boolean>;
+  saveRecentProjects: (input: {
+    projects: Array<{
+      name: string;
+      path: string;
+      date: string;
+    }>;
+  }) => Promise<boolean>;
+  saveAssetIndex: (input: {
+    vaultPath: string;
+    index: AssetIndex;
   }) => Promise<boolean>;
   requestThumbnailRegeneration?: (input: {
     profile: ThumbnailProfile;
@@ -164,6 +203,54 @@ export function createSaveMetadataEffect(payload: {
     payload,
     channel: 'commit',
     orderingKey: 'vault-metadata',
+    idempotent: true,
+    coalescible: true,
+    failurePolicy: 'warn',
+  };
+}
+
+export function createSaveProjectEffect(payload: {
+  projectPath: string;
+  projectData: string;
+}): Extract<AppEffect, { type: 'SAVE_PROJECT' }> {
+  return {
+    type: 'SAVE_PROJECT',
+    payload,
+    channel: 'commit',
+    orderingKey: 'project-file',
+    idempotent: true,
+    coalescible: true,
+    failurePolicy: 'fail',
+  };
+}
+
+export function createSaveRecentProjectsEffect(payload: {
+  projects: Array<{
+    name: string;
+    path: string;
+    date: string;
+  }>;
+}): Extract<AppEffect, { type: 'SAVE_RECENT_PROJECTS' }> {
+  return {
+    type: 'SAVE_RECENT_PROJECTS',
+    payload,
+    channel: 'commit',
+    orderingKey: 'project-recents',
+    idempotent: true,
+    coalescible: true,
+    failurePolicy: 'warn',
+  };
+}
+
+export function createSaveAssetIndexEffect(payload: {
+  vaultPath: string;
+  index: AssetIndex;
+}): Extract<AppEffect, { type: 'SAVE_ASSET_INDEX' }> {
+  return {
+    type: 'SAVE_ASSET_INDEX',
+    payload,
+    channel: 'commit',
+    orderingKey: 'vault-index',
     idempotent: true,
     coalescible: true,
     failurePolicy: 'warn',

@@ -2,6 +2,11 @@ import { enqueueClipThumbnailRegeneration, type ClipThumbnailRegenerationDeps } 
 import { deleteAssetFile, removeAssetsFromIndex } from '../../metadata/provider';
 import { useStore } from '../../../store/useStore';
 import { saveMetadataStore } from '../../../utils/metadataStore';
+import {
+  saveAssetIndexBridge,
+  saveProjectBridge,
+  saveRecentProjectsBridge,
+} from '../electronGateway';
 import { recordEffectActivity } from './effectActivity';
 import { runEffects } from './effectRunner';
 import type { AppEffect, AppEffectWarning, EffectRunResult } from './effects';
@@ -79,6 +84,9 @@ async function runEffectBatch(
       useStore.getState().removeAssetReferences(assetIds);
     },
     saveMetadata: async ({ vaultPath, store }) => saveMetadataStore(vaultPath, store),
+    saveProject: async ({ projectPath, projectData }) => (await saveProjectBridge(projectData, projectPath)) !== null,
+    saveRecentProjects: async ({ projects }) => saveRecentProjectsBridge(projects),
+    saveAssetIndex: async ({ vaultPath, index }) => saveAssetIndexBridge(vaultPath, index),
     requestThumbnailRegeneration: async (payload) => {
       if (payload.profile !== 'timeline-card') return;
       for (const request of payload.requests) {

@@ -5,6 +5,9 @@ function resolveFailureReason(effectType: AppEffect['type'], reason?: string): s
   if (effectType === 'FILES_DELETE') return 'trash-move-failed';
   if (effectType === 'INDEX_UPDATE') return 'index-update-failed';
   if (effectType === 'SAVE_METADATA') return 'metadata-save-failed';
+  if (effectType === 'SAVE_PROJECT') return 'project-save-failed';
+  if (effectType === 'SAVE_RECENT_PROJECTS') return 'recent-projects-save-failed';
+  if (effectType === 'SAVE_ASSET_INDEX') return 'asset-index-save-failed';
   if (effectType === 'REGEN_THUMBNAILS') return 'thumbnail-regeneration-failed';
   return 'metadata-delete-failed';
 }
@@ -80,6 +83,78 @@ export async function runEffects(
 
     if (effect.type === 'SAVE_METADATA') {
       const success = await deps.saveMetadata(effect.payload);
+      if (!success) {
+        const reason = resolveFailureReason(effect.type);
+        results.push({
+          effect,
+          success: false,
+          reason,
+        });
+        options.onEffectEvent?.({
+          stage: 'failure',
+          effect,
+          reason,
+        });
+        return results;
+      }
+      results.push({ effect, success: true });
+      options.onEffectEvent?.({
+        stage: 'success',
+        effect,
+      });
+      continue;
+    }
+
+    if (effect.type === 'SAVE_PROJECT') {
+      const success = await deps.saveProject(effect.payload);
+      if (!success) {
+        const reason = resolveFailureReason(effect.type);
+        results.push({
+          effect,
+          success: false,
+          reason,
+        });
+        options.onEffectEvent?.({
+          stage: 'failure',
+          effect,
+          reason,
+        });
+        return results;
+      }
+      results.push({ effect, success: true });
+      options.onEffectEvent?.({
+        stage: 'success',
+        effect,
+      });
+      continue;
+    }
+
+    if (effect.type === 'SAVE_RECENT_PROJECTS') {
+      const success = await deps.saveRecentProjects(effect.payload);
+      if (!success) {
+        const reason = resolveFailureReason(effect.type);
+        results.push({
+          effect,
+          success: false,
+          reason,
+        });
+        options.onEffectEvent?.({
+          stage: 'failure',
+          effect,
+          reason,
+        });
+        return results;
+      }
+      results.push({ effect, success: true });
+      options.onEffectEvent?.({
+        stage: 'success',
+        effect,
+      });
+      continue;
+    }
+
+    if (effect.type === 'SAVE_ASSET_INDEX') {
+      const success = await deps.saveAssetIndex(effect.payload);
       if (!success) {
         const reason = resolveFailureReason(effect.type);
         results.push({

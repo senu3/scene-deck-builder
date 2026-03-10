@@ -5,7 +5,10 @@ import {
   createIndexUpdateEffect,
   createMetadataDeleteEffect,
   createRegenThumbnailsEffect,
+  createSaveAssetIndexEffect,
   createSaveMetadataEffect,
+  createSaveProjectEffect,
+  createSaveRecentProjectsEffect,
 } from '../effects';
 
 describe('effectRunner', () => {
@@ -30,6 +33,9 @@ describe('effectRunner', () => {
         trace.push('metadata');
       }),
       saveMetadata: vi.fn(async () => true),
+      saveProject: vi.fn(async () => true),
+      saveRecentProjects: vi.fn(async () => true),
+      saveAssetIndex: vi.fn(async () => true),
     });
 
     expect(trace).toEqual(['files', 'index', 'metadata']);
@@ -51,6 +57,9 @@ describe('effectRunner', () => {
       removeAssetsFromIndex,
       deleteMetadata,
       saveMetadata: vi.fn(async () => true),
+      saveProject: vi.fn(async () => true),
+      saveRecentProjects: vi.fn(async () => true),
+      saveAssetIndex: vi.fn(async () => true),
     });
 
     expect(results).toHaveLength(1);
@@ -75,6 +84,9 @@ describe('effectRunner', () => {
       removeAssetsFromIndex: vi.fn(async () => ({ success: false as const, reason: 'index-update-failed' as const })),
       deleteMetadata,
       saveMetadata: vi.fn(async () => true),
+      saveProject: vi.fn(async () => true),
+      saveRecentProjects: vi.fn(async () => true),
+      saveAssetIndex: vi.fn(async () => true),
     });
 
     expect(results).toHaveLength(2);
@@ -110,6 +122,9 @@ describe('effectRunner', () => {
       removeAssetsFromIndex: vi.fn(async () => ({ success: true })),
       deleteMetadata: vi.fn(),
       saveMetadata: vi.fn(async () => true),
+      saveProject: vi.fn(async () => true),
+      saveRecentProjects: vi.fn(async () => true),
+      saveAssetIndex: vi.fn(async () => true),
       requestThumbnailRegeneration,
     });
 
@@ -132,10 +147,48 @@ describe('effectRunner', () => {
       removeAssetsFromIndex: vi.fn(async () => ({ success: true })),
       deleteMetadata: vi.fn(),
       saveMetadata,
+      saveProject: vi.fn(async () => true),
+      saveRecentProjects: vi.fn(async () => true),
+      saveAssetIndex: vi.fn(async () => true),
     });
 
     expect(results).toHaveLength(1);
     expect(results[0]?.success).toBe(true);
     expect(saveMetadata).toHaveBeenCalledTimes(1);
+  });
+
+  it('runs project save related effects via injected handlers', async () => {
+    const saveProject = vi.fn(async () => true);
+    const saveRecentProjects = vi.fn(async () => true);
+    const saveAssetIndex = vi.fn(async () => true);
+    const effects = [
+      createSaveAssetIndexEffect({
+        vaultPath: 'C:/vault',
+        index: { version: 1, assets: [] },
+      }),
+      createSaveProjectEffect({
+        projectPath: 'C:/vault/project.sdp',
+        projectData: '{"version":3}',
+      }),
+      createSaveRecentProjectsEffect({
+        projects: [{ name: 'Test', path: 'C:/vault/project.sdp', date: '2026-03-10T00:00:00.000Z' }],
+      }),
+    ];
+
+    const results = await runEffects(effects, {
+      deleteAssetFile: vi.fn(async () => ({ success: true })),
+      removeAssetsFromIndex: vi.fn(async () => ({ success: true })),
+      deleteMetadata: vi.fn(),
+      saveMetadata: vi.fn(async () => true),
+      saveProject,
+      saveRecentProjects,
+      saveAssetIndex,
+    });
+
+    expect(results).toHaveLength(3);
+    expect(results.every((entry) => entry.success)).toBe(true);
+    expect(saveAssetIndex).toHaveBeenCalledTimes(1);
+    expect(saveProject).toHaveBeenCalledTimes(1);
+    expect(saveRecentProjects).toHaveBeenCalledTimes(1);
   });
 });
