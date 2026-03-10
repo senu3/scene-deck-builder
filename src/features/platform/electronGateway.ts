@@ -100,6 +100,14 @@ export async function getFolderContentsBridge(folderPath: string): Promise<FileI
   return (await getElectronAPI()?.getFolderContents?.(folderPath)) ?? null;
 }
 
+export async function selectFolderBridge(): Promise<{
+  path: string;
+  name: string;
+  structure: FileItem[];
+} | null> {
+  return getElectronAPI()?.selectFolder?.() ?? null;
+}
+
 export async function selectVaultBridge(): Promise<string | null> {
   return getElectronAPI()?.selectVault?.() ?? null;
 }

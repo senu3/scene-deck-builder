@@ -17,6 +17,11 @@ import {
 import { useStore } from '../store/useStore';
 import type { FileItem, Asset } from '../types';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  buildSourceFolderForSourcePanel,
+  readFolderContentsForSourcePanel,
+  selectSourceFolderForSourcePanel,
+} from '../features/project/sourcePanelProvider';
 import { getAssetThumbnail, getCachedAssetThumbnail } from '../features/thumbnails/api';
 import { getCuttableMediaType } from '../utils/mediaType';
 import { getFirstSceneId } from '../utils/sceneOrder';
@@ -81,15 +86,15 @@ export default function Sidebar() {
       return;
     }
 
-    const result = await window.electronAPI.selectFolder();
+    const result = await selectSourceFolderForSourcePanel();
     if (result) {
       addSourceFolder(result);
     }
   };
 
   const handleRefreshFolder = async (folderPath: string) => {
-    if (!window.electronAPI) return;
-    const structure = await window.electronAPI.getFolderContents(folderPath);
+    const structure = await readFolderContentsForSourcePanel(folderPath);
+    if (!structure) return;
     updateSourceFolder(folderPath, structure);
   };
 
@@ -135,13 +140,11 @@ export default function Sidebar() {
           // In Electron, we can get the path from the file
           const file = item.getAsFile();
           const path = (file as File & { path?: string })?.path;
-          if (path && window.electronAPI) {
-            const structure = await window.electronAPI.getFolderContents(path);
-            addSourceFolder({
-              path,
-              name: entry.name,
-              structure,
-            });
+          if (path) {
+            const folder = await buildSourceFolderForSourcePanel(path, entry.name);
+            if (folder) {
+              addSourceFolder(folder);
+            }
           }
         }
       }

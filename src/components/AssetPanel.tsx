@@ -55,6 +55,16 @@ import {
   loadAssetIndexEntries,
   resolveVideoDurationForPath,
 } from '../features/metadata/provider';
+import {
+  hasVaultGatewayBridge,
+  importAndRegisterAssetBridge,
+  pathExistsBridge,
+} from '../features/platform/electronGateway';
+import {
+  checkPathExistsForSourcePanel,
+  readFolderContentsForSourcePanel,
+  selectSourceFolderForSourcePanel,
+} from '../features/project/sourcePanelProvider';
 import './AssetPanel.css';
 
 export type SortMode = 'name' | 'type' | 'used' | 'unused';
@@ -287,12 +297,12 @@ export default function AssetPanel({
 
   // Load assets from vault/assets folder
   const loadAssets = useCallback(async () => {
-    if (!vaultPath || !window.electronAPI) return;
+    if (!vaultPath) return;
 
     setIsLoading(true);
     try {
       const assetsPath = `${vaultPath}/assets`.replace(/\\/g, '/');
-      const exists = await window.electronAPI.pathExists(assetsPath);
+      const exists = await checkPathExistsForSourcePanel(assetsPath);
       if (!exists) {
         setAssets([]);
         return;
@@ -301,7 +311,11 @@ export default function AssetPanel({
       // Load asset index for source names
       const assetIndex = await loadAssetIndex();
 
-      const structure = await window.electronAPI.getFolderContents(assetsPath);
+      const structure = await readFolderContentsForSourcePanel(assetsPath);
+      if (!structure) {
+        setAssets([]);
+        return;
+      }
       const assetList: AssetInfo[] = [];
 
       const pickDisplayName = (entries: AssetIndexEntry[] | undefined, fallback: string) => {
@@ -403,13 +417,13 @@ export default function AssetPanel({
 
   // Bulk import handler - import all media files from a folder
   const handleBulkImport = useCallback(async () => {
-    if (!vaultPath || !window.electronAPI?.vaultGateway) {
+    if (!vaultPath || !hasVaultGatewayBridge()) {
       toast.error('Vault not available', 'Please set up a vault first.');
       return;
     }
 
     // Select folder
-    const folder = await window.electronAPI.selectFolder();
+    const folder = await selectSourceFolderForSourcePanel();
     if (!folder) return;
 
     // Collect all media files recursively
@@ -449,13 +463,13 @@ export default function AssetPanel({
       const assetId = uuidv4();
 
       try {
-        const result = await window.electronAPI.vaultGateway.importAndRegisterAsset(
+        const result = await importAndRegisterAssetBridge(
           file.path,
           vaultPath,
           assetId
         );
 
-        if (result.success) {
+        if (result?.success) {
           if (result.isDuplicate) {
             skipped++;
           } else {
@@ -463,7 +477,7 @@ export default function AssetPanel({
           }
         } else {
           failed++;
-          console.error(`Failed to import ${file.name}:`, result.error);
+          console.error(`Failed to import ${file.name}:`, result?.error);
         }
       } catch (error) {
         failed++;
@@ -501,10 +515,8 @@ export default function AssetPanel({
     if (asset.type === 'audio') return; // Audio has placeholder
 
     try {
-      if (window.electronAPI) {
-        const exists = await window.electronAPI.pathExists(asset.path);
-        if (!exists) return;
-      }
+      const exists = await pathExistsBridge(asset.path);
+      if (!exists) return;
 
       if (asset.type === 'image' || asset.type === 'video') {
         const thumbnail = await getAssetThumbnail('asset-grid', {
@@ -819,7 +831,7 @@ export default function AssetPanel({
 
   const handleDeleteAsset = async () => {
     if (!assetContextMenu) return;
-    if (!window.electronAPI?.vaultGateway) {
+    if (!hasVaultGatewayBridge()) {
       toast.error('Delete failed', 'electronAPI not available. Please restart the app.');
       setAssetContextMenu(null);
       return;
