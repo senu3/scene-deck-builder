@@ -80,7 +80,10 @@ function replaceScene(sceneId: string, nextScene: Scene): void {
   }));
 }
 
-function buildSaveMetadataEffectsFromStore(): AppEffect[] {
+function buildSaveMetadataEffectsFromStore(shouldPersist = true): AppEffect[] {
+  if (!shouldPersist) {
+    return [];
+  }
   const state = useStore.getState();
   if (!state.vaultPath || !state.metadataStore) {
     return [];
@@ -1231,6 +1234,8 @@ export class DeleteGroupCommand implements Command {
   private sceneId: string;
   private groupId: string;
   private deletedGroup?: CutGroup;
+  private deletedGroupBinding?: GroupAudioBinding;
+  private shouldSaveMetadata = false;
 
   constructor(sceneId: string, groupId: string) {
     this.sceneId = sceneId;
@@ -1238,9 +1243,15 @@ export class DeleteGroupCommand implements Command {
     this.description = 'Dissolve group';
   }
 
+  apply() {
+    return createCommandApplyResult<AppEffect>(buildSaveMetadataEffectsFromStore(this.shouldSaveMetadata));
+  }
+
   async execute(): Promise<void> {
     const store = useStore.getState();
+    this.deletedGroupBinding = store.getGroupAudioBinding(this.sceneId, this.groupId);
     this.deletedGroup = store.deleteGroup(this.sceneId, this.groupId) || undefined;
+    this.shouldSaveMetadata = !!this.deletedGroup && !!this.deletedGroupBinding;
   }
 
   async undo(): Promise<void> {
@@ -1248,6 +1259,9 @@ export class DeleteGroupCommand implements Command {
 
     const store = useStore.getState();
     store.createGroup(this.sceneId, this.deletedGroup.cutIds, this.deletedGroup.name, this.deletedGroup);
+    if (this.deletedGroupBinding) {
+      store.setGroupAudioBinding(this.sceneId, this.groupId, { ...this.deletedGroupBinding });
+    }
   }
 }
 
@@ -1331,7 +1345,9 @@ export class MergeGroupsCommand implements Command {
   private survivorGroupId: string;
   private mergedGroupId: string;
   private mergedGroupSnapshot?: CutGroup;
+  private mergedGroupBinding?: GroupAudioBinding;
   private survivorPrevCutIds?: string[];
+  private shouldSaveMetadata = false;
 
   constructor(sceneId: string, survivorGroupId: string, mergedGroupId: string) {
     this.sceneId = sceneId;
@@ -1339,11 +1355,17 @@ export class MergeGroupsCommand implements Command {
     this.mergedGroupId = mergedGroupId;
   }
 
+  apply() {
+    return createCommandApplyResult<AppEffect>(buildSaveMetadataEffectsFromStore(this.shouldSaveMetadata));
+  }
+
   async execute(): Promise<void> {
     const store = useStore.getState();
     const scene = store.scenes.find((s) => s.id === this.sceneId);
     this.mergedGroupSnapshot = scene?.groups?.find((g) => g.id === this.mergedGroupId);
+    this.mergedGroupBinding = store.getGroupAudioBinding(this.sceneId, this.mergedGroupId);
     this.survivorPrevCutIds = scene?.groups?.find((g) => g.id === this.survivorGroupId)?.cutIds.slice();
+    this.shouldSaveMetadata = !!this.mergedGroupSnapshot && !!this.mergedGroupBinding;
     store.mergeGroups(this.sceneId, this.survivorGroupId, this.mergedGroupId);
   }
 
@@ -1358,6 +1380,9 @@ export class MergeGroupsCommand implements Command {
       this.mergedGroupSnapshot.name,
       this.mergedGroupSnapshot
     );
+    if (this.mergedGroupBinding) {
+      store.setGroupAudioBinding(this.sceneId, this.mergedGroupId, { ...this.mergedGroupBinding });
+    }
   }
 }
 
@@ -1372,6 +1397,7 @@ export class SetSceneAttachAudioCommand implements Command {
   private sceneId: string;
   private audioAsset: Asset | null;
   private previousSceneBinding?: SceneAudioBinding;
+  private shouldSaveMetadata = false;
 
   constructor(sceneId: string, audioAsset: Asset | null) {
     this.sceneId = sceneId;
@@ -1381,12 +1407,20 @@ export class SetSceneAttachAudioCommand implements Command {
       : 'Clear scene audio';
   }
 
+  apply() {
+    return createCommandApplyResult<AppEffect>(buildSaveMetadataEffectsFromStore(this.shouldSaveMetadata));
+  }
+
   async execute(): Promise<void> {
     const store = useStore.getState();
     const scene = store.scenes.find((s) => s.id === this.sceneId);
-    if (!scene) return;
+    if (!scene) {
+      this.shouldSaveMetadata = false;
+      return;
+    }
 
     this.previousSceneBinding = store.getSceneAudioBinding(this.sceneId);
+    this.shouldSaveMetadata = true;
 
     if (this.audioAsset) {
       store.cacheAsset(this.audioAsset);
@@ -1421,6 +1455,7 @@ export class SetGroupAttachAudioCommand implements Command {
   private groupId: string;
   private audioAsset: Asset | null;
   private previousGroupBinding?: GroupAudioBinding;
+  private shouldSaveMetadata = false;
 
   constructor(sceneId: string, groupId: string, audioAsset: Asset | null) {
     this.sceneId = sceneId;
@@ -1431,13 +1466,21 @@ export class SetGroupAttachAudioCommand implements Command {
       : 'Clear group audio';
   }
 
+  apply() {
+    return createCommandApplyResult<AppEffect>(buildSaveMetadataEffectsFromStore(this.shouldSaveMetadata));
+  }
+
   async execute(): Promise<void> {
     const store = useStore.getState();
     const scene = store.scenes.find((s) => s.id === this.sceneId);
     const group = scene?.groups?.find((g) => g.id === this.groupId);
-    if (!scene || !group) return;
+    if (!scene || !group) {
+      this.shouldSaveMetadata = false;
+      return;
+    }
 
     this.previousGroupBinding = store.getGroupAudioBinding(this.sceneId, this.groupId);
+    this.shouldSaveMetadata = true;
 
     if (this.audioAsset) {
       store.cacheAsset(this.audioAsset);
@@ -1472,11 +1515,18 @@ export class UpdateGroupCutOrderCommand implements Command {
   private groupId: string;
   private nextCutIds: string[];
   private prevCutIds?: string[];
+  private removedGroupSnapshot?: CutGroup;
+  private removedGroupBinding?: GroupAudioBinding;
+  private shouldSaveMetadata = false;
 
   constructor(sceneId: string, groupId: string, nextCutIds: string[]) {
     this.sceneId = sceneId;
     this.groupId = groupId;
     this.nextCutIds = nextCutIds;
+  }
+
+  apply() {
+    return createCommandApplyResult<AppEffect>(buildSaveMetadataEffectsFromStore(this.shouldSaveMetadata));
   }
 
   async execute(): Promise<void> {
@@ -1485,12 +1535,31 @@ export class UpdateGroupCutOrderCommand implements Command {
     const group = scene?.groups?.find((g) => g.id === this.groupId);
     if (!group) return;
     this.prevCutIds = [...group.cutIds];
+    this.removedGroupSnapshot = this.nextCutIds.length === 0
+      ? { ...group, cutIds: [...group.cutIds] }
+      : undefined;
+    this.removedGroupBinding = this.removedGroupSnapshot
+      ? store.getGroupAudioBinding(this.sceneId, this.groupId)
+      : undefined;
+    this.shouldSaveMetadata = !!this.removedGroupBinding;
     store.updateGroupCutOrder(this.sceneId, this.groupId, this.nextCutIds);
   }
 
   async undo(): Promise<void> {
     if (!this.prevCutIds) return;
     const store = useStore.getState();
+    if (this.removedGroupSnapshot) {
+      store.createGroup(
+        this.sceneId,
+        this.removedGroupSnapshot.cutIds,
+        this.removedGroupSnapshot.name,
+        this.removedGroupSnapshot
+      );
+      if (this.removedGroupBinding) {
+        store.setGroupAudioBinding(this.sceneId, this.groupId, { ...this.removedGroupBinding });
+      }
+      return;
+    }
     store.updateGroupCutOrder(this.sceneId, this.groupId, this.prevCutIds);
   }
 }
@@ -1509,12 +1578,18 @@ export class RemoveCutFromGroupCommand implements Command {
   private originalGroupName?: string;
   private originalGroupCollapsed?: boolean;
   private originalGroupCutIds?: string[];
+  private removedGroupBinding?: GroupAudioBinding;
+  private shouldSaveMetadata = false;
 
   constructor(sceneId: string, groupId: string, cutId: string) {
     this.sceneId = sceneId;
     this.groupId = groupId;
     this.cutId = cutId;
     this.description = 'Remove cut from group';
+  }
+
+  apply() {
+    return createCommandApplyResult<AppEffect>(buildSaveMetadataEffectsFromStore(this.shouldSaveMetadata));
   }
 
   async execute(): Promise<void> {
@@ -1527,6 +1602,10 @@ export class RemoveCutFromGroupCommand implements Command {
       this.originalGroupName = group.name;
       this.originalGroupCollapsed = group.isCollapsed;
       this.originalGroupCutIds = [...group.cutIds];
+      this.removedGroupBinding = group.cutIds.length === 1
+        ? store.getGroupAudioBinding(this.sceneId, this.groupId)
+        : undefined;
+      this.shouldSaveMetadata = !!this.removedGroupBinding;
     }
 
     store.removeCutFromGroup(this.sceneId, this.groupId, this.cutId);
@@ -1547,6 +1626,9 @@ export class RemoveCutFromGroupCommand implements Command {
         id: this.groupId,
         isCollapsed: this.originalGroupCollapsed ?? true,
       });
+      if (this.removedGroupBinding) {
+        store.setGroupAudioBinding(this.sceneId, this.groupId, { ...this.removedGroupBinding });
+      }
       return;
     }
 

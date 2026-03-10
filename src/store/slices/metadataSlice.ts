@@ -47,6 +47,28 @@ function collectSceneAudioAssetIds(store: MetadataStore | null): string[] {
 }
 
 export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSliceContract {
+  const persistMetadataStore = async () => {
+    const state = get();
+    if (!state.vaultPath || !state.metadataStore) {
+      return;
+    }
+
+    const syncedStore = syncSceneMetadata(state.metadataStore, state.scenes);
+    set({ metadataStore: syncedStore });
+
+    const { warnings } = await dispatchAppEffects([
+      createSaveMetadataEffect({
+        vaultPath: state.vaultPath,
+        store: syncedStore,
+      }),
+    ], {
+      origin: 'store',
+    });
+    for (const warning of warnings) {
+      console.warn('[metadata] save warning', warning);
+    }
+  };
+
   return {
     cacheAsset: (asset) =>
       set((state) => {
@@ -90,22 +112,7 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
     },
 
     saveMetadata: async () => {
-      const state = get();
-      if (state.vaultPath && state.metadataStore) {
-        const syncedStore = syncSceneMetadata(state.metadataStore, state.scenes);
-        set({ metadataStore: syncedStore });
-        const { warnings } = await dispatchAppEffects([
-          createSaveMetadataEffect({
-            vaultPath: state.vaultPath,
-            store: syncedStore,
-          }),
-        ], {
-          origin: 'store',
-        });
-        for (const warning of warnings) {
-          console.warn('[metadata] save warning', warning);
-        }
-      }
+      await persistMetadataStore();
     },
 
     attachAudioToCut: (sceneId, cutId, audioAsset, offset = 0) => {
@@ -145,7 +152,7 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
         return { metadataStore: updated };
       });
 
-      await get().saveMetadata();
+      await persistMetadataStore();
     },
 
     detachAudioFromCut: (sceneId, cutId) => {
@@ -183,7 +190,6 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
           ),
         };
       });
-      void get().saveMetadata();
     },
 
     attachAudioToScene: (sceneId, audioAsset) => {
@@ -229,7 +235,6 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
           ),
         };
       });
-      void get().saveMetadata();
     },
 
     attachAudioToGroup: (sceneId, groupId, audioAsset) => {
@@ -295,7 +300,7 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
         return { metadataStore: updated };
       });
 
-      void get().saveMetadata();
+      void persistMetadataStore();
     },
 
     clearLipSyncForAsset: (assetId) => {
@@ -305,7 +310,7 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
         return { metadataStore: updated };
       });
 
-      void get().saveMetadata();
+      void persistMetadataStore();
     },
 
     cleanupLipSyncAssetsForDeletedCut: async (assetId) => {
@@ -403,7 +408,7 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
       });
 
       if (previousMetadataStore !== get().metadataStore) {
-        void get().saveMetadata();
+        void persistMetadataStore();
       }
     },
 

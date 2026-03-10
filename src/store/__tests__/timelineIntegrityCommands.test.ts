@@ -3,6 +3,7 @@ import {
   AutoClipSimpleCommand,
   BatchUpdateDisplayTimeCommand,
   ClearClipPointsCommand,
+  DeleteGroupCommand,
   RemoveCutFromGroupCommand,
   RemoveSceneCommand,
   ReorderCutsWithGroupSyncCommand,
@@ -216,6 +217,59 @@ describe('timeline integrity commands', () => {
 
     await command.undo();
     expect(useStore.getState().scenes[0]?.groups?.[0]?.cutIds).toEqual(['cut-a1', 'cut-a2']);
+  });
+
+  it('restores group audio metadata when undoing group deletion', async () => {
+    useStore.getState().initializeProject({
+      name: 'Group Delete Undo Test',
+      vaultPath: 'C:/vault',
+      scenes: [
+        {
+          id: 'scene-a',
+          name: 'Scene A',
+          order: 0,
+          notes: [],
+          cuts: [
+            { id: 'cut-a1', assetId: 'asset-1', asset: BASE_ASSET, displayTime: 1, order: 0, audioBindings: [] },
+          ],
+          groups: [{ id: 'group-a', name: 'GA', cutIds: ['cut-a1'], isCollapsed: true }],
+        },
+      ],
+    });
+
+    useStore.setState({
+      metadataStore: {
+        version: 1,
+        metadata: {},
+        sceneMetadata: {
+          'scene-a': {
+            id: 'scene-a',
+            name: 'Scene A',
+            notes: [],
+            updatedAt: 't',
+            groupAudioBindings: {
+              'group-a': {
+                id: 'group-binding-1',
+                groupId: 'group-a',
+                audioAssetId: 'audio-group-1',
+                sourceName: 'group-bgm.wav',
+                gain: 1,
+                enabled: true,
+                kind: 'group',
+              },
+            },
+          },
+        },
+      },
+    }, false);
+
+    const command = new DeleteGroupCommand('scene-a', 'group-a');
+    await command.execute();
+    expect(useStore.getState().getGroupAudioBinding('scene-a', 'group-a')).toBeUndefined();
+
+    await command.undo();
+    expect(useStore.getState().scenes[0]?.groups?.[0]?.id).toBe('group-a');
+    expect(useStore.getState().getGroupAudioBinding('scene-a', 'group-a')?.audioAssetId).toBe('audio-group-1');
   });
 
   it('reorders cut and syncs group order in one command', async () => {
