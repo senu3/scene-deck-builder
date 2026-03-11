@@ -85,6 +85,7 @@
   - profile指定・low-level import・主要UIでの `asset.thumbnail` 直参照は検出するが、対象外ファイルの snapshot fallback 妥当性は手動確認が必要。
 - Gate 8:
   - `cut.asset` の fallback 妥当性（表示互換・復旧の境界）は手動確認が必要。
+  - load/recovery 用 snapshot seed は `src/utils/assetResolve.ts` の `resolveCutAssetSeed` に局所化する。
 - Gate 10:
   - 再生ループ外の重処理（`useEffect` やイベント連鎖）は strict 監査対象外。
   - 監査は「tick/updateホットパスを汚さない」ことに限定する。

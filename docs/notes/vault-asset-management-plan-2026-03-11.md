@@ -4,7 +4,7 @@
 - Vault / Asset 管理の基盤整備として、renderer 側の in-vault index 直接更新をやめ、`vaultGateway.registerVaultAsset` を追加した。
 - asset metadata は `src/features/metadata/provider.ts` の canonical 入口で正規化し、register 系は `src/features/asset/write.ts` 経由へ寄せた。
 - recovery relink は read-only の draft 構築と write の register を分離し、read path で暗黙 write を起こさない形に整理した。
-- ただし `usageRefs` の完全な派生化と `cut.asset` snapshot の最終縮退は未完了なので、残フェーズは TODO で追跡する。
+- `usageRefs` は save-time derived index helper に集約し、`cut.asset` snapshot 参照は `resolveCutAssetSeed` に局所化した。
 
 ## 目的
 - Vault / Asset 管理の write 入口と metadata 入口を整理し、`Asset.duration` などの不整合を経路差で増やさない。
@@ -45,9 +45,21 @@
 - recovery relink は draft 構築と register 実行を分離した。
 - `AssetPanel` の bulk import は bridge 直呼びではなく shared write service を使うように変更した。
 
+## Follow-up Update
+1. `usageRefs` の派生化
+- `buildDerivedAssetIndexForSave` を導入し、asset index の並び替えと `usageRefs` 再構築を save-time derived output として明示した。
+- save controller はこの helper だけを呼ぶ形にし、`usageRefs` を runtime 正本として扱わないことをコード上でも固定した。
+
+2. recovery read / commit 境界
+- `planRecoverySceneChanges` と `commitRecoverySceneChanges` を追加し、recovery 適用を read-only planning と write commit に分離した。
+- `project/apply` は planning 後に commit を呼ぶ構造へ変更し、feature レベルで境界を明示した。
+
+3. `cut.asset` snapshot 依存の局所化
+- load/recovery 用の snapshot seed は `src/utils/assetResolve.ts` の `resolveCutAssetSeed` に集約した。
+- `hasLegacyRelativeAssetPaths`、recovery planning、load 後 migration save、clip thumbnail 再生成はこの helper を使う。
+- これにより `cut.asset` の直接参照は引き続き `assetResolve.ts` 内だけに閉じる。
+
 ## 残作業
-- `usageRefs` を save/rebuild 基準の派生情報として明示し、register 時の責務からさらに切り離す。
-- `cut.asset` snapshot の依存を save/load/recovery で再棚卸しし、最終的な撤去条件を Gate 8 観点で固定する。
 - delete/trash 経路の index 更新責務をさらに整理し、`moveToTrashInternal` 側の暗黙 index 更新を見直す。
 
 ## 検証
