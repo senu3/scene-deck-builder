@@ -16,7 +16,6 @@ import { hydrateAssetsByIdsFromIndex } from '../../features/metadata/provider';
 import {
   type AppEffect,
   createFilesDeleteEffect,
-  createIndexUpdateEffect,
   createMetadataDeleteEffect,
   createSaveMetadataEffect,
   dispatchAppEffects,
@@ -436,12 +435,6 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
           reason,
         }),
       ];
-      if (state.vaultPath) {
-        effects.push(createIndexUpdateEffect({
-          vaultPath: state.vaultPath,
-          assetIds: targetAssetIds,
-        }));
-      }
       effects.push(createMetadataDeleteEffect({
         assetIds: targetAssetIds,
       }));
@@ -456,16 +449,16 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
       }
 
       if (failed.effect.type === 'FILES_DELETE') {
+        if (failed.reason === 'index-update-failed') {
+          return {
+            success: true,
+            reason: 'index-sync-failed',
+            ...warningResult,
+          };
+        }
         return {
           success: false,
           reason: failed.reason || 'trash-move-failed',
-          ...warningResult,
-        };
-      }
-      if (failed.effect.type === 'INDEX_UPDATE') {
-        return {
-          success: true,
-          reason: 'index-sync-failed',
           ...warningResult,
         };
       }

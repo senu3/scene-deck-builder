@@ -95,7 +95,11 @@ const electronAPIMock = {
       isDuplicate: false,
     })),
     saveAssetIndex: vi.fn(async () => true),
-    moveToTrashWithMeta: vi.fn(async () => 'C:/mock/vault/.trash/img_abc.png'),
+    moveToTrashWithMeta: vi.fn(async () => ({
+      success: true,
+      trashedPath: 'C:/mock/vault/.trash/img_abc.png',
+      indexUpdated: true,
+    })),
   },
 };
 

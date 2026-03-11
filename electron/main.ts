@@ -1338,7 +1338,8 @@ ipcMain.handle('move-to-vault', async (_, sourcePath: string, destFolder: string
 
 // Move file to trash folder
 ipcMain.handle('move-to-trash', async (_, filePath: string, trashPath: string) => {
-  return moveToTrashInternal(filePath, trashPath, null);
+  const result = await moveToTrashInternal(filePath, trashPath, null);
+  return result.success ? result.trashedPath || null : null;
 });
 
 

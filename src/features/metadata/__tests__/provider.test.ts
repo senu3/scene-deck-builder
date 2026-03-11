@@ -140,15 +140,11 @@ describe('metadata provider', () => {
 
   it('deletes asset and updates index in serialized mutation path', async () => {
     resetElectronMocks();
-    (window.electronAPI!.vaultGateway.moveToTrashWithMeta as any).mockResolvedValueOnce('C:/vault/.trash/aud_1.wav');
-    (window.electronAPI!.loadAssetIndex as any).mockResolvedValueOnce({
-      version: 1,
-      assets: [
-        { id: 'aud-1', filename: 'aud_1.wav' },
-        { id: 'img-1', filename: 'img_1.png' },
-      ],
+    (window.electronAPI!.vaultGateway.moveToTrashWithMeta as any).mockResolvedValueOnce({
+      success: true,
+      trashedPath: 'C:/vault/.trash/aud_1.wav',
+      indexUpdated: true,
     });
-    (window.electronAPI!.vaultGateway.saveAssetIndex as any).mockResolvedValueOnce(true);
 
     const result = await deleteAssetWithIndexSync({
       assetPath: 'C:/vault/assets/aud_1.wav',
@@ -164,12 +160,16 @@ describe('metadata provider', () => {
       indexUpdated: true,
     });
     expect(window.electronAPI!.vaultGateway.moveToTrashWithMeta).toHaveBeenCalledTimes(1);
-    expect(window.electronAPI!.vaultGateway.saveAssetIndex).toHaveBeenCalledTimes(1);
+    expect(window.electronAPI!.vaultGateway.saveAssetIndex).not.toHaveBeenCalled();
   });
 
   it('deletes only file via deleteAssetFile API', async () => {
     resetElectronMocks();
-    (window.electronAPI!.vaultGateway.moveToTrashWithMeta as any).mockResolvedValueOnce('C:/vault/.trash/aud_1.wav');
+    (window.electronAPI!.vaultGateway.moveToTrashWithMeta as any).mockResolvedValueOnce({
+      success: true,
+      trashedPath: 'C:/vault/.trash/aud_1.wav',
+      indexUpdated: true,
+    });
 
     const result = await deleteAssetFile({
       assetPath: 'C:/vault/assets/aud_1.wav',
@@ -205,12 +205,12 @@ describe('metadata provider', () => {
 
   it('reports index sync failure after file deletion', async () => {
     resetElectronMocks();
-    (window.electronAPI!.vaultGateway.moveToTrashWithMeta as any).mockResolvedValueOnce('C:/vault/.trash/aud_1.wav');
-    (window.electronAPI!.loadAssetIndex as any).mockResolvedValueOnce({
-      version: 1,
-      assets: [{ id: 'aud-1', filename: 'aud_1.wav' }],
+    (window.electronAPI!.vaultGateway.moveToTrashWithMeta as any).mockResolvedValueOnce({
+      success: false,
+      trashedPath: 'C:/vault/.trash/aud_1.wav',
+      indexUpdated: false,
+      reason: 'index-update-failed',
     });
-    (window.electronAPI!.vaultGateway.saveAssetIndex as any).mockResolvedValueOnce(false);
 
     const result = await deleteAssetWithIndexSync({
       assetPath: 'C:/vault/assets/aud_1.wav',

@@ -49,6 +49,13 @@ export interface VaultImportResult {
   error?: string;
 }
 
+export interface MoveToTrashResult {
+  success: boolean;
+  trashedPath?: string;
+  indexUpdated: boolean;
+  reason?: 'trash-move-failed' | 'index-update-failed';
+}
+
 interface TrashEntry {
   id: string;
   deletedAt: string;
@@ -414,7 +421,7 @@ export async function importDataUrlToVaultInternal(
   }
 }
 
-export async function moveToTrashInternal(filePath: string, trashPath: string, meta: TrashMeta | null) {
+export async function moveToTrashInternal(filePath: string, trashPath: string, meta: TrashMeta | null): Promise<MoveToTrashResult> {
   try {
     if (!fs.existsSync(trashPath)) {
       fs.mkdirSync(trashPath, { recursive: true });
@@ -440,7 +447,11 @@ export async function moveToTrashInternal(filePath: string, trashPath: string, m
         fs.unlinkSync(filePath);
       } catch (copyError) {
         console.error('Failed to move to trash (rename/copy):', error, copyError);
-        return null;
+        return {
+          success: false,
+          indexUpdated: false,
+          reason: 'trash-move-failed',
+        };
       }
     }
 
@@ -448,6 +459,7 @@ export async function moveToTrashInternal(filePath: string, trashPath: string, m
     const vaultPath = path.dirname(trashPath);
 
     let indexEntry: AssetIndexEntry | undefined;
+    let indexUpdated = true;
     if (meta?.assetId) {
       const indexPath = path.join(vaultPath, 'assets', '.index.json');
       if (fs.existsSync(indexPath)) {
@@ -455,13 +467,11 @@ export async function moveToTrashInternal(filePath: string, trashPath: string, m
           const index = JSON.parse(fs.readFileSync(indexPath, 'utf-8')) as AssetIndex;
           indexEntry = index.assets.find((entry) => entry.id === meta.assetId);
           if (indexEntry) {
-            const isSameFile = indexEntry.filename === fileName;
-            if (isSameFile) {
-              const filtered = index.assets.filter((entry) => entry.id !== meta.assetId);
-              fs.writeFileSync(indexPath, JSON.stringify({ ...index, assets: filtered }, null, 2), 'utf-8');
-            }
+            const filtered = index.assets.filter((entry) => entry.id !== meta.assetId);
+            fs.writeFileSync(indexPath, JSON.stringify({ ...index, assets: filtered }, null, 2), 'utf-8');
           }
         } catch (error) {
+          indexUpdated = false;
           console.error('Failed to update asset index on trash:', error);
         }
       }
@@ -485,10 +495,19 @@ export async function moveToTrashInternal(filePath: string, trashPath: string, m
     trashIndex.items.push(entry);
     writeTrashIndex(trashPath, trashIndex);
 
-    return destPath;
+    return {
+      success: indexUpdated,
+      trashedPath: destPath,
+      indexUpdated,
+      reason: indexUpdated ? undefined : 'index-update-failed',
+    };
   } catch (error) {
     console.error('Failed to move to trash:', error);
-    return null;
+    return {
+      success: false,
+      indexUpdated: false,
+      reason: 'trash-move-failed',
+    };
   }
 }
 

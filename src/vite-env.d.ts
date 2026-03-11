@@ -98,6 +98,13 @@ interface VaultImportResult {
   error?: string;
 }
 
+interface MoveToTrashResult {
+  success: boolean;
+  trashedPath?: string;
+  indexUpdated: boolean;
+  reason?: 'trash-move-failed' | 'index-update-failed';
+}
+
 interface VaultVerifyResult {
   valid: boolean;
   missing: string[];
@@ -110,7 +117,7 @@ interface VaultGatewayAPI {
   registerVaultAsset: (filePath: string, vaultPath: string, assetId: string) => Promise<VaultImportResult>;
   importDataUrlAsset: (dataUrl: string, vaultPath: string, assetId: string) => Promise<VaultImportResult>;
   saveAssetIndex: (vaultPath: string, index: AssetIndex) => Promise<boolean>;
-  moveToTrashWithMeta: (filePath: string, trashPath: string, meta: TrashMeta) => Promise<string | null>;
+  moveToTrashWithMeta: (filePath: string, trashPath: string, meta: TrashMeta) => Promise<MoveToTrashResult>;
 }
 
 interface PathResolveResult {

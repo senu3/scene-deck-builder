@@ -39,12 +39,12 @@ describe('metadataSlice deleteAssetWithPolicy effects flow', () => {
   });
 
   it('keeps metadata when index update fails', async () => {
-    (window.electronAPI!.vaultGateway.moveToTrashWithMeta as any).mockResolvedValueOnce('C:/vault/.trash/a.wav');
-    (window.electronAPI!.loadAssetIndex as any).mockResolvedValueOnce({
-      version: 1,
-      assets: [{ id: 'asset-1', filename: 'a.wav' }],
+    (window.electronAPI!.vaultGateway.moveToTrashWithMeta as any).mockResolvedValueOnce({
+      success: false,
+      trashedPath: 'C:/vault/.trash/a.wav',
+      indexUpdated: false,
+      reason: 'index-update-failed',
     });
-    (window.electronAPI!.vaultGateway.saveAssetIndex as any).mockResolvedValueOnce(false);
 
     const result = await useStore.getState().deleteAssetWithPolicy({
       assetPath: 'C:/vault/assets/a.wav',
@@ -56,23 +56,17 @@ describe('metadataSlice deleteAssetWithPolicy effects flow', () => {
       success: true,
       reason: 'index-sync-failed',
     });
-    expect(result.warnings).toEqual([
-      expect.objectContaining({
-        effectType: 'INDEX_UPDATE',
-        reason: 'index-update-failed',
-      }),
-    ]);
+    expect(result.warnings).toBeUndefined();
     expect(useStore.getState().metadataStore?.metadata['asset-1']).toBeDefined();
     expect(useStore.getState().assetCache.has('asset-1')).toBe(true);
   });
 
   it('removes metadata when all effects succeed', async () => {
-    (window.electronAPI!.vaultGateway.moveToTrashWithMeta as any).mockResolvedValueOnce('C:/vault/.trash/a.wav');
-    (window.electronAPI!.loadAssetIndex as any).mockResolvedValueOnce({
-      version: 1,
-      assets: [{ id: 'asset-1', filename: 'a.wav' }],
+    (window.electronAPI!.vaultGateway.moveToTrashWithMeta as any).mockResolvedValueOnce({
+      success: true,
+      trashedPath: 'C:/vault/.trash/a.wav',
+      indexUpdated: true,
     });
-    (window.electronAPI!.vaultGateway.saveAssetIndex as any).mockResolvedValueOnce(true);
 
     const result = await useStore.getState().deleteAssetWithPolicy({
       assetPath: 'C:/vault/assets/a.wav',

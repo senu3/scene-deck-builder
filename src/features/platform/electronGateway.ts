@@ -31,6 +31,13 @@ type VaultImportResult = {
   error?: string;
 };
 
+type MoveToTrashResultLike = {
+  success: boolean;
+  trashedPath?: string;
+  indexUpdated: boolean;
+  reason?: 'trash-move-failed' | 'index-update-failed';
+};
+
 type OpenFileDialogOptions = {
   title?: string;
   filters?: { name: string; extensions: string[] }[];
@@ -471,7 +478,7 @@ export async function moveToTrashWithMetaBridge(
   filePath: string,
   trashPath: string,
   meta: TrashMetaLike
-): Promise<string | null> {
+): Promise<MoveToTrashResultLike | null> {
   return (await getElectronAPI()?.vaultGateway?.moveToTrashWithMeta?.(filePath, trashPath, meta as any)) ?? null;
 }
 

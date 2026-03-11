@@ -81,6 +81,13 @@ export interface VaultImportResult {
   error?: string;
 }
 
+export interface MoveToTrashResult {
+  success: boolean;
+  trashedPath?: string;
+  indexUpdated: boolean;
+  reason?: 'trash-move-failed' | 'index-update-failed';
+}
+
 export interface VaultVerifyResult {
   valid: boolean;
   missing: string[];
@@ -92,7 +99,7 @@ export interface VaultGatewayAPI {
   importAndRegisterAsset: (sourcePath: string, vaultPath: string, assetId: string) => Promise<VaultImportResult>;
   registerVaultAsset: (filePath: string, vaultPath: string, assetId: string) => Promise<VaultImportResult>;
   saveAssetIndex: (vaultPath: string, index: AssetIndex) => Promise<boolean>;
-  moveToTrashWithMeta: (filePath: string, trashPath: string, meta: TrashMeta) => Promise<string | null>;
+  moveToTrashWithMeta: (filePath: string, trashPath: string, meta: TrashMeta) => Promise<MoveToTrashResult>;
 }
 
 export interface PathResolveResult {
@@ -445,7 +452,7 @@ const electronAPI = {
       ipcRenderer.invoke('vault-gateway-import-data-url', dataUrl, vaultPath, assetId),
     saveAssetIndex: (vaultPath: string, index: AssetIndex): Promise<boolean> =>
       ipcRenderer.invoke('vault-gateway-save-asset-index', vaultPath, index),
-    moveToTrashWithMeta: (filePath: string, trashPath: string, meta: TrashMeta): Promise<string | null> =>
+    moveToTrashWithMeta: (filePath: string, trashPath: string, meta: TrashMeta): Promise<MoveToTrashResult> =>
       ipcRenderer.invoke('vault-gateway-move-to-trash', filePath, trashPath, meta),
   },
 

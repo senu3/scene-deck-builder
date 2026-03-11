@@ -71,7 +71,7 @@ type RemoveAssetsFromIndexParams = {
 
 export type DeleteAssetFileResult = {
   success: boolean;
-  reason?: 'electron-unavailable' | 'trash-move-failed' | 'invalid-params';
+  reason?: 'electron-unavailable' | 'trash-move-failed' | 'index-update-failed' | 'invalid-params';
 };
 
 export type RemoveAssetsFromIndexResult = {
@@ -259,20 +259,20 @@ export async function deleteAssetWithIndexSync(
 ): Promise<DeleteAssetWithIndexSyncResult> {
   const fileDeletion = await deleteAssetFile(params);
   if (!fileDeletion.success) {
+    if (fileDeletion.reason === 'index-update-failed') {
+      return {
+        success: true,
+        fileDeleted: true,
+        indexUpdated: false,
+        reason: fileDeletion.reason,
+      };
+    }
     return {
       success: false,
       fileDeleted: false,
       indexUpdated: false,
       reason: fileDeletion.reason,
     };
-  }
-
-  const indexUpdate = await removeAssetsFromIndex({
-    vaultPath: params.vaultPath,
-    assetIds: params.assetIds,
-  });
-  if (!indexUpdate.success) {
-    return { success: true, fileDeleted: true, indexUpdated: false, reason: indexUpdate.reason };
   }
 
   return { success: true, fileDeleted: true, indexUpdated: true };
@@ -294,8 +294,13 @@ export async function deleteAssetFile(
     assetId: normalizedAssetIds[0],
     reason: reason || 'asset-delete-policy',
   });
-  if (!moved) {
-    return { success: false, reason: 'trash-move-failed' };
+  if (!moved?.success) {
+    return {
+      success: false,
+      reason: moved?.reason === 'index-update-failed'
+        ? 'index-update-failed'
+        : 'trash-move-failed',
+    };
   }
 
   return { success: true };
