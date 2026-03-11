@@ -33,7 +33,8 @@
 ## Videoclip Queue Boundary
 - 対象: Preview Modal の clip 保存/clear 後に再生成するサムネイル。
 - 先行対象: `timeline-card` のみ。
-- enqueue 起点: `src/features/cut/previewClipUpdate.ts` の command 成功後（保存呼び出し点から直接 enqueue）。
+- enqueue 起点: `REGEN_THUMBNAILS` effect の実行境界（`src/features/platform/effects/effectDispatch.ts`）。
+- effect 発行入口: `src/features/cut/thumbnailEffects.ts` または command の `effects[]`。
 - 反映規則: 非同期処理中に cut 状態が変化した場合は古い要求を破棄し、最新状態のみ反映する。
 - 禁止: command 本体内でサムネイル生成を同期実行しない。
 
