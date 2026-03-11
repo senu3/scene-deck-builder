@@ -123,6 +123,7 @@ const gate9LowLevelThumbnailApis = new Set([
 const gate7AllowedThumbnailQueueImportFiles = new Set([
   'src/features/cut/thumbnailEffects.ts',
   'src/features/cut/clipThumbnailRegenerationQueue.ts',
+  'src/features/platform/effects/effectDispatch.ts',
 ]);
 
 for (const file of files) {
