@@ -36,6 +36,15 @@ Preview / Export
 - `SequencePlan` が Preview / Export 共通の canonical timeline。
 - `SequencePlan` 生成前の helper は正規化や下位変換に使ってよいが、consumer の公開正本にはしない。
 
+## Timing / Duration Canonicalization
+- タイムラインの時間情報（timing）は `SequencePlan` を正本とする。
+- ルール:
+  - preview / export / rendering など、**タイミング一致（parity）に影響する処理**は `buildSequencePlan(project, opts)` から timing を取得すること。
+  - preview 用ヘルパーや UI state は timing の正本になってはいけない。
+  - preview-only / UI helper は、timing の正本とならない限り lower-level canonical helper を利用してよい。
+  - このルールにより、preview と export の timing の一致を保ち、実装経路ごとの timing のズレ（drift）を防ぐ。
+- 棚卸し履歴: `docs/notes/archive/sequence-plan-timing-inventory-implemented-2026-03-10.md`
+
 ## Timing Logic Placement
 - 正本ファイル:
   - `src/utils/sequencePlan.ts`

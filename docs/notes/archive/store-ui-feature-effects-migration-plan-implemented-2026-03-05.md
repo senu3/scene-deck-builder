@@ -60,7 +60,7 @@
   - `App.tsx` の export / frame capture、`EnvironmentSettingsModal` の FFmpeg settings / versions、`thumbnails/provider` の thumbnail read も bridge 経由へ寄せ、通常 UI からの `window.electronAPI` 直参照を `electronGateway` へ集約した。
   - Startup / Header / Sidebar の desktop unavailable 判定も `hasElectronBridge()` へ寄せ、demo/unavailable 分岐の `window` 依存を薄くした。
   - dev overlay に effect activity panel を追加し、`issued / start / success / failure` と `effectType / orderingKey / commandType` を開発時に追跡できるようにした。
-  - `docs/notes/sequence-plan-timing-inventory-2026-03-10.md` を追加し、Preview / Export parity へ影響する timing 経路と preview-only helper を棚卸し表で固定した。
+  - `docs/notes/archive/sequence-plan-timing-inventory-implemented-2026-03-10.md` を追加し、Preview / Export parity へ影響する timing 経路と preview-only helper を棚卸し表で固定した。
 - 残タスク:
   - 新規 Preview / Export parity 変更時に、timing 経路が inventory の `Keep` / `Contain` を逸脱していないかを継続確認する。
 
@@ -68,7 +68,7 @@
 ### 0.5. インベントリ固定
 - 置換対象を `I/O / timing再計算 / metadata整合 / thumbnail` で分類して棚卸し表にする。
 - 現時点の優先監査対象は `metadataSlice`, `projectSlice`, `cutTimelineSlice`, Preview/Export の timing 入口。
-- timing 経路の棚卸しは `docs/notes/sequence-plan-timing-inventory-2026-03-10.md` に固定した。
+- timing 経路の棚卸しは `docs/notes/archive/sequence-plan-timing-inventory-implemented-2026-03-10.md` に固定した。
 
 ### 1. Effects / dispatcher 基盤
 - `AppEffect` に属性分類を持たせ、`dispatchAppEffects` を commit/deferred 分岐込みの単一出口にする。
