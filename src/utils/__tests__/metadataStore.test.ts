@@ -206,6 +206,7 @@ describe('metadataStore', () => {
   it('normalizes legacy lipSync settings to composited-frame schema on load', async () => {
     const pathExistsMock = vi.spyOn(window.electronAPI!, 'pathExists').mockResolvedValueOnce(true);
     const loadMock = vi.spyOn(window.electronAPI!, 'loadProjectFromPath').mockResolvedValueOnce({
+      kind: 'success',
       path: 'C:/vault/.metadata.json',
       data: {
         version: 1,

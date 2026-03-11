@@ -15,6 +15,7 @@ import {
 import {
   finalizePendingProjectLoad,
 } from '../features/project/apply';
+import { buildProjectLoadFailureAlert } from '../features/project/loadFailure';
 import {
   type PendingProject,
   buildProjectLoadOutcome,
@@ -221,9 +222,6 @@ export function useHeaderProjectController() {
     }, recoveryDecisions);
 
     logFeatureEffectWarnings('save-recent-projects', result.recentSaveResult);
-    if (result.migrationSaveResult) {
-      logFeatureEffectWarnings('save-project-migration', result.migrationSaveResult);
-    }
 
     // Clear recovery state
     setShowRecoveryDialog(false);
@@ -262,17 +260,27 @@ export function useHeaderProjectController() {
     }
 
     const result = await requestProjectSelection();
-    if (result) {
-      const outcome = await buildProjectLoadOutcome(result.data, result.path, 'Loaded Project');
-      if (outcome.kind === 'pending') {
-        setMissingAssets(outcome.missingAssets);
-        setPendingProject(outcome.payload);
-        setShowRecoveryDialog(true);
-        return;
-      }
-
-      await finalizeProjectLoad(outcome.payload);
+    if (result.kind === 'canceled') {
+      return;
     }
+    if (result.kind === 'failure') {
+      await dialogAlert(buildProjectLoadFailureAlert(result.failure));
+      return;
+    }
+
+    const outcome = await buildProjectLoadOutcome(result.data, result.path, 'Loaded Project');
+    if (outcome.kind === 'corrupted') {
+      await dialogAlert(buildProjectLoadFailureAlert(outcome.failure));
+      return;
+    }
+    if (outcome.kind === 'pending') {
+      setMissingAssets(outcome.missingAssets);
+      setPendingProject(outcome.payload);
+      setShowRecoveryDialog(true);
+      return;
+    }
+
+    await finalizeProjectLoad(outcome.payload);
   }, [dialogAlert, finalizeProjectLoad]);
 
   const handleCloseProject = useCallback(async () => {

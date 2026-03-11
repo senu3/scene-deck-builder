@@ -14,12 +14,8 @@ import {
   pathExistsBridge,
   selectVaultBridge,
 } from '../platform/electronGateway';
-import {
-  hasLegacyRelativeAssetPaths,
-  normalizeLoadedProjectVersion,
-  resolveLoadedVaultPath,
-  resolveScenesAssets,
-} from './load';
+import type { ProjectLoadFailure } from './loadFailure';
+import { resolveLoadedVaultPath, resolveScenesAssets } from './load';
 
 function normalizeLoadedScenesInput(scenes: LoadedProjectData['scenes']): Scene[] {
   if (!Array.isArray(scenes)) return [];
@@ -48,6 +44,27 @@ function normalizeLoadedScenesInput(scenes: LoadedProjectData['scenes']): Scene[
   });
 }
 
+function normalizeLoadedSceneOrder(sceneOrder: LoadedProjectData['sceneOrder']): string[] | undefined {
+  if (!Array.isArray(sceneOrder)) return undefined;
+  return sceneOrder.filter((sceneId): sceneId is string => typeof sceneId === 'string');
+}
+
+function isLoadedProjectRoot(projectData: unknown): projectData is LoadedProjectData {
+  return typeof projectData === 'object' && projectData !== null;
+}
+
+function createProjectLoadFailure(
+  code: ProjectLoadFailure['code'],
+  projectPath: string,
+  schemaVersion?: number
+): ProjectLoadFailure {
+  return {
+    code,
+    projectPath,
+    schemaVersion,
+  };
+}
+
 export interface RecentProjectEntry {
   name: string;
   path: string;
@@ -74,12 +91,17 @@ export interface PendingProject {
   cutRuntimeById?: PersistedCutRuntimeById;
   sourcePanelState?: SourcePanelState;
   projectPath: string;
-  shouldResaveVersion?: boolean;
 }
+
+export type ProjectSelectionResult =
+  | { kind: 'success'; data: LoadedProjectData; path: string }
+  | { kind: 'canceled' }
+  | { kind: 'failure'; failure: ProjectLoadFailure };
 
 export type ProjectLoadOutcome =
   | { kind: 'pending'; payload: PendingProject; missingAssets: MissingAssetInfo[] }
-  | { kind: 'ready'; payload: PendingProject };
+  | { kind: 'ready'; payload: PendingProject }
+  | { kind: 'corrupted'; failure: ProjectLoadFailure };
 
 export interface CreateProjectBootstrapResult {
   vaultPath: string;
@@ -149,19 +171,37 @@ export async function createProjectBootstrap(
   };
 }
 
-export async function requestProjectSelection(): Promise<{ data: LoadedProjectData; path: string } | null> {
+export async function requestProjectSelection(): Promise<ProjectSelectionResult> {
   const result = await loadProjectBridge();
-  if (!result) return null;
+  if (result.kind === 'canceled') {
+    return { kind: 'canceled' };
+  }
+  if (result.kind === 'error') {
+    return {
+      kind: 'failure',
+      failure: createProjectLoadFailure(result.code, result.path),
+    };
+  }
   return {
+    kind: 'success',
     data: result.data as LoadedProjectData,
     path: result.path,
   };
 }
 
-export async function requestProjectFromPath(projectPath: string): Promise<{ data: LoadedProjectData; path: string } | null> {
+export async function requestProjectFromPath(projectPath: string): Promise<ProjectSelectionResult> {
   const result = await loadProjectFromPathBridge(projectPath);
-  if (!result) return null;
+  if (result.kind === 'canceled') {
+    return { kind: 'canceled' };
+  }
+  if (result.kind === 'error') {
+    return {
+      kind: 'failure',
+      failure: createProjectLoadFailure(result.code, result.path),
+    };
+  }
   return {
+    kind: 'success',
     data: result.data as LoadedProjectData,
     path: result.path,
   };
@@ -172,38 +212,41 @@ export async function projectPathExists(projectPath: string): Promise<boolean> {
 }
 
 export async function buildProjectLoadOutcome(
-  projectData: LoadedProjectData,
+  projectData: unknown,
   projectPath: string,
   fallbackName: string
 ): Promise<ProjectLoadOutcome> {
-  const loadedVaultPath = resolveLoadedVaultPath(projectData.vaultPath, projectPath);
-  let scenes = normalizeLoadedScenesInput(projectData.scenes);
-  let foundMissingAssets: MissingAssetInfo[] = [];
-  const normalizedVersion = normalizeLoadedProjectVersion(projectData.version, scenes);
-
-  if (
-    normalizedVersion.version >= 2 ||
-    hasLegacyRelativeAssetPaths(scenes)
-  ) {
-    const resolved = await resolveScenesAssets(scenes, loadedVaultPath);
-    scenes = resolved.scenes;
-    foundMissingAssets = resolved.missingAssets;
+  if (!isLoadedProjectRoot(projectData)) {
+    return {
+      kind: 'corrupted',
+      failure: createProjectLoadFailure('invalid-project-structure', projectPath),
+    };
   }
+
+  if (projectData.version !== 3) {
+    return {
+      kind: 'corrupted',
+      failure: createProjectLoadFailure('unsupported-schema', projectPath, projectData.version),
+    };
+  }
+
+  const loadedVaultPath = resolveLoadedVaultPath(projectData.vaultPath, projectPath);
+  const scenes = normalizeLoadedScenesInput(projectData.scenes);
+  const resolved = await resolveScenesAssets(scenes, loadedVaultPath);
 
   const payload: PendingProject = {
     name: projectData.name || fallbackName,
     vaultPath: loadedVaultPath,
-    scenes,
-    sceneOrder: projectData.sceneOrder,
-    targetTotalDurationSec: projectData.targetTotalDurationSec,
-    cutRuntimeById: normalizePersistedCutRuntimeById(projectData.cutRuntimeById, scenes),
+    scenes: resolved.scenes,
+    sceneOrder: normalizeLoadedSceneOrder(projectData.sceneOrder),
+    targetTotalDurationSec: typeof projectData.targetTotalDurationSec === 'number' ? projectData.targetTotalDurationSec : undefined,
+    cutRuntimeById: normalizePersistedCutRuntimeById(projectData.cutRuntimeById, resolved.scenes),
     sourcePanelState: projectData.sourcePanel,
     projectPath,
-    shouldResaveVersion: normalizedVersion.wasMissing,
   };
 
-  if (foundMissingAssets.length > 0) {
-    return { kind: 'pending', payload, missingAssets: foundMissingAssets };
+  if (resolved.missingAssets.length > 0) {
+    return { kind: 'pending', payload, missingAssets: resolved.missingAssets };
   }
   return { kind: 'ready', payload };
 }

@@ -18,6 +18,7 @@ describe('metadata load scene-audio hydration', () => {
   it('hydrates scene attachAudio assets into assetCache from index on load', async () => {
     (window.electronAPI!.pathExists as any).mockResolvedValue(true);
     (window.electronAPI!.loadProjectFromPath as any).mockResolvedValue({
+      kind: 'success',
       data: {
         version: 1,
         metadata: {},
@@ -72,6 +73,7 @@ describe('metadata load scene-audio hydration', () => {
   it('hydrates group audio assets into assetCache from index on load', async () => {
     (window.electronAPI!.pathExists as any).mockResolvedValue(true);
     (window.electronAPI!.loadProjectFromPath as any).mockResolvedValue({
+      kind: 'success',
       data: {
         version: 1,
         metadata: {},

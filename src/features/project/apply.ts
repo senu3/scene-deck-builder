@@ -1,15 +1,7 @@
 import type { RecoveryDecision } from '../../components/MissingAssetRecoveryModal';
 import type { CutRuntimeState, Scene, SourcePanelState } from '../../types';
 import type { StoreEventOperationContext } from '../../store/events';
-import { resolveCutAssetSeed } from '../../utils/assetResolve';
 import {
-  buildProjectSavePayload,
-  ensureSceneOrder,
-  prepareScenesForSave,
-  serializeProjectSavePayload,
-} from '../../utils/projectSave';
-import {
-  createSaveProjectEffect,
   createSaveRecentProjectsEffect,
   dispatchAppEffects,
   type AppEffectDispatchResult,
@@ -56,14 +48,12 @@ export interface ProjectLoadApplyDeps {
 
 export interface ProjectLoadPersistencePlan {
   recentProjects: RecentProjectEntry[];
-  migrationProjectData?: string;
 }
 
 export interface FinalizeProjectLoadResult {
   finalScenes: Scene[];
   persistencePlan: ProjectLoadPersistencePlan;
   recentSaveResult: AppEffectDispatchResult;
-  migrationSaveResult?: AppEffectDispatchResult;
 }
 
 export async function applyPendingProjectToStore(
@@ -132,29 +122,16 @@ export async function finalizePendingProjectLoad(
     origin: 'feature',
   });
 
-  let migrationSaveResult: AppEffectDispatchResult | undefined;
-  if (persistencePlan.migrationProjectData) {
-    migrationSaveResult = await dispatchAppEffects([
-      createSaveProjectEffect({
-        projectPath: project.projectPath,
-        projectData: persistencePlan.migrationProjectData,
-      }),
-    ], {
-      origin: 'feature',
-    });
-  }
-
   return {
     finalScenes,
     persistencePlan,
     recentSaveResult,
-    migrationSaveResult,
   };
 }
 
 export function buildProjectLoadPersistencePlan(
   project: PendingProject,
-  finalScenes: Scene[],
+  _finalScenes: Scene[],
   recentProjects: RecentProjectEntry[]
 ): ProjectLoadPersistencePlan {
   const newRecent: RecentProjectEntry = {
@@ -163,40 +140,7 @@ export function buildProjectLoadPersistencePlan(
     date: new Date().toISOString(),
   };
   const filtered = recentProjects.filter((entry) => entry.path !== project.projectPath);
-  const nextRecentProjects = [newRecent, ...filtered.slice(0, 9)];
-
-  if (!project.shouldResaveVersion) {
-    return {
-      recentProjects: nextRecentProjects,
-    };
-  }
-
-  const assetById = new Map<string, NonNullable<ReturnType<typeof resolveCutAssetSeed>>>();
-  for (const scene of finalScenes) {
-    for (const cut of scene.cuts) {
-      const asset = resolveCutAssetSeed(cut, () => undefined);
-      if (!asset) continue;
-      const resolvedId = cut.assetId || asset.id;
-      if (!resolvedId) continue;
-      assetById.set(resolvedId, { ...asset, id: resolvedId });
-    }
-  }
-  const scenesToSave = prepareScenesForSave(finalScenes, (assetId) => assetById.get(assetId));
-  const { sceneOrder: normalizedSceneOrder } = ensureSceneOrder(project.sceneOrder, finalScenes);
-  const payload = buildProjectSavePayload({
-    version: 3,
-    name: project.name,
-    vaultPath: project.vaultPath,
-    scenes: scenesToSave,
-    sceneOrder: normalizedSceneOrder,
-    cutRuntimeById: project.cutRuntimeById,
-    targetTotalDurationSec: project.targetTotalDurationSec,
-    sourcePanel: project.sourcePanelState,
-    savedAt: new Date().toISOString(),
-  });
-
   return {
-    recentProjects: nextRecentProjects,
-    migrationProjectData: serializeProjectSavePayload(payload),
+    recentProjects: [newRecent, ...filtered.slice(0, 9)],
   };
 }

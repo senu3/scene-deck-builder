@@ -2,7 +2,6 @@ import type { Scene } from '../../../types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   commitRecoverySceneChanges,
-  hasLegacyRelativeAssetPaths,
   planRecoverySceneChanges,
 } from '../load';
 
@@ -64,28 +63,6 @@ function createRecoveryScenes(): Scene[] {
 describe('project load recovery helpers', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  it('detects legacy relative paths from cut asset snapshots during load', () => {
-    expect(hasLegacyRelativeAssetPaths([
-      {
-        id: 'scene-1',
-        name: 'Scene 1',
-        notes: [],
-        cuts: [{
-          id: 'cut-1',
-          order: 0,
-          assetId: 'asset-1',
-          displayTime: 1,
-          asset: {
-            id: 'asset-1',
-            name: 'legacy.png',
-            path: 'assets/legacy.png',
-            type: 'image' as const,
-          },
-        }],
-      },
-    ])).toBe(true);
   });
 
   it('plans relinks as value-only data without drafted asset state', async () => {

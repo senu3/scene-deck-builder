@@ -5,6 +5,16 @@ const IPC_AUTOSAVE_FLUSH_COMPLETE = 'autosave-flush-complete';
 const IPC_AUTOSAVE_ENABLED = 'autosave-enabled';
 const IPC_RENDERER_ERROR_REPORT = 'renderer-error-report';
 
+type ProjectFileLoadErrorCode =
+  | 'project-file-not-found'
+  | 'invalid-json'
+  | 'read-failed';
+
+type ProjectFileLoadResult =
+  | { kind: 'success'; data: unknown; path: string }
+  | { kind: 'canceled' }
+  | { kind: 'error'; code: ProjectFileLoadErrorCode; path: string };
+
 export interface FileItem {
   name: string;
   path: string;
@@ -401,10 +411,10 @@ const electronAPI = {
   saveProject: (projectData: string, projectPath?: string): Promise<string | null> =>
     ipcRenderer.invoke('save-project', projectData, projectPath),
 
-  loadProject: (): Promise<{ data: unknown; path: string } | null> =>
+  loadProject: (): Promise<ProjectFileLoadResult> =>
     ipcRenderer.invoke('load-project'),
 
-  loadProjectFromPath: (projectPath: string): Promise<{ data: unknown; path: string } | null> =>
+  loadProjectFromPath: (projectPath: string): Promise<ProjectFileLoadResult> =>
     ipcRenderer.invoke('load-project-from-path', projectPath),
 
   // Recent projects

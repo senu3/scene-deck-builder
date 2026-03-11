@@ -6,7 +6,6 @@ import { getAssetThumbnail } from '../thumbnails/api';
 import { generateVideoClipThumbnail } from '../cut/clipThumbnail';
 import { getCuttableMediaType } from '../../utils/mediaType';
 import {
-  cutAssetPathStartsWith,
   resolveCutAssetId,
   resolveCutAssetSeed,
   resolveCutAssetSnapshot,
@@ -186,12 +185,6 @@ export async function resolveScenesAssets(scenes: Scene[], vaultPath: string): P
   return { scenes: resolvedScenes, missingAssets };
 }
 
-export function hasLegacyRelativeAssetPaths(scenes: Scene[]): boolean {
-  return scenes.some((scene) =>
-    scene.cuts?.some((cut) => cutAssetPathStartsWith(cut, () => undefined, 'assets/'))
-  );
-}
-
 function getVaultPathFromProjectFile(projectPath: string): string {
   return projectPath
     .replace(/[/\\]project\.sdp$/, '')
@@ -214,16 +207,6 @@ export function resolveLoadedVaultPath(projectVaultPath: string | undefined, pro
     return fromProjectFile;
   }
   return projectVaultPath;
-}
-
-export function normalizeLoadedProjectVersion(version: number | undefined, scenes: Scene[]): { version: number; wasMissing: boolean } {
-  if (Number.isFinite(version) && (version as number) > 0) {
-    return { version: Math.floor(version as number), wasMissing: false };
-  }
-  return {
-    version: hasLegacyRelativeAssetPaths(scenes) ? 2 : 3,
-    wasMissing: true,
-  };
 }
 
 export async function applyRecoveryDecisionsToScenes(

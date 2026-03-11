@@ -305,6 +305,16 @@ interface AppVersions {
   v8: string;
 }
 
+type ProjectFileLoadErrorCode =
+  | 'project-file-not-found'
+  | 'invalid-json'
+  | 'read-failed';
+
+type ProjectFileLoadResult =
+  | { kind: 'success'; data: unknown; path: string }
+  | { kind: 'canceled' }
+  | { kind: 'error'; code: ProjectFileLoadErrorCode; path: string };
+
 interface ElectronAPI {
   getVersions?: () => AppVersions;
   getPathForFile?: (file: File) => string;
@@ -349,8 +359,8 @@ interface ElectronAPI {
 
   // Project operations
   saveProject: (projectData: string, projectPath?: string) => Promise<string | null>;
-  loadProject: () => Promise<{ data: unknown; path: string } | null>;
-  loadProjectFromPath: (projectPath: string) => Promise<{ data: unknown; path: string } | null>;
+  loadProject: () => Promise<ProjectFileLoadResult>;
+  loadProjectFromPath: (projectPath: string) => Promise<ProjectFileLoadResult>;
 
   // Recent projects
   getRecentProjects: () => Promise<RecentProject[]>;

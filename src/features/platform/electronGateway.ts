@@ -22,6 +22,16 @@ type RecentProjectLike = {
   date: string;
 };
 
+export type ProjectFileLoadErrorCode =
+  | 'project-file-not-found'
+  | 'invalid-json'
+  | 'read-failed';
+
+export type ProjectFileLoadResult =
+  | { kind: 'success'; data: unknown; path: string }
+  | { kind: 'canceled' }
+  | { kind: 'error'; code: ProjectFileLoadErrorCode; path: string };
+
 type VaultImportResult = {
   success: boolean;
   vaultPath?: string;
@@ -342,12 +352,12 @@ export async function createVaultBridge(vaultPath: string, projectName: string):
   return getElectronAPI()?.createVault?.(vaultPath, projectName) ?? null;
 }
 
-export async function loadProjectFromPathBridge(projectPath: string): Promise<{ data: unknown; path: string } | null> {
-  return getElectronAPI()?.loadProjectFromPath?.(projectPath) ?? null;
+export async function loadProjectFromPathBridge(projectPath: string): Promise<ProjectFileLoadResult> {
+  return getElectronAPI()?.loadProjectFromPath?.(projectPath) ?? { kind: 'canceled' };
 }
 
-export async function loadProjectBridge(): Promise<{ data: unknown; path: string } | null> {
-  return getElectronAPI()?.loadProject?.() ?? null;
+export async function loadProjectBridge(): Promise<ProjectFileLoadResult> {
+  return getElectronAPI()?.loadProject?.() ?? { kind: 'canceled' };
 }
 
 export async function saveProjectBridge(projectData: string, projectPath?: string): Promise<string | null> {

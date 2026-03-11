@@ -66,7 +66,7 @@ export async function loadMetadataStore(vaultPath: string): Promise<MetadataStor
 
     // Load project from path returns JSON parsed data
     const result = await loadProjectFromPathBridge(metadataPath);
-    if (result?.data) {
+    if (result.kind === 'success' && result.data) {
       const data = result.data as MetadataStore;
       // Ensure version compatibility
       if (typeof data.version === 'number' && typeof data.metadata === 'object') {
@@ -77,6 +77,12 @@ export async function loadMetadataStore(vaultPath: string): Promise<MetadataStor
         });
         return normalized;
       }
+    }
+    if (result.kind === 'error') {
+      console.warn('[MetadataStore] Failed to load metadata store.', {
+        metadataPath,
+        code: result.code,
+      });
     }
   } catch (error) {
     console.error('Failed to load metadata store:', error);

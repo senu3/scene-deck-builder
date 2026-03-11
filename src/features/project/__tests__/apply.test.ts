@@ -4,7 +4,6 @@ import {
   finalizePendingProjectLoad,
 } from '../apply';
 import {
-  createSaveProjectEffect,
   createSaveRecentProjectsEffect,
   dispatchAppEffects,
 } from '../../platform/effects';
@@ -229,7 +228,7 @@ describe('project apply', () => {
     }));
   });
 
-  it('finalizes pending project load through shared recent and migration persistence', async () => {
+  it('finalizes pending project load through recent-project persistence', async () => {
     const project = {
       name: 'Loaded Project',
       vaultPath: '/vault',
@@ -251,7 +250,6 @@ describe('project apply', () => {
       },
       sourcePanelState: undefined,
       projectPath: '/vault/project.sdp',
-      shouldResaveVersion: true,
       targetTotalDurationSec: 2,
     };
     vi.mocked(planRecoverySceneChanges).mockResolvedValue({ scenes: project.scenes, relinks: [] });
@@ -272,16 +270,10 @@ describe('project apply', () => {
     const result = await finalizePendingProjectLoad(project, deps);
 
     expect(loadRecentProjectsWithCleanup).toHaveBeenCalledTimes(1);
-    expect(dispatchAppEffects).toHaveBeenCalledTimes(2);
+    expect(dispatchAppEffects).toHaveBeenCalledTimes(1);
     expect(vi.mocked(dispatchAppEffects).mock.calls[0]?.[0]).toEqual([
       createSaveRecentProjectsEffect({
         projects: result.persistencePlan.recentProjects,
-      }),
-    ]);
-    expect(vi.mocked(dispatchAppEffects).mock.calls[1]?.[0]).toEqual([
-      createSaveProjectEffect({
-        projectPath: project.projectPath,
-        projectData: result.persistencePlan.migrationProjectData!,
       }),
     ]);
     expect(result.persistencePlan.recentProjects[0]).toEqual(expect.objectContaining({

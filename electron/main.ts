@@ -64,6 +64,15 @@ const mimeTypes: Record<string, string> = {
 };
 
 type LogLevel = 'INFO' | 'WARN' | 'ERROR';
+type ProjectFileLoadErrorCode =
+  | 'project-file-not-found'
+  | 'invalid-json'
+  | 'read-failed';
+
+type ProjectFileLoadResult =
+  | { kind: 'success'; data: unknown; path: string }
+  | { kind: 'canceled' }
+  | { kind: 'error'; code: ProjectFileLoadErrorCode; path: string };
 
 function serializeError(error: unknown) {
   if (error instanceof Error) {
@@ -114,6 +123,43 @@ function writeRuntimeLog(level: LogLevel, event: string, payload: Record<string,
     } catch {
       console.error('[log] failed to write runtime log', error);
     }
+  }
+}
+
+function classifyProjectLoadError(error: unknown): ProjectFileLoadErrorCode {
+  if (error instanceof SyntaxError) {
+    return 'invalid-json';
+  }
+  if ((error as NodeJS.ErrnoException | undefined)?.code === 'ENOENT') {
+    return 'project-file-not-found';
+  }
+  return 'read-failed';
+}
+
+function readProjectFile(projectPath: string, eventPrefix: 'load-project' | 'load-project-from-path'): ProjectFileLoadResult {
+  try {
+    const data = fs.readFileSync(projectPath, 'utf-8');
+    writeRuntimeLog('INFO', `${eventPrefix}-success`, {
+      projectPath,
+      bytes: Buffer.byteLength(data, 'utf-8'),
+    });
+    return {
+      kind: 'success',
+      data: JSON.parse(data),
+      path: projectPath,
+    };
+  } catch (error) {
+    const code = classifyProjectLoadError(error);
+    writeRuntimeLog('ERROR', `${eventPrefix}-failed`, {
+      projectPath,
+      code,
+      error: serializeError(error),
+    });
+    return {
+      kind: 'error',
+      code,
+      path: projectPath,
+    };
   }
 }
 
@@ -1360,26 +1406,10 @@ ipcMain.handle('load-project', async () => {
 
   if (result.canceled || result.filePaths.length === 0) {
     writeRuntimeLog('INFO', 'load-project-canceled');
-    return null;
+    return { kind: 'canceled' } satisfies ProjectFileLoadResult;
   }
 
-  try {
-    const data = fs.readFileSync(result.filePaths[0], 'utf-8');
-    writeRuntimeLog('INFO', 'load-project-success', {
-      projectPath: result.filePaths[0],
-      bytes: Buffer.byteLength(data, 'utf-8'),
-    });
-    return {
-      data: JSON.parse(data),
-      path: result.filePaths[0],
-    };
-  } catch (error) {
-    writeRuntimeLog('ERROR', 'load-project-failed', {
-      projectPath: result.filePaths[0],
-      error: serializeError(error),
-    });
-    return null;
-  }
+  return readProjectFile(result.filePaths[0], 'load-project');
 });
 
 // Load project from specific path (for recent projects)
@@ -1388,23 +1418,25 @@ ipcMain.handle('load-project-from-path', async (_, projectPath: string) => {
   try {
     if (!fs.existsSync(projectPath)) {
       writeRuntimeLog('WARN', 'load-project-from-path-not-found', { projectPath });
-      return null;
+      return {
+        kind: 'error',
+        code: 'project-file-not-found',
+        path: projectPath,
+      } satisfies ProjectFileLoadResult;
     }
-    const data = fs.readFileSync(projectPath, 'utf-8');
-    writeRuntimeLog('INFO', 'load-project-from-path-success', {
-      projectPath,
-      bytes: Buffer.byteLength(data, 'utf-8'),
-    });
-    return {
-      data: JSON.parse(data),
-      path: projectPath,
-    };
+    return readProjectFile(projectPath, 'load-project-from-path');
   } catch (error) {
+    const code = classifyProjectLoadError(error);
     writeRuntimeLog('ERROR', 'load-project-from-path-failed', {
       projectPath,
+      code,
       error: serializeError(error),
     });
-    return null;
+    return {
+      kind: 'error',
+      code,
+      path: projectPath,
+    } satisfies ProjectFileLoadResult;
   }
 });
 

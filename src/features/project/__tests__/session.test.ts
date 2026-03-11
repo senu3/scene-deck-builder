@@ -4,12 +4,16 @@ import {
   buildProjectLoadOutcome,
   createProjectBootstrap,
   loadRecentProjectsWithCleanup,
+  requestProjectFromPath,
+  requestProjectSelection,
 } from '../session';
 import {
   createVaultBridge,
   ensureAssetsFolderBridge,
   getFolderContentsBridge,
   getRecentProjectsBridge,
+  loadProjectBridge,
+  loadProjectFromPathBridge,
   pathExistsBridge,
 } from '../../platform/electronGateway';
 import { resolveScenesAssets } from '../load';
@@ -104,10 +108,13 @@ describe('project session', () => {
         cuts: [],
         notes: [],
       }],
-      version: 2,
+      version: 3,
     }, 'C:/vault/project.sdp', 'Loaded Project');
 
     expect(outcome.kind).toBe('pending');
+    if (outcome.kind !== 'pending') {
+      throw new Error(`expected pending outcome, received ${outcome.kind}`);
+    }
     expect(outcome.payload.projectPath).toBe('C:/vault/project.sdp');
   });
 
@@ -154,6 +161,9 @@ describe('project session', () => {
       version: 3,
     }, 'C:/vault/project.sdp', 'Legacy Project');
 
+    if (outcome.kind !== 'ready') {
+      throw new Error(`expected ready outcome, received ${outcome.kind}`);
+    }
     expect(outcome.payload.scenes[0]).toEqual(expect.objectContaining({
       notes: [],
       cuts: [expect.objectContaining({
@@ -161,5 +171,76 @@ describe('project session', () => {
         order: 0,
       })],
     }));
+  });
+
+  it('maps file-load errors into selection failures', async () => {
+    vi.mocked(loadProjectBridge).mockResolvedValue({
+      kind: 'error',
+      code: 'invalid-json',
+      path: 'C:/vault/project.sdp',
+    });
+
+    const result = await requestProjectSelection();
+
+    expect(result).toEqual({
+      kind: 'failure',
+      failure: {
+        code: 'invalid-json',
+        projectPath: 'C:/vault/project.sdp',
+      },
+    });
+  });
+
+  it('maps path-based load success into a typed selection result', async () => {
+    vi.mocked(loadProjectFromPathBridge).mockResolvedValue({
+      kind: 'success',
+      path: 'C:/vault/project.sdp',
+      data: {
+        version: 3,
+        scenes: [],
+      },
+    });
+
+    const result = await requestProjectFromPath('C:/vault/project.sdp');
+
+    expect(result).toEqual({
+      kind: 'success',
+      path: 'C:/vault/project.sdp',
+      data: {
+        version: 3,
+        scenes: [],
+      },
+    });
+  });
+
+  it('rejects legacy project schema during load outcome build', async () => {
+    const outcome = await buildProjectLoadOutcome({
+      name: 'Legacy',
+      vaultPath: 'C:/vault',
+      scenes: [],
+      version: 2,
+    }, 'C:/vault/project.sdp', 'Legacy Project');
+
+    expect(outcome).toEqual({
+      kind: 'corrupted',
+      failure: {
+        code: 'unsupported-schema',
+        projectPath: 'C:/vault/project.sdp',
+        schemaVersion: 2,
+      },
+    });
+    expect(resolveScenesAssets).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid project roots before recovery planning', async () => {
+    const outcome = await buildProjectLoadOutcome(null, 'C:/vault/project.sdp', 'Broken Project');
+
+    expect(outcome).toEqual({
+      kind: 'corrupted',
+      failure: {
+        code: 'invalid-project-structure',
+        projectPath: 'C:/vault/project.sdp',
+      },
+    });
   });
 });

@@ -36,7 +36,9 @@ import {
   dispatchAppEffects,
   type AppEffectDispatchResult,
 } from '../features/platform/effects';
+import { buildProjectLoadFailureAlert } from '../features/project/loadFailure';
 import { hasElectronBridge } from '../features/platform/electronGateway';
+import { useDialog } from '../ui';
 import './StartupModal.css';
 
 function logFeatureEffectWarnings(scope: string, result: AppEffectDispatchResult): void {
@@ -50,6 +52,7 @@ function hasFailedEffect(result: AppEffectDispatchResult, effectType: string): b
 }
 
 export default function StartupModal() {
+  const { alert: dialogAlert } = useDialog();
   const {
     initializeProject,
     setRootFolder,
@@ -189,7 +192,11 @@ export default function StartupModal() {
     }
 
     const result = await requestProjectSelection();
-    if (!result) return;
+    if (result.kind === 'canceled') return;
+    if (result.kind === 'failure') {
+      await dialogAlert(buildProjectLoadFailureAlert(result.failure));
+      return;
+    }
     const outcome = await buildProjectLoadOutcome(result.data, result.path, 'Loaded Project');
     await applyProjectLoadOutcome(outcome);
   };
@@ -209,9 +216,6 @@ export default function StartupModal() {
 
     setRecentProjects(result.persistencePlan.recentProjects);
     logFeatureEffectWarnings('startup-save-recents', result.recentSaveResult);
-    if (result.migrationSaveResult) {
-      logFeatureEffectWarnings('startup-save-project-migration', result.migrationSaveResult);
-    }
 
     // Clear recovery state
     setShowRecoveryDialog(false);
@@ -220,6 +224,10 @@ export default function StartupModal() {
   };
 
   const applyProjectLoadOutcome = async (outcome: ProjectLoadOutcome) => {
+    if (outcome.kind === 'corrupted') {
+      await dialogAlert(buildProjectLoadFailureAlert(outcome.failure));
+      return;
+    }
     if (outcome.kind === 'pending') {
       setMissingAssets(outcome.missingAssets);
       setPendingProject(outcome.payload);
@@ -247,7 +255,10 @@ export default function StartupModal() {
 
     const exists = await projectPathExists(project.path);
     if (!exists) {
-      alert('Project file not found. It may have been moved or deleted.');
+      await dialogAlert(buildProjectLoadFailureAlert({
+        code: 'project-file-not-found',
+        projectPath: project.path,
+      }));
       // Remove from recent
       const filtered = recentProjects.filter(p => p.path !== project.path);
       setRecentProjects(filtered);
@@ -265,7 +276,23 @@ export default function StartupModal() {
     // Load the project file directly from the specified path
     try {
       const result = await requestProjectFromPath(project.path);
-      if (!result) return;
+      if (result.kind === 'canceled') return;
+      if (result.kind === 'failure') {
+        await dialogAlert(buildProjectLoadFailureAlert(result.failure));
+        if (result.failure.code === 'project-file-not-found') {
+          const filtered = recentProjects.filter((entry) => entry.path !== project.path);
+          setRecentProjects(filtered);
+          const filteredSaveResult = await dispatchAppEffects([
+            createSaveRecentProjectsEffect({
+              projects: filtered,
+            }),
+          ], {
+            origin: 'feature',
+          });
+          logFeatureEffectWarnings('startup-remove-missing-recent', filteredSaveResult);
+        }
+        return;
+      }
       const outcome = await buildProjectLoadOutcome(result.data, project.path, project.name);
       await applyProjectLoadOutcome(outcome);
     } catch (error) {
