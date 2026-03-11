@@ -1,4 +1,4 @@
-# Recovery Flow Minimum Plan (2026-03-11)
+# Recovery Flow Minimum Plan (Implemented 2026-03-12)
 
 ## TL;DR
 - 現状の復旧フローは `missing asset` 対応に限定されており、schema / metadata / read-only rescue の判断軸がない。

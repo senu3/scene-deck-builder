@@ -52,13 +52,6 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
   - BlockedBy: なし
   - DoneWhen: migration + 後方互換 + docs 更新が完了
   - 関連: `docs/guides/lip-sync.md`
-- `TODO-BREAKING-002` `project.sdp` 破損通知と legacy project schema 受け入れ撤去を導入する
-  - Track: `Breaking`
-  - Status: `ready`
-  - StartWhen: recovery/load 方針を実装に反映するとき
-  - BlockedBy: なし
-  - DoneWhen: cancel と corruption が UI で区別され、`v2/version missing` project は明示エラーで読み込み拒否される
-  - 関連: `docs/guides/vault-assets.md`, `docs/notes/recovery-flow-minimum-plan-2026-03-11.md`
 
 ## Nice-to-have Track
 - `TODO-NICE-001` Autosave 設定 UI の interval/保存先連動を実装へ接続する
@@ -75,6 +68,13 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
   - BlockedBy: なし
   - DoneWhen: AttachAudio ON/OFF が export 経路に反映される
   - 関連: `docs/guides/export.md`
+- `TODO-NICE-003` `.index.json` / `.trash/.trash.json` を人間向け recovery clue として読みやすくする
+  - Track: `Nice-to-have`
+  - Status: `ready`
+  - StartWhen: Vault index/trash の改善に着手するとき
+  - BlockedBy: なし
+  - DoneWhen: `.index.json` の usage summary が cut/audio/lipSync の主要参照を表せて、clip/hold 時間を秒ベースで読めるようになり、`.trash/.trash.json` の entry shape が単純化される
+  - 関連: `docs/guides/vault-assets.md`, `docs/notes/index-trash-human-readable-plan-2026-03-12.md`
 
 ## Investigation Track
 - `TODO-INVEST-009` LipSync 見直し計画（課題再棚卸し + v2設計 + 段階移行）を確定する
