@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Scene } from '../../../types';
 import {
   buildProjectLoadOutcome,
   createProjectBootstrap,
@@ -108,5 +109,57 @@ describe('project session', () => {
 
     expect(outcome.kind).toBe('pending');
     expect(outcome.payload.projectPath).toBe('C:/vault/project.sdp');
+  });
+
+  it('normalizes legacy scene collections before recovery planning', async () => {
+    vi.mocked(resolveScenesAssets).mockResolvedValue({
+      scenes: [{
+        id: 'scene-1',
+        name: 'Scene 1',
+        cuts: [{
+          id: 'cut-1',
+          assetId: 'asset-1',
+          displayTime: 1,
+          order: 0,
+          asset: {
+            id: 'asset-1',
+            name: 'legacy.png',
+            path: 'assets/legacy.png',
+            type: 'image',
+          },
+        }],
+        notes: [],
+      }],
+      missingAssets: [],
+    });
+
+    const outcome = await buildProjectLoadOutcome({
+      name: 'Legacy',
+      vaultPath: 'C:/vault',
+      scenes: [{
+        id: 'scene-1',
+        name: 'Scene 1',
+        cuts: [{
+          id: 'cut-1',
+          assetId: 'asset-1',
+          displayTime: 1,
+          asset: {
+            id: 'asset-1',
+            name: 'legacy.png',
+            path: 'assets/legacy.png',
+            type: 'image',
+          },
+        }],
+      } as Scene],
+      version: 3,
+    }, 'C:/vault/project.sdp', 'Legacy Project');
+
+    expect(outcome.payload.scenes[0]).toEqual(expect.objectContaining({
+      notes: [],
+      cuts: [expect.objectContaining({
+        id: 'cut-1',
+        order: 0,
+      })],
+    }));
   });
 });

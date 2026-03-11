@@ -121,6 +121,32 @@ describe('project load recovery helpers', () => {
     expect(plan.relinks[0]?.newPath).toBe('/relinked/video.mp4');
   });
 
+  it('tolerates legacy scenes without notes during recovery planning', async () => {
+    const plan = await planRecoverySceneChanges([
+      {
+        id: 'scene-1',
+        name: 'Scene 1',
+        cuts: [{
+          id: 'cut-1',
+          order: 0,
+          assetId: 'asset-1',
+          displayTime: 1,
+          asset: {
+            id: 'asset-1',
+            name: 'legacy.png',
+            path: '/missing/legacy.png',
+            type: 'image',
+          },
+        }],
+      } as Scene,
+    ]);
+
+    expect(plan.scenes[0]).toEqual(expect.objectContaining({
+      notes: [],
+      cuts: [expect.objectContaining({ id: 'cut-1' })],
+    }));
+  });
+
   it('commits successful recovery relinks through the shared register service', async () => {
     const { registerAssetFile } = await import('../../asset/write');
     const { readCanonicalAssetMetadataForPath } = await import('../../metadata/provider');

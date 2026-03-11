@@ -21,6 +21,33 @@ import {
   resolveScenesAssets,
 } from './load';
 
+function normalizeLoadedScenesInput(scenes: LoadedProjectData['scenes']): Scene[] {
+  if (!Array.isArray(scenes)) return [];
+
+  return scenes.map((scene) => {
+    const candidate = (scene && typeof scene === 'object' ? scene : {}) as Scene;
+    return {
+      ...candidate,
+      cuts: Array.isArray(candidate.cuts)
+        ? candidate.cuts.map((cut, index) => ({
+            ...cut,
+            order: typeof cut?.order === 'number' ? cut.order : index,
+            audioBindings: Array.isArray(cut?.audioBindings) ? cut.audioBindings : undefined,
+          }))
+        : [],
+      notes: Array.isArray(candidate.notes) ? candidate.notes : [],
+      groups: Array.isArray(candidate.groups)
+        ? candidate.groups.map((group) => ({
+            ...group,
+            cutIds: Array.isArray(group?.cutIds)
+              ? group.cutIds.filter((cutId): cutId is string => typeof cutId === 'string')
+              : [],
+          }))
+        : undefined,
+    };
+  });
+}
+
 export interface RecentProjectEntry {
   name: string;
   path: string;
@@ -150,7 +177,7 @@ export async function buildProjectLoadOutcome(
   fallbackName: string
 ): Promise<ProjectLoadOutcome> {
   const loadedVaultPath = resolveLoadedVaultPath(projectData.vaultPath, projectPath);
-  let scenes = projectData.scenes || [];
+  let scenes = normalizeLoadedScenesInput(projectData.scenes);
   let foundMissingAssets: MissingAssetInfo[] = [];
   const normalizedVersion = normalizeLoadedProjectVersion(projectData.version, scenes);
 

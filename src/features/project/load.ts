@@ -285,19 +285,23 @@ function cloneRecoveryCut(cut: Cut): Cut {
     ...cut,
     asset: cloneRecoveryAsset(resolveCutAssetSnapshot(cut) ?? undefined),
     framing: cut.framing ? { ...cut.framing } : undefined,
-    audioBindings: cut.audioBindings?.map((binding) => ({ ...binding })),
+    audioBindings: Array.isArray(cut.audioBindings)
+      ? cut.audioBindings.map((binding) => ({ ...binding }))
+      : undefined,
   };
 }
 
 function cloneRecoveryScene(scene: Scene): Scene {
   return {
     ...scene,
-    notes: scene.notes.map((note) => ({ ...note })),
-    cuts: scene.cuts.map(cloneRecoveryCut),
-    groups: scene.groups?.map((group) => ({
-      ...group,
-      cutIds: [...group.cutIds],
-    })),
+    notes: Array.isArray(scene.notes) ? scene.notes.map((note) => ({ ...note })) : [],
+    cuts: Array.isArray(scene.cuts) ? scene.cuts.map(cloneRecoveryCut) : [],
+    groups: Array.isArray(scene.groups)
+      ? scene.groups.map((group) => ({
+          ...group,
+          cutIds: Array.isArray(group.cutIds) ? [...group.cutIds] : [],
+        }))
+      : undefined,
   };
 }
 
