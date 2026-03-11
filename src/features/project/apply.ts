@@ -1,4 +1,4 @@
-import type { RecoveryDecision } from '../../components/MissingAssetRecoveryModal';
+import type { MissingAssetInfo, RecoveryDecision } from '../../components/MissingAssetRecoveryModal';
 import type { CutRuntimeState, Scene, SourcePanelState } from '../../types';
 import type { StoreEventOperationContext } from '../../store/events';
 import {
@@ -13,10 +13,12 @@ import {
   regenerateCutClipThumbnails,
 } from './load';
 import {
+  assessProjectState,
   loadRecentProjectsWithCleanup,
   type PendingProject,
   type RecentProjectEntry,
 } from './session';
+import type { RecoveryAssessment } from './recoveryAssessment';
 
 export interface ProjectLoadApplyDeps {
   initializeProject: (project: {
@@ -52,15 +54,23 @@ export interface ProjectLoadPersistencePlan {
 
 export interface FinalizeProjectLoadResult {
   finalScenes: Scene[];
+  missingAssets: MissingAssetInfo[];
+  assessment: RecoveryAssessment;
   persistencePlan: ProjectLoadPersistencePlan;
   recentSaveResult: AppEffectDispatchResult;
+}
+
+export interface ApplyPendingProjectResult {
+  finalScenes: Scene[];
+  missingAssets: MissingAssetInfo[];
+  assessment: RecoveryAssessment;
 }
 
 export async function applyPendingProjectToStore(
   project: PendingProject,
   deps: ProjectLoadApplyDeps,
   recoveryDecisions?: RecoveryDecision[]
-): Promise<Scene[]> {
+): Promise<ApplyPendingProjectResult> {
   const beforeRecoveryScenes = project.scenes;
   const recoveryPlan = await planRecoverySceneChanges(project.scenes, recoveryDecisions);
   const recoveryCommit = await commitRecoverySceneChanges(recoveryPlan, project.vaultPath);
@@ -68,8 +78,13 @@ export async function applyPendingProjectToStore(
     console.warn('[ProjectLoad] Recovery commit completed with failed relinks.', recoveryCommit.failedRelinks);
   }
   let finalScenes = recoveryCommit.scenes;
-  const recoveryRelinks = collectRecoveryRelinkEventCandidates(beforeRecoveryScenes, finalScenes, recoveryDecisions);
   finalScenes = await regenerateCutClipThumbnails(finalScenes);
+  const postRecoveryState = await assessProjectState(finalScenes, project.vaultPath, {
+    rescuedCutCount: recoveryCommit.committedRelinks.length,
+    projectSchemaVersion: 3,
+  });
+  finalScenes = postRecoveryState.scenes;
+  const recoveryRelinks = collectRecoveryRelinkEventCandidates(beforeRecoveryScenes, finalScenes, recoveryDecisions);
   const finalCutIds = new Set(
     finalScenes.flatMap((scene) => scene.cuts.map((cut) => cut.id))
   );
@@ -103,7 +118,11 @@ export async function applyPendingProjectToStore(
     });
   }
 
-  return finalScenes;
+  return {
+    finalScenes,
+    missingAssets: postRecoveryState.missingAssets,
+    assessment: postRecoveryState.assessment,
+  };
 }
 
 export async function finalizePendingProjectLoad(
@@ -111,9 +130,9 @@ export async function finalizePendingProjectLoad(
   deps: ProjectLoadApplyDeps,
   recoveryDecisions?: RecoveryDecision[]
 ): Promise<FinalizeProjectLoadResult> {
-  const finalScenes = await applyPendingProjectToStore(project, deps, recoveryDecisions);
+  const applied = await applyPendingProjectToStore(project, deps, recoveryDecisions);
   const recentProjects = await loadRecentProjectsWithCleanup();
-  const persistencePlan = buildProjectLoadPersistencePlan(project, finalScenes, recentProjects);
+  const persistencePlan = buildProjectLoadPersistencePlan(project, applied.finalScenes, recentProjects);
   const recentSaveResult = await dispatchAppEffects([
     createSaveRecentProjectsEffect({
       projects: persistencePlan.recentProjects,
@@ -123,7 +142,9 @@ export async function finalizePendingProjectLoad(
   });
 
   return {
-    finalScenes,
+    finalScenes: applied.finalScenes,
+    missingAssets: applied.missingAssets,
+    assessment: applied.assessment,
     persistencePlan,
     recentSaveResult,
   };

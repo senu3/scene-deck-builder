@@ -340,8 +340,17 @@ export function useHeaderProjectController() {
     setPendingProject(null);
     setMissingAssets([]);
     setPendingAssessment(null);
+
+    if (result.assessment.mode === 'repairable' && getRecoveryAssessmentNotices(result.assessment, 'load').length > 0) {
+      await dialogAlert({
+        title: 'Recovery Report',
+        message: formatRecoveryAssessmentSummary(result.assessment, 'load'),
+        variant: 'warning',
+      });
+    }
   }, [
     createStoreEventOperation,
+    dialogAlert,
     emitCutRelinked,
     initializeProject,
     initializeSourcePanel,
@@ -396,13 +405,6 @@ export function useHeaderProjectController() {
     }
 
     await finalizeProjectLoad(outcome.payload);
-    if (outcome.assessment.mode === 'repairable' && getRecoveryAssessmentNotices(outcome.assessment, 'load').length > 0) {
-      await dialogAlert({
-        title: 'Recovery Report',
-        message: formatRecoveryAssessmentSummary(outcome.assessment, 'load'),
-        variant: 'warning',
-      });
-    }
   }, [dialogAlert, finalizeProjectLoad]);
 
   const handleCloseProject = useCallback(async () => {

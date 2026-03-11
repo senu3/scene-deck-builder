@@ -228,6 +228,14 @@ export default function StartupModal() {
     setPendingProject(null);
     setMissingAssets([]);
     setPendingAssessment(null);
+
+    if (result.assessment.mode === 'repairable' && getRecoveryAssessmentNotices(result.assessment, 'load').length > 0) {
+      await dialogAlert({
+        title: 'Recovery Report',
+        message: formatRecoveryAssessmentSummary(result.assessment, 'load'),
+        variant: 'warning',
+      });
+    }
   };
 
   const applyProjectLoadOutcome = async (outcome: ProjectLoadOutcome) => {
@@ -243,13 +251,6 @@ export default function StartupModal() {
       return;
     }
     await finalizeProjectLoad(outcome.payload);
-    if (outcome.assessment.mode === 'repairable' && getRecoveryAssessmentNotices(outcome.assessment, 'load').length > 0) {
-      await dialogAlert({
-        title: 'Recovery Report',
-        message: formatRecoveryAssessmentSummary(outcome.assessment, 'load'),
-        variant: 'warning',
-      });
-    }
   };
 
   // Handle recovery dialog completion

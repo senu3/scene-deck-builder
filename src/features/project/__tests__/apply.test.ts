@@ -7,7 +7,7 @@ import {
   createSaveRecentProjectsEffect,
   dispatchAppEffects,
 } from '../../platform/effects';
-import { loadRecentProjectsWithCleanup } from '../session';
+import { assessProjectState, loadRecentProjectsWithCleanup } from '../session';
 import {
   commitRecoverySceneChanges,
   collectRecoveryRelinkEventCandidates,
@@ -32,6 +32,7 @@ vi.mock('../session', async () => {
   const actual = await vi.importActual<typeof import('../session')>('../session');
   return {
     ...actual,
+    assessProjectState: vi.fn(),
     loadRecentProjectsWithCleanup: vi.fn(),
   };
 });
@@ -70,6 +71,29 @@ describe('project apply', () => {
       results: [],
       warnings: [],
     });
+    vi.mocked(assessProjectState).mockImplementation(async (scenes) => ({
+      scenes,
+      missingAssets: [],
+      assessment: {
+        mode: 'full',
+        report: {
+          readableSceneCount: scenes.length,
+          missingAssetCount: 0,
+          skippedMetadataCount: 0,
+          rescuedCutCount: 0,
+          orphanMetadataCount: 0,
+          projectSchemaVersion: 3,
+          metadataSchemaVersion: 1,
+          normalizationFlags: {
+            sceneIdsAssigned: false,
+            sceneOrderNormalized: false,
+            sceneStructureNormalized: false,
+            metadataNormalized: false,
+          },
+        },
+        issues: [],
+      },
+    }));
   });
 
   afterEach(() => {
@@ -125,7 +149,7 @@ describe('project apply', () => {
     vi.mocked(regenerateCutClipThumbnails).mockResolvedValue(finalScenes);
     const deps = createDeps();
 
-    await applyPendingProjectToStore(project, deps, [{
+    const result = await applyPendingProjectToStore(project, deps, [{
       sceneId: 'scene-1',
       cutId: 'cut-1',
       action: 'delete',
@@ -140,6 +164,7 @@ describe('project apply', () => {
       mode: 'tail',
       durationMs: 1200,
     });
+    expect(result.assessment.mode).toBe('full');
   });
 
   it('applies only committed recovery scenes and leaves failed relinks unresolved', async () => {
@@ -210,7 +235,7 @@ describe('project apply', () => {
     vi.mocked(regenerateCutClipThumbnails).mockResolvedValue(committedScenes);
     const deps = createDeps();
 
-    await applyPendingProjectToStore(project, deps, [{
+    const result = await applyPendingProjectToStore(project, deps, [{
       sceneId: 'scene-1',
       cutId: 'cut-1',
       action: 'relink',
@@ -226,6 +251,11 @@ describe('project apply', () => {
     expect(deps.initializeProject).not.toHaveBeenCalledWith(expect.objectContaining({
       scenes: plannedScenes,
     }));
+    expect(result.finalScenes).toEqual(committedScenes);
+    expect(assessProjectState).toHaveBeenCalledWith(committedScenes, '/vault', {
+      rescuedCutCount: 0,
+      projectSchemaVersion: 3,
+    });
   });
 
   it('finalizes pending project load through recent-project persistence', async () => {
@@ -280,5 +310,6 @@ describe('project apply', () => {
       name: project.name,
       path: project.projectPath,
     }));
+    expect(result.assessment.mode).toBe('full');
   });
 });

@@ -17,7 +17,11 @@ import {
   selectVaultBridge,
 } from '../platform/electronGateway';
 import type { ProjectLoadFailure } from './loadFailure';
-import { createRecoveryAssessment, type RecoveryAssessment } from './recoveryAssessment';
+import {
+  createRecoveryAssessment,
+  type RecoveryAssessment,
+  type RecoveryNormalizationFlags,
+} from './recoveryAssessment';
 import { resolveLoadedVaultPath, resolveScenesAssets } from './load';
 
 function normalizeLoadedScenesInput(scenes: LoadedProjectData['scenes']): { scenes: Scene[]; normalized: boolean } {
@@ -152,6 +156,12 @@ export type ProjectLoadOutcome =
   | { kind: 'ready'; payload: PendingProject; assessment: RecoveryAssessment }
   | { kind: 'corrupted'; failure: ProjectLoadFailure };
 
+export interface ProjectStateAssessmentResult {
+  scenes: Scene[];
+  missingAssets: MissingAssetInfo[];
+  assessment: RecoveryAssessment;
+}
+
 export interface CreateProjectBootstrapResult {
   vaultPath: string;
   projectFilePath: string;
@@ -260,30 +270,18 @@ export async function projectPathExists(projectPath: string): Promise<boolean> {
   return pathExistsBridge(projectPath);
 }
 
-export async function buildProjectLoadOutcome(
-  projectData: unknown,
-  projectPath: string,
-  fallbackName: string
-): Promise<ProjectLoadOutcome> {
-  if (!isLoadedProjectRoot(projectData)) {
-    return {
-      kind: 'corrupted',
-      failure: createProjectLoadFailure('invalid-project-structure', projectPath),
-    };
+export async function assessProjectState(
+  scenes: Scene[],
+  vaultPath: string,
+  options?: {
+    rescuedCutCount?: number;
+    projectSchemaVersion?: number;
+    normalizationFlags?: Partial<RecoveryNormalizationFlags>;
   }
-
-  if (projectData.version !== 3) {
-    return {
-      kind: 'corrupted',
-      failure: createProjectLoadFailure('unsupported-schema', projectPath, projectData.version),
-    };
-  }
-
-  const loadedVaultPath = resolveLoadedVaultPath(projectData.vaultPath, projectPath);
-  const normalizedScenes = normalizeLoadedScenesInput(projectData.scenes);
-  const resolved = await resolveScenesAssets(normalizedScenes.scenes, loadedVaultPath);
-  const assetIndex = await loadAssetIndexBridge(loadedVaultPath).catch(() => null);
-  const metadataAssessment = await loadMetadataStoreWithReport(loadedVaultPath, {
+): Promise<ProjectStateAssessmentResult> {
+  const resolved = await resolveScenesAssets(scenes, vaultPath);
+  const assetIndex = await loadAssetIndexBridge(vaultPath).catch(() => null);
+  const metadataAssessment = await loadMetadataStoreWithReport(vaultPath, {
     sceneIds: resolved.scenes.map((scene) => scene.id),
     assetIds: assetIndex ? assetIndex.assets.map((entry) => entry.id) : undefined,
   });
@@ -313,31 +311,67 @@ export async function buildProjectLoadOutcome(
     readableSceneCount: resolved.scenes.length,
     missingAssetCount: resolved.missingAssets.length,
     skippedMetadataCount: metadataAssessment.report.skippedMetadataCount,
-    rescuedCutCount: 0,
+    rescuedCutCount: options?.rescuedCutCount ?? 0,
     orphanMetadataCount: metadataAssessment.report.orphanMetadataCount,
-    projectSchemaVersion: 3,
+    projectSchemaVersion: options?.projectSchemaVersion ?? 3,
     metadataSchemaVersion: metadataAssessment.report.metadataSchemaVersion,
     normalizationFlags: {
-      sceneIdsAssigned: false,
-      sceneOrderNormalized: false,
-      sceneStructureNormalized: normalizedScenes.normalized,
-      metadataNormalized: metadataAssessment.report.normalized,
+      sceneIdsAssigned: options?.normalizationFlags?.sceneIdsAssigned ?? false,
+      sceneOrderNormalized: options?.normalizationFlags?.sceneOrderNormalized ?? false,
+      sceneStructureNormalized: options?.normalizationFlags?.sceneStructureNormalized ?? false,
+      metadataNormalized:
+        options?.normalizationFlags?.metadataNormalized ?? metadataAssessment.report.normalized,
     },
   }, issues);
+
+  return {
+    scenes: resolved.scenes,
+    missingAssets: resolved.missingAssets,
+    assessment,
+  };
+}
+
+export async function buildProjectLoadOutcome(
+  projectData: unknown,
+  projectPath: string,
+  fallbackName: string
+): Promise<ProjectLoadOutcome> {
+  if (!isLoadedProjectRoot(projectData)) {
+    return {
+      kind: 'corrupted',
+      failure: createProjectLoadFailure('invalid-project-structure', projectPath),
+    };
+  }
+
+  if (projectData.version !== 3) {
+    return {
+      kind: 'corrupted',
+      failure: createProjectLoadFailure('unsupported-schema', projectPath, projectData.version),
+    };
+  }
+
+  const loadedVaultPath = resolveLoadedVaultPath(projectData.vaultPath, projectPath);
+  const normalizedScenes = normalizeLoadedScenesInput(projectData.scenes);
+  const stateAssessment = await assessProjectState(normalizedScenes.scenes, loadedVaultPath, {
+    projectSchemaVersion: 3,
+    normalizationFlags: {
+      sceneStructureNormalized: normalizedScenes.normalized,
+    },
+  });
 
   const payload: PendingProject = {
     name: projectData.name || fallbackName,
     vaultPath: loadedVaultPath,
-    scenes: resolved.scenes,
+    scenes: stateAssessment.scenes,
     sceneOrder: normalizeLoadedSceneOrder(projectData.sceneOrder),
     targetTotalDurationSec: typeof projectData.targetTotalDurationSec === 'number' ? projectData.targetTotalDurationSec : undefined,
-    cutRuntimeById: normalizePersistedCutRuntimeById(projectData.cutRuntimeById, resolved.scenes),
+    cutRuntimeById: normalizePersistedCutRuntimeById(projectData.cutRuntimeById, stateAssessment.scenes),
     sourcePanelState: projectData.sourcePanel,
     projectPath,
   };
 
-  if (resolved.missingAssets.length > 0) {
-    return { kind: 'pending', payload, missingAssets: resolved.missingAssets, assessment };
+  if (stateAssessment.missingAssets.length > 0) {
+    return { kind: 'pending', payload, missingAssets: stateAssessment.missingAssets, assessment: stateAssessment.assessment };
   }
-  return { kind: 'ready', payload, assessment };
+  return { kind: 'ready', payload, assessment: stateAssessment.assessment };
 }
