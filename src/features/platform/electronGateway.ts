@@ -483,6 +483,14 @@ export async function importAndRegisterAssetBridge(
   return getElectronAPI()?.vaultGateway?.importAndRegisterAsset?.(sourcePath, vaultPath, assetId) ?? null;
 }
 
+export async function registerVaultAssetBridge(
+  filePath: string,
+  vaultPath: string,
+  assetId: string
+): Promise<VaultImportResult | null> {
+  return getElectronAPI()?.vaultGateway?.registerVaultAsset?.(filePath, vaultPath, assetId) ?? null;
+}
+
 export async function importDataUrlAssetBridge(
   dataUrl: string,
   vaultPath: string,

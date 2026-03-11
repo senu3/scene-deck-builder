@@ -124,6 +124,51 @@ function writeTrashIndex(trashPath: string, index: TrashIndex) {
   fs.writeFileSync(indexPath, JSON.stringify(index, null, 2), 'utf-8');
 }
 
+function ensureAssetsPath(vaultPath: string): string {
+  const assetsPath = path.join(vaultPath, 'assets');
+  if (!fs.existsSync(assetsPath)) {
+    fs.mkdirSync(assetsPath, { recursive: true });
+  }
+  return assetsPath;
+}
+
+function getAssetIndexPath(vaultPath: string): string {
+  return path.join(ensureAssetsPath(vaultPath), '.index.json');
+}
+
+function loadAssetIndexForVault(vaultPath: string): AssetIndex {
+  const indexPath = getAssetIndexPath(vaultPath);
+  if (!fs.existsSync(indexPath)) {
+    return { version: 1, assets: [] };
+  }
+  try {
+    return JSON.parse(fs.readFileSync(indexPath, 'utf-8')) as AssetIndex;
+  } catch {
+    return { version: 1, assets: [] };
+  }
+}
+
+function upsertAssetIndexEntry(index: AssetIndex, entry: AssetIndexEntry) {
+  const existingIndex = index.assets.findIndex((item) => item.id === entry.id);
+  if (existingIndex >= 0) {
+    index.assets[existingIndex] = entry;
+  } else {
+    index.assets.push(entry);
+  }
+}
+
+function writeAssetIndexForVault(vaultPath: string, index: AssetIndex) {
+  const indexPath = getAssetIndexPath(vaultPath);
+  fs.writeFileSync(indexPath, JSON.stringify(index, null, 2), 'utf-8');
+}
+
+function isPathInsideAssets(vaultPath: string, filePath: string): boolean {
+  const assetsPath = path.resolve(ensureAssetsPath(vaultPath));
+  const targetPath = path.resolve(filePath);
+  const relative = path.relative(assetsPath, targetPath);
+  return relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative);
+}
+
 function purgeExpiredTrash(trashPath: string, index: TrashIndex): TrashIndex {
   const now = Date.now();
   const ttlMs = (index.retentionDays ?? DEFAULT_TRASH_RETENTION_DAYS) * 24 * 60 * 60 * 1000;
@@ -156,11 +201,7 @@ function purgeExpiredTrash(trashPath: string, index: TrashIndex): TrashIndex {
 
 export function saveAssetIndexInternal(vaultPath: string, index: AssetIndex): boolean {
   try {
-    const assetsPath = path.join(vaultPath, 'assets');
-    if (!fs.existsSync(assetsPath)) {
-      fs.mkdirSync(assetsPath, { recursive: true });
-    }
-    const indexPath = path.join(assetsPath, '.index.json');
+    const indexPath = getAssetIndexPath(vaultPath);
     const normalizedAssets = index.assets.map((entry) => ({
       ...entry,
       originalPath: toVaultRelativePath(vaultPath, entry.originalPath),
@@ -179,35 +220,7 @@ export async function importAssetToVaultInternal(
   assetId: string
 ): Promise<VaultImportResult> {
   try {
-    const assetsPath = path.join(vaultPath, 'assets');
-    const indexPath = path.join(assetsPath, '.index.json');
-
-    const loadIndex = (): AssetIndex => {
-      if (!fs.existsSync(indexPath)) {
-        return { version: 1, assets: [] };
-      }
-      try {
-        return JSON.parse(fs.readFileSync(indexPath, 'utf-8'));
-      } catch {
-        return { version: 1, assets: [] };
-      }
-    };
-
-    const upsertIndexEntry = (index: AssetIndex, entry: AssetIndexEntry) => {
-      const existingIndex = index.assets.findIndex((item) => item.id === entry.id);
-      if (existingIndex >= 0) {
-        index.assets[existingIndex] = entry;
-      } else {
-        index.assets.push(entry);
-      }
-    };
-
-    const saveIndex = (index: AssetIndex) => {
-      if (!fs.existsSync(assetsPath)) {
-        fs.mkdirSync(assetsPath, { recursive: true });
-      }
-      fs.writeFileSync(indexPath, JSON.stringify(index, null, 2), 'utf-8');
-    };
+    const assetsPath = ensureAssetsPath(vaultPath);
 
     const sourceStats = fs.statSync(sourcePath);
     // Calculate hash without loading the full file into memory.
@@ -228,7 +241,7 @@ export async function importAssetToVaultInternal(
     const destPath = path.join(assetsPath, newFilename);
     const relativePath = `assets/${newFilename}`;
 
-    const index = loadIndex();
+    const index = loadAssetIndexForVault(vaultPath);
     const baseEntry: AssetIndexEntry = {
       id: assetId,
       hash,
@@ -246,8 +259,8 @@ export async function importAssetToVaultInternal(
       const existingHash = await calculateFileHashStream(destPath);
 
       if (existingHash === hash) {
-        upsertIndexEntry(index, baseEntry);
-        saveIndex(index);
+        upsertAssetIndexEntry(index, baseEntry);
+        writeAssetIndexForVault(vaultPath, index);
         // Exact duplicate - return existing path
         return {
           success: true,
@@ -273,8 +286,8 @@ export async function importAssetToVaultInternal(
         ...baseEntry,
         filename: uniqueFilename,
       };
-      upsertIndexEntry(index, collisionEntry);
-      saveIndex(index);
+      upsertAssetIndexEntry(index, collisionEntry);
+      writeAssetIndexForVault(vaultPath, index);
       return {
         success: true,
         vaultPath: uniquePath,
@@ -287,8 +300,8 @@ export async function importAssetToVaultInternal(
     // Copy file to vault
     fs.copyFileSync(sourcePath, destPath);
 
-    upsertIndexEntry(index, baseEntry);
-    saveIndex(index);
+    upsertAssetIndexEntry(index, baseEntry);
+    writeAssetIndexForVault(vaultPath, index);
 
     return {
       success: true,
@@ -299,6 +312,57 @@ export async function importAssetToVaultInternal(
     };
   } catch (error) {
     console.error('Failed to import asset to vault:', error);
+    return { success: false, error: String(error) };
+  }
+}
+
+export async function registerVaultAssetInternal(
+  filePath: string,
+  vaultPath: string,
+  assetId: string
+): Promise<VaultImportResult> {
+  try {
+    if (!isPathInsideAssets(vaultPath, filePath)) {
+      return { success: false, error: 'Asset must already exist inside vault/assets' };
+    }
+
+    const stats = fs.statSync(filePath);
+    if (!stats.isFile()) {
+      return { success: false, error: 'Asset path must point to a file' };
+    }
+
+    const filename = path.basename(filePath);
+    const mediaType = getMediaType(filename);
+    if (!mediaType) {
+      return { success: false, error: 'Unsupported file type' };
+    }
+
+    const hash = await calculateFileHashStream(filePath);
+    const index = loadAssetIndexForVault(vaultPath);
+    const relativePath = `assets/${filename}`;
+    const entry: AssetIndexEntry = {
+      id: assetId,
+      hash,
+      filename,
+      originalName: filename,
+      originalPath: toVaultRelativePath(vaultPath, filePath),
+      type: mediaType,
+      fileSize: stats.size,
+      importedAt: new Date().toISOString(),
+    };
+
+    upsertAssetIndexEntry(index, entry);
+    writeAssetIndexForVault(vaultPath, index);
+
+    return {
+      success: true,
+      vaultPath: filePath,
+      relativePath,
+      hash,
+      isDuplicate: false,
+    };
+  } catch (error) {
+    console.error('Failed to register existing vault asset:', error);
     return { success: false, error: String(error) };
   }
 }
@@ -431,6 +495,10 @@ export async function moveToTrashInternal(filePath: string, trashPath: string, m
 export function registerVaultGatewayHandlers(ipcMain: IpcMain) {
   ipcMain.handle('vault-gateway-import-asset', async (_, sourcePath: string, vaultPath: string, assetId: string) => {
     return importAssetToVaultInternal(sourcePath, vaultPath, assetId);
+  });
+
+  ipcMain.handle('vault-gateway-register-vault-asset', async (_, filePath: string, vaultPath: string, assetId: string) => {
+    return registerVaultAssetInternal(filePath, vaultPath, assetId);
   });
 
   ipcMain.handle('vault-gateway-import-data-url', async (_, dataUrl: string, vaultPath: string, assetId: string) => {

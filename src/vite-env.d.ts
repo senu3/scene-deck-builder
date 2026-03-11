@@ -107,6 +107,7 @@ interface VaultVerifyResult {
 
 interface VaultGatewayAPI {
   importAndRegisterAsset: (sourcePath: string, vaultPath: string, assetId: string) => Promise<VaultImportResult>;
+  registerVaultAsset: (filePath: string, vaultPath: string, assetId: string) => Promise<VaultImportResult>;
   importDataUrlAsset: (dataUrl: string, vaultPath: string, assetId: string) => Promise<VaultImportResult>;
   saveAssetIndex: (vaultPath: string, index: AssetIndex) => Promise<boolean>;
   moveToTrashWithMeta: (filePath: string, trashPath: string, meta: TrashMeta) => Promise<string | null>;

@@ -1,4 +1,5 @@
 import {
+  getFileInfoBridge,
   hasVaultGatewayBridge,
   getVideoMetadataBridge,
   loadAssetIndexBridge,
@@ -42,6 +43,12 @@ type VideoMetadataLike = {
   height?: number;
 };
 
+export type CanonicalAssetMetadata = {
+  duration?: number;
+  fileSize?: number;
+  metadata?: Asset['metadata'];
+};
+
 type DeleteAssetWithIndexSyncParams = {
   assetPath: string;
   trashPath: string;
@@ -78,6 +85,40 @@ export type DeleteAssetWithIndexSyncResult = {
   indexUpdated: boolean;
   reason?: 'electron-unavailable' | 'trash-move-failed' | 'index-update-failed' | 'invalid-params';
 };
+
+function normalizePositiveNumber(value: unknown): number | undefined {
+  if (typeof value !== 'number') return undefined;
+  if (!Number.isFinite(value) || value <= 0) return undefined;
+  return value;
+}
+
+function normalizeNonNegativeNumber(value: unknown): number | undefined {
+  if (typeof value !== 'number') return undefined;
+  if (!Number.isFinite(value) || value < 0) return undefined;
+  return value;
+}
+
+function normalizeAssetMetadataShape(value: unknown): Asset['metadata'] | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const raw = value as Record<string, unknown>;
+  const normalized: NonNullable<Asset['metadata']> = {};
+
+  if (typeof raw.width === 'number' && Number.isFinite(raw.width) && raw.width > 0) normalized.width = raw.width;
+  if (typeof raw.height === 'number' && Number.isFinite(raw.height) && raw.height > 0) normalized.height = raw.height;
+  if (typeof raw.format === 'string' && raw.format) normalized.format = raw.format;
+  if (typeof raw.prompt === 'string' && raw.prompt) normalized.prompt = raw.prompt;
+  if (typeof raw.negativePrompt === 'string' && raw.negativePrompt) normalized.negativePrompt = raw.negativePrompt;
+  if (typeof raw.model === 'string' && raw.model) normalized.model = raw.model;
+  if (typeof raw.seed === 'number' && Number.isFinite(raw.seed)) normalized.seed = raw.seed;
+  if (typeof raw.steps === 'number' && Number.isFinite(raw.steps) && raw.steps >= 0) normalized.steps = raw.steps;
+  if (typeof raw.sampler === 'string' && raw.sampler) normalized.sampler = raw.sampler;
+  if (typeof raw.cfg === 'number' && Number.isFinite(raw.cfg)) normalized.cfg = raw.cfg;
+  if (typeof raw.software === 'string' && raw.software) normalized.software = raw.software;
+  const fileSize = normalizeNonNegativeNumber(raw.fileSize);
+  if (fileSize !== undefined) normalized.fileSize = fileSize;
+
+  return Object.keys(normalized).length > 0 ? normalized : undefined;
+}
 
 function isAssetIndexEntryLike(value: unknown): value is AssetIndexEntryLike {
   if (!value || typeof value !== 'object') return false;
@@ -168,10 +209,49 @@ export async function readVideoMetadataForPath(path: string): Promise<VideoMetad
 
 export async function resolveVideoDurationForPath(path: string): Promise<number | null> {
   const meta = await readVideoMetadataForPath(path);
-  const duration = meta?.duration;
-  if (typeof duration !== 'number') return null;
-  if (!Number.isFinite(duration) || duration <= 0) return null;
-  return duration;
+  return normalizePositiveNumber(meta?.duration) ?? null;
+}
+
+export async function readCanonicalAssetMetadataForPath(
+  path: string,
+  assetType: Asset['type'],
+  seed?: CanonicalAssetMetadata
+): Promise<CanonicalAssetMetadata> {
+  const fileInfo = await getFileInfoBridge(path).catch(() => null);
+  const next: CanonicalAssetMetadata = {
+    duration: normalizePositiveNumber(seed?.duration),
+    fileSize: normalizeNonNegativeNumber(fileInfo?.size) ?? normalizeNonNegativeNumber(seed?.fileSize),
+    metadata: normalizeAssetMetadataShape(seed?.metadata),
+  };
+
+  if (assetType === 'image') {
+    const imageMeta = await readImageMetadataForPath(path);
+    const normalizedImageMeta = normalizeAssetMetadataShape({
+      ...(next.metadata || {}),
+      ...(imageMeta || {}),
+    });
+    return {
+      ...next,
+      fileSize: normalizeNonNegativeNumber(imageMeta?.fileSize) ?? next.fileSize,
+      metadata: normalizedImageMeta,
+    };
+  }
+
+  if (assetType === 'video') {
+    const videoMeta = await readVideoMetadataForPath(path);
+    const normalizedVideoMeta = normalizeAssetMetadataShape({
+      ...(next.metadata || {}),
+      width: videoMeta?.width,
+      height: videoMeta?.height,
+    });
+    return {
+      ...next,
+      duration: normalizePositiveNumber(videoMeta?.duration) ?? next.duration,
+      metadata: normalizedVideoMeta,
+    };
+  }
+
+  return next;
 }
 
 export async function deleteAssetWithIndexSync(

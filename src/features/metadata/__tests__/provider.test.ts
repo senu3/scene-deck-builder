@@ -4,6 +4,7 @@ import {
   deleteAssetWithIndexSync,
   hydrateAssetsByIdsFromIndex,
   loadAssetIndexEntries,
+  readCanonicalAssetMetadataForPath,
   removeAssetsFromIndex,
   readImageMetadataForPath,
   readVideoMetadataForPath,
@@ -91,6 +92,50 @@ describe('metadata provider', () => {
     (window.electronAPI!.getVideoMetadata as any).mockResolvedValueOnce({ duration: 0 });
     const duration = await resolveVideoDurationForPath('C:/vault/assets/a.mp4');
     expect(duration).toBeNull();
+  });
+
+  it('reads canonical image metadata from the provider surface', async () => {
+    resetElectronMocks();
+    (window.electronAPI!.getFileInfo as any).mockResolvedValueOnce({ size: 4567 });
+    (window.electronAPI!.readImageMetadata as any).mockResolvedValueOnce({
+      width: 1920,
+      height: 1080,
+      format: 'png',
+      fileSize: 4567,
+    });
+
+    const meta = await readCanonicalAssetMetadataForPath('C:/vault/assets/a.png', 'image');
+    expect(meta).toEqual({
+      fileSize: 4567,
+      metadata: {
+        width: 1920,
+        height: 1080,
+        format: 'png',
+        fileSize: 4567,
+      },
+    });
+  });
+
+  it('prefers normalized video metadata and drops invalid seed duration', async () => {
+    resetElectronMocks();
+    (window.electronAPI!.getFileInfo as any).mockResolvedValueOnce({ size: 1234 });
+    (window.electronAPI!.getVideoMetadata as any).mockResolvedValueOnce({
+      duration: 12.34,
+      width: 1280,
+      height: 720,
+    });
+
+    const meta = await readCanonicalAssetMetadataForPath('C:/vault/assets/a.mp4', 'video', {
+      duration: 0,
+    });
+    expect(meta).toEqual({
+      duration: 12.34,
+      fileSize: 1234,
+      metadata: {
+        width: 1280,
+        height: 720,
+      },
+    });
   });
 
   it('deletes asset and updates index in serialized mutation path', async () => {

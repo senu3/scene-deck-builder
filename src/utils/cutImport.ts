@@ -1,7 +1,7 @@
 import type { Asset } from '../types';
 import { importFileToVault } from './assetPath';
-import { extractVideoMetadata } from './videoUtils';
 import { getAssetThumbnail } from '../features/thumbnails/api';
+import { readCanonicalAssetMetadataForPath } from '../features/metadata/provider';
 
 export interface CutImportSource {
   assetId: string;
@@ -24,24 +24,16 @@ export async function buildAssetForCut(
   source: CutImportSource,
   vaultPath?: string | null
 ): Promise<CutImportResult> {
-  let duration = source.preferredDuration ?? source.existingAsset?.duration;
+  const canonicalMetadata = await readCanonicalAssetMetadataForPath(source.sourcePath, source.type, {
+    duration: source.preferredDuration ?? source.existingAsset?.duration,
+    fileSize: source.fileSize ?? source.existingAsset?.fileSize,
+    metadata: source.existingAsset?.metadata,
+  });
+  let duration = canonicalMetadata.duration ?? source.preferredDuration ?? source.existingAsset?.duration;
   let thumbnail = source.preferredThumbnail ?? source.existingAsset?.thumbnail;
-  let metadata = source.existingAsset?.metadata;
+  let metadata = canonicalMetadata.metadata ?? source.existingAsset?.metadata;
 
   if (source.type === 'video') {
-    if (!duration) {
-      const videoMeta = await extractVideoMetadata(source.sourcePath);
-      if (videoMeta) {
-        duration = videoMeta.duration;
-        if (!metadata) {
-          metadata = {
-            width: videoMeta.width,
-            height: videoMeta.height,
-          };
-        }
-      }
-    }
-
     if (!thumbnail) {
       const thumb = await getAssetThumbnail('timeline-card', {
         assetId: source.assetId,
@@ -64,7 +56,7 @@ export async function buildAssetForCut(
     thumbnail,
     duration,
     metadata,
-    fileSize: source.fileSize ?? source.existingAsset?.fileSize,
+    fileSize: canonicalMetadata.fileSize ?? source.fileSize ?? source.existingAsset?.fileSize,
   };
 
   let resolvedAsset: Asset | null = null;

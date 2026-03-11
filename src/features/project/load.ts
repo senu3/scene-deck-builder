@@ -1,7 +1,7 @@
 import type { Asset, AssetIndexEntry, Scene } from '../../types';
 import type { MissingAssetInfo, RecoveryDecision } from '../../components/MissingAssetRecoveryModal';
-import { importFileToVault } from '../../utils/assetPath';
-import { extractVideoMetadata } from '../../utils/videoUtils';
+import { registerAssetFile } from '../asset/write';
+import { readCanonicalAssetMetadataForPath } from '../metadata/provider';
 import { getAssetThumbnail } from '../thumbnails/api';
 import { generateVideoClipThumbnail } from '../cut/clipThumbnail';
 import { getCuttableMediaType } from '../../utils/mediaType';
@@ -221,62 +221,35 @@ export async function applyRecoveryDecisionsToScenes(
         }
 
         const newPath = decision.newPath!;
-        const newName = newPath.split(/[/\\]/).pop() || currentAsset.name;
-        const newType = getCuttableMediaType(newName) || 'image';
-
-        let thumbnail: string | undefined;
-        let duration: number | undefined;
-        let metadata: { width?: number; height?: number } | undefined;
-
-        if (newType === 'video') {
-          const videoMeta = await extractVideoMetadata(newPath);
-          if (videoMeta) {
-            duration = videoMeta.duration;
-            metadata = { width: videoMeta.width, height: videoMeta.height };
-          }
-          const thumb = await getAssetThumbnail('timeline-card', {
-            path: newPath,
-            type: 'video',
-            timeOffset: 0,
-          });
-          if (thumb) {
-            thumbnail = thumb;
-          }
-        } else {
-          const base64 = await getAssetThumbnail('timeline-card', {
-            path: newPath,
-            type: 'image',
-          });
-          if (base64) {
-            thumbnail = base64;
-          }
-        }
-
-        const importedAsset = await importFileToVault(
-          newPath,
+        const assetId = resolveCutAssetId(cut, () => undefined) || currentAsset.id;
+        const draftedAsset = await buildRecoveryRelinkAssetDraft(newPath, currentAsset);
+        const importedAsset = await registerAssetFile({
+          sourcePath: newPath,
           vaultPath,
-          resolveCutAssetId(cut, () => undefined) || currentAsset.id,
-          {
-            name: newName,
-            type: newType,
-            thumbnail,
-            duration,
-            metadata,
-          }
-        );
+          assetId,
+          existingAsset: draftedAsset,
+        });
 
-        if (importedAsset) {
+        if (importedAsset?.asset) {
           return {
             ...cut,
-            asset: { ...importedAsset, thumbnail, duration, metadata },
-            displayTime: newType === 'video' && duration ? duration : cut.displayTime,
+            assetId: importedAsset.asset.id,
+            asset: importedAsset.asset,
+            displayTime:
+              importedAsset.asset.type === 'video' && importedAsset.asset.duration
+                ? importedAsset.asset.duration
+                : cut.displayTime,
           };
         }
 
         return {
           ...cut,
-          asset: { ...currentAsset, path: newPath, name: newName, type: newType, thumbnail, duration, metadata },
-          displayTime: newType === 'video' && duration ? duration : cut.displayTime,
+          assetId: draftedAsset.id,
+          asset: draftedAsset,
+          displayTime:
+            draftedAsset.type === 'video' && draftedAsset.duration
+              ? draftedAsset.duration
+              : cut.displayTime,
         };
       }));
       return { ...scene, cuts: updatedCuts };
@@ -284,6 +257,42 @@ export async function applyRecoveryDecisionsToScenes(
   }
 
   return finalScenes;
+}
+
+async function buildRecoveryRelinkAssetDraft(newPath: string, currentAsset: Asset): Promise<Asset> {
+  const newName = newPath.split(/[/\\]/).pop() || currentAsset.name;
+  const newType = getCuttableMediaType(newName) || 'image';
+  const canonicalMetadata = await readCanonicalAssetMetadataForPath(newPath, newType, {
+    duration: currentAsset.duration,
+    fileSize: currentAsset.fileSize,
+    metadata: currentAsset.metadata,
+  });
+
+  let thumbnail: string | undefined;
+  if (newType === 'video') {
+    thumbnail = await getAssetThumbnail('timeline-card', {
+      path: newPath,
+      type: 'video',
+      timeOffset: 0,
+    }) || undefined;
+  } else {
+    thumbnail = await getAssetThumbnail('timeline-card', {
+      path: newPath,
+      type: 'image',
+    }) || undefined;
+  }
+
+  return {
+    ...currentAsset,
+    name: newName,
+    path: newPath,
+    type: newType,
+    thumbnail,
+    duration: canonicalMetadata.duration,
+    metadata: canonicalMetadata.metadata,
+    fileSize: canonicalMetadata.fileSize,
+    originalPath: newPath,
+  };
 }
 
 export function collectRecoveryRelinkEventCandidates(

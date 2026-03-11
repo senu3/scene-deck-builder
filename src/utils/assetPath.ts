@@ -1,16 +1,10 @@
-import type { Asset, AssetIndex } from '../types';
+import type { Asset } from '../types';
 import {
-  calculateFileHashBridge,
-  getFileInfoBridge,
-  getRelativePathBridge,
-  hasVaultGatewayBridge,
-  importAndRegisterAssetBridge,
   isPathInVaultBridge,
-  loadAssetIndexBridge,
   pathExistsBridge,
   resolveVaultPathBridge,
-  saveAssetIndexBridge,
 } from '../features/platform/electronGateway';
+import { registerAssetFile } from '../features/asset/write';
 
 /**
  * Asset path utilities for vault synchronization
@@ -124,91 +118,16 @@ export async function importFileToVault(
   assetId: string,
   existingAsset?: Partial<Asset>
 ): Promise<Asset | null> {
-  if (!hasVaultGatewayBridge()) {
+  const registered = await registerAssetFile({
+    sourcePath,
+    vaultPath,
+    assetId,
+    existingAsset,
+  });
+  if (!registered) {
     return null;
   }
-
-  const inVault = await isPathInVaultAssets(vaultPath, sourcePath);
-
-  if (inVault) {
-    const relativePath = await getRelativePathBridge(vaultPath, sourcePath);
-    if (!relativePath) {
-      return null;
-    }
-
-    const normalizedRelativePath = relativePath.replace(/\\/g, '/');
-    const filename = normalizedRelativePath.split('/').pop() || sourcePath.split(/[/\\]/).pop() || 'Unknown';
-    const hash = (await calculateFileHashBridge(sourcePath)) || existingAsset?.hash || '';
-    const fileSize = existingAsset?.fileSize || (await getFileInfoBridge(sourcePath))?.size || 0;
-    const mediaType = existingAsset?.type || getMediaTypeFromPath(sourcePath);
-
-    const index = (await loadAssetIndexBridge(vaultPath)) || { version: 1, assets: [] as AssetIndex['assets'] };
-    const nextAssets = [...index.assets];
-    const entry = {
-      id: assetId,
-      hash,
-      filename,
-      originalName: existingAsset?.name || filename,
-      originalPath: normalizedRelativePath,
-      type: mediaType,
-      fileSize,
-      importedAt: new Date().toISOString(),
-    };
-    const existingIndex = nextAssets.findIndex((item) => item.id === assetId);
-    if (existingIndex >= 0) {
-      nextAssets[existingIndex] = entry;
-    } else {
-      nextAssets.push(entry);
-    }
-
-    await saveAssetIndexBridge(vaultPath, {
-      version: index.version || 1,
-      assets: nextAssets,
-    });
-
-    return {
-      ...existingAsset,
-      id: assetId,
-      name: existingAsset?.name || filename,
-      path: sourcePath,
-      type: mediaType,
-      vaultRelativePath: normalizedRelativePath,
-      originalPath: sourcePath,
-      hash,
-      fileSize,
-    } as Asset;
-  }
-
-  // Import to vault
-  const result = await importAndRegisterAssetBridge(sourcePath, vaultPath, assetId);
-
-  if (!result?.success) {
-    console.error('Failed to import asset to vault:', result?.error);
-    return null;
-  }
-
-  return {
-    ...existingAsset,
-    id: assetId,
-    name: existingAsset?.name || sourcePath.split(/[/\\]/).pop() || 'Unknown',
-    path: result.vaultPath || sourcePath,
-    type: existingAsset?.type || getMediaTypeFromPath(sourcePath),
-    vaultRelativePath: result.relativePath,
-    originalPath: sourcePath,
-    hash: result.hash,
-  } as Asset;
-}
-
-/**
- * Get media type from file path
- */
-function getMediaTypeFromPath(filePath: string): 'image' | 'video' | 'audio' {
-  const ext = filePath.toLowerCase().split('.').pop() || '';
-  const videoExts = ['mp4', 'webm', 'mov', 'avi', 'mkv'];
-  const audioExts = ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'];
-  if (videoExts.includes(ext)) return 'video';
-  if (audioExts.includes(ext)) return 'audio';
-  return 'image';
+  return registered.asset;
 }
 
 /**

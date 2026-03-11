@@ -80,6 +80,13 @@ const electronAPIMock = {
       hash: 'abc',
       isDuplicate: false,
     })),
+    registerVaultAsset: vi.fn(async (_filePath: string, _vaultPath: string, _assetId: string) => ({
+      success: true,
+      vaultPath: 'C:/mock/vault/assets/img_abc.png',
+      relativePath: 'assets/img_abc.png',
+      hash: 'abc',
+      isDuplicate: false,
+    })),
     importDataUrlAsset: vi.fn(async () => ({
       success: true,
       vaultPath: 'C:/mock/vault/assets/img_data.png',

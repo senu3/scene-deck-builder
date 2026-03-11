@@ -43,11 +43,19 @@ describe('assetPath', () => {
     resetElectronMocks();
     const electronAPI = window.electronAPI as any;
     electronAPI.isPathInVault.mockResolvedValueOnce(true);
+    electronAPI.vaultGateway.registerVaultAsset.mockResolvedValueOnce({
+      success: true,
+      vaultPath: 'C:/vault/assets/original.png',
+      relativePath: 'assets/original.png',
+      hash: 'hash-original',
+      isDuplicate: false,
+    });
     const result = await importFileToVault('C:/vault/assets/original.png', 'C:/vault', 'asset-1');
     expect(result?.vaultRelativePath).toBe('assets/original.png');
     expect(result?.path).toBe('C:/vault/assets/original.png');
     expect(electronAPI.vaultGateway.importAndRegisterAsset).not.toHaveBeenCalled();
-    expect(electronAPI.vaultGateway.saveAssetIndex).toHaveBeenCalled();
+    expect(electronAPI.vaultGateway.registerVaultAsset).toHaveBeenCalledWith('C:/vault/assets/original.png', 'C:/vault', 'asset-1');
+    expect(electronAPI.vaultGateway.saveAssetIndex).not.toHaveBeenCalled();
   });
 
   it('does not let existingAsset.path override imported vault path', async () => {

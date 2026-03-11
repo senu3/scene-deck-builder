@@ -90,6 +90,7 @@ export interface VaultVerifyResult {
 
 export interface VaultGatewayAPI {
   importAndRegisterAsset: (sourcePath: string, vaultPath: string, assetId: string) => Promise<VaultImportResult>;
+  registerVaultAsset: (filePath: string, vaultPath: string, assetId: string) => Promise<VaultImportResult>;
   saveAssetIndex: (vaultPath: string, index: AssetIndex) => Promise<boolean>;
   moveToTrashWithMeta: (filePath: string, trashPath: string, meta: TrashMeta) => Promise<string | null>;
 }
@@ -438,6 +439,8 @@ const electronAPI = {
   vaultGateway: {
     importAndRegisterAsset: (sourcePath: string, vaultPath: string, assetId: string): Promise<VaultImportResult> =>
       ipcRenderer.invoke('vault-gateway-import-asset', sourcePath, vaultPath, assetId),
+    registerVaultAsset: (filePath: string, vaultPath: string, assetId: string): Promise<VaultImportResult> =>
+      ipcRenderer.invoke('vault-gateway-register-vault-asset', filePath, vaultPath, assetId),
     importDataUrlAsset: (dataUrl: string, vaultPath: string, assetId: string): Promise<VaultImportResult> =>
       ipcRenderer.invoke('vault-gateway-import-data-url', dataUrl, vaultPath, assetId),
     saveAssetIndex: (vaultPath: string, index: AssetIndex): Promise<boolean> =>

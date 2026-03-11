@@ -73,7 +73,6 @@ import {
 } from "../features/platform/electronGateway";
 import { clearPreviewClipPoints, savePreviewClipPoints } from "../features/cut/previewClipUpdate";
 import { resolveCutAsset } from "../utils/assetResolve";
-import { extractVideoMetadata } from "../utils/videoUtils";
 import { getLipSyncFrameAssetIds } from "../utils/lipSyncUtils";
 import { importFileToVault } from "../utils/assetPath";
 // Note: getAudioDuration was removed - duration comes from asset.duration after import
@@ -622,17 +621,8 @@ export default function DetailsPanel() {
         return;
       }
 
-      let duration: number | undefined;
-      if (importedAsset.type === 'video') {
-        const videoMeta = await extractVideoMetadata(importedAsset.path);
-        if (videoMeta) {
-          duration = videoMeta.duration;
-        }
-      }
-
       const newAsset: Asset = {
         ...importedAsset,
-        duration,
       };
 
       // Load thumbnail for images or generate for videos

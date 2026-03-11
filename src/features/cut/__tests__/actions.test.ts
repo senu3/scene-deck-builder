@@ -79,18 +79,22 @@ describe('cut actions', () => {
   it('finalizes clip and registers derived asset without creating cut', async () => {
     const finalizeClip = vi.fn(async (_options: { outputPath: string }) => ({ success: true, fileSize: 2048 }));
     const ensureAssetsFolder = vi.fn(async () => 'C:/vault/assets');
-    const saveAssetIndex = vi.fn(async () => true);
+    const registerVaultAsset = vi.fn(async () => ({
+      success: true,
+      vaultPath: 'C:/vault/assets/derived.mp4',
+      relativePath: 'assets/derived.mp4',
+      hash: 'abc',
+      isDuplicate: false,
+    }));
     Object.defineProperty(window, 'electronAPI', {
       value: {
         finalizeClip,
         ensureAssetsFolder,
         isPathInVault: vi.fn(async () => true),
-        getRelativePath: vi.fn(async () => 'assets/derived.mp4'),
-        calculateFileHash: vi.fn(async () => 'abc'),
         getFileInfo: vi.fn(async () => ({ size: 2048 })),
-        loadAssetIndex: vi.fn(async () => ({ version: 1, assets: [] })),
+        getVideoMetadata: vi.fn(async () => ({ duration: 2, width: 1920, height: 1080 })),
         vaultGateway: {
-          saveAssetIndex,
+          registerVaultAsset,
         },
       },
       writable: true,
@@ -107,7 +111,7 @@ describe('cut actions', () => {
 
     expect(result.success).toBe(true);
     expect(finalizeClip).toHaveBeenCalledTimes(1);
-    expect(saveAssetIndex).toHaveBeenCalledTimes(1);
+    expect(registerVaultAsset).toHaveBeenCalledTimes(1);
   });
 
   it('crops image and creates derived cut', async () => {
@@ -150,18 +154,21 @@ describe('cut actions', () => {
   it('extracts audio and registers as derived asset only', async () => {
     const extractAudio = vi.fn(async () => ({ success: true, fileSize: 4096 }));
     const ensureAssetsFolder = vi.fn(async () => 'C:/vault/assets');
-    const saveAssetIndex = vi.fn(async () => true);
+    const registerVaultAsset = vi.fn(async () => ({
+      success: true,
+      vaultPath: 'C:/vault/assets/derived.wav',
+      relativePath: 'assets/derived.wav',
+      hash: 'abc',
+      isDuplicate: false,
+    }));
     Object.defineProperty(window, 'electronAPI', {
       value: {
         extractAudio,
         ensureAssetsFolder,
         isPathInVault: vi.fn(async () => true),
-        getRelativePath: vi.fn(async () => 'assets/derived.wav'),
-        calculateFileHash: vi.fn(async () => 'abc'),
         getFileInfo: vi.fn(async () => ({ size: 4096 })),
-        loadAssetIndex: vi.fn(async () => ({ version: 1, assets: [] })),
         vaultGateway: {
-          saveAssetIndex,
+          registerVaultAsset,
         },
       },
       writable: true,
@@ -177,7 +184,7 @@ describe('cut actions', () => {
 
     expect(result.success).toBe(true);
     expect(extractAudio).toHaveBeenCalledTimes(1);
-    expect(saveAssetIndex).toHaveBeenCalledTimes(1);
+    expect(registerVaultAsset).toHaveBeenCalledTimes(1);
   });
 
   it('uses source path basename for derived filenames when display name is noisy', async () => {

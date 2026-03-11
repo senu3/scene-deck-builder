@@ -57,10 +57,10 @@ import {
 } from '../features/metadata/provider';
 import {
   hasVaultGatewayBridge,
-  importAndRegisterAssetBridge,
   pathExistsBridge,
   startAssetFileDragBridge,
 } from '../features/platform/electronGateway';
+import { registerAssetFile } from '../features/asset/write';
 import {
   checkPathExistsForSourcePanel,
   readFolderContentsForSourcePanel,
@@ -464,13 +464,17 @@ export default function AssetPanel({
       const assetId = uuidv4();
 
       try {
-        const result = await importAndRegisterAssetBridge(
-          file.path,
+        const result = await registerAssetFile({
+          sourcePath: file.path,
           vaultPath,
-          assetId
-        );
+          assetId,
+          existingAsset: {
+            name: file.name,
+            type: file.type,
+          },
+        });
 
-        if (result?.success) {
+        if (result) {
           if (result.isDuplicate) {
             skipped++;
           } else {
@@ -478,7 +482,7 @@ export default function AssetPanel({
           }
         } else {
           failed++;
-          console.error(`Failed to import ${file.name}:`, result?.error);
+          console.error(`Failed to import ${file.name}`);
         }
       } catch (error) {
         failed++;
