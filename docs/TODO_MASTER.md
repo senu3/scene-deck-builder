@@ -24,6 +24,13 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
   - BlockedBy: `TODO-INVEST-007`
   - DoneWhen: 実装とガイドの乖離を解消し、監査対象外の重処理ポリシーを反映
   - 関連: `docs/guides/implementation/buffer-memory.md`
+- `TODO-DEBT-005` Vault / Asset 管理整備の残フェーズを完了する
+  - Track: `Gate-Work`
+  - Status: `ready`
+  - StartWhen: shared write service 導入後の残整理に着手するとき
+  - BlockedBy: なし
+  - DoneWhen: `usageRefs` が派生情報として整理され、recovery read/commit 境界が feature レベルで明示され、`cut.asset` snapshot の残依存と docs/gate 更新方針が確定
+  - 関連: `docs/notes/vault-asset-management-plan-2026-03-11.md`
 
 ## UI-Spec-Pending Track
 - `TODO-DEBT-002` Preview ガイドの UI 文言を現行実装に合わせて更新する
