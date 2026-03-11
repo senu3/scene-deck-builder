@@ -32,11 +32,14 @@
   2. `.index.json`
   3. `.metadata.json`
   4. `.trash/.trash.json`
+- `project.sdp` が破損している場合、アプリは「破損通知 + Vault確認導線」を優先する。
+- `.index.json` は asset inventory / 実体解決の正本であり、scene/cut/timing の完全復元を単独で保証しない。
 
 ## 正本ファイルの責務
 - `.index.json`:
   - Asset識別と実体ファイル対応の正本。
-  - 保持情報例: assetId / filename / hash / type / importedAt
+  - 保持情報例: assetId / filename / hash / type / importedAt / derived usageRefs
+  - 注意: `displayTime` / clip `in/out` / group / notes は保持しない
 - `.metadata.json`:
   - Asset/Scene の補助メタ情報を保持する。
   - 例: audio attachment / analysis / scene notes

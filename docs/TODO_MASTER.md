@@ -52,6 +52,13 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
   - BlockedBy: なし
   - DoneWhen: migration + 後方互換 + docs 更新が完了
   - 関連: `docs/guides/lip-sync.md`
+- `TODO-BREAKING-002` `project.sdp` 破損通知と legacy project schema 受け入れ撤去を導入する
+  - Track: `Breaking`
+  - Status: `ready`
+  - StartWhen: recovery/load 方針を実装に反映するとき
+  - BlockedBy: なし
+  - DoneWhen: cancel と corruption が UI で区別され、`v2/version missing` project は明示エラーで読み込み拒否される
+  - 関連: `docs/guides/vault-assets.md`, `docs/notes/recovery-flow-minimum-plan-2026-03-11.md`
 
 ## Nice-to-have Track
 - `TODO-NICE-001` Autosave 設定 UI の interval/保存先連動を実装へ接続する
