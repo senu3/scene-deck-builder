@@ -1,4 +1,4 @@
-import type { DeleteAssetFileResult, RemoveAssetsFromIndexResult } from '../../metadata/provider';
+import type { DeleteAssetFileResult } from '../../metadata/provider';
 import type { ThumbnailProfile } from '../../../utils/thumbnailCache';
 import type { AssetIndex, MetadataStore } from '../../../types';
 
@@ -31,13 +31,6 @@ export type AppEffect =
         trashPath: string;
         assetIds: string[];
         reason?: string;
-      };
-    })
-  | (AppEffectBase & {
-      type: 'INDEX_UPDATE';
-      payload: {
-        vaultPath: string;
-        assetIds: string[];
       };
     })
   | (AppEffectBase & {
@@ -107,10 +100,6 @@ export interface EffectRunnerDeps {
     assetIds: string[];
     reason?: string;
   }) => Promise<DeleteAssetFileResult>;
-  removeAssetsFromIndex: (input: {
-    vaultPath: string;
-    assetIds: string[];
-  }) => Promise<RemoveAssetsFromIndexResult>;
   deleteMetadata: (assetIds: string[]) => void | Promise<void>;
   saveMetadata: (input: {
     vaultPath: string;
@@ -162,21 +151,6 @@ export function createFilesDeleteEffect(payload: {
     idempotent: false,
     coalescible: false,
     failurePolicy: 'fail',
-  };
-}
-
-export function createIndexUpdateEffect(payload: {
-  vaultPath: string;
-  assetIds: string[];
-}): Extract<AppEffect, { type: 'INDEX_UPDATE' }> {
-  return {
-    type: 'INDEX_UPDATE',
-    payload,
-    channel: 'commit',
-    orderingKey: 'vault-index',
-    idempotent: true,
-    coalescible: false,
-    failurePolicy: 'warn',
   };
 }
 

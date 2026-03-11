@@ -258,6 +258,7 @@ type AppVersionsLike = {
 
 type TrashMetaLike = {
   assetId?: string;
+  assetIds?: string[];
   reason?: string;
   originRefs?: Array<{
     sceneId?: string;

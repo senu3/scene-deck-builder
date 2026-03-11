@@ -6,8 +6,6 @@ import {
   moveToTrashWithMetaBridge,
   readImageMetadataBridge,
   resolveVaultPathBridge,
-  saveAssetIndexBridge,
-  withSerializedAssetIndexMutationBridge,
 } from '../platform/electronGateway';
 import type { Asset } from '../../types';
 
@@ -49,14 +47,6 @@ export type CanonicalAssetMetadata = {
   metadata?: Asset['metadata'];
 };
 
-type DeleteAssetWithIndexSyncParams = {
-  assetPath: string;
-  trashPath: string;
-  assetIds: string[];
-  reason?: string;
-  vaultPath?: string | null;
-};
-
 type DeleteAssetFileParams = {
   assetPath: string;
   trashPath: string;
@@ -64,25 +54,8 @@ type DeleteAssetFileParams = {
   reason?: string;
 };
 
-type RemoveAssetsFromIndexParams = {
-  vaultPath?: string | null;
-  assetIds: string[];
-};
-
 export type DeleteAssetFileResult = {
   success: boolean;
-  reason?: 'electron-unavailable' | 'trash-move-failed' | 'index-update-failed' | 'invalid-params';
-};
-
-export type RemoveAssetsFromIndexResult = {
-  success: boolean;
-  reason?: 'index-update-failed' | 'invalid-params';
-};
-
-export type DeleteAssetWithIndexSyncResult = {
-  success: boolean;
-  fileDeleted: boolean;
-  indexUpdated: boolean;
   reason?: 'electron-unavailable' | 'trash-move-failed' | 'index-update-failed' | 'invalid-params';
 };
 
@@ -254,30 +227,6 @@ export async function readCanonicalAssetMetadataForPath(
   return next;
 }
 
-export async function deleteAssetWithIndexSync(
-  params: DeleteAssetWithIndexSyncParams
-): Promise<DeleteAssetWithIndexSyncResult> {
-  const fileDeletion = await deleteAssetFile(params);
-  if (!fileDeletion.success) {
-    if (fileDeletion.reason === 'index-update-failed') {
-      return {
-        success: true,
-        fileDeleted: true,
-        indexUpdated: false,
-        reason: fileDeletion.reason,
-      };
-    }
-    return {
-      success: false,
-      fileDeleted: false,
-      indexUpdated: false,
-      reason: fileDeletion.reason,
-    };
-  }
-
-  return { success: true, fileDeleted: true, indexUpdated: true };
-}
-
 export async function deleteAssetFile(
   params: DeleteAssetFileParams
 ): Promise<DeleteAssetFileResult> {
@@ -292,6 +241,7 @@ export async function deleteAssetFile(
 
   const moved = await moveToTrashWithMetaBridge(assetPath, trashPath, {
     assetId: normalizedAssetIds[0],
+    assetIds: normalizedAssetIds.length > 0 ? normalizedAssetIds : undefined,
     reason: reason || 'asset-delete-policy',
   });
   if (!moved?.success) {
@@ -303,41 +253,5 @@ export async function deleteAssetFile(
     };
   }
 
-  return { success: true };
-}
-
-export async function removeAssetsFromIndex(
-  params: RemoveAssetsFromIndexParams
-): Promise<RemoveAssetsFromIndexResult> {
-  const { vaultPath, assetIds } = params;
-  const normalizedAssetIds = Array.from(new Set(assetIds.filter(Boolean)));
-  if (!vaultPath || normalizedAssetIds.length === 0) {
-    return { success: true };
-  }
-
-  const indexUpdated = await withSerializedAssetIndexMutationBridge(async () => {
-    try {
-      const index = await loadAssetIndexBridge(vaultPath);
-      if (!index || !Array.isArray(index.assets)) return false;
-      const deletedIds = new Set(normalizedAssetIds);
-      const updatedAssets = index.assets.filter((entry) => {
-        const candidate = entry as { id?: unknown };
-        return typeof candidate.id !== 'string' || !deletedIds.has(candidate.id);
-      });
-      if (updatedAssets.length === index.assets.length) {
-        return true;
-      }
-      return await saveAssetIndexBridge(vaultPath, {
-        ...index,
-        assets: updatedAssets,
-      });
-    } catch {
-      return false;
-    }
-  });
-
-  if (!indexUpdated) {
-    return { success: false, reason: 'index-update-failed' };
-  }
   return { success: true };
 }

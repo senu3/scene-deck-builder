@@ -1,5 +1,5 @@
 import { enqueueClipThumbnailRegeneration, type ClipThumbnailRegenerationDeps } from '../../cut/clipThumbnailRegenerationQueue';
-import { deleteAssetFile, removeAssetsFromIndex } from '../../metadata/provider';
+import { deleteAssetFile } from '../../metadata/provider';
 import { useStore } from '../../../store/useStore';
 import { saveMetadataStore } from '../../../utils/metadataStore';
 import {
@@ -79,7 +79,6 @@ async function runEffectBatch(
   const thumbnailDeps = resolveThumbnailDeps(options);
   return runEffects(effects, {
     deleteAssetFile,
-    removeAssetsFromIndex,
     deleteMetadata: async (assetIds) => {
       useStore.getState().removeAssetReferences(assetIds);
     },

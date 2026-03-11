@@ -1,11 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   deleteAssetFile,
-  deleteAssetWithIndexSync,
   hydrateAssetsByIdsFromIndex,
   loadAssetIndexEntries,
   readCanonicalAssetMetadataForPath,
-  removeAssetsFromIndex,
   readImageMetadataForPath,
   readVideoMetadataForPath,
   resolveVideoDurationForPath,
@@ -138,32 +136,7 @@ describe('metadata provider', () => {
     });
   });
 
-  it('deletes asset and updates index in serialized mutation path', async () => {
-    resetElectronMocks();
-    (window.electronAPI!.vaultGateway.moveToTrashWithMeta as any).mockResolvedValueOnce({
-      success: true,
-      trashedPath: 'C:/vault/.trash/aud_1.wav',
-      indexUpdated: true,
-    });
-
-    const result = await deleteAssetWithIndexSync({
-      assetPath: 'C:/vault/assets/aud_1.wav',
-      trashPath: 'C:/vault/.trash',
-      assetIds: ['aud-1'],
-      reason: 'asset-panel-delete',
-      vaultPath: 'C:/vault',
-    });
-
-    expect(result).toMatchObject({
-      success: true,
-      fileDeleted: true,
-      indexUpdated: true,
-    });
-    expect(window.electronAPI!.vaultGateway.moveToTrashWithMeta).toHaveBeenCalledTimes(1);
-    expect(window.electronAPI!.vaultGateway.saveAssetIndex).not.toHaveBeenCalled();
-  });
-
-  it('deletes only file via deleteAssetFile API', async () => {
+  it('deletes asset through gateway trash move and index sync path', async () => {
     resetElectronMocks();
     (window.electronAPI!.vaultGateway.moveToTrashWithMeta as any).mockResolvedValueOnce({
       success: true,
@@ -180,27 +153,43 @@ describe('metadata provider', () => {
 
     expect(result).toEqual({ success: true });
     expect(window.electronAPI!.vaultGateway.moveToTrashWithMeta).toHaveBeenCalledTimes(1);
+    expect(window.electronAPI!.vaultGateway.moveToTrashWithMeta).toHaveBeenCalledWith(
+      'C:/vault/assets/aud_1.wav',
+      'C:/vault/.trash',
+      expect.objectContaining({
+        assetId: 'aud-1',
+        assetIds: ['aud-1'],
+      }),
+    );
     expect(window.electronAPI!.vaultGateway.saveAssetIndex).not.toHaveBeenCalled();
   });
 
-  it('updates index via removeAssetsFromIndex API', async () => {
+  it('deletes only file via deleteAssetFile API', async () => {
     resetElectronMocks();
-    (window.electronAPI!.loadAssetIndex as any).mockResolvedValueOnce({
-      version: 1,
-      assets: [
-        { id: 'aud-1', filename: 'aud_1.wav' },
-        { id: 'img-1', filename: 'img_1.png' },
-      ],
+    (window.electronAPI!.vaultGateway.moveToTrashWithMeta as any).mockResolvedValueOnce({
+      success: true,
+      trashedPath: 'C:/vault/.trash/aud_1.wav',
+      indexUpdated: true,
     });
-    (window.electronAPI!.vaultGateway.saveAssetIndex as any).mockResolvedValueOnce(true);
 
-    const result = await removeAssetsFromIndex({
-      vaultPath: 'C:/vault',
-      assetIds: ['aud-1'],
+    const result = await deleteAssetFile({
+      assetPath: 'C:/vault/assets/aud_1.wav',
+      trashPath: 'C:/vault/.trash',
+      assetIds: ['aud-1', 'aud-1', 'aud-2'],
+      reason: 'asset-panel-delete',
     });
 
     expect(result).toEqual({ success: true });
-    expect(window.electronAPI!.vaultGateway.saveAssetIndex).toHaveBeenCalledTimes(1);
+    expect(window.electronAPI!.vaultGateway.moveToTrashWithMeta).toHaveBeenCalledTimes(1);
+    expect(window.electronAPI!.vaultGateway.moveToTrashWithMeta).toHaveBeenCalledWith(
+      'C:/vault/assets/aud_1.wav',
+      'C:/vault/.trash',
+      expect.objectContaining({
+        assetId: 'aud-1',
+        assetIds: ['aud-1', 'aud-2'],
+      }),
+    );
+    expect(window.electronAPI!.vaultGateway.saveAssetIndex).not.toHaveBeenCalled();
   });
 
   it('reports index sync failure after file deletion', async () => {
@@ -212,18 +201,15 @@ describe('metadata provider', () => {
       reason: 'index-update-failed',
     });
 
-    const result = await deleteAssetWithIndexSync({
+    const result = await deleteAssetFile({
       assetPath: 'C:/vault/assets/aud_1.wav',
       trashPath: 'C:/vault/.trash',
       assetIds: ['aud-1'],
       reason: 'asset-panel-delete',
-      vaultPath: 'C:/vault',
     });
 
     expect(result).toMatchObject({
-      success: true,
-      fileDeleted: true,
-      indexUpdated: false,
+      success: false,
       reason: 'index-update-failed',
     });
     expect(window.electronAPI!.vaultGateway.moveToTrashWithMeta).toHaveBeenCalledTimes(1);

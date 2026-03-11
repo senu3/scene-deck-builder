@@ -3,7 +3,6 @@ import type { AppEffect, EffectRunResult, EffectRunnerDeps } from './effects';
 function resolveFailureReason(effectType: AppEffect['type'], reason?: string): string {
   if (reason) return reason;
   if (effectType === 'FILES_DELETE') return 'trash-move-failed';
-  if (effectType === 'INDEX_UPDATE') return 'index-update-failed';
   if (effectType === 'SAVE_METADATA') return 'metadata-save-failed';
   if (effectType === 'SAVE_PROJECT') return 'project-save-failed';
   if (effectType === 'SAVE_RECENT_PROJECTS') return 'recent-projects-save-failed';
@@ -35,30 +34,6 @@ export async function runEffects(
 
     if (effect.type === 'FILES_DELETE') {
       const result = await deps.deleteAssetFile(effect.payload);
-      if (!result.success) {
-        const reason = resolveFailureReason(effect.type, result.reason);
-        results.push({
-          effect,
-          success: false,
-          reason,
-        });
-        options.onEffectEvent?.({
-          stage: 'failure',
-          effect,
-          reason,
-        });
-        return results;
-      }
-      results.push({ effect, success: true });
-      options.onEffectEvent?.({
-        stage: 'success',
-        effect,
-      });
-      continue;
-    }
-
-    if (effect.type === 'INDEX_UPDATE') {
-      const result = await deps.removeAssetsFromIndex(effect.payload);
       if (!result.success) {
         const reason = resolveFailureReason(effect.type, result.reason);
         results.push({

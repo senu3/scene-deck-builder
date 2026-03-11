@@ -12,6 +12,7 @@ export interface TrashOriginRef {
 
 export interface TrashMeta {
   assetId?: string;
+  assetIds?: string[];
   originRefs?: TrashOriginRef[];
   reason?: string;
 }
@@ -60,12 +61,14 @@ interface TrashEntry {
   id: string;
   deletedAt: string;
   assetId?: string;
+  assetIds?: string[];
   originalPath?: string;
   trashRelativePath: string;
   filename: string;
   reason?: string;
   originRefs?: TrashOriginRef[];
   indexEntry?: AssetIndexEntry;
+  indexEntries?: AssetIndexEntry[];
 }
 
 interface TrashIndex {
@@ -204,6 +207,21 @@ function purgeExpiredTrash(trashPath: string, index: TrashIndex): TrashIndex {
   }
 
   return { ...index, items: keepItems };
+}
+
+function normalizeTrashAssetIds(meta: TrashMeta | null): string[] {
+  const ids = new Set<string>();
+  if (typeof meta?.assetId === 'string' && meta.assetId) {
+    ids.add(meta.assetId);
+  }
+  if (Array.isArray(meta?.assetIds)) {
+    for (const assetId of meta.assetIds) {
+      if (typeof assetId === 'string' && assetId) {
+        ids.add(assetId);
+      }
+    }
+  }
+  return [...ids];
 }
 
 export function saveAssetIndexInternal(vaultPath: string, index: AssetIndex): boolean {
@@ -457,17 +475,19 @@ export async function moveToTrashInternal(filePath: string, trashPath: string, m
 
     const trashRelativePath = path.posix.join('.trash', path.basename(destPath));
     const vaultPath = path.dirname(trashPath);
+    const normalizedAssetIds = normalizeTrashAssetIds(meta);
 
-    let indexEntry: AssetIndexEntry | undefined;
+    let indexEntries: AssetIndexEntry[] = [];
     let indexUpdated = true;
-    if (meta?.assetId) {
+    if (normalizedAssetIds.length > 0) {
       const indexPath = path.join(vaultPath, 'assets', '.index.json');
       if (fs.existsSync(indexPath)) {
         try {
           const index = JSON.parse(fs.readFileSync(indexPath, 'utf-8')) as AssetIndex;
-          indexEntry = index.assets.find((entry) => entry.id === meta.assetId);
-          if (indexEntry) {
-            const filtered = index.assets.filter((entry) => entry.id !== meta.assetId);
+          const deletedIds = new Set(normalizedAssetIds);
+          indexEntries = index.assets.filter((entry) => deletedIds.has(entry.id));
+          if (indexEntries.length > 0) {
+            const filtered = index.assets.filter((entry) => !deletedIds.has(entry.id));
             fs.writeFileSync(indexPath, JSON.stringify({ ...index, assets: filtered }, null, 2), 'utf-8');
           }
         } catch (error) {
@@ -483,13 +503,22 @@ export async function moveToTrashInternal(filePath: string, trashPath: string, m
     const entry: TrashEntry = {
       id: crypto.randomUUID(),
       deletedAt: new Date().toISOString(),
-      assetId: meta?.assetId,
+      assetId: normalizedAssetIds[0],
+      assetIds: normalizedAssetIds.length > 0 ? normalizedAssetIds : undefined,
       originalPath: toVaultRelativePath(vaultPath, filePath),
       trashRelativePath,
       filename: path.basename(destPath),
       reason: meta?.reason,
       originRefs: meta?.originRefs,
-      indexEntry: indexEntry ? { ...indexEntry, originalPath: toVaultRelativePath(vaultPath, indexEntry.originalPath) } : undefined,
+      indexEntry: indexEntries[0]
+        ? { ...indexEntries[0], originalPath: toVaultRelativePath(vaultPath, indexEntries[0].originalPath) }
+        : undefined,
+      indexEntries: indexEntries.length > 0
+        ? indexEntries.map((indexEntry) => ({
+            ...indexEntry,
+            originalPath: toVaultRelativePath(vaultPath, indexEntry.originalPath),
+          }))
+        : undefined,
     };
 
     trashIndex.items.push(entry);

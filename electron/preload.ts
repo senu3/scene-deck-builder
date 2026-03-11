@@ -292,6 +292,7 @@ export interface TrashOriginRef {
 
 export interface TrashMeta {
   assetId?: string;
+  assetIds?: string[];
   originRefs?: TrashOriginRef[];
   reason?: string;
 }
