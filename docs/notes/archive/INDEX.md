@@ -32,6 +32,7 @@
 - `docs/notes/archive/store-ui-feature-effects-migration-plan-implemented-2026-03-05.md`
 - `docs/notes/archive/sequence-plan-timing-inventory-implemented-2026-03-10.md`
 - `docs/notes/archive/group-audio-continuous-playback-plan-implemented-2026-03-10.md`
+- `docs/notes/archive/electron40-smoke-observability-archived-2026-03-12.md`
 - `docs/notes/archive/recovery-flow-minimum-plan-implemented-2026-03-12.md`
 
 ## ルール

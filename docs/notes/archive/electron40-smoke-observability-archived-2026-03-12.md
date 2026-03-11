@@ -1,5 +1,8 @@
 # Electron 40 事前スモーク / 障害追跡
 
+この文書は 2026-03-12 に `docs/guides/implementation/` から archive へ移動した。
+Electron 40 事前確認の時限メモとして保持し、現行 L2 guideline の正本とはしない。
+
 **目的**: Electron 40系アップグレード前に、起動〜ロード〜プレビュー〜エクスポートの最低限スモークと、クラッシュ原因追跡の採取点を固定する。  
 **適用範囲**: `electron/main.ts`, `electron/preload.ts`, `src/main.tsx` のログ/例外収集と手動確認手順。  
 **関連ファイル**: `electron/main.ts`, `electron/preload.ts`, `src/main.tsx`, `src/hooks/useHeaderProjectController.ts`, `src/components/PreviewModal.tsx`, `src/components/ExportModal.tsx`。  
