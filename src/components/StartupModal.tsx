@@ -37,7 +37,11 @@ import {
   type AppEffectDispatchResult,
 } from '../features/platform/effects';
 import { buildProjectLoadFailureAlert } from '../features/project/loadFailure';
-import { type RecoveryAssessment, formatRecoveryAssessmentSummary } from '../features/project/recoveryAssessment';
+import {
+  type RecoveryAssessment,
+  formatRecoveryAssessmentSummary,
+  getRecoveryAssessmentNotices,
+} from '../features/project/recoveryAssessment';
 import { hasElectronBridge } from '../features/platform/electronGateway';
 import { useDialog } from '../ui';
 import './StartupModal.css';
@@ -239,10 +243,10 @@ export default function StartupModal() {
       return;
     }
     await finalizeProjectLoad(outcome.payload);
-    if (outcome.assessment.mode === 'repairable') {
+    if (outcome.assessment.mode === 'repairable' && getRecoveryAssessmentNotices(outcome.assessment, 'load').length > 0) {
       await dialogAlert({
         title: 'Recovery Report',
-        message: formatRecoveryAssessmentSummary(outcome.assessment),
+        message: formatRecoveryAssessmentSummary(outcome.assessment, 'load'),
         variant: 'warning',
       });
     }

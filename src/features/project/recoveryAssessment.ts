@@ -30,6 +30,8 @@ export interface RecoveryAssessment {
   issues: RecoveryAssessmentIssue[];
 }
 
+export type RecoveryAssessmentNoticeContext = 'load' | 'save' | 'modal';
+
 function hasNormalization(flags: RecoveryNormalizationFlags): boolean {
   return Object.values(flags).some(Boolean);
 }
@@ -64,24 +66,53 @@ export function listRecoveryNormalizationLabels(flags: RecoveryNormalizationFlag
   return labels;
 }
 
+function hasStructuralNormalization(flags: RecoveryNormalizationFlags): boolean {
+  return flags.sceneIdsAssigned || flags.sceneOrderNormalized || flags.sceneStructureNormalized;
+}
+
+export function getRecoveryAssessmentNotices(
+  assessment: RecoveryAssessment,
+  context: RecoveryAssessmentNoticeContext,
+  overrides: { rescuedCutCount?: number } = {}
+): string[] {
+  const rescuedCutCount = overrides.rescuedCutCount ?? assessment.report.rescuedCutCount;
+  const notices: string[] = [];
+
+  if (assessment.report.missingAssetCount > 0) {
+    notices.push(
+      context === 'save'
+        ? `${assessment.report.missingAssetCount} asset reference(s) are missing.`
+        : `${assessment.report.missingAssetCount} file(s) could not be found.`
+    );
+  }
+
+  if (assessment.report.skippedMetadataCount > 0) {
+    notices.push(
+      context === 'save'
+        ? 'Some metadata will be ignored.'
+        : 'Some metadata was ignored during load.'
+    );
+  }
+
+  if (rescuedCutCount > 0 && context !== 'save') {
+    notices.push(`${rescuedCutCount} cut(s) were relinked.`);
+  }
+
+  if (context === 'save' && hasStructuralNormalization(assessment.report.normalizationFlags)) {
+    notices.push('Project structure will be normalized before save.');
+  }
+
+  if (context !== 'save' && assessment.report.readableSceneCount === 0) {
+    notices.push('No readable scenes were recovered.');
+  }
+
+  return notices;
+}
+
 export function formatRecoveryAssessmentSummary(
   assessment: RecoveryAssessment,
+  context: RecoveryAssessmentNoticeContext,
   overrides: { rescuedCutCount?: number } = {}
 ): string {
-  const rescuedCutCount = overrides.rescuedCutCount ?? assessment.report.rescuedCutCount;
-  const parts = [
-    `Mode: ${assessment.mode}.`,
-    `Scenes read: ${assessment.report.readableSceneCount}.`,
-    `Missing assets: ${assessment.report.missingAssetCount}.`,
-    `Skipped metadata: ${assessment.report.skippedMetadataCount}.`,
-    `Rescued cuts: ${rescuedCutCount}.`,
-    `Orphan metadata: ${assessment.report.orphanMetadataCount}.`,
-    `Project schema: v${assessment.report.projectSchemaVersion}.`,
-    `Metadata schema: v${assessment.report.metadataSchemaVersion}.`,
-  ];
-  const normalized = listRecoveryNormalizationLabels(assessment.report.normalizationFlags);
-  if (normalized.length > 0) {
-    parts.push(`Normalizations: ${normalized.join(', ')}.`);
-  }
-  return parts.join(' ');
+  return getRecoveryAssessmentNotices(assessment, context, overrides).join(' ');
 }

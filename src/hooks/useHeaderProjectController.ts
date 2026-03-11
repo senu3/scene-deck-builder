@@ -17,7 +17,12 @@ import {
   finalizePendingProjectLoad,
 } from '../features/project/apply';
 import { buildProjectLoadFailureAlert } from '../features/project/loadFailure';
-import { createRecoveryAssessment, formatRecoveryAssessmentSummary, type RecoveryAssessment } from '../features/project/recoveryAssessment';
+import {
+  createRecoveryAssessment,
+  formatRecoveryAssessmentSummary,
+  getRecoveryAssessmentNotices,
+  type RecoveryAssessment,
+} from '../features/project/recoveryAssessment';
 import {
   type PendingProject,
   buildProjectLoadOutcome,
@@ -154,9 +159,10 @@ export function useHeaderProjectController() {
         }, validationIssues);
 
         if (validationAssessment.mode === 'repairable' && options?.allowPrompt !== false) {
+          const validationMessage = formatRecoveryAssessmentSummary(validationAssessment, 'save');
           const confirmed = await dialogConfirm({
             title: 'Save Validation',
-            message: `Continue saving with warnings? ${formatRecoveryAssessmentSummary(validationAssessment)}`,
+            message: `Continue saving with warnings? ${validationMessage}`,
             variant: 'warning',
             confirmLabel: 'Save Anyway',
             cancelLabel: 'Cancel',
@@ -203,9 +209,10 @@ export function useHeaderProjectController() {
         }, validationIssues);
 
         if (validationAssessment.mode === 'repairable' && options?.allowPrompt !== false) {
+          const validationMessage = formatRecoveryAssessmentSummary(validationAssessment, 'save');
           const confirmed = await dialogConfirm({
             title: 'Save Validation',
-            message: `Continue saving with warnings? ${formatRecoveryAssessmentSummary(validationAssessment)}`,
+            message: `Continue saving with warnings? ${validationMessage}`,
             variant: 'warning',
             confirmLabel: 'Save Anyway',
             cancelLabel: 'Cancel',
@@ -389,10 +396,10 @@ export function useHeaderProjectController() {
     }
 
     await finalizeProjectLoad(outcome.payload);
-    if (outcome.assessment.mode === 'repairable') {
+    if (outcome.assessment.mode === 'repairable' && getRecoveryAssessmentNotices(outcome.assessment, 'load').length > 0) {
       await dialogAlert({
         title: 'Recovery Report',
-        message: formatRecoveryAssessmentSummary(outcome.assessment),
+        message: formatRecoveryAssessmentSummary(outcome.assessment, 'load'),
         variant: 'warning',
       });
     }
