@@ -30,6 +30,7 @@ export default function Header({ onOpenSettings, onPreview, onExport, isExportin
     showRecoveryDialog,
     missingAssets,
     pendingProject,
+    pendingAssessment,
     handleRecoveryComplete,
     handleRecoveryCancel,
   } = useHeaderProjectController();
@@ -272,9 +273,10 @@ export default function Header({ onOpenSettings, onPreview, onExport, isExportin
       </header>
 
       {/* Missing Asset Recovery Dialog */}
-      {showRecoveryDialog && pendingProject && (
+      {showRecoveryDialog && pendingProject && pendingAssessment && (
         <MissingAssetRecoveryModal
           missingAssets={missingAssets}
+          assessment={pendingAssessment}
           vaultPath={pendingProject.vaultPath}
           onComplete={handleRecoveryComplete}
           onCancel={handleRecoveryCancel}

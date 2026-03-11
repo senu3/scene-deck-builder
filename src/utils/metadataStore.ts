@@ -8,6 +8,35 @@ import { loadProjectFromPathBridge, pathExistsBridge, saveProjectBridge } from '
 const METADATA_FILE = '.metadata.json';
 const CURRENT_VERSION = 1;
 
+export interface MetadataStoreAssessmentOptions {
+  sceneIds?: Iterable<string>;
+  assetIds?: Iterable<string>;
+}
+
+export interface MetadataStoreReport {
+  metadataSchemaVersion: number;
+  skippedMetadataCount: number;
+  orphanMetadataCount: number;
+  orphanSceneMetadataCount: number;
+  orphanAssetMetadataCount: number;
+  normalizedLipSyncCount: number;
+  invalidRootFallbackCount: number;
+  normalized: boolean;
+}
+
+export interface MetadataStoreAssessmentResult {
+  store: MetadataStore;
+  report: MetadataStoreReport;
+}
+
+function createEmptyMetadataStore(): MetadataStore {
+  return { version: CURRENT_VERSION, metadata: {}, sceneMetadata: {} };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
 function normalizeLipSyncSettings(lipSync: AssetMetadata['lipSync']): { lipSync: AssetMetadata['lipSync']; changed: boolean } {
   if (!lipSync) return { lipSync, changed: false };
   const hasComposited = Array.isArray(lipSync.compositedFrameAssetIds) && lipSync.compositedFrameAssetIds.length > 0;
@@ -28,13 +57,13 @@ function normalizeLipSyncSettings(lipSync: AssetMetadata['lipSync']): { lipSync:
   };
 }
 
-function normalizeLoadedMetadataStore(store: MetadataStore): MetadataStore {
-  let changed = false;
+function normalizeLoadedMetadataStore(store: MetadataStore): { store: MetadataStore; normalizedLipSyncCount: number } {
+  let normalizedLipSyncCount = 0;
   const nextMetadata: Record<string, AssetMetadata> = {};
   for (const [assetId, metadata] of Object.entries(store.metadata || {})) {
     const normalizedLipSync = normalizeLipSyncSettings(metadata?.lipSync);
     if (normalizedLipSync.changed) {
-      changed = true;
+      normalizedLipSyncCount += 1;
       nextMetadata[assetId] = {
         ...metadata,
         lipSync: normalizedLipSync.lipSync,
@@ -43,10 +72,84 @@ function normalizeLoadedMetadataStore(store: MetadataStore): MetadataStore {
       nextMetadata[assetId] = metadata;
     }
   }
-  if (!changed) return store;
+  if (normalizedLipSyncCount === 0) {
+    return {
+      store,
+      normalizedLipSyncCount,
+    };
+  }
   return {
-    ...store,
-    metadata: nextMetadata,
+    store: {
+      ...store,
+      metadata: nextMetadata,
+    },
+    normalizedLipSyncCount,
+  };
+}
+
+function buildMetadataStoreReport(
+  store: MetadataStore,
+  options: MetadataStoreAssessmentOptions = {},
+  extras: {
+    normalizedLipSyncCount?: number;
+    invalidRootFallbackCount?: number;
+  } = {}
+): MetadataStoreReport {
+  const sceneIds = options.sceneIds ? new Set(options.sceneIds) : null;
+  const assetIds = options.assetIds ? new Set(options.assetIds) : null;
+  let orphanSceneMetadataCount = 0;
+  let orphanAssetMetadataCount = 0;
+
+  if (sceneIds) {
+    for (const sceneId of Object.keys(store.sceneMetadata || {})) {
+      if (!sceneIds.has(sceneId)) {
+        orphanSceneMetadataCount += 1;
+      }
+    }
+  }
+
+  if (assetIds) {
+    for (const assetId of Object.keys(store.metadata || {})) {
+      if (!assetIds.has(assetId)) {
+        orphanAssetMetadataCount += 1;
+      }
+    }
+  }
+
+  const invalidRootFallbackCount = extras.invalidRootFallbackCount ?? 0;
+  const normalizedLipSyncCount = extras.normalizedLipSyncCount ?? 0;
+  const orphanMetadataCount = orphanSceneMetadataCount + orphanAssetMetadataCount;
+
+  return {
+    metadataSchemaVersion: typeof store.version === 'number' ? store.version : CURRENT_VERSION,
+    skippedMetadataCount: invalidRootFallbackCount + orphanMetadataCount,
+    orphanMetadataCount,
+    orphanSceneMetadataCount,
+    orphanAssetMetadataCount,
+    normalizedLipSyncCount,
+    invalidRootFallbackCount,
+    normalized: normalizedLipSyncCount > 0,
+  };
+}
+
+export function assessMetadataStore(
+  rawStore: MetadataStore | null | undefined,
+  options: MetadataStoreAssessmentOptions = {}
+): MetadataStoreAssessmentResult {
+  const baseStore = rawStore
+    ? {
+        version: typeof rawStore.version === 'number' ? rawStore.version : CURRENT_VERSION,
+        metadata: rawStore.metadata || {},
+        sceneMetadata: rawStore.sceneMetadata || {},
+      }
+    : createEmptyMetadataStore();
+  const normalized = normalizeLoadedMetadataStore(baseStore);
+
+  return {
+    store: normalized.store,
+    report: buildMetadataStoreReport(normalized.store, options, {
+      normalizedLipSyncCount: normalized.normalizedLipSyncCount,
+    }),
   };
 }
 
@@ -55,13 +158,16 @@ function normalizeLoadedMetadataStore(store: MetadataStore): MetadataStore {
  * @param vaultPath - Path to the vault directory
  * @returns MetadataStore object
  */
-export async function loadMetadataStore(vaultPath: string): Promise<MetadataStore> {
+export async function loadMetadataStoreWithReport(
+  vaultPath: string,
+  options: MetadataStoreAssessmentOptions = {}
+): Promise<MetadataStoreAssessmentResult> {
   const metadataPath = `${vaultPath}/${METADATA_FILE}`.replace(/\\/g, '/');
 
   try {
     const exists = await pathExistsBridge(metadataPath);
     if (!exists) {
-      return { version: CURRENT_VERSION, metadata: {}, sceneMetadata: {} };
+      return assessMetadataStore(createEmptyMetadataStore(), options);
     }
 
     // Load project from path returns JSON parsed data
@@ -69,13 +175,12 @@ export async function loadMetadataStore(vaultPath: string): Promise<MetadataStor
     if (result.kind === 'success' && result.data) {
       const data = result.data as MetadataStore;
       // Ensure version compatibility
-      if (typeof data.version === 'number' && typeof data.metadata === 'object') {
-        const normalized = normalizeLoadedMetadataStore({
+      if (typeof data.version === 'number' && isRecord(data.metadata)) {
+        return assessMetadataStore({
           version: data.version,
           metadata: data.metadata || {},
-          sceneMetadata: data.sceneMetadata || {},
-        });
-        return normalized;
+          sceneMetadata: isRecord(data.sceneMetadata) ? (data.sceneMetadata as MetadataStore['sceneMetadata']) : {},
+        }, options);
       }
     }
     if (result.kind === 'error') {
@@ -88,7 +193,17 @@ export async function loadMetadataStore(vaultPath: string): Promise<MetadataStor
     console.error('Failed to load metadata store:', error);
   }
 
-  return { version: CURRENT_VERSION, metadata: {}, sceneMetadata: {} };
+  return {
+    store: createEmptyMetadataStore(),
+    report: buildMetadataStoreReport(createEmptyMetadataStore(), options, {
+      invalidRootFallbackCount: 1,
+    }),
+  };
+}
+
+export async function loadMetadataStore(vaultPath: string): Promise<MetadataStore> {
+  const result = await loadMetadataStoreWithReport(vaultPath);
+  return result.store;
 }
 
 /**

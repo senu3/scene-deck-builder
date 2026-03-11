@@ -37,6 +37,7 @@ import {
   type AppEffectDispatchResult,
 } from '../features/platform/effects';
 import { buildProjectLoadFailureAlert } from '../features/project/loadFailure';
+import { type RecoveryAssessment, formatRecoveryAssessmentSummary } from '../features/project/recoveryAssessment';
 import { hasElectronBridge } from '../features/platform/electronGateway';
 import { useDialog } from '../ui';
 import './StartupModal.css';
@@ -74,6 +75,7 @@ export default function StartupModal() {
   const [showRecoveryDialog, setShowRecoveryDialog] = useState(false);
   const [missingAssets, setMissingAssets] = useState<MissingAssetInfo[]>([]);
   const [pendingProject, setPendingProject] = useState<PendingProject | null>(null);
+  const [pendingAssessment, setPendingAssessment] = useState<RecoveryAssessment | null>(null);
 
   useEffect(() => {
     loadRecentProjects();
@@ -221,6 +223,7 @@ export default function StartupModal() {
     setShowRecoveryDialog(false);
     setPendingProject(null);
     setMissingAssets([]);
+    setPendingAssessment(null);
   };
 
   const applyProjectLoadOutcome = async (outcome: ProjectLoadOutcome) => {
@@ -231,10 +234,18 @@ export default function StartupModal() {
     if (outcome.kind === 'pending') {
       setMissingAssets(outcome.missingAssets);
       setPendingProject(outcome.payload);
+      setPendingAssessment(outcome.assessment);
       setShowRecoveryDialog(true);
       return;
     }
     await finalizeProjectLoad(outcome.payload);
+    if (outcome.assessment.mode === 'repairable') {
+      await dialogAlert({
+        title: 'Recovery Report',
+        message: formatRecoveryAssessmentSummary(outcome.assessment),
+        variant: 'warning',
+      });
+    }
   };
 
   // Handle recovery dialog completion
@@ -248,6 +259,7 @@ export default function StartupModal() {
     setShowRecoveryDialog(false);
     setPendingProject(null);
     setMissingAssets([]);
+    setPendingAssessment(null);
   };
 
   const handleOpenRecent = async (project: RecentProjectEntry) => {
@@ -503,8 +515,8 @@ export default function StartupModal() {
                   <Shield size={18} />
                 </div>
                 <div className="feature-text">
-                  <strong>Full Recoverability</strong>
-                  <span>Project file + asset index = complete recovery of scenes, cuts, and timing.</span>
+                  <strong>Vault Asset Recovery</strong>
+                  <span>Vault assets stay reusable even when the project file is damaged.</span>
                 </div>
               </div>
             </div>
@@ -568,9 +580,10 @@ export default function StartupModal() {
       </div>
 
       {/* Missing Asset Recovery Dialog */}
-      {showRecoveryDialog && pendingProject && (
+      {showRecoveryDialog && pendingProject && pendingAssessment && (
         <MissingAssetRecoveryModal
           missingAssets={missingAssets}
+          assessment={pendingAssessment}
           vaultPath={pendingProject.vaultPath}
           onComplete={handleRecoveryComplete}
           onCancel={handleRecoveryCancel}

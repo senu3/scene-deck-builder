@@ -12,10 +12,12 @@ import {
   ensureAssetsFolderBridge,
   getFolderContentsBridge,
   getRecentProjectsBridge,
+  loadAssetIndexBridge,
   loadProjectBridge,
   loadProjectFromPathBridge,
   pathExistsBridge,
 } from '../../platform/electronGateway';
+import { loadMetadataStoreWithReport } from '../../../utils/metadataStore';
 import { resolveScenesAssets } from '../load';
 
 vi.mock('../../platform/electronGateway', () => ({
@@ -23,10 +25,15 @@ vi.mock('../../platform/electronGateway', () => ({
   ensureAssetsFolderBridge: vi.fn(),
   getFolderContentsBridge: vi.fn(),
   getRecentProjectsBridge: vi.fn(),
+  loadAssetIndexBridge: vi.fn(),
   loadProjectBridge: vi.fn(),
   loadProjectFromPathBridge: vi.fn(),
   pathExistsBridge: vi.fn(),
   selectVaultBridge: vi.fn(),
+}));
+
+vi.mock('../../../utils/metadataStore', () => ({
+  loadMetadataStoreWithReport: vi.fn(),
 }));
 
 vi.mock('../load', async () => {
@@ -40,6 +47,20 @@ vi.mock('../load', async () => {
 describe('project session', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(loadAssetIndexBridge).mockResolvedValue({ version: 1, assets: [] });
+    vi.mocked(loadMetadataStoreWithReport).mockResolvedValue({
+      store: { version: 1, metadata: {}, sceneMetadata: {} },
+      report: {
+        metadataSchemaVersion: 1,
+        skippedMetadataCount: 0,
+        orphanMetadataCount: 0,
+        orphanSceneMetadataCount: 0,
+        orphanAssetMetadataCount: 0,
+        normalizedLipSyncCount: 0,
+        invalidRootFallbackCount: 0,
+        normalized: false,
+      },
+    });
   });
 
   it('filters missing recent projects and persists cleanup through callback', async () => {
@@ -116,6 +137,7 @@ describe('project session', () => {
       throw new Error(`expected pending outcome, received ${outcome.kind}`);
     }
     expect(outcome.payload.projectPath).toBe('C:/vault/project.sdp');
+    expect(outcome.assessment.mode).toBe('repairable');
   });
 
   it('normalizes legacy scene collections before recovery planning', async () => {
@@ -171,6 +193,7 @@ describe('project session', () => {
         order: 0,
       })],
     }));
+    expect(outcome.assessment.report.normalizationFlags.sceneStructureNormalized).toBe(true);
   });
 
   it('maps file-load errors into selection failures', async () => {
@@ -242,5 +265,50 @@ describe('project session', () => {
         projectPath: 'C:/vault/project.sdp',
       },
     });
+  });
+
+  it('marks metadata drift as repairable even without missing assets', async () => {
+    vi.mocked(resolveScenesAssets).mockResolvedValue({
+      scenes: [{
+        id: 'scene-1',
+        name: 'Scene 1',
+        cuts: [],
+        notes: [],
+      }],
+      missingAssets: [],
+    });
+    vi.mocked(loadMetadataStoreWithReport).mockResolvedValue({
+      store: { version: 1, metadata: {}, sceneMetadata: {} },
+      report: {
+        metadataSchemaVersion: 1,
+        skippedMetadataCount: 2,
+        orphanMetadataCount: 1,
+        orphanSceneMetadataCount: 1,
+        orphanAssetMetadataCount: 0,
+        normalizedLipSyncCount: 1,
+        invalidRootFallbackCount: 0,
+        normalized: true,
+      },
+    });
+
+    const outcome = await buildProjectLoadOutcome({
+      name: 'Loaded',
+      vaultPath: 'C:/vault',
+      scenes: [{
+        id: 'scene-1',
+        name: 'Scene 1',
+        cuts: [],
+        notes: [],
+      }],
+      version: 3,
+    }, 'C:/vault/project.sdp', 'Loaded Project');
+
+    expect(outcome.kind).toBe('ready');
+    if (outcome.kind !== 'ready') {
+      throw new Error(`expected ready outcome, received ${outcome.kind}`);
+    }
+    expect(outcome.assessment.mode).toBe('repairable');
+    expect(outcome.assessment.report.skippedMetadataCount).toBe(2);
+    expect(outcome.assessment.report.normalizationFlags.metadataNormalized).toBe(true);
   });
 });

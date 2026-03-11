@@ -4,6 +4,7 @@ import { useDialog, useToast } from '../ui';
 import type { MissingAssetInfo, RecoveryDecision } from '../components/MissingAssetRecoveryModal';
 import { createAutosaveController, subscribeProjectChanges } from '../utils/autosave';
 import { collectAssetRefs, findDanglingAssetRefs } from '../utils/assetRefs';
+import { assessMetadataStore } from '../utils/metadataStore';
 import {
   buildDerivedAssetIndexForSave,
   buildProjectSavePayload,
@@ -16,6 +17,7 @@ import {
   finalizePendingProjectLoad,
 } from '../features/project/apply';
 import { buildProjectLoadFailureAlert } from '../features/project/loadFailure';
+import { createRecoveryAssessment, formatRecoveryAssessmentSummary, type RecoveryAssessment } from '../features/project/recoveryAssessment';
 import {
   type PendingProject,
   buildProjectLoadOutcome,
@@ -79,6 +81,7 @@ export function useHeaderProjectController() {
   const [showRecoveryDialog, setShowRecoveryDialog] = useState(false);
   const [missingAssets, setMissingAssets] = useState<MissingAssetInfo[]>([]);
   const [pendingProject, setPendingProject] = useState<PendingProject | null>(null);
+  const [pendingAssessment, setPendingAssessment] = useState<RecoveryAssessment | null>(null);
 
   const saveProjectInternal = useCallback(async (options?: { notify?: boolean; updateRecent?: boolean; allowPrompt?: boolean }) => {
     if (!hasElectronBridge()) {
@@ -94,21 +97,139 @@ export function useHeaderProjectController() {
 
     const { scenes: normalizedScenes, missingCount } = ensureSceneIds(scenes);
     const { sceneOrder: normalizedSceneOrder, changed: sceneOrderChanged } = ensureSceneOrder(sceneOrder, normalizedScenes);
-    if (missingCount > 0) {
-      if (options?.allowPrompt !== false) {
+    const targetProjectPath = projectPath || (vaultPath ? `${vaultPath}/project.sdp` : undefined);
+    const shouldUpdateStore = missingCount > 0 || sceneOrderChanged;
+
+    let newIndex: Awaited<ReturnType<typeof loadAssetIndexBridge>> | null = null;
+    try {
+      if (vaultPath) {
+        const index = await loadAssetIndexBridge(vaultPath);
+        if (!index) {
+          throw new Error('Failed to load asset index');
+        }
+        const refs = collectAssetRefs(normalizedScenes, metadataStore);
+        const existingAssetIdSet = new Set(index.assets.map((entry) => entry.id));
+        const danglingRefs = findDanglingAssetRefs(refs, existingAssetIdSet);
+        const assetIds = index.assets.map((entry) => entry.id);
+        const metadataAssessment = assessMetadataStore(metadataStore, {
+          sceneIds: normalizedScenes.map((scene) => scene.id),
+          assetIds,
+        });
+        const validationIssues = [];
+        if (danglingRefs.length > 0) {
+          validationIssues.push({
+            severity: 'warning' as const,
+            code: 'missing-assets',
+            message: `${danglingRefs.length} asset reference(s) could not be resolved before save.`,
+          });
+        }
+        if (metadataAssessment.report.skippedMetadataCount > 0) {
+          validationIssues.push({
+            severity: 'warning' as const,
+            code: 'skipped-metadata',
+            message: `${metadataAssessment.report.skippedMetadataCount} metadata item(s) would be skipped with the current project state.`,
+          });
+        }
+        if (metadataAssessment.report.orphanMetadataCount > 0) {
+          validationIssues.push({
+            severity: 'warning' as const,
+            code: 'orphan-metadata',
+            message: `${metadataAssessment.report.orphanMetadataCount} orphan metadata item(s) were detected.`,
+          });
+        }
+        const validationAssessment = createRecoveryAssessment({
+          readableSceneCount: normalizedScenes.length,
+          missingAssetCount: danglingRefs.length,
+          skippedMetadataCount: metadataAssessment.report.skippedMetadataCount,
+          rescuedCutCount: 0,
+          orphanMetadataCount: metadataAssessment.report.orphanMetadataCount,
+          projectSchemaVersion: 3,
+          metadataSchemaVersion: metadataAssessment.report.metadataSchemaVersion,
+          normalizationFlags: {
+            sceneIdsAssigned: missingCount > 0,
+            sceneOrderNormalized: sceneOrderChanged,
+            sceneStructureNormalized: false,
+            metadataNormalized: metadataAssessment.report.normalized,
+          },
+        }, validationIssues);
+
+        if (validationAssessment.mode === 'repairable' && options?.allowPrompt !== false) {
+          const confirmed = await dialogConfirm({
+            title: 'Save Validation',
+            message: `Continue saving with warnings? ${formatRecoveryAssessmentSummary(validationAssessment)}`,
+            variant: 'warning',
+            confirmLabel: 'Save Anyway',
+            cancelLabel: 'Cancel',
+          });
+          if (!confirmed) {
+            return;
+          }
+        }
+
+        newIndex = buildDerivedAssetIndexForSave(index, normalizedScenes, normalizedSceneOrder);
+      } else {
+        const metadataAssessment = assessMetadataStore(metadataStore, {
+          sceneIds: normalizedScenes.map((scene) => scene.id),
+        });
+        const validationIssues = [];
+        if (metadataAssessment.report.skippedMetadataCount > 0) {
+          validationIssues.push({
+            severity: 'warning' as const,
+            code: 'skipped-metadata',
+            message: `${metadataAssessment.report.skippedMetadataCount} metadata item(s) would be skipped with the current project state.`,
+          });
+        }
+        if (metadataAssessment.report.orphanMetadataCount > 0) {
+          validationIssues.push({
+            severity: 'warning' as const,
+            code: 'orphan-metadata',
+            message: `${metadataAssessment.report.orphanMetadataCount} orphan metadata item(s) were detected.`,
+          });
+        }
+        const validationAssessment = createRecoveryAssessment({
+          readableSceneCount: normalizedScenes.length,
+          missingAssetCount: 0,
+          skippedMetadataCount: metadataAssessment.report.skippedMetadataCount,
+          rescuedCutCount: 0,
+          orphanMetadataCount: metadataAssessment.report.orphanMetadataCount,
+          projectSchemaVersion: 3,
+          metadataSchemaVersion: metadataAssessment.report.metadataSchemaVersion,
+          normalizationFlags: {
+            sceneIdsAssigned: missingCount > 0,
+            sceneOrderNormalized: sceneOrderChanged,
+            sceneStructureNormalized: false,
+            metadataNormalized: metadataAssessment.report.normalized,
+          },
+        }, validationIssues);
+
+        if (validationAssessment.mode === 'repairable' && options?.allowPrompt !== false) {
+          const confirmed = await dialogConfirm({
+            title: 'Save Validation',
+            message: `Continue saving with warnings? ${formatRecoveryAssessmentSummary(validationAssessment)}`,
+            variant: 'warning',
+            confirmLabel: 'Save Anyway',
+            cancelLabel: 'Cancel',
+          });
+          if (!confirmed) {
+            return;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Save validation failed:', error);
+      if (options?.notify !== false) {
         await dialogAlert({
-          title: 'Scene ID の自動付与',
-          message: `Scene ID が未設定のシーンが ${missingCount} 件あります。OK を押すと自動付与して保存を続行します。`,
+          title: 'Save Validation Failed',
+          message: 'Project save was canceled because recovery checks could not be completed.',
           variant: 'warning',
-          confirmLabel: 'OK',
         });
       }
-      loadProject(normalizedScenes, normalizedSceneOrder);
-    } else if (sceneOrderChanged) {
-      loadProject(normalizedScenes, normalizedSceneOrder);
+      return;
     }
 
-    const targetProjectPath = projectPath || (vaultPath ? `${vaultPath}/project.sdp` : undefined);
+    if (shouldUpdateStore) {
+      loadProject(normalizedScenes, normalizedSceneOrder);
+    }
 
     // Prepare scenes with relative paths for portability
     const scenesToSave = prepareScenesForSave(normalizedScenes, getAsset);
@@ -117,24 +238,8 @@ export function useHeaderProjectController() {
     const sourcePanelState = getSourcePanelState();
 
     // Reorder asset index by Storyline order (scene/cut order)
-    if (vaultPath) {
+    if (vaultPath && newIndex) {
       try {
-        const index = await loadAssetIndexBridge(vaultPath);
-        if (!index) {
-          throw new Error('Failed to load asset index');
-        }
-        const refs = collectAssetRefs(normalizedScenes, metadataStore);
-        const existingAssetIds = new Set(index.assets.map((entry) => entry.id));
-        const danglingRefs = findDanglingAssetRefs(refs, existingAssetIds);
-        if (danglingRefs.length > 0) {
-          const kinds = Array.from(new Set(danglingRefs.map((ref) => ref.kind)));
-          console.warn('[SaveValidation] Dangling asset references detected:', danglingRefs);
-          toast.warning(
-            'Asset reference warning',
-            `Missing references found before save (${kinds.join(', ')}).`
-          );
-        }
-        const newIndex = buildDerivedAssetIndexForSave(index, normalizedScenes, normalizedSceneOrder);
         const indexSaveResult = await dispatchAppEffects([
           createSaveAssetIndexEffect({
             vaultPath,
@@ -198,7 +303,7 @@ export function useHeaderProjectController() {
         });
       }
     }
-  }, [cutRuntimeById, dialogAlert, getAsset, getSourcePanelState, loadProject, metadataStore, projectName, projectPath, sceneOrder, scenes, setProjectPath, targetTotalDurationSec, toast, vaultPath]);
+  }, [cutRuntimeById, dialogAlert, dialogConfirm, getAsset, getSourcePanelState, loadProject, metadataStore, projectName, projectPath, sceneOrder, scenes, setProjectPath, targetTotalDurationSec, vaultPath]);
 
   const handleSaveProject = useCallback(async () => {
     await saveProjectInternal();
@@ -227,6 +332,7 @@ export function useHeaderProjectController() {
     setShowRecoveryDialog(false);
     setPendingProject(null);
     setMissingAssets([]);
+    setPendingAssessment(null);
   }, [
     createStoreEventOperation,
     emitCutRelinked,
@@ -247,6 +353,7 @@ export function useHeaderProjectController() {
     setShowRecoveryDialog(false);
     setPendingProject(null);
     setMissingAssets([]);
+    setPendingAssessment(null);
   }, []);
 
   const handleLoadProject = useCallback(async () => {
@@ -276,11 +383,19 @@ export function useHeaderProjectController() {
     if (outcome.kind === 'pending') {
       setMissingAssets(outcome.missingAssets);
       setPendingProject(outcome.payload);
+      setPendingAssessment(outcome.assessment);
       setShowRecoveryDialog(true);
       return;
     }
 
     await finalizeProjectLoad(outcome.payload);
+    if (outcome.assessment.mode === 'repairable') {
+      await dialogAlert({
+        title: 'Recovery Report',
+        message: formatRecoveryAssessmentSummary(outcome.assessment),
+        variant: 'warning',
+      });
+    }
   }, [dialogAlert, finalizeProjectLoad]);
 
   const handleCloseProject = useCallback(async () => {
@@ -349,6 +464,7 @@ export function useHeaderProjectController() {
     showRecoveryDialog,
     missingAssets,
     pendingProject,
+    pendingAssessment,
     handleRecoveryComplete,
     handleRecoveryCancel,
   };

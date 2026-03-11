@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { AlertTriangle, FolderOpen, Trash2, SkipForward, Check, X } from 'lucide-react';
 import type { Asset } from '../types';
+import type { RecoveryAssessment } from '../features/project/recoveryAssessment';
 import { showOpenFileDialogBridge } from '../features/platform/electronGateway';
 import { Overlay, useModalKeyboard } from '../ui/primitives/Modal';
+import RecoverySummaryBlock from './RecoverySummaryBlock';
 import './MissingAssetRecoveryModal.css';
 
 export interface MissingAssetInfo {
@@ -23,6 +25,7 @@ export interface RecoveryDecision {
 
 interface MissingAssetRecoveryModalProps {
   missingAssets: MissingAssetInfo[];
+  assessment: RecoveryAssessment;
   vaultPath: string;  // Used for context, not actively used in recovery
   onComplete: (decisions: RecoveryDecision[]) => void;
   onCancel: () => void;
@@ -30,6 +33,7 @@ interface MissingAssetRecoveryModalProps {
 
 export default function MissingAssetRecoveryModal({
   missingAssets,
+  assessment,
   vaultPath: _vaultPath,  // eslint-disable-line @typescript-eslint/no-unused-vars
   onComplete,
   onCancel,
@@ -153,6 +157,7 @@ export default function MissingAssetRecoveryModal({
 
   const decidedCount = decisions.size;
   const totalCount = missingAssets.length;
+  const rescuedCutCount = Array.from(decisions.values()).filter((decision) => decision.action === 'relink').length;
 
   // ESC key to close
   useModalKeyboard({ onEscape: onCancel });
@@ -172,6 +177,11 @@ export default function MissingAssetRecoveryModal({
         </div>
 
         <div className="modal-content">
+          <RecoverySummaryBlock
+            assessment={assessment}
+            rescuedCutCount={rescuedCutCount}
+          />
+
           <div className="progress-bar">
             <div
               className="progress-fill"

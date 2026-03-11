@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  assessMetadataStore,
   loadMetadataStore,
+  loadMetadataStoreWithReport,
   syncSceneMetadata,
   updateLipSyncSettings,
   removeLipSyncSettings,
@@ -238,5 +240,72 @@ describe('metadataStore', () => {
 
     pathExistsMock.mockRestore();
     loadMock.mockRestore();
+  });
+
+  it('reports orphan metadata and normalization during dry-run assessment', () => {
+    const assessed = assessMetadataStore({
+      version: 1,
+      metadata: {
+        'asset-live': {
+          assetId: 'asset-live',
+          lipSync: {
+            baseImageAssetId: 'img-closed',
+            variantAssetIds: ['img-half1', 'img-half2', 'img-open'],
+            rmsSourceAudioAssetId: 'audio-1',
+            thresholds: { t1: 0.1, t2: 0.2, t3: 0.3 },
+            fps: 60,
+            version: 1,
+          } as any,
+        },
+        'asset-orphan': {
+          assetId: 'asset-orphan',
+        } as any,
+      },
+      sceneMetadata: {
+        'scene-live': {
+          id: 'scene-live',
+          name: 'Scene Live',
+          notes: [],
+          updatedAt: 't',
+        },
+        'scene-orphan': {
+          id: 'scene-orphan',
+          name: 'Scene Orphan',
+          notes: [],
+          updatedAt: 't',
+        },
+      },
+    }, {
+      sceneIds: ['scene-live'],
+      assetIds: ['asset-live'],
+    });
+
+    expect(assessed.report.orphanMetadataCount).toBe(2);
+    expect(assessed.report.orphanSceneMetadataCount).toBe(1);
+    expect(assessed.report.orphanAssetMetadataCount).toBe(1);
+    expect(assessed.report.normalizedLipSyncCount).toBe(1);
+    expect(assessed.report.normalized).toBe(true);
+  });
+
+  it('reports invalid metadata roots without failing load', async () => {
+    vi.spyOn(window.electronAPI!, 'pathExists').mockResolvedValueOnce(true);
+    vi.spyOn(window.electronAPI!, 'loadProjectFromPath').mockResolvedValueOnce({
+      kind: 'success',
+      path: 'C:/vault/.metadata.json',
+      data: null,
+    });
+
+    const result = await loadMetadataStoreWithReport('C:/vault', {
+      sceneIds: ['scene-1'],
+      assetIds: ['asset-1'],
+    });
+
+    expect(result.store).toEqual({
+      version: 1,
+      metadata: {},
+      sceneMetadata: {},
+    });
+    expect(result.report.invalidRootFallbackCount).toBe(1);
+    expect(result.report.skippedMetadataCount).toBe(1);
   });
 });

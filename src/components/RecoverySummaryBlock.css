@@ -1,0 +1,97 @@
+.recovery-summary {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  margin-bottom: 16px;
+}
+
+.recovery-summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.recovery-summary-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.recovery-summary-mode {
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.recovery-summary-full .recovery-summary-mode {
+  background: rgba(111, 233, 173, 0.16);
+  color: #9ff0c2;
+}
+
+.recovery-summary-repairable .recovery-summary-mode {
+  background: rgba(255, 196, 92, 0.16);
+  color: #ffd68f;
+}
+
+.recovery-summary-corrupted .recovery-summary-mode {
+  background: rgba(255, 110, 110, 0.16);
+  color: #ffb1b1;
+}
+
+.recovery-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.recovery-summary-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.recovery-summary-label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.recovery-summary-stat strong {
+  font-size: 18px;
+}
+
+.recovery-summary-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.recovery-summary-normalized {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.recovery-summary-issues {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 12px;
+}
+
+.recovery-summary-issues li + li {
+  margin-top: 4px;
+}
