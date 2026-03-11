@@ -33,7 +33,9 @@
   - 合計が target 未満のときは `Remaining` を表示。
   - 合計が target 超過のときは `Over` を表示。
 
-## Mode Toggle
+## Selection / Persistence
+- segment click は `onSelectScene(sceneId)` 通知だけを行う。
+- `selectedSceneId` は表示状態にのみ使い、Storyline の scroll 実行は所有しない。
 - トグルはバー右端に表示する。
 - `targetSec` が未設定または無効値のときはトグルを表示しない。
 - 選択モードは localStorage キー `scene-deck.duration-target-settings.v1` に保存する。
@@ -47,7 +49,3 @@
 - 表面トークン: `--panel-bg`, `--border-color`
 - segment色: `--timeline-scene-*`（循環利用）
 - 色の意味づけは `docs/guides/implementation/color-system.md` を正本とする。
-
-## Known Constraints
-- Scroll ownership は `Storyline` が持つ。
-- Header/SceneDurationBar から Storyline DOM を直接スクロールしてはならない。

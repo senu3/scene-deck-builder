@@ -14,9 +14,13 @@
 ## Must / Must Not
 - Must: Header はプロジェクト全体サマリ（scenes/cuts/time/target）を表示する。
 - Must: `effectiveTarget` 未設定時は Target Gauge を非表示にする。
-- Must: SceneDurationBar と Target Gauge の責務を分離して記述する。
+- Must: SceneDurationBar と Target Gauge の責務を混在させない。
 - Must Not: Header から Storyline DOM の直接スクロール制御を行わない。
 - Must Not: Header Stats を Scene選択UIと同一責務として扱わない。
+
+## Owned Responsibilities
+- Header が持つのは全体統計表示と target summary だけとする。
+- scene 選択、scene 比率表示、scroll ownership は持たない。
 
 ## Stats and Time
 - `Scenes`: `scenes.length`
@@ -30,11 +34,6 @@
 - 超過判定は `totalSec > targetSec`
 - ツールチップは未超過時 `Remaining`、超過時 `Over` を表示
 
-## Background
-- Header背景は depth gradient を使用する。
-- 使用トークン: `--bg-depth-1`, `--bg-depth-2`
-
-## Boundary with SceneDurationBar
-- `SceneDurationBar`: scene選択用の編集軸サマリUI
-- `DurationTargetGauge`: 全体尺の目標サマリUI
-- 近接表示しても責務を混同しない。
+## Styling Boundary
+- Header 背景は `color-system.md` の deep surface token を使う。
+- Header 固有の見た目調整を書いてよいが、色の意味定義は持たない。
