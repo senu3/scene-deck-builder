@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   applyPendingProjectToStore,
   finalizePendingProjectLoad,
@@ -10,8 +10,9 @@ import {
 } from '../../platform/effects';
 import { loadRecentProjectsWithCleanup } from '../session';
 import {
-  applyRecoveryDecisionsToScenes,
+  commitRecoverySceneChanges,
   collectRecoveryRelinkEventCandidates,
+  planRecoverySceneChanges,
   regenerateCutClipThumbnails,
 } from '../load';
 
@@ -40,7 +41,8 @@ vi.mock('../load', async () => {
   const actual = await vi.importActual<typeof import('../load')>('../load');
   return {
     ...actual,
-    applyRecoveryDecisionsToScenes: vi.fn(),
+    planRecoverySceneChanges: vi.fn(),
+    commitRecoverySceneChanges: vi.fn(),
     collectRecoveryRelinkEventCandidates: vi.fn(),
     regenerateCutClipThumbnails: vi.fn(),
   };
@@ -64,10 +66,15 @@ function createDeps() {
 describe('project apply', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     vi.mocked(dispatchAppEffects).mockResolvedValue({
       results: [],
       warnings: [],
     });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('restores hold state only for cuts that remain after recovery', async () => {
@@ -107,7 +114,14 @@ describe('project apply', () => {
       ...project.scenes[0],
       cuts: [project.scenes[0].cuts[1]],
     }];
-    vi.mocked(applyRecoveryDecisionsToScenes).mockResolvedValue(finalScenes);
+    vi.mocked(planRecoverySceneChanges).mockResolvedValue({ scenes: finalScenes, relinks: [] });
+    vi.mocked(commitRecoverySceneChanges).mockResolvedValue({
+      status: 'success',
+      scenes: finalScenes,
+      committedRelinks: [],
+      failedRelinks: [],
+      errors: [],
+    });
     vi.mocked(collectRecoveryRelinkEventCandidates).mockReturnValue([]);
     vi.mocked(regenerateCutClipThumbnails).mockResolvedValue(finalScenes);
     const deps = createDeps();
@@ -127,6 +141,92 @@ describe('project apply', () => {
       mode: 'tail',
       durationMs: 1200,
     });
+  });
+
+  it('applies only committed recovery scenes and leaves failed relinks unresolved', async () => {
+    const project = {
+      name: 'Loaded Project',
+      vaultPath: '/vault',
+      scenes: [{
+        id: 'scene-1',
+        name: 'Scene 1',
+        notes: [],
+        cuts: [{
+          id: 'cut-1',
+          order: 0,
+          displayTime: 1,
+          assetId: 'asset-1',
+          asset: { id: 'asset-1', name: 'missing.mp4', path: '/missing/video.mp4', type: 'video' as const },
+        }],
+      }],
+      sceneOrder: ['scene-1'],
+      cutRuntimeById: {},
+      sourcePanelState: undefined,
+      projectPath: '/vault/project.sdp',
+    };
+    const plannedScenes = [{
+      ...project.scenes[0],
+      cuts: [{
+        ...project.scenes[0].cuts[0],
+        asset: {
+          ...project.scenes[0].cuts[0].asset,
+          path: '/drafted/relinked.mp4',
+          duration: 4,
+        },
+        displayTime: 4,
+      }],
+    }];
+    const committedScenes = project.scenes;
+    vi.mocked(planRecoverySceneChanges).mockResolvedValue({
+      scenes: plannedScenes,
+      relinks: [{
+        relinkToken: 'scene-1::cut-1::0',
+        sceneId: 'scene-1',
+        cutId: 'cut-1',
+        newPath: '/drafted/relinked.mp4',
+      }],
+    });
+    vi.mocked(commitRecoverySceneChanges).mockResolvedValue({
+      status: 'failed',
+      scenes: committedScenes,
+      committedRelinks: [],
+      failedRelinks: [{
+        relinkToken: 'scene-1::cut-1::0',
+        sceneId: 'scene-1',
+        cutId: 'cut-1',
+        assetId: 'asset-1',
+        reason: 'register-failed',
+        message: 'Failed to register recovery asset.',
+      }],
+      errors: [{
+        relinkToken: 'scene-1::cut-1::0',
+        sceneId: 'scene-1',
+        cutId: 'cut-1',
+        assetId: 'asset-1',
+        reason: 'register-failed',
+        message: 'Failed to register recovery asset.',
+      }],
+    });
+    vi.mocked(collectRecoveryRelinkEventCandidates).mockReturnValue([]);
+    vi.mocked(regenerateCutClipThumbnails).mockResolvedValue(committedScenes);
+    const deps = createDeps();
+
+    await applyPendingProjectToStore(project, deps, [{
+      sceneId: 'scene-1',
+      cutId: 'cut-1',
+      action: 'relink',
+      newPath: '/drafted/relinked.mp4',
+    }]);
+
+    expect(commitRecoverySceneChanges).toHaveBeenCalledWith(expect.objectContaining({
+      scenes: plannedScenes,
+    }), '/vault');
+    expect(deps.initializeProject).toHaveBeenCalledWith(expect.objectContaining({
+      scenes: committedScenes,
+    }));
+    expect(deps.initializeProject).not.toHaveBeenCalledWith(expect.objectContaining({
+      scenes: plannedScenes,
+    }));
   });
 
   it('finalizes pending project load through shared recent and migration persistence', async () => {
@@ -154,7 +254,14 @@ describe('project apply', () => {
       shouldResaveVersion: true,
       targetTotalDurationSec: 2,
     };
-    vi.mocked(applyRecoveryDecisionsToScenes).mockResolvedValue(project.scenes);
+    vi.mocked(planRecoverySceneChanges).mockResolvedValue({ scenes: project.scenes, relinks: [] });
+    vi.mocked(commitRecoverySceneChanges).mockResolvedValue({
+      status: 'success',
+      scenes: project.scenes,
+      committedRelinks: [],
+      failedRelinks: [],
+      errors: [],
+    });
     vi.mocked(collectRecoveryRelinkEventCandidates).mockReturnValue([]);
     vi.mocked(regenerateCutClipThumbnails).mockResolvedValue(project.scenes);
     vi.mocked(loadRecentProjectsWithCleanup).mockResolvedValue([

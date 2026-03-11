@@ -1,7 +1,7 @@
 import type { RecoveryDecision } from '../../components/MissingAssetRecoveryModal';
 import type { CutRuntimeState, Scene, SourcePanelState } from '../../types';
 import type { StoreEventOperationContext } from '../../store/events';
-import { resolveCutAsset } from '../../utils/assetResolve';
+import { resolveCutAssetSeed } from '../../utils/assetResolve';
 import {
   buildProjectSavePayload,
   ensureSceneOrder,
@@ -15,8 +15,9 @@ import {
   type AppEffectDispatchResult,
 } from '../platform/effects';
 import {
-  applyRecoveryDecisionsToScenes,
+  commitRecoverySceneChanges,
   collectRecoveryRelinkEventCandidates,
+  planRecoverySceneChanges,
   regenerateCutClipThumbnails,
 } from './load';
 import {
@@ -71,11 +72,12 @@ export async function applyPendingProjectToStore(
   recoveryDecisions?: RecoveryDecision[]
 ): Promise<Scene[]> {
   const beforeRecoveryScenes = project.scenes;
-  let finalScenes = await applyRecoveryDecisionsToScenes(
-    project.scenes,
-    project.vaultPath,
-    recoveryDecisions
-  );
+  const recoveryPlan = await planRecoverySceneChanges(project.scenes, recoveryDecisions);
+  const recoveryCommit = await commitRecoverySceneChanges(recoveryPlan, project.vaultPath);
+  if (recoveryCommit.failedRelinks.length > 0) {
+    console.warn('[ProjectLoad] Recovery commit completed with failed relinks.', recoveryCommit.failedRelinks);
+  }
+  let finalScenes = recoveryCommit.scenes;
   const recoveryRelinks = collectRecoveryRelinkEventCandidates(beforeRecoveryScenes, finalScenes, recoveryDecisions);
   finalScenes = await regenerateCutClipThumbnails(finalScenes);
   const finalCutIds = new Set(
@@ -169,10 +171,10 @@ export function buildProjectLoadPersistencePlan(
     };
   }
 
-  const assetById = new Map<string, NonNullable<ReturnType<typeof resolveCutAsset>>>();
+  const assetById = new Map<string, NonNullable<ReturnType<typeof resolveCutAssetSeed>>>();
   for (const scene of finalScenes) {
     for (const cut of scene.cuts) {
-      const asset = resolveCutAsset(cut, () => undefined);
+      const asset = resolveCutAssetSeed(cut, () => undefined);
       if (!asset) continue;
       const resolvedId = cut.assetId || asset.id;
       if (!resolvedId) continue;

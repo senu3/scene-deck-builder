@@ -1,11 +1,16 @@
-import type { Asset, AssetIndexEntry, Scene } from '../../types';
+import type { Asset, AssetIndexEntry, Cut, Scene } from '../../types';
 import type { MissingAssetInfo, RecoveryDecision } from '../../components/MissingAssetRecoveryModal';
 import { registerAssetFile } from '../asset/write';
 import { readCanonicalAssetMetadataForPath } from '../metadata/provider';
 import { getAssetThumbnail } from '../thumbnails/api';
 import { generateVideoClipThumbnail } from '../cut/clipThumbnail';
 import { getCuttableMediaType } from '../../utils/mediaType';
-import { cutAssetPathStartsWith, resolveCutAsset, resolveCutAssetId } from '../../utils/assetResolve';
+import {
+  cutAssetPathStartsWith,
+  resolveCutAssetId,
+  resolveCutAssetSeed,
+  resolveCutAssetSnapshot,
+} from '../../utils/assetResolve';
 import {
   loadAssetIndexBridge,
   pathExistsBridge,
@@ -17,6 +22,43 @@ export interface CutRelinkEventCandidate {
   cutId: string;
   previousAssetId?: string;
   nextAssetId: string;
+}
+
+export interface RecoveryRelinkPlan {
+  relinkToken: string;
+  sceneId: string;
+  cutId: string;
+  newPath: string;
+}
+
+export interface PlannedRecoverySceneChanges {
+  scenes: Scene[];
+  relinks: RecoveryRelinkPlan[];
+}
+
+export interface CommittedRecoveryRelink {
+  relinkToken: string;
+  sceneId: string;
+  cutId: string;
+  assetId: string;
+  asset: Asset;
+}
+
+export interface FailedRecoveryRelink {
+  relinkToken: string;
+  sceneId: string;
+  cutId: string;
+  assetId?: string;
+  reason: 'cut-missing' | 'asset-seed-missing' | 'draft-failed' | 'register-failed';
+  message: string;
+}
+
+export interface CommitRecoverySceneChangesResult {
+  status: 'success' | 'partial' | 'failed';
+  scenes: Scene[];
+  committedRelinks: CommittedRecoveryRelink[];
+  failedRelinks: FailedRecoveryRelink[];
+  errors: FailedRecoveryRelink[];
 }
 
 async function resolveAssetPath(asset: Asset, vaultPath: string): Promise<Asset> {
@@ -99,7 +141,7 @@ export async function resolveScenesAssets(scenes: Scene[], vaultPath: string): P
   for (const scene of scenes) {
     const resolvedCuts = await Promise.all(
       scene.cuts.map(async (cut) => {
-        const currentAsset = resolveCutAsset(cut, () => undefined);
+        const currentAsset = resolveCutAssetSeed(cut, () => undefined);
         const cutAssetId = resolveCutAssetId(cut, () => undefined);
         if (currentAsset || cutAssetId) {
           const baseAsset: Asset | undefined = currentAsset
@@ -189,74 +231,9 @@ export async function applyRecoveryDecisionsToScenes(
   vaultPath: string,
   recoveryDecisions?: RecoveryDecision[]
 ): Promise<Scene[]> {
-  let finalScenes = scenes;
-  if (!recoveryDecisions || recoveryDecisions.length === 0) {
-    return finalScenes;
-  }
-
-  for (const decision of recoveryDecisions) {
-    if (decision.action === 'delete') {
-      finalScenes = finalScenes.map((scene) => {
-        if (scene.id === decision.sceneId) {
-          return {
-            ...scene,
-            cuts: scene.cuts.filter((cut) => cut.id !== decision.cutId),
-          };
-        }
-        return scene;
-      });
-      continue;
-    }
-
-    if (decision.action !== 'relink' || !decision.newPath) {
-      continue;
-    }
-
-    finalScenes = await Promise.all(finalScenes.map(async (scene) => {
-      if (scene.id !== decision.sceneId) return scene;
-      const updatedCuts = await Promise.all(scene.cuts.map(async (cut) => {
-        const currentAsset = resolveCutAsset(cut, () => undefined);
-        if (cut.id !== decision.cutId || !currentAsset) {
-          return cut;
-        }
-
-        const newPath = decision.newPath!;
-        const assetId = resolveCutAssetId(cut, () => undefined) || currentAsset.id;
-        const draftedAsset = await buildRecoveryRelinkAssetDraft(newPath, currentAsset);
-        const importedAsset = await registerAssetFile({
-          sourcePath: newPath,
-          vaultPath,
-          assetId,
-          existingAsset: draftedAsset,
-        });
-
-        if (importedAsset?.asset) {
-          return {
-            ...cut,
-            assetId: importedAsset.asset.id,
-            asset: importedAsset.asset,
-            displayTime:
-              importedAsset.asset.type === 'video' && importedAsset.asset.duration
-                ? importedAsset.asset.duration
-                : cut.displayTime,
-          };
-        }
-
-        return {
-          ...cut,
-          assetId: draftedAsset.id,
-          asset: draftedAsset,
-          displayTime:
-            draftedAsset.type === 'video' && draftedAsset.duration
-              ? draftedAsset.duration
-              : cut.displayTime,
-        };
-      }));
-      return { ...scene, cuts: updatedCuts };
-    }));
-  }
-
-  return finalScenes;
+  const plan = await planRecoverySceneChanges(scenes, recoveryDecisions);
+  const commit = await commitRecoverySceneChanges(plan, vaultPath);
+  return commit.scenes;
 }
 
 async function buildRecoveryRelinkAssetDraft(newPath: string, currentAsset: Asset): Promise<Asset> {
@@ -293,6 +270,243 @@ async function buildRecoveryRelinkAssetDraft(newPath: string, currentAsset: Asse
     fileSize: canonicalMetadata.fileSize,
     originalPath: newPath,
   };
+}
+
+function cloneRecoveryAsset(asset: Asset | undefined): Asset | undefined {
+  if (!asset) return undefined;
+  return {
+    ...asset,
+    metadata: asset.metadata ? { ...asset.metadata } : undefined,
+  };
+}
+
+function cloneRecoveryCut(cut: Cut): Cut {
+  return {
+    ...cut,
+    asset: cloneRecoveryAsset(resolveCutAssetSnapshot(cut) ?? undefined),
+    framing: cut.framing ? { ...cut.framing } : undefined,
+    audioBindings: cut.audioBindings?.map((binding) => ({ ...binding })),
+  };
+}
+
+function cloneRecoveryScene(scene: Scene): Scene {
+  return {
+    ...scene,
+    notes: scene.notes.map((note) => ({ ...note })),
+    cuts: scene.cuts.map(cloneRecoveryCut),
+    groups: scene.groups?.map((group) => ({
+      ...group,
+      cutIds: [...group.cutIds],
+    })),
+  };
+}
+
+export async function planRecoverySceneChanges(
+  scenes: Scene[],
+  recoveryDecisions?: RecoveryDecision[]
+): Promise<PlannedRecoverySceneChanges> {
+  let plannedScenes = scenes.map(cloneRecoveryScene);
+  const relinks: RecoveryRelinkPlan[] = [];
+
+  if (!recoveryDecisions || recoveryDecisions.length === 0) {
+    return { scenes: plannedScenes, relinks };
+  }
+
+  for (const decision of recoveryDecisions) {
+    if (decision.action === 'delete') {
+      plannedScenes = plannedScenes.map((scene) => {
+        if (scene.id !== decision.sceneId) return scene;
+        return {
+          ...scene,
+          cuts: scene.cuts.filter((cut) => cut.id !== decision.cutId),
+        };
+      });
+      continue;
+    }
+
+    if (decision.action !== 'relink' || !decision.newPath) {
+      continue;
+    }
+
+    plannedScenes = plannedScenes.map((scene) => {
+      if (scene.id !== decision.sceneId) return scene;
+      const updatedCuts = scene.cuts.map((cut) => {
+        if (cut.id !== decision.cutId) {
+          return cut;
+        }
+        relinks.push({
+          relinkToken: `${scene.id}::${cut.id}::${relinks.length}`,
+          sceneId: scene.id,
+          cutId: cut.id,
+          newPath: decision.newPath!,
+        });
+        return cut;
+      });
+      return { ...scene, cuts: updatedCuts };
+    });
+  }
+
+  return {
+    scenes: plannedScenes,
+    relinks,
+  };
+}
+
+export async function commitRecoverySceneChanges(
+  plan: PlannedRecoverySceneChanges,
+  vaultPath: string
+): Promise<CommitRecoverySceneChangesResult> {
+  let committedScenes = plan.scenes.map(cloneRecoveryScene);
+
+  if (plan.relinks.length === 0) {
+    return {
+      status: 'success',
+      scenes: committedScenes,
+      committedRelinks: [],
+      failedRelinks: [],
+      errors: [],
+    };
+  }
+  const committedRelinks: CommittedRecoveryRelink[] = [];
+  const failedRelinks: FailedRecoveryRelink[] = [];
+
+  for (const relink of plan.relinks) {
+    const cut = findCutInScenes(committedScenes, relink.sceneId, relink.cutId);
+    if (!cut) {
+      failedRelinks.push({
+        relinkToken: relink.relinkToken,
+        sceneId: relink.sceneId,
+        cutId: relink.cutId,
+        reason: 'cut-missing',
+        message: 'Target cut was not found during recovery commit.',
+      });
+      continue;
+    }
+
+    const currentAsset = resolveCutAssetSeed(cut, () => undefined);
+    if (!currentAsset) {
+      failedRelinks.push({
+        relinkToken: relink.relinkToken,
+        sceneId: relink.sceneId,
+        cutId: relink.cutId,
+        assetId: cut.assetId,
+        reason: 'asset-seed-missing',
+        message: 'Recovery relink requires an existing asset seed.',
+      });
+      continue;
+    }
+
+    const assetId = resolveCutAssetId(cut, () => undefined) || currentAsset.id;
+    let draftedAsset: Asset;
+    try {
+      draftedAsset = {
+        ...(await buildRecoveryRelinkAssetDraft(relink.newPath, currentAsset)),
+        id: assetId,
+      };
+    } catch (error) {
+      failedRelinks.push({
+        relinkToken: relink.relinkToken,
+        sceneId: relink.sceneId,
+        cutId: relink.cutId,
+        assetId,
+        reason: 'draft-failed',
+        message: error instanceof Error
+          ? error.message
+          : `Failed to prepare recovery draft asset for ${relink.newPath}.`,
+      });
+      continue;
+    }
+
+    let registered: Awaited<ReturnType<typeof registerAssetFile>>;
+    try {
+      registered = await registerAssetFile({
+        sourcePath: relink.newPath,
+        vaultPath,
+        assetId,
+        existingAsset: draftedAsset,
+      });
+    } catch (error) {
+      failedRelinks.push({
+        relinkToken: relink.relinkToken,
+        sceneId: relink.sceneId,
+        cutId: relink.cutId,
+        assetId,
+        reason: 'register-failed',
+        message: error instanceof Error
+          ? error.message
+          : `Failed to register recovery asset from ${relink.newPath}.`,
+      });
+      continue;
+    }
+
+    if (!registered?.asset) {
+      failedRelinks.push({
+        relinkToken: relink.relinkToken,
+        sceneId: relink.sceneId,
+        cutId: relink.cutId,
+        assetId,
+        reason: 'register-failed',
+        message: `Failed to register recovery asset from ${relink.newPath}.`,
+      });
+      continue;
+    }
+
+    const finalAsset = cloneRecoveryAsset(registered.asset);
+    if (!finalAsset) {
+      failedRelinks.push({
+        relinkToken: relink.relinkToken,
+        sceneId: relink.sceneId,
+        cutId: relink.cutId,
+        assetId,
+        reason: 'register-failed',
+        message: `Recovery asset registration returned an empty asset for ${relink.newPath}.`,
+      });
+      continue;
+    }
+
+    committedScenes = committedScenes.map((scene) => {
+      if (scene.id !== relink.sceneId) return scene;
+      return {
+        ...scene,
+        cuts: scene.cuts.map((candidate) => {
+          if (candidate.id !== relink.cutId) return candidate;
+          return {
+            ...candidate,
+            assetId: finalAsset.id,
+            asset: cloneRecoveryAsset(finalAsset),
+            displayTime:
+              finalAsset.type === 'video' && finalAsset.duration
+                ? finalAsset.duration
+                : candidate.displayTime,
+          };
+        }),
+      };
+    });
+    committedRelinks.push({
+      relinkToken: relink.relinkToken,
+      sceneId: relink.sceneId,
+      cutId: relink.cutId,
+      assetId,
+      asset: cloneRecoveryAsset(finalAsset) as Asset,
+    });
+  }
+
+  return {
+    status:
+      failedRelinks.length === 0
+        ? 'success'
+        : committedRelinks.length > 0
+          ? 'partial'
+          : 'failed',
+    scenes: committedScenes,
+    committedRelinks,
+    failedRelinks,
+    errors: failedRelinks,
+  };
+}
+
+function findCutInScenes(scenes: Scene[], sceneId: string, cutId: string): Cut | undefined {
+  return scenes.find((scene) => scene.id === sceneId)?.cuts.find((cut) => cut.id === cutId);
 }
 
 export function collectRecoveryRelinkEventCandidates(
@@ -346,7 +560,7 @@ export function collectRecoveryRelinkEventCandidates(
 export async function regenerateCutClipThumbnails(scenes: Scene[]): Promise<Scene[]> {
   return Promise.all(scenes.map(async (scene) => {
     const updatedCuts = await Promise.all(scene.cuts.map(async (cut) => {
-      const currentAsset = resolveCutAsset(cut, () => undefined);
+      const currentAsset = resolveCutAssetSeed(cut, () => undefined);
       if (cut.isClip && cut.inPoint !== undefined && currentAsset?.type === 'video' && currentAsset.path) {
         const newThumbnail = await generateVideoClipThumbnail(
           cut.id,

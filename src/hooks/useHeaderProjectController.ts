@@ -5,11 +5,10 @@ import type { MissingAssetInfo, RecoveryDecision } from '../components/MissingAs
 import { createAutosaveController, subscribeProjectChanges } from '../utils/autosave';
 import { collectAssetRefs, findDanglingAssetRefs } from '../utils/assetRefs';
 import {
+  buildDerivedAssetIndexForSave,
   buildProjectSavePayload,
   serializeProjectSavePayload,
   prepareScenesForSave,
-  getOrderedAssetIdsFromScenes,
-  buildAssetUsageRefs,
   ensureSceneIds,
   ensureSceneOrder,
 } from '../utils/projectSave';
@@ -119,8 +118,6 @@ export function useHeaderProjectController() {
     // Reorder asset index by Storyline order (scene/cut order)
     if (vaultPath) {
       try {
-        const orderedIds = getOrderedAssetIdsFromScenes(normalizedScenes, normalizedSceneOrder);
-        const usageRefs = buildAssetUsageRefs(normalizedScenes, normalizedSceneOrder);
         const index = await loadAssetIndexBridge(vaultPath);
         if (!index) {
           throw new Error('Failed to load asset index');
@@ -136,18 +133,7 @@ export function useHeaderProjectController() {
             `Missing references found before save (${kinds.join(', ')}).`
           );
         }
-        const normalizedAssets = index.assets.map((entry) => ({
-          ...entry,
-          usageRefs: usageRefs.get(entry.id) || [],
-        }));
-        const remaining = normalizedAssets.filter(entry => !orderedIds.includes(entry.id));
-        const ordered = orderedIds
-          .map(id => normalizedAssets.find(entry => entry.id === id))
-          .filter((entry): entry is NonNullable<typeof entry> => !!entry);
-        const newIndex = {
-          ...index,
-          assets: [...ordered, ...remaining],
-        };
+        const newIndex = buildDerivedAssetIndexForSave(index, normalizedScenes, normalizedSceneOrder);
         const indexSaveResult = await dispatchAppEffects([
           createSaveAssetIndexEffect({
             vaultPath,

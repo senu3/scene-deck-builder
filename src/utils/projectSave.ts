@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { Asset, AssetUsageRef, CutRuntimeHold, CutRuntimeState, Scene, SourcePanelState } from '../types';
+import type { Asset, AssetIndex, AssetUsageRef, CutRuntimeHold, CutRuntimeState, Scene, SourcePanelState } from '../types';
 import { getScenesAndCutsInTimelineOrder } from './timelineOrder';
 import { normalizeSceneOrder } from './sceneOrder';
 import { resolveCutAssetFromAssetId, resolveCutAssetId } from './assetResolve';
@@ -211,6 +211,27 @@ export function buildAssetUsageRefs(scenes: Scene[], sceneOrder?: string[]): Map
   }
 
   return usageMap;
+}
+
+export function buildDerivedAssetIndexForSave(
+  index: AssetIndex,
+  scenes: Scene[],
+  sceneOrder?: string[]
+): AssetIndex {
+  const orderedIds = getOrderedAssetIdsFromScenes(scenes, sceneOrder);
+  const usageRefs = buildAssetUsageRefs(scenes, sceneOrder);
+  const normalizedAssets = index.assets.map((entry) => ({
+    ...entry,
+    usageRefs: usageRefs.get(entry.id) || [],
+  }));
+  const remaining = normalizedAssets.filter((entry) => !orderedIds.includes(entry.id));
+  const ordered = orderedIds
+    .map((id) => normalizedAssets.find((entry) => entry.id === id))
+    .filter((entry): entry is NonNullable<typeof entry> => !!entry);
+  return {
+    ...index,
+    assets: [...ordered, ...remaining],
+  };
 }
 
 export function ensureSceneIds(scenes: Scene[]): { scenes: Scene[]; missingCount: number } {

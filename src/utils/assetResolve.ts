@@ -28,6 +28,18 @@ export function resolveCutAsset(cut: CutLike | null | undefined, getAsset: GetAs
   return getAsset(cut.assetId) ?? null;
 }
 
+export function resolveCutAssetSnapshot(cut: CutLike | null | undefined): Asset | null {
+  if (!cut?.asset) return null;
+  return cut.asset;
+}
+
+// Load/recovery only: use cut.asset as a seed when runtime assetCache is unavailable.
+export function resolveCutAssetSeed(cut: CutLike | null | undefined, getAsset: GetAssetById): Asset | null {
+  const resolved = resolveCutAsset(cut, getAsset);
+  if (resolved) return resolved;
+  return resolveCutAssetSnapshot(cut);
+}
+
 export function resolveCutAssetFromAssetId(cut: CutLike | null | undefined, getAsset: GetAssetById): Asset | null {
   if (!cut?.assetId) return null;
   return getAsset(cut.assetId) ?? null;
@@ -44,7 +56,7 @@ export function cutAssetPathStartsWith(
   getAsset: GetAssetById,
   prefix: string
 ): boolean {
-  const path = resolveCutAsset(cut, getAsset)?.path;
+  const path = resolveCutAssetSeed(cut, getAsset)?.path;
   return typeof path === 'string' && path.startsWith(prefix);
 }
 
