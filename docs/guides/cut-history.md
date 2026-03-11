@@ -38,6 +38,8 @@
 - Command 非対象:
   - 一時的な runtime 状態（loading等）
   - キャッシュ・進捗表示などの非永続UI状態
+- runtime state には一時状態と再生成可能な派生状態を置き、永続が必要な値だけを明示的に抽出して保存する。
+- Effect で再生成できる値は永続 state の正本に混ぜない。
 
 ## Group ルール
 - no overlap / no nesting を維持する（1 cut は高々1 group）。
