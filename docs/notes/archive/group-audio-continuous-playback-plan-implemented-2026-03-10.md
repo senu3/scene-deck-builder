@@ -1,9 +1,15 @@
-# GroupAudio Continuous Playback Plan (2026-03-10)
+# GroupAudio Continuous Playback Plan Implemented (2026-03-10)
 
 ## TL;DR
 - GroupAudio は `cut` 単位イベントではなく、`group` 単位の単一イベントへモデルを修正する。
 - 先に `base audio plan` を正し、その後で focused/1-cut preview 用の audio slice を導入する。
 - 1-cut preview は映像 plan を 1-cut のまま維持し、audio だけ canonical sequence plan の窓として扱う。
+
+## 状態
+- GroupAudio の `group -> single event` モデル化は完了。
+- focused / 1-cut preview の `base audio plan` slice 導入は完了。
+- IN/OUT や loop に伴う backward seek 再同期も完了。
+- 本ノートの scoped work は完了したため archive へ移動する。
 
 ## 背景
 - 現行の `buildExportAudioPlan` は `group-attach` を group 所属 cut ごとに分割生成している。

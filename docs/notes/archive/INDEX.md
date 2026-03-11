@@ -31,6 +31,7 @@
 - `docs/notes/archive/store-io-boundary-migration-plan-2026-03-02.md`
 - `docs/notes/archive/store-ui-feature-effects-migration-plan-implemented-2026-03-05.md`
 - `docs/notes/archive/sequence-plan-timing-inventory-implemented-2026-03-10.md`
+- `docs/notes/archive/group-audio-continuous-playback-plan-implemented-2026-03-10.md`
 
 ## ルール
 - 現在進行中の意思決定は `docs/notes/` 直下に置く。
