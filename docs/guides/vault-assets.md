@@ -20,9 +20,11 @@
 - Must: `assetId -> filename` 対応は `.index.json` を正本とする。
 - Must: Asset 解決は `assetId` を主経路とする。
 - Must: 削除時は asset を `.trash/` へ移動し `.trash.json` に履歴を残す。
+- Must: trash move write path は、`assetId` が与えられた場合に index からの除去結果を呼び出し元へ返す。
 - Must: asset index は asset 解決（`assetId -> filename`）の正本として扱う。
 - Must Not: `.metadata.json` を asset index の代替として使わない。
 - Must Not: Vault 内 asset を再コピーして二重登録しない。
+- Must Not: renderer が trash move 後に delete 用の index 更新を二重実行しない。
 
 ## 復元ポリシー
 - 復元は次の順序で行う。
@@ -45,6 +47,7 @@
 - Asset参照グラフは、cut参照・audio参照・lip sync参照を一貫して追跡する。
 - 参照中Assetは、参照チェックを通過した場合のみ削除可能とする。
 - 削除時は「物理移動」「index更新」「参照掃除」を同一方針で実行する。
+- 物理移動と index 更新の write 責務は同一 gateway 経路に集約し、renderer は返却結果に応じて metadata 掃除だけを続行する。
 - 資産解決順は `assetId -> index -> filename` を正とする。
 
 ## 境界ルール

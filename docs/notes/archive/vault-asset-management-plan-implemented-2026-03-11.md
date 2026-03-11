@@ -1,10 +1,11 @@
-# Vault / Asset Management Plan (2026-03-11)
+# Vault / Asset Management Plan Implemented (2026-03-11)
 
 ## TL;DR
 - Vault / Asset 管理の基盤整備として、renderer 側の in-vault index 直接更新をやめ、`vaultGateway.registerVaultAsset` を追加した。
 - asset metadata は `src/features/metadata/provider.ts` の canonical 入口で正規化し、register 系は `src/features/asset/write.ts` 経由へ寄せた。
 - recovery relink は read-only の draft 構築と write の register を分離し、read path で暗黙 write を起こさない形に整理した。
 - `usageRefs` は save-time derived index helper に集約し、`cut.asset` snapshot 参照は `resolveCutAssetSeed` に局所化した。
+- delete/trash は gateway 側が file move + index 更新結果を返す write path に統一し、renderer 側の delete 用 index 二重更新を削除した。
 
 ## 目的
 - Vault / Asset 管理の write 入口と metadata 入口を整理し、`Asset.duration` などの不整合を経路差で増やさない。
@@ -59,9 +60,14 @@
 - `hasLegacyRelativeAssetPaths`、recovery planning、load 後 migration save、clip thumbnail 再生成はこの helper を使う。
 - これにより `cut.asset` の直接参照は引き続き `assetResolve.ts` 内だけに閉じる。
 
-## 残作業
-- delete/trash 経路の index 更新責務をさらに整理し、`moveToTrashInternal` 側の暗黙 index 更新を見直す。
+4. delete / trash write path の明示化
+- `moveToTrashWithMeta` は trash move の結果に加えて index sync 成否を返すように変更した。
+- delete policy は gateway 結果だけを見て metadata delete を続行するか判定し、renderer 側の `INDEX_UPDATE` effect は delete 経路から外した。
+
+## 状態
+- 本計画の scoped work は完了したため archive へ移動した。
 
 ## 検証
 - provider / asset write service / assetPath / cut actions の unit test を更新し、register 経路の変更をカバーした。
-- `npm run build` を通し、型チェックと bundle build が成立することを確認した。
+- delete/trash provider と metadata delete policy の unit test を更新し、gateway 返却値ベースで partial failure を確認した。
+- `npm test` と `npm run build` を通し、型チェックと bundle build が成立することを確認した。
