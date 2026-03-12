@@ -18,6 +18,7 @@
 - Must: `AutoClip (Simple)` は動画cutのみ対象にする。
 - Must: 生成cutの追加は Command 経由で行い、Undo/Redo で可逆にする。
 - Must: source cut を破壊更新しない。
+- Must: source cut が clip 済み動画の場合でも、その current source window を対象に分割する。
 - Must: AutoClip の境界変更時は `storyline.md` と整合させる。
 - Must Not: UI配置未確定事項をL1で確定仕様として書かない。
 - Must Not: modeパラメータ値をL1正本として固定しない。
@@ -30,6 +31,7 @@
 ## Canonical Boundaries
 - Timeline構造変更は Command 境界で実行する。
 - AutoClip は split候補生成と cut挿入までを責務とする。
+- split候補が得られない場合は no-op で終わり、失敗扱いにしない。
 - アルゴリズム詳細（mode値、RMSスナップ、フォールバック挙動）は L2 正本で管理する。
 
 ## Open Items Handling

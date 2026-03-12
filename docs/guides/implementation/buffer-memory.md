@@ -2,7 +2,7 @@
 
 **目的**: Buffer/ArrayBuffer まわりの生成・保持・解放点を棚卸しする。
 **適用範囲**: main/renderer のバッファ・キャッシュ。
-**関連ファイル**: `electron/main.ts`, `electron/vaultGateway.ts`, `src/utils/thumbnailCache.ts`, `src/utils/audioUtils.ts`, `src/components/PreviewModal.tsx`。
+**関連ファイル**: `electron/main.ts`, `electron/vaultGateway.ts`, `src/utils/thumbnailCache.ts`, `src/utils/audioUtils.ts`, `src/utils/videoUtils.ts`, `src/components/preview-modal/*`。
 **更新頻度**: 低。
 
 ## Must / Must Not
@@ -26,7 +26,7 @@
 | 区分 | 生成点 (ファイル) | バッファ種別 | サイズ推定 | 保持場所 / 寿命 | 解放・クリア点 |
 | --- | --- | --- | --- | --- | --- |
 | Media protocol (stream) | `electron/main.ts` | ReadableStream (Range対応) | チャンク単位 | リクエスト処理中のみ | レスポンス完了で自然解放 |
-| Read file → base64 | `electron/main.ts` | Node `Buffer` → base64 string | Buffer=ファイルサイズ / base64≈4/3倍 | 主に legacy 経路で返却 | GC（State/Cacheから消えたタイミング） |
+| Read file → base64 | `electron/main.ts` | Node `Buffer` → base64 string | Buffer=ファイルサイズ / base64≈4/3倍 | 画像crop preview、画像thumbnail fallback、data URL import系の一時返却 | GC（State/Cacheから消えたタイミング） |
 | Read audio file | `electron/main.ts` | Node `Buffer` | ファイルサイズ | IPC返却の一時 | GC（参照解放） |
 | Decode audio (PCM) | `electron/main.ts` | `Buffer[]` → `Buffer.concat` | PCM = duration * sampleRate * channels * 2 bytes | IPC返却の一時（戻り値で保持） | GC（参照解放） |
 | Image metadata | `electron/main.ts` | Node `Buffer` | ファイルサイズ | 関数内ローカル | GC |
@@ -34,13 +34,14 @@
 | Vault import hashing | `electron/vaultGateway.ts` | Node `Buffer` | ファイルサイズ | 関数内ローカル | GC |
 | Audio PCM → WebAudio | `src/utils/audioUtils.ts` | `Uint8Array` → `AudioBuffer` | PCM bytes + AudioBuffer = duration * sampleRate * channels * 4 bytes (Float32) | `AudioManager.audioBuffer` に保持 | `unload()` / `dispose()` で `audioBuffer=null` |
 | RMS analysis | `src/utils/audioUtils.ts` | `Uint8Array` + `number[]` | PCM bytes + rms array (fps * duration) | `AudioAnalysis` を metadata JSON に保持 | metadata更新/削除で消える |
-| Video thumbnail (renderer fallback) | `src/utils/videoUtils.ts` | `HTMLCanvasElement` backing store + base64 | Canvas=width*height*4 bytes / base64≈4/3倍 | sharedCanvas はモジュール内で常駐 | sharedCanvas は使い回し（明示解放なし） |
-| Preview video cache | `src/components/PreviewModal.tsx` | URL文字列 + Set/Map | 文字列サイズ | `useRef(Map/Set)` に保持 | `cleanupOldUrls()` / unmount で clear |
-| Preview image data | `src/components/PreviewModal.tsx` | base64 data URL | base64≈4/3倍 | `useState(singleModeImageData)` / `items[].thumbnail` | component lifecycle |
+| Video thumbnail (renderer fallback) | `src/utils/videoUtils.ts` | `HTMLVideoElement` + `HTMLCanvasElement` backing store + base64 | Canvas=width*height*4 bytes / base64≈4/3倍 | `sharedVideo` / `sharedCanvas` はモジュール内で常駐 | 使い回し（明示解放なし） |
+| Preview video cache | `src/components/preview-modal/usePreviewSequenceBuffering.ts`, `src/components/preview-modal/usePreviewSingleMediaAsset.ts` | `media://` URL文字列 + Set/Map | 文字列サイズ | `videoUrlCacheRef` / `videoObjectUrl` に保持 | `cleanupOldUrls()` / effect cleanup / unmount で clear |
+| Preview image data | `src/components/preview-modal/usePreviewSingleMediaAsset.ts`, `src/components/preview-modal/usePreviewItemsState.ts` | base64 data URL | base64≈4/3倍 | `singleModeImageData` / `items[].thumbnail` | component lifecycle |
 | Asset cache | `src/store/useStore.ts` | `Map<string, Asset>` (thumbnail含む) | thumbnail base64 + metadata | グローバルストア | `clearProject()` 等で更新（明示上限なし） |
 | Thumbnail cache (LRU) | `src/utils/thumbnailCache.ts` | `Map<string, { data, bytes }>` (base64) | base64≈4/3倍 | module-level LRU | `clearThumbnailCache()` / LRU eviction |
 | Cut/Details thumbnails | `src/components/CutCard.tsx`, `CutGroupCard.tsx`, `DetailsPanel.tsx` | base64 data URL | base64≈4/3倍 | 各コンポーネント state | component lifecycle |
 | LipSync frames | `src/components/LipSyncModal.tsx` | base64 data URL | base64≈4/3倍 | `frames` state / `maskDataUrl` | component lifecycle |
+| LipSync precompose result | `electron/main.ts` (`precompose-lipsync-frames`) | PNG `Buffer` → base64 data URL array | 合成フレーム数に比例 | main 側一時配列 `frameDataUrls[]` | IPC返却後 + GC |
 | MaskPaint canvases | `src/components/MaskPaintModal.tsx` | Canvas backing store (3枚) | 3 * width * height * 4 bytes | refsに保持 | component lifecycle |
 | MaskPaint undo/redo | `src/components/MaskPaintModal.tsx` | `ImageData` | width * height * 4 bytes / entry | `useState(undoState/redoState)` | 1段階のみ。上書きで解放 |
 | Mask export | `src/components/MaskPaintModal.tsx` | `ImageData` + base64 | ImageData + base64≈4/3倍 | 一時生成 | GC（関数終了） |
@@ -54,7 +55,7 @@
 
 ### 1) Buffer / ArrayBuffer / Uint8Array
 - Node Buffer（mainプロセス）
-- `read-file-as-base64`(legacy), `read-audio-file`, `read-audio-pcm`, `read-image-metadata`, `generate-thumbnail`, `vaultGateway` のハッシュ計算などで Buffer 生成が発生。
+- `read-file-as-base64`, `read-audio-file`, `read-audio-pcm`, `read-image-metadata`, `generate-thumbnail`, `precompose-lipsync-frames`, `vaultGateway` のハッシュ計算などで Buffer 生成が発生。
 - Renderer Uint8Array
 - `readAudioPcm` の戻りを `Uint8Array` 化し `AudioBuffer` を生成。
 - `analyzeAudioRms` でも PCM を `Uint8Array` として保持し、RMS配列を生成。
@@ -62,7 +63,7 @@
 ### 2) ImageData / Canvas backing store
 - `MaskPaintModal` で **3枚キャンバス**を常時保持。
 - `ImageData` は **Undo/Redo 1段**だけ保持する設計（メモリ制限あり）。
-- `videoUtils` の **sharedCanvas** はモジュール全体で使い回し（寿命はアプリ全体）。
+- `videoUtils` の **sharedVideo / sharedCanvas** はモジュール全体で使い回し（寿命はアプリ全体）。
 
 ### 3) Base64 / data URL
 - `generate-thumbnail` の結果（縮小済み base64）が多数のコンポーネントに保持される。
@@ -74,7 +75,7 @@
 
 ### 5) createImageBitmap / URL.createObjectURL / Blob
 - `createImageBitmap` の使用は **なし**。
-- `URL.createObjectURL` の使用は **なし**（`revokeIfBlob` は将来用）。
+- 本番の通常経路では `URL.createObjectURL` の使用は **なし**。Preview の動画 URL は `media://` 文字列で、`revokeIfBlob` は blob fallback / test 互換用の安全弁として残っている。
 - `Blob` の生成は **なし**。
 
 ---
@@ -83,9 +84,12 @@
 
 ### Map / useRef / useState での保持
 - `src/components/PreviewModal.tsx`
+- `videoObjectUrl`
+- `src/components/preview-modal/usePreviewSequenceBuffering.ts`
 - `videoUrlCacheRef: Map<assetId, url>`
 - `readyItemsRef: Set<assetId>`
 - `preloadingRef: Set<assetId>`
+- `src/components/preview-modal/usePreviewSingleMediaAsset.ts`
 - `singleModeImageData` / `videoObjectUrl`
 - `src/utils/thumbnailCache.ts`
 - `cache: Map<key, { data, bytes }>`（LRU / module-level）
@@ -105,7 +109,7 @@
 
 ### 1) URL.createObjectURL の revoke 漏れ
 - 該当なし。
-- `revokeIfBlob` は将来用で、現在は `media://` URL のため実質 noop。
+- `revokeIfBlob` は blob URL が来た場合だけ解放する安全弁で、通常の `media://` 経路では実質 noop。
 
 ### 2) イベント解除漏れ
 - 重大な漏れは見当たらない。
@@ -131,10 +135,10 @@
 ### 5) ffmpeg stdout/stderr の溜め込み
 - 該当あり。
 - `read-audio-pcm`（stdout → Buffer[] 全量保持）
-- `finalize-clip` / `export-sequence` / `extract-video-frame`（stderr を文字列で全量保持）
+- `finalize-clip` / `export-sequence` / `extract-video-frame` / thumbnail service / probe系（stderr は上限付き保持）
 - 対策（実装済み）。
-- `stderr` は末尾 128KB のリングバッファで保持。
-- `read-audio-pcm`（PCM）は上限で超過時は拒否。
+- `stderr` は `ffmpegLimits.stderrMaxBytes`（既定 128KB）の末尾リングバッファで保持する。
+- `read-audio-pcm`（PCM）は clip/total の秒数・バイト上限を超えたら拒否する。
 
 ---
 
@@ -143,3 +147,5 @@
 - `media://` はストリーミング前提なので、基本はフルバッファ化を避けられる。
 - 音声は PCM + AudioBuffer の二重保持が起きるため、長尺ではメモリが急増しやすい。
 - サムネイルは単一入口（getThumbnail）+ LRU に統一。
+- `read-file-as-base64` は完全な legacy ではなく、画像 preview/fallback 系の現行経路でも残っている。
+- LipSync の precompose 経路は一時的に PNG Buffer と data URL 配列を持つため、フレーム数が多い入力ではピークメモリに注意する。
