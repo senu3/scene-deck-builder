@@ -1,6 +1,6 @@
 import { useDroppable, useDndContext } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Plus, MoreHorizontal, Edit2, Trash2, Play, Download } from 'lucide-react';
+import { Plus, MoreHorizontal, Edit2, Trash2, Play, Download, Clapperboard } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import {
@@ -36,6 +36,18 @@ const SCENE_COLORS = [
 
 const getSceneColor = (index: number) => SCENE_COLORS[index % SCENE_COLORS.length];
 
+export type SceneEmptyStateVariant = 'primary' | 'secondary' | null;
+
+export function getSceneEmptyStateVariant(
+  cutCount: number,
+  sceneIndex: number,
+  areAllScenesEmpty: boolean
+): SceneEmptyStateVariant {
+  if (cutCount > 0) return null;
+  if (areAllScenesEmpty && sceneIndex === 0) return 'primary';
+  return 'secondary';
+}
+
 interface StorylineProps {
   activeId: string | null;
   activeType: 'cut' | 'scene' | null;
@@ -53,6 +65,7 @@ export default function Storyline({
   const scenes = useStore(selectScenes);
   const sceneOrder = useStore(selectSceneOrder);
   const orderedScenes = getScenesInOrder(scenes, sceneOrder);
+  const areAllScenesEmpty = orderedScenes.every((scene) => scene.cuts.length === 0);
   const selectedSceneId = useStore(selectSelectedSceneId);
   const selectScene = useStore(selectSelectScene);
   const vaultPath = useStore(selectVaultPath);
@@ -132,6 +145,7 @@ export default function Storyline({
             activeId={activeId}
             cropBaseResolution={cropBaseResolution}
             placeholder={placeholder?.sceneId === scene.id ? placeholder : null}
+            emptyStateVariant={getSceneEmptyStateVariant(scene.cuts.length, index, areAllScenesEmpty)}
             sourceSceneId={sourceSceneId}
             isOverDifferentScene={!!isOverDifferentScene}
             onPreviewScene={onPreviewScene}
@@ -172,6 +186,7 @@ interface SceneColumnProps {
   activeId: string | null;
   cropBaseResolution: { name: string; width: number; height: number };
   placeholder: PlaceholderState | null;
+  emptyStateVariant: SceneEmptyStateVariant;
   sourceSceneId?: string;
   isOverDifferentScene?: boolean;
   onPreviewScene: (sceneId: string) => void;
@@ -189,6 +204,7 @@ function SceneColumn({
   activeId,
   cropBaseResolution,
   placeholder,
+  emptyStateVariant,
   sourceSceneId,
   isOverDifferentScene,
   onPreviewScene,
@@ -219,6 +235,7 @@ function SceneColumn({
   // Check if this is the source scene and a cut is being dragged to a different scene
   const isSourceScene = sourceSceneId === sceneId;
   const shouldHideDraggedCard = isSourceScene && isOverDifferentScene;
+  const showEmptyState = cuts.length === 0 && !placeholder && emptyStateVariant !== null;
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -287,6 +304,16 @@ function SceneColumn({
         </div>
       </div>
     ) : null;
+
+    if (showEmptyState && emptyStateVariant) {
+      items.push(
+        <SceneEmptyState
+          key="empty-state"
+          variant={emptyStateVariant}
+        />
+      );
+      return items;
+    }
 
     for (let i = 0; i < cuts.length; i++) {
       const cut = cuts[i];
@@ -507,11 +534,41 @@ function SceneColumn({
       >
         <div
           ref={setCombinedRef}
-          className={`scene-cuts ${placeholder ? 'has-placeholder' : ''}`}
+          className={[
+            'scene-cuts',
+            placeholder ? 'has-placeholder' : '',
+            showEmptyState && emptyStateVariant === 'primary' ? 'scene-cuts--empty-primary' : '',
+            showEmptyState && emptyStateVariant === 'secondary' ? 'scene-cuts--empty-secondary' : '',
+          ].filter(Boolean).join(' ')}
         >
           {renderItems()}
         </div>
       </SortableContext>
+    </div>
+  );
+}
+
+interface SceneEmptyStateProps {
+  variant: Exclude<SceneEmptyStateVariant, null>;
+}
+
+function SceneEmptyState({ variant }: SceneEmptyStateProps) {
+  const isPrimary = variant === 'primary';
+
+  return (
+    <div className={`scene-empty-state scene-empty-state--${variant}`}>
+      {isPrimary ? (
+        <div className="scene-empty-state-icon">
+          <Clapperboard size={18} />
+        </div>
+      ) : null}
+      <p className="scene-empty-state-title">Drop image or video here</p>
+      {isPrimary ? (
+        <>
+          <p className="scene-empty-state-subtitle">Create your first cut in this scene</p>
+          <p className="scene-empty-state-note">From Assets, Source, or your computer</p>
+        </>
+      ) : null}
     </div>
   );
 }
