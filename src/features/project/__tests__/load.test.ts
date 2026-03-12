@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   commitRecoverySceneChanges,
   planRecoverySceneChanges,
+  resolveScenesAssets,
 } from '../load';
 
 vi.mock('../../asset/write', () => ({
@@ -15,6 +16,12 @@ vi.mock('../../metadata/provider', () => ({
 
 vi.mock('../../thumbnails/api', () => ({
   getAssetThumbnail: vi.fn(),
+}));
+
+vi.mock('../../platform/electronGateway', () => ({
+  loadAssetIndexBridge: vi.fn(),
+  pathExistsBridge: vi.fn(),
+  resolveVaultPathBridge: vi.fn(),
 }));
 
 function createRecoveryScenes(): Scene[] {
@@ -63,6 +70,44 @@ function createRecoveryScenes(): Scene[] {
 describe('project load recovery helpers', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('routes unresolved assetId cuts into missing recovery instead of swallowing them', async () => {
+    const { loadAssetIndexBridge } = await import('../../platform/electronGateway');
+    vi.mocked(loadAssetIndexBridge).mockResolvedValue({
+      version: 1,
+      assets: [],
+    });
+
+    const result = await resolveScenesAssets([{
+      id: 'scene-missing',
+      name: 'Scene Missing',
+      order: 0,
+      notes: [],
+      cuts: [{
+        id: 'cut-missing',
+        order: 0,
+        assetId: 'asset-missing',
+        displayTime: 1,
+      }],
+    }], '/vault');
+
+    expect(result.missingAssets).toEqual([expect.objectContaining({
+      sceneId: 'scene-missing',
+      cutId: 'cut-missing',
+      asset: expect.objectContaining({
+        id: 'asset-missing',
+        path: '',
+        type: 'image',
+      }),
+    })]);
+    expect(result.scenes[0]?.cuts[0]).toEqual(expect.objectContaining({
+      assetId: 'asset-missing',
+      asset: expect.objectContaining({
+        id: 'asset-missing',
+        path: '',
+      }),
+    }));
   });
 
   it('plans relinks as value-only data without drafted asset state', async () => {
@@ -172,6 +217,68 @@ describe('project load recovery helpers', () => {
       asset: expect.objectContaining({
         path: '/vault/assets/video.mp4',
         vaultRelativePath: 'assets/video.mp4',
+      }),
+    }));
+  });
+
+  it('commits recovery relinks from assetId even when no asset snapshot seed remains', async () => {
+    const { registerAssetFile } = await import('../../asset/write');
+    const { readCanonicalAssetMetadataForPath } = await import('../../metadata/provider');
+    const { getAssetThumbnail } = await import('../../thumbnails/api');
+    vi.mocked(readCanonicalAssetMetadataForPath).mockResolvedValue({
+      duration: 6,
+      fileSize: 4096,
+      metadata: { width: 1920, height: 1080 },
+    });
+    vi.mocked(getAssetThumbnail).mockResolvedValue('thumb-data');
+    vi.mocked(registerAssetFile).mockResolvedValue({
+      asset: {
+        id: 'asset-seedless',
+        name: 'seedless.mp4',
+        path: '/vault/assets/seedless.mp4',
+        type: 'video',
+        duration: 6,
+        vaultRelativePath: 'assets/seedless.mp4',
+      },
+      isDuplicate: false,
+    });
+
+    const plan = await planRecoverySceneChanges([{
+      id: 'scene-seedless',
+      name: 'Scene Seedless',
+      order: 0,
+      notes: [],
+      cuts: [{
+        id: 'cut-seedless',
+        order: 0,
+        assetId: 'asset-seedless',
+        displayTime: 2,
+      }],
+    }], [{
+      sceneId: 'scene-seedless',
+      cutId: 'cut-seedless',
+      action: 'relink',
+      newPath: '/relinked/seedless.mp4',
+    }]);
+    const committed = await commitRecoverySceneChanges(plan, '/vault');
+
+    expect(registerAssetFile).toHaveBeenCalledWith({
+      sourcePath: '/relinked/seedless.mp4',
+      vaultPath: '/vault',
+      assetId: 'asset-seedless',
+      existingAsset: expect.objectContaining({
+        id: 'asset-seedless',
+        path: '/relinked/seedless.mp4',
+        type: 'video',
+      }),
+    });
+    expect(committed.status).toBe('success');
+    expect(committed.failedRelinks).toEqual([]);
+    expect(committed.scenes[0]?.cuts[0]).toEqual(expect.objectContaining({
+      assetId: 'asset-seedless',
+      displayTime: 6,
+      asset: expect.objectContaining({
+        path: '/vault/assets/seedless.mp4',
       }),
     }));
   });

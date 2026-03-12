@@ -60,6 +60,35 @@ export interface CommitRecoverySceneChangesResult {
   errors: FailedRecoveryRelink[];
 }
 
+function getFileName(filePath: string): string {
+  const normalized = filePath.replace(/\\/g, '/');
+  const lastSlash = normalized.lastIndexOf('/');
+  return lastSlash >= 0 ? normalized.slice(lastSlash + 1) : normalized;
+}
+
+function inferRecoveryAssetType(cut: Cut, fallback?: Asset, pathHint?: string): Asset['type'] {
+  const hinted = getCuttableMediaType(pathHint || fallback?.name || '');
+  if (hinted) return hinted;
+  if (fallback?.type) return fallback.type;
+  return cut.isClip ? 'video' : 'image';
+}
+
+function buildRecoveryAssetSeed(
+  cut: Cut,
+  assetId: string,
+  fallback?: Asset,
+  pathHint?: string,
+): Asset {
+  const hintedName = pathHint ? getFileName(pathHint) : '';
+  return {
+    ...(fallback || {}),
+    id: assetId,
+    name: fallback?.name || hintedName || assetId,
+    path: fallback?.path || '',
+    type: inferRecoveryAssetType(cut, fallback, pathHint),
+  };
+}
+
 async function resolveAssetPath(asset: Asset, vaultPath: string): Promise<Asset> {
   if (asset.path.startsWith('assets/')) {
     const result = await resolveVaultPathBridge(vaultPath, asset.path);
@@ -147,14 +176,35 @@ export async function resolveScenesAssets(scenes: Scene[], vaultPath: string): P
             ? { ...currentAsset, id: cutAssetId || currentAsset.id }
             : (cutAssetId ? await hydrateAssetFromIndex(cutAssetId) : undefined);
 
-          if (!baseAsset) return cut;
+          if (!baseAsset) {
+            if (!cutAssetId) return cut;
+            const unresolvedAsset = buildRecoveryAssetSeed(cut, cutAssetId, currentAsset ?? undefined);
+            missingAssets.push({
+              name: unresolvedAsset.name || cutAssetId,
+              cutId: cut.id,
+              sceneId: scene.id,
+              asset: unresolvedAsset,
+            });
+            return {
+              ...cut,
+              assetId: cutAssetId,
+              asset: unresolvedAsset,
+            };
+          }
 
           let resolvedAsset = await resolveAssetPath(baseAsset, vaultPath);
           if ((!resolvedAsset.path || resolvedAsset.path.trim() === '') && cutAssetId) {
             resolvedAsset = (await hydrateAssetFromIndex(cutAssetId, resolvedAsset)) || resolvedAsset;
           }
 
-          if (resolvedAsset.path) {
+          if (!resolvedAsset.path || resolvedAsset.path.trim() === '') {
+            missingAssets.push({
+              name: resolvedAsset.name || cutAssetId || cut.id,
+              cutId: cut.id,
+              sceneId: scene.id,
+              asset: resolvedAsset,
+            });
+          } else {
             const exists = await pathExistsBridge(resolvedAsset.path);
             if (!exists) {
               missingAssets.push({
@@ -371,23 +421,23 @@ export async function commitRecoverySceneChanges(
     }
 
     const currentAsset = resolveCutAssetSeed(cut, () => undefined);
-    if (!currentAsset) {
+    const assetId = resolveCutAssetId(cut, () => undefined) || currentAsset?.id || cut.assetId;
+    if (!assetId) {
       failedRelinks.push({
         relinkToken: relink.relinkToken,
         sceneId: relink.sceneId,
         cutId: relink.cutId,
-        assetId: cut.assetId,
         reason: 'asset-seed-missing',
-        message: 'Recovery relink requires an existing asset seed.',
+        message: 'Recovery relink requires a resolvable assetId.',
       });
       continue;
     }
+    const recoverySeed = currentAsset ?? buildRecoveryAssetSeed(cut, assetId, undefined, relink.newPath);
 
-    const assetId = resolveCutAssetId(cut, () => undefined) || currentAsset.id;
     let draftedAsset: Asset;
     try {
       draftedAsset = {
-        ...(await buildRecoveryRelinkAssetDraft(relink.newPath, currentAsset)),
+        ...(await buildRecoveryRelinkAssetDraft(relink.newPath, recoverySeed)),
         id: assetId,
       };
     } catch (error) {
