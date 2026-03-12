@@ -603,6 +603,75 @@ describe('timeline integrity commands', () => {
     expect(cut?.displayTime).toBe(12);
   });
 
+  it('hydrates authoritative video duration before clearing clip points when cache metadata is incomplete', async () => {
+    const assetHydration = await import('../../features/metadata/assetHydration');
+    const hydrateSpy = vi.spyOn(assetHydration, 'hydrateAssetWithCanonicalMetadata');
+
+    useStore.getState().initializeProject({
+      name: 'Clear Clip Duration Hydration',
+      vaultPath: 'C:/vault',
+      scenes: [{
+        id: 'scene-clear-clip-hydrate',
+        name: 'Scene Clear Clip Hydrate',
+        order: 0,
+        notes: [],
+        cuts: [{
+          id: 'cut-clear-clip-hydrate',
+          assetId: 'video-hydrate',
+          asset: {
+            id: 'video-hydrate',
+            name: 'clip-hydrate.mp4',
+            path: 'C:/vault/assets/clip-hydrate.mp4',
+            type: 'video',
+            duration: 14,
+          },
+          displayTime: 4,
+          order: 0,
+          inPoint: 1,
+          outPoint: 5,
+          isClip: true,
+          audioBindings: [],
+        }],
+      }],
+    });
+
+    useStore.getState().cacheAsset({
+      id: 'video-hydrate',
+      name: 'clip-hydrate.mp4',
+      path: 'C:/vault/assets/clip-hydrate.mp4',
+      type: 'video',
+    });
+    hydrateSpy.mockResolvedValue({
+      id: 'video-hydrate',
+      name: 'clip-hydrate.mp4',
+      path: 'C:/vault/assets/clip-hydrate.mp4',
+      type: 'video',
+      duration: 14,
+      metadata: {
+        width: 1920,
+        height: 1080,
+      },
+    });
+
+    const command = new ClearClipPointsCommand('scene-clear-clip-hydrate', 'cut-clear-clip-hydrate');
+    await command.execute();
+
+    const state = useStore.getState();
+    const cut = state.scenes
+      .find((scene) => scene.id === 'scene-clear-clip-hydrate')
+      ?.cuts.find((entry) => entry.id === 'cut-clear-clip-hydrate');
+    const cachedAsset = state.getAsset('video-hydrate');
+
+    expect(hydrateSpy).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'video-hydrate',
+      path: 'C:/vault/assets/clip-hydrate.mp4',
+      type: 'video',
+    }));
+    expect(cut?.isClip).toBe(false);
+    expect(cut?.displayTime).toBe(14);
+    expect(cachedAsset?.duration).toBe(14);
+  });
+
   it('does not update displayTime for clip cuts', async () => {
     useStore.getState().initializeProject({
       name: 'DisplayTime clip guard',

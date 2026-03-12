@@ -13,6 +13,7 @@ import {
 } from '../features/cut/simpleAutoClip';
 import { generateVideoClipThumbnail } from '../features/cut/clipThumbnail';
 import { buildRegenThumbnailsEffect } from '../features/cut/thumbnailEffects';
+import { hydrateAssetWithCanonicalMetadata } from '../features/metadata/assetHydration';
 import { resolveCutAsset as resolveCutAssetById } from '../utils/assetResolve';
 import type { ThumbnailProfile } from '../utils/thumbnailCache';
 import { normalizeGroupsInScenes } from '../utils/cutGroupOps';
@@ -808,6 +809,7 @@ export class ClearClipPointsCommand implements Command {
   private thumbnailProfile?: ThumbnailProfile;
   private oldInPoint?: number;
   private oldOutPoint?: number;
+  private restoredDisplayTime?: number;
 
   constructor(sceneId: string, cutId: string, thumbnailProfile?: ThumbnailProfile) {
     this.sceneId = sceneId;
@@ -856,7 +858,25 @@ export class ClearClipPointsCommand implements Command {
       this.oldOutPoint = cut.outPoint;
     }
 
+    const asset = cut ? resolveCutAsset(store, cut) : undefined;
+    if (asset?.type === 'video' && asset.path) {
+      try {
+        const hydratedAsset = await hydrateAssetWithCanonicalMetadata(asset);
+        if (hydratedAsset !== asset) {
+          store.cacheAsset(hydratedAsset);
+        }
+        if (typeof hydratedAsset.duration === 'number' && Number.isFinite(hydratedAsset.duration) && hydratedAsset.duration > 0) {
+          this.restoredDisplayTime = hydratedAsset.duration;
+        }
+      } catch {
+        // Best effort only; clip clear still proceeds.
+      }
+    }
+
     store.clearCutClipPoints(this.sceneId, this.cutId);
+    if (this.restoredDisplayTime !== undefined) {
+      store.updateCutDisplayTime(this.sceneId, this.cutId, this.restoredDisplayTime);
+    }
   }
 
   async undo(): Promise<void> {
