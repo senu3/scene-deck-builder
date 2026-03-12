@@ -19,6 +19,7 @@
 - Must: Scene/Cut の順序正本は `sceneOrder` / `cut.order` とする。
 - Must: Scene系操作は `sceneId` 直指定で解決する。
 - Must: Storyline は D&D の主受け口として scene-targeted drop を処理する。
+- Must: 空の scene は scene 内 drop hint で image/video 投入を案内する。
 - Must: Storyline は hover 中の `Space` 押下で横パン（hand tool）を有効化する。
 - Must: hand tool 有効中は Storyline 内の click/D&D を一時抑止し、パンを優先する。
 - Must: `SceneDurationBar` は scene選択イベント通知に限定する。
@@ -50,6 +51,11 @@
   - `selectedSceneId` に追従して scroll 実行を所有する。
   - hand tool の有効化条件（hover + `Space`）と横スクロール実行を所有する。
   - scene-targeted drop を主処理し、`App` はワークスペース fallback を担う。
+
+## Empty Scene Hint
+- all scenes empty の初期状態では、先頭 scene のみ強い初回導線を表示する。
+- 他の空 scene は compact な drop hint に留め、scene-targeted drop を崩さない。
+- hint は説明専用であり、click 操作や別経路 import を強制しない。
 
 ## Ordering Canonical Rules
 - scene chronology source: `sceneOrder: sceneId[]`
