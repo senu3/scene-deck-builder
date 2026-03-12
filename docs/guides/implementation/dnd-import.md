@@ -18,8 +18,9 @@
 - Must: AssetPanel から Storyline への内部DnD payload は `application/json` + `text/scene-deck-asset` を維持する。
 - Must: 外部投入の受理判定は `getSupportedMediaFiles` / `hasSupportedMediaDrag` を使う。
 - Must: 外部投入（OS -> App）は `image` / `video` のみ受理し、`audio` は受理しない。
-- Must: 外部持ち出し（App -> OS）は `window.electronAPI.startAssetFileDrag`（sync IPC）経由で開始する。
-- Must: main 側で実体パス検証を行ってから OS DnD を開始する。
+- Must: 外部持ち出し（App -> OS）は `osDragGateway.startAssetDragOut(assetId)` を入口にする。
+- Must: main 側で `assetId -> assets/.index.json -> 実体パス` を解決し、検証してから OS DnD を開始する。
+- Must: drag-out の renderer 入力は `assetId` または vault 内の論理識別子に限定する。
 - Must Not: drag kind 判定を各コンポーネントで個別実装しない。
 - Must Not: renderer で任意パスを組み立てて外部DnDへ渡さない。
 - Must Not: dragDrop 層が HUD 実装を import しない。
@@ -35,8 +36,8 @@
 - `audio` は受理しない。
 
 ### 3) 外部持ち出し（App -> OS）
-- renderer から main IPC 経由で開始する。
-- main 側で実体パス検証後に OS DnD を開始する。
+- renderer からは `assetId` のみで `osDragGateway` を呼ぶ。
+- main 側で index 解決と実体パス検証後に OS DnD を開始する。
 
 ### 4) DnD Debug Overlay 連携
 - DnD debug仕様は `debug-overlay.md` に従う。
