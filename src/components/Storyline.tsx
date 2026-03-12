@@ -48,6 +48,23 @@ export function getSceneEmptyStateVariant(
   return 'secondary';
 }
 
+export function shouldSelectSceneFromClickTarget(target: HTMLElement | null): boolean {
+  if (!target) return false;
+
+  if (target.closest('.cut-card')) return false;
+  if (target.closest('.cut-group-card')) return false;
+  if (target.closest('.expanded-group-container')) return false;
+  if (target.closest('.scene-menu')) return false;
+  if (target.closest('.scene-menu-btn')) return false;
+  if (target.closest('.scene-name-input')) return false;
+  if (target.closest('button')) return false;
+  if (target.closest('input')) return false;
+  if (target.closest('textarea')) return false;
+  if (target.closest('select')) return false;
+
+  return true;
+}
+
 interface StorylineProps {
   activeId: string | null;
   activeType: 'cut' | 'scene' | null;
@@ -236,6 +253,14 @@ function SceneColumn({
   const isSourceScene = sourceSceneId === sceneId;
   const shouldHideDraggedCard = isSourceScene && isOverDifferentScene;
   const showEmptyState = cuts.length === 0 && !placeholder && emptyStateVariant !== null;
+
+  const handleSceneColumnClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (activeId) return;
+    if (!shouldSelectSceneFromClickTarget(e.target as HTMLElement | null)) return;
+    setShowMenu(false);
+    onSelect();
+  };
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -442,6 +467,7 @@ function SceneColumn({
       className={`scene-column ${isSelected ? 'selected' : ''}`}
       data-scene-id={sceneId}
       style={{ '--scene-color': sceneColor } as React.CSSProperties}
+      onClick={handleSceneColumnClick}
     >
       <div
         className="scene-header"
@@ -464,7 +490,7 @@ function SceneColumn({
             onClick={(e) => e.stopPropagation()}
           />
         ) : (
-          <span className="scene-name">{sceneName.toUpperCase()}</span>
+          <span className="scene-name">{sceneName}</span>
         )}
 
         <div className="scene-menu-container" ref={menuRef}>

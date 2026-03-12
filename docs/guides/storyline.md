@@ -49,6 +49,7 @@
   - Storyline の DOM 制御責務は持たない。
 - `Storyline`:
   - `selectedSceneId` に追従して scroll 実行を所有する。
+  - scene header と scene surface の click で scene 選択を所有する。
   - hand tool の有効化条件（hover + `Space`）と横スクロール実行を所有する。
   - scene-targeted drop を主処理し、`App` はワークスペース fallback を担う。
 

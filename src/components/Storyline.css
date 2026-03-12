@@ -159,11 +159,11 @@
 }
 
 .scene-cuts.scene-cuts--empty-primary {
-  justify-content: center;
+  justify-content: start;
 }
 
 .scene-cuts.scene-cuts--empty-secondary {
-  justify-content: center;
+  justify-content: start;
 }
 
 .scene-cuts.drop-active {
