@@ -3,6 +3,7 @@ import type { Asset, Cut } from '../../types';
 import type { ExportSequenceItem } from '../../utils/exportSequence';
 import { EXPORT_FRAMING_DEFAULTS } from '../../constants/framing';
 import { buildPreviewViewportFramingStyle, buildPreviewViewportFramingStyleFromResolved } from '../../utils/previewFraming';
+import { useAssetMetadataHydration } from '../../features/metadata/useAssetMetadataHydration';
 import type { PreviewItem, ResolutionPreset } from './types';
 
 interface UsePreviewSharedViewStateInput {
@@ -22,6 +23,7 @@ interface UsePreviewSharedViewStateInput {
   singleModeDuration: number;
   singleModeCurrentTime: number;
   asset: Asset | undefined;
+  cacheAsset?: (asset: Asset) => void;
   focusCut: Cut | null;
   previewSequenceItemByCutId: Map<string, ExportSequenceItem>;
   resolveAssetForCut: (cut: Cut | null | undefined) => Asset | null;
@@ -50,6 +52,7 @@ export function usePreviewSharedViewState({
   singleModeDuration,
   singleModeCurrentTime,
   asset,
+  cacheAsset,
   focusCut,
   previewSequenceItemByCutId,
   resolveAssetForCut,
@@ -66,16 +69,23 @@ export function usePreviewSharedViewState({
   const sequenceCurrentTime = isSingleMode ? 0 : getSequenceAbsoluteTime();
   const singleModePlaybackDuration = isSingleModeVideo ? singleModeDuration : sequenceTotalDuration;
   const singleModePlaybackTime = isSingleModeVideo ? singleModeCurrentTime : getSequenceAbsoluteTime();
+  const resolutionTargetAsset = isSingleMode ? (asset ?? null) : resolveAssetForCut(currentItem?.cut);
+  const { asset: hydratedResolutionAsset } = useAssetMetadataHydration({
+    asset: resolutionTargetAsset,
+    requirements: resolutionTargetAsset?.type === 'video' || resolutionTargetAsset?.type === 'image'
+      ? { dimensions: true }
+      : {},
+    cacheAsset,
+  });
 
   const previewResolutionLabel = useMemo(() => {
-    const targetAsset = isSingleMode ? asset : resolveAssetForCut(currentItem?.cut);
-    const width = targetAsset?.metadata?.width;
-    const height = targetAsset?.metadata?.height;
+    const width = hydratedResolutionAsset?.metadata?.width;
+    const height = hydratedResolutionAsset?.metadata?.height;
     if (typeof width === 'number' && typeof height === 'number') {
       return `${width}×${height}`;
     }
     return null;
-  }, [isSingleMode, asset, currentItem, resolveAssetForCut]);
+  }, [hydratedResolutionAsset?.metadata?.width, hydratedResolutionAsset?.metadata?.height]);
 
   const currentFraming = useMemo(() => {
     const targetCut = isSingleMode ? focusCut : currentItem?.cut;

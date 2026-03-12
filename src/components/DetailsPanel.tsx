@@ -65,7 +65,7 @@ import {
 } from "../features/thumbnails/api";
 import { selectAndImportAssetToVault } from "../features/asset/import";
 import { relinkCutAssetWithLipSyncCleanup } from "../features/metadata/lipSyncActions";
-import { readImageMetadataForPath } from "../features/metadata/provider";
+import { useAssetMetadataHydration } from "../features/metadata/useAssetMetadataHydration";
 import {
   ensureAssetsFolderBridge,
   extractVideoFrameBridge,
@@ -79,7 +79,7 @@ import { importFileToVault } from "../utils/assetPath";
 import PreviewModal from "./PreviewModal";
 import LipSyncModal from "./LipSyncModal";
 import AssetModal from "./AssetModal";
-import type { ImageMetadata, Asset } from "../types";
+import type { Asset } from "../types";
 import { v4 as uuidv4 } from "uuid";
 import { Toggle, useDialog } from "../ui";
 import "./DetailsPanel.css";
@@ -113,7 +113,6 @@ export default function DetailsPanel() {
   const [thumbnail, setThumbnail] = useState<string | null>(null);
   const [localDisplayTime, setLocalDisplayTime] = useState("2.0");
   const [batchDisplayTime, setBatchDisplayTime] = useState("2.0");
-  const [metadata, setMetadata] = useState<ImageMetadata | null>(null);
   const [noteText, setNoteText] = useState("");
   const [showVideoPreview, setShowVideoPreview] = useState(false);
   const [showLipSyncModal, setShowLipSyncModal] = useState(false);
@@ -150,16 +149,27 @@ export default function DetailsPanel() {
   const cut = selectedCutData?.cut;
   const cutScene = selectedCutData?.scene;
   const asset = cut ? resolveCutAsset(cut, getAsset) : null;
+  const { asset: hydratedAsset } = useAssetMetadataHydration({
+    asset,
+    requirements: asset?.type === "video"
+      ? { duration: true, dimensions: true, fileSize: true }
+      : asset?.type === "image"
+        ? { dimensions: true, fileSize: true }
+        : {},
+    cacheAsset,
+  });
+  const activeAsset = hydratedAsset ?? asset;
+  const metadata = activeAsset?.metadata ?? null;
   const preferredThumbnail = cut
     ? resolveCutThumbnailFromCache('details-panel', {
       cutId: cut.id,
       kind: cut.isClip ? 'clip' : 'cut',
-      assetId: asset?.id ?? cut.assetId,
-      assetPath: asset?.path,
-      assetType: asset?.type,
+      assetId: activeAsset?.id ?? cut.assetId,
+      assetPath: activeAsset?.path,
+      assetType: activeAsset?.type,
       inPointSec: cut.inPoint,
       outPointSec: cut.outPoint,
-      assetSnapshotThumbnail: asset?.thumbnail,
+      assetSnapshotThumbnail: activeAsset?.thumbnail,
     }, {
       includeAssetSnapshotFallback: !cut.isClip,
     })
@@ -170,7 +180,7 @@ export default function DetailsPanel() {
   const attachedAudioSourceName =
     primaryAudioBinding?.sourceName || attachedAudio?.name || "Unknown";
   const hasAttachedAudio = !!primaryAudioBinding?.audioAssetId;
-  const lipSyncSettings = asset?.id ? metadataStore?.metadata[asset.id]?.lipSync : undefined;
+  const lipSyncSettings = activeAsset?.id ? metadataStore?.metadata[activeAsset.id]?.lipSync : undefined;
   const isLipSyncCut = !!cut?.isLipSync;
   const showLipSyncDetails = isLipSyncCut && !!lipSyncSettings;
   const sceneAudioBinding = selectedScene ? metadataStore?.sceneMetadata?.[selectedScene.id]?.attachAudio : undefined;
@@ -273,20 +283,19 @@ export default function DetailsPanel() {
   useEffect(() => {
     const loadAssetData = async () => {
       setThumbnail(null);
-      setMetadata(null);
 
       if (preferredThumbnail) {
         setThumbnail(preferredThumbnail);
       }
 
-      if (!asset?.path) return;
+      if (!activeAsset?.path) return;
 
       // Keep Details preview in thumbnail flow; use larger profile for readability.
-      if (!preferredThumbnail && asset.type === 'image' && asset.path) {
+      if (!preferredThumbnail && activeAsset.type === 'image' && activeAsset.path) {
         try {
           const cached = await getAssetThumbnail('details-panel', {
-            assetId: asset.id,
-            path: asset.path,
+            assetId: activeAsset.id,
+            path: activeAsset.path,
             type: 'image',
           });
           if (cached) {
@@ -295,12 +304,12 @@ export default function DetailsPanel() {
         } catch {
           // Failed to load
         }
-      } else if (!preferredThumbnail && asset.type === 'video' && asset.path) {
+      } else if (!preferredThumbnail && activeAsset.type === 'video' && activeAsset.path) {
         try {
           const cached = await getAssetThumbnail('details-panel', {
-            assetId: asset.id,
-            path: asset.path,
-            type: asset.type,
+            assetId: activeAsset.id,
+            path: activeAsset.path,
+            type: activeAsset.type,
           });
           if (cached) {
             setThumbnail(cached);
@@ -309,25 +318,10 @@ export default function DetailsPanel() {
           // Failed to load
         }
       }
-
-      // Load metadata - use asset.metadata if available (for videos)
-      if (asset.metadata) {
-        setMetadata(asset.metadata);
-      } else if (asset.type === "image") {
-        // Only call readImageMetadata for images without existing metadata
-        try {
-          const meta = await readImageMetadataForPath(asset.path);
-          if (meta) {
-            setMetadata(meta);
-          }
-        } catch {
-          // Failed to load
-        }
-      }
     };
 
     loadAssetData();
-  }, [asset?.path, asset?.metadata, asset?.type, preferredThumbnail]);
+  }, [activeAsset?.id, activeAsset?.path, activeAsset?.type, preferredThumbnail]);
 
   // Load lip sync frame thumbnails
   useEffect(() => {
@@ -453,13 +447,13 @@ export default function DetailsPanel() {
     outPoint: number,
     options?: { expectedClipRevision?: number },
   ) => {
-    if (cutScene && cut && asset) {
+    if (cutScene && cut && activeAsset) {
       await savePreviewClipPoints(
         {
           sceneId: cutScene.id,
           cutId: cut.id,
           isClip: !!cut.isClip,
-          asset,
+          asset: activeAsset,
         },
         inPoint,
         outPoint,
@@ -478,13 +472,13 @@ export default function DetailsPanel() {
   };
 
   const handleClearClip = async () => {
-    if (cutScene && cut && asset) {
+    if (cutScene && cut && activeAsset) {
       await clearPreviewClipPoints(
         {
           sceneId: cutScene.id,
           cutId: cut.id,
           isClip: !!cut.isClip,
-          asset,
+          asset: activeAsset,
         },
         {
           executeCommand,
@@ -666,7 +660,7 @@ export default function DetailsPanel() {
   };
 
   const handleFrameCapture = async (timestamp: number): Promise<string | void> => {
-    if (!cutScene || !cut || !asset?.path || !vaultPath) {
+    if (!cutScene || !cut || !activeAsset?.path || !vaultPath) {
       throw new Error('Cannot capture frame: missing required data');
     }
 
@@ -678,7 +672,7 @@ export default function DetailsPanel() {
       }
 
       // Generate unique filename: {video_name}_frame_{timestamp}_{uuid}.png
-      const baseName = asset.name.replace(/\.[^/.]+$/, "");
+      const baseName = activeAsset.name.replace(/\.[^/.]+$/, "");
       const timeStr = timestamp.toFixed(2).replace(".", "_");
       const uniqueId = uuidv4().substring(0, 8);
       const frameFileName = `${baseName}_frame_${timeStr}_${uniqueId}.png`;
@@ -686,7 +680,7 @@ export default function DetailsPanel() {
 
       // Extract frame using ffmpeg
       const result = await extractVideoFrameBridge({
-        sourcePath: asset.path,
+        sourcePath: activeAsset.path,
         outputPath,
         timestamp,
       });
@@ -701,15 +695,6 @@ export default function DetailsPanel() {
         type: 'image',
       });
 
-      // Load image metadata if available
-      let imageMetadata: ImageMetadata | undefined;
-      try {
-        const meta = await readImageMetadataForPath(outputPath);
-        imageMetadata = meta ?? undefined;
-      } catch {
-        // Metadata not critical
-      }
-
       let fileSize: number | undefined;
       const info = await getFileInfoBridge(outputPath);
       fileSize = info?.size;
@@ -723,7 +708,6 @@ export default function DetailsPanel() {
         path: outputPath,
         type: "image",
         thumbnail: thumbnailBase64 || undefined,
-        metadata: imageMetadata,
         fileSize,
         vaultRelativePath: `assets/${frameFileName}`,
       };
@@ -1187,8 +1171,8 @@ export default function DetailsPanel() {
   }
 
   // Show cut details
-  if (selectionType === "cut" && cut && asset) {
-    const isVideo = asset.type === "video";
+  if (selectionType === "cut" && cut && activeAsset) {
+    const isVideo = activeAsset.type === "video";
     const previewImage = showLipSyncDetails ? lipSyncFrames[0] || thumbnail : thumbnail;
 
     return (
@@ -1217,7 +1201,7 @@ export default function DetailsPanel() {
               <>
                 <img
                   src={previewImage}
-                  alt={asset.name}
+                  alt={activeAsset.name}
                   className="preview-image"
                 />
                 {isVideo && (
@@ -1459,9 +1443,9 @@ export default function DetailsPanel() {
         </div>
 
         {/* Single Mode Preview Modal */}
-        {showVideoPreview && asset && (
+        {showVideoPreview && activeAsset && (
           <PreviewModal
-            asset={asset}
+            asset={activeAsset}
             focusCutId={cut?.id}
             onClose={() => setShowVideoPreview(false)}
             initialInPoint={cut?.inPoint}
@@ -1473,9 +1457,9 @@ export default function DetailsPanel() {
         )}
 
         {/* Lip Sync Modal */}
-        {showLipSyncModal && asset && (
+        {showLipSyncModal && activeAsset && (
           <LipSyncModal
-            asset={asset}
+            asset={activeAsset}
             sceneId={cutScene?.id || ""}
             cutId={cut?.id}
             onClose={() => setShowLipSyncModal(false)}

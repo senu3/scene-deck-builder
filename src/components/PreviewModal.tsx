@@ -5,6 +5,7 @@ import {
   selectSceneOrder,
   selectPreviewMode,
   selectSelectedSceneId,
+  selectCacheAsset,
   selectGetAsset,
   selectGlobalVolume,
   selectGlobalMuted,
@@ -76,6 +77,7 @@ export default function PreviewModal({
   const orderedScenes = useMemo(() => getScenesInOrder(scenes, sceneOrder), [scenes, sceneOrder]);
   const previewMode = useStore(selectPreviewMode);
   const selectedSceneId = useStore(selectSelectedSceneId);
+  const cacheAsset = useStore(selectCacheAsset);
   const getAsset = useStore(selectGetAsset);
   const globalVolume = useStore(selectGlobalVolume);
   const globalMuted = useStore(selectGlobalMuted);
@@ -545,6 +547,7 @@ export default function PreviewModal({
     singleModeDuration,
     singleModeCurrentTime,
     asset,
+    cacheAsset,
     focusCut: focusCutData?.cut ?? null,
     previewSequenceItemByCutId,
     resolveAssetForCut,
