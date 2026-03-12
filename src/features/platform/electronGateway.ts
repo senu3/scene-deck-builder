@@ -16,6 +16,20 @@ type PathResolveResult = {
   error?: string;
 };
 
+export type StartAssetDragOutResultLike = {
+  ok: boolean;
+  reason?:
+    | 'asset-id-missing'
+    | 'vault-path-missing'
+    | 'index-missing'
+    | 'index-invalid'
+    | 'asset-not-found'
+    | 'asset-filename-missing'
+    | 'file-missing'
+    | 'not-file'
+    | 'outside-assets';
+};
+
 type RecentProjectLike = {
   name: string;
   path: string;
@@ -292,12 +306,12 @@ export function getPathForFileBridge(file: File): string | undefined {
   return getElectronAPI()?.getPathForFile?.(file);
 }
 
-export function startAssetFileDragBridge(payload: {
-  filePath: string;
+export function startAssetDragOutBridge(payload: {
+  assetId: string;
   vaultPath: string;
   iconDataUrl?: string;
-}): boolean {
-  return getElectronAPI()?.startAssetFileDrag?.(payload) ?? false;
+}): StartAssetDragOutResultLike {
+  return getElectronAPI()?.startAssetDragOut?.(payload) ?? { ok: false, reason: 'vault-path-missing' };
 }
 
 export async function readAudioPcmBridge(filePath: string): Promise<AudioPcmResult | null> {

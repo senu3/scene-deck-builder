@@ -318,7 +318,19 @@ type ProjectFileLoadResult =
 interface ElectronAPI {
   getVersions?: () => AppVersions;
   getPathForFile?: (file: File) => string;
-  startAssetFileDrag?: (payload: { filePath: string; vaultPath: string; iconDataUrl?: string }) => boolean;
+  startAssetDragOut?: (payload: { assetId: string; vaultPath: string; iconDataUrl?: string }) => {
+    ok: boolean;
+    reason?:
+      | 'asset-id-missing'
+      | 'vault-path-missing'
+      | 'index-missing'
+      | 'index-invalid'
+      | 'asset-not-found'
+      | 'asset-filename-missing'
+      | 'file-missing'
+      | 'not-file'
+      | 'outside-assets';
+  };
   // Folder operations
   selectFolder: () => Promise<FolderSelection | null>;
   getFolderContents: (folderPath: string) => Promise<FileItem[]>;

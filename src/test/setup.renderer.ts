@@ -16,7 +16,7 @@ const electronAPIMock = {
   })),
   pathExists: vi.fn(async () => true),
   getPathForFile: vi.fn((file: File) => (file as File & { path?: string }).path || ''),
-  startAssetFileDrag: vi.fn(() => true),
+  startAssetDragOut: vi.fn(() => ({ ok: true })),
   onToggleSidebar: vi.fn(() => () => {}),
   getFolderContents: vi.fn(async () => []),
   readImageMetadata: vi.fn(async () => null),

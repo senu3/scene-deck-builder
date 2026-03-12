@@ -6,7 +6,7 @@ import { spawn } from 'child_process';
 import ffmpegPath from 'ffmpeg-static';
 import { calculateFileHashStream, getMediaType, importAssetToVaultInternal, moveToTrashInternal, registerVaultGatewayHandlers, saveAssetIndexInternal, type AssetIndex, type TrashMeta } from './vaultGateway';
 import { createSaveProjectHandler } from './handlers/saveProject';
-import { validateStartAssetFileDragPayload, type StartAssetFileDragPayload } from './handlers/assetFileDrag';
+import { validateStartAssetDragOutPayload, type StartAssetDragOutPayload } from './handlers/assetFileDrag';
 import { createFfmpegController } from './services/ffmpegController';
 import { createThumbnailService } from './services/thumbnailService';
 import { buildFramingVideoFilter } from './framing';
@@ -244,7 +244,7 @@ let ffmpegLimits: FfmpegLimits = { ...DEFAULT_FFMPEG_LIMITS };
 const TRANSPARENT_PNG_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO2JxXQAAAAASUVORK5CYII=';
 const FILE_DRAG_ICON_SIZE_PX = 64;
 
-function createSizedDragIcon(payload: StartAssetFileDragPayload, filePath: string) {
+function createSizedDragIcon(payload: StartAssetDragOutPayload, filePath: string) {
   let icon = nativeImage.createFromDataURL(TRANSPARENT_PNG_DATA_URL);
 
   if (payload.iconDataUrl) {
@@ -809,10 +809,11 @@ ipcMain.on(IPC_RENDERER_ERROR_REPORT, (_event, payload: Record<string, unknown>)
   writeRuntimeLog('ERROR', 'renderer-error-report', payload || {});
 });
 
-ipcMain.on('start-asset-file-drag', (event, payload: StartAssetFileDragPayload) => {
+ipcMain.on('start-asset-drag-out-sync', (event, payload: StartAssetDragOutPayload) => {
   try {
-    const validated = validateStartAssetFileDragPayload(payload);
+    const validated = validateStartAssetDragOutPayload(payload);
     if (!validated.ok || !validated.filePath) {
+      event.returnValue = validated;
       return;
     }
     const icon = createSizedDragIcon(payload, validated.filePath);
@@ -821,28 +822,10 @@ ipcMain.on('start-asset-file-drag', (event, payload: StartAssetFileDragPayload) 
       file: validated.filePath,
       icon,
     });
+    event.returnValue = { ok: true };
   } catch (error) {
-    console.warn('[DND] start-asset-file-drag failed:', error);
-  }
-});
-
-ipcMain.on('start-asset-file-drag-sync', (event, payload: StartAssetFileDragPayload) => {
-  try {
-    const validated = validateStartAssetFileDragPayload(payload);
-    if (!validated.ok || !validated.filePath) {
-      event.returnValue = false;
-      return;
-    }
-    const icon = createSizedDragIcon(payload, validated.filePath);
-
-    event.sender.startDrag({
-      file: validated.filePath,
-      icon,
-    });
-    event.returnValue = true;
-  } catch (error) {
-    console.warn('[DND] start-asset-file-drag-sync failed:', error);
-    event.returnValue = false;
+    console.warn('[DND] start-asset-drag-out-sync failed:', error);
+    event.returnValue = { ok: false, reason: 'file-missing' };
   }
 });
 

@@ -313,10 +313,24 @@ export interface OpenFileDialogOptions {
   defaultPath?: string;
 }
 
-export interface StartAssetFileDragPayload {
-  filePath: string;
+export interface StartAssetDragOutPayload {
+  assetId: string;
   vaultPath: string;
   iconDataUrl?: string;
+}
+
+export interface StartAssetDragOutResult {
+  ok: boolean;
+  reason?:
+    | 'asset-id-missing'
+    | 'vault-path-missing'
+    | 'index-missing'
+    | 'index-invalid'
+    | 'asset-not-found'
+    | 'asset-filename-missing'
+    | 'file-missing'
+    | 'not-file'
+    | 'outside-assets';
 }
 
 const electronAPI = {
@@ -328,8 +342,8 @@ const electronAPI = {
   }),
   getPathForFile: (file: File): string =>
     webUtils.getPathForFile(file),
-  startAssetFileDrag: (payload: StartAssetFileDragPayload): boolean => {
-    return ipcRenderer.sendSync('start-asset-file-drag-sync', payload) as boolean;
+  startAssetDragOut: (payload: StartAssetDragOutPayload): StartAssetDragOutResult => {
+    return ipcRenderer.sendSync('start-asset-drag-out-sync', payload) as StartAssetDragOutResult;
   },
   // Folder operations
   selectFolder: (): Promise<FolderSelection | null> =>

@@ -58,8 +58,11 @@ import {
 import {
   hasVaultGatewayBridge,
   pathExistsBridge,
-  startAssetFileDragBridge,
 } from '../features/platform/electronGateway';
+import {
+  getAssetDragOutFailureMessage,
+  startAssetDragOut,
+} from '../features/platform/osDragGateway';
 import { registerAssetFile } from '../features/asset/write';
 import {
   checkPathExistsForSourcePanel,
@@ -938,20 +941,18 @@ export default function AssetPanel({
       // Ignore drag preview customization errors.
     }
 
-    if (vaultPath && asset.path) {
-      try {
-        const started = startAssetFileDragBridge({
-          filePath: asset.path,
-          vaultPath,
+    try {
+      const started = startAssetDragOut(asset.id);
+      if (!started.ok) {
+        const message = getAssetDragOutFailureMessage(started.reason);
+        console.warn('[DND] External file drag was rejected by main process.', {
+          assetId: asset.id,
+          reason: started.reason,
         });
-        if (started === false) {
-          console.warn('[DND] External file drag was rejected by main process.', {
-            path: asset.path,
-          });
-        }
-      } catch {
-        // Ignore external drag start failure and keep in-app drag functional.
+        toast.warning('External drag unavailable', message);
       }
+    } catch {
+      toast.warning('External drag unavailable', 'External drag could not be started.');
     }
 
     closeDetailsPanel();
