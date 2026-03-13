@@ -147,12 +147,35 @@
 }
 
 .missing-asset-modal .asset-name {
-  flex: 1;
   font-size: 13px;
   color: #e2e8f0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.missing-asset-modal .asset-summary {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.missing-asset-modal .asset-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+
+.missing-asset-modal .asset-badge.missing {
+  background: rgba(var(--accent-warning-rgb), 0.16);
+  color: var(--accent-warning);
 }
 
 .missing-asset-modal .asset-decision {
@@ -354,4 +377,3 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
-

@@ -183,6 +183,7 @@ export async function resolveScenesAssets(scenes: Scene[], vaultPath: string): P
               name: unresolvedAsset.name || cutAssetId,
               cutId: cut.id,
               sceneId: scene.id,
+              sceneName: scene.name,
               asset: unresolvedAsset,
             });
             return {
@@ -202,6 +203,7 @@ export async function resolveScenesAssets(scenes: Scene[], vaultPath: string): P
               name: resolvedAsset.name || cutAssetId || cut.id,
               cutId: cut.id,
               sceneId: scene.id,
+              sceneName: scene.name,
               asset: resolvedAsset,
             });
           } else {
@@ -211,6 +213,7 @@ export async function resolveScenesAssets(scenes: Scene[], vaultPath: string): P
                 name: resolvedAsset.name || resolvedAsset.path,
                 cutId: cut.id,
                 sceneId: scene.id,
+                sceneName: scene.name,
                 asset: resolvedAsset,
               });
             }

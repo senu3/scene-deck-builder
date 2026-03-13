@@ -1,16 +1,19 @@
 import { useState } from 'react';
 import { AlertTriangle, FolderOpen, Trash2, SkipForward, Check, X } from 'lucide-react';
 import type { Asset } from '../types';
-import type { RecoveryAssessment } from '../features/project/recoveryAssessment';
+import {
+  getRecoveryAssessmentNotices,
+  type RecoveryAssessment,
+} from '../features/project/recoveryAssessment';
 import { showOpenFileDialogBridge } from '../features/platform/electronGateway';
 import { Overlay, useModalKeyboard } from '../ui/primitives/Modal';
-import RecoverySummaryBlock from './RecoverySummaryBlock';
 import './MissingAssetRecoveryModal.css';
 
 export interface MissingAssetInfo {
   name: string;
   cutId: string;
   sceneId: string;
+  sceneName?: string;
   asset: Asset;
 }
 
@@ -157,7 +160,12 @@ export default function MissingAssetRecoveryModal({
 
   const decidedCount = decisions.size;
   const totalCount = missingAssets.length;
-  const rescuedCutCount = Array.from(decisions.values()).filter((decision) => decision.action === 'relink').length;
+  const modalNotices = getRecoveryAssessmentNotices(assessment, 'modal')
+    .filter((notice) => !notice.includes('file(s) could not be found.'));
+  const headerSubtitle = [
+    `${totalCount} asset(s) could not be found in the project.`,
+    ...modalNotices,
+  ].join(' ');
 
   // ESC key to close
   useModalKeyboard({ onEscape: onCancel });
@@ -169,7 +177,7 @@ export default function MissingAssetRecoveryModal({
           <AlertTriangle size={24} className="warning-icon" />
           <div className="header-text">
             <h2>Missing Assets Found</h2>
-            <p>{totalCount} asset(s) could not be found in the project</p>
+            <p>{headerSubtitle}</p>
           </div>
           <button className="close-btn" onClick={onCancel}>
             <X size={20} />
@@ -177,11 +185,6 @@ export default function MissingAssetRecoveryModal({
         </div>
 
         <div className="modal-content">
-          <RecoverySummaryBlock
-            assessment={assessment}
-            rescuedCutCount={rescuedCutCount}
-          />
-
           <div className="progress-bar">
             <div
               className="progress-fill"
@@ -202,7 +205,10 @@ export default function MissingAssetRecoveryModal({
                   onClick={() => setCurrentIndex(index)}
                 >
                   <span className="asset-index">{index + 1}</span>
-                  <span className="asset-name">{asset.name}</span>
+                  <div className="asset-summary">
+                    <span className="asset-name">{asset.name}</span>
+                    <span className="asset-badge missing">Missing file</span>
+                  </div>
                   {decision && (
                     <span className={`asset-decision ${decision.action}`}>
                       {getActionIcon(decision.action)}
@@ -218,6 +224,10 @@ export default function MissingAssetRecoveryModal({
             <div className="current-asset-panel">
               <h3>Current Asset</h3>
               <div className="asset-details">
+                <div className="detail-row">
+                  <span className="label">Scene:</span>
+                  <span className="value">{currentAsset.sceneName || currentAsset.sceneId}</span>
+                </div>
                 <div className="detail-row">
                   <span className="label">Name:</span>
                   <span className="value">{currentAsset.name}</span>
