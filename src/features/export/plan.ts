@@ -1,4 +1,4 @@
-import type { ExportSettings, EncodingQuality, ExportRange, RoundingMode } from './types';
+import type { ExportSettings, EncodingQuality, ExportRange } from './types';
 import { DEFAULT_EXPORT_RESOLUTION } from '../../constants/export';
 import type { SceneExportScope } from './sceneScope';
 
@@ -21,15 +21,7 @@ export interface Mp4ExportPlan {
   exportScope?: SceneExportScope;
 }
 
-export interface AviUtlExportPlan {
-  format: 'aviutl';
-  outputDir: string;
-  roundingMode: RoundingMode;
-  copyMedia: boolean;
-  exportScope?: SceneExportScope;
-}
-
-export type ExportPlan = Mp4ExportPlan | AviUtlExportPlan;
+export type ExportPlan = Mp4ExportPlan;
 
 function sanitizeDimension(value: number, fallback: number): number {
   if (!Number.isFinite(value) || value <= 0) return fallback;
@@ -61,16 +53,6 @@ export function resolveExportPlan(input: {
   const outputDir = outputRootPath && outputFolderName
     ? joinPathNormalized(outputRootPath, outputFolderName)
     : outputRootPath || outputFolderName;
-
-  if (input.settings.format === 'aviutl') {
-    return {
-      format: 'aviutl',
-      outputDir,
-      roundingMode: input.settings.aviutl.roundingMode,
-      copyMedia: input.settings.aviutl.copyMedia,
-      ...(input.exportScope ? { exportScope: input.exportScope } : {}),
-    };
-  }
 
   const { width, height } = resolveExportResolution(input.settings.resolution ?? input.resolution);
   const fps = Number.isFinite(input.settings.fps) && input.settings.fps > 0

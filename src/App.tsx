@@ -717,14 +717,11 @@ function App() {
         resolution: exportResolution,
         fps: 30,
         range: 'all',
-        aviutl: { roundingMode: 'round', copyMedia: false },
         mp4: { quality: 'medium' },
       },
       resolution: exportResolution,
       exportScope: { kind: 'scene', sceneId: scope.sceneId },
     });
-
-    if (plan.format !== 'mp4') return;
 
     const sequencePlan = buildSequencePlan({
       scenes,
@@ -784,12 +781,6 @@ function App() {
         resolution: exportResolution,
       });
 
-      if (plan.format === 'aviutl') {
-        // Placeholder: AviUtl export not yet implemented
-        toast.info('AviUtl export', 'Coming Soon');
-        return;
-      }
-
       const orderedCuts = plan.range === 'selection'
           ? getCutIdsInTimelineOrder(scenes, getSelectedCutIds(), sceneOrder)
           .map((cutId) => orderedCutsAll.find((cut) => cut.id === cutId))
@@ -841,19 +832,15 @@ function App() {
         resolution,
         fps: 30,
         range: 'all',
-        aviutl: { roundingMode: 'round', copyMedia: false },
         mp4: { quality: 'medium' },
       },
       resolution,
     });
-    if (mp4Plan.format !== 'mp4') {
-      return;
-    }
-      await exportMp4Sequence(sequencePlan, {
-        width: mp4Plan.width,
-        height: mp4Plan.height,
-        fps: mp4Plan.fps,
-      });
+    await exportMp4Sequence(sequencePlan, {
+      width: mp4Plan.width,
+      height: mp4Plan.height,
+      fps: mp4Plan.fps,
+    });
   }, [exportMp4Sequence]);
 
   // Find cut data for Single Mode preview modal

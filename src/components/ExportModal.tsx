@@ -13,7 +13,7 @@ import {
 } from '../ui/primitives/Modal';
 import { Input, RadioGroup, Select, SettingsRow } from '../ui';
 import { useStore } from '../store/useStore';
-import type { EncodingQuality, ExportFormat, ExportSettings, ExportRange, RoundingMode } from '../features/export/types';
+import type { EncodingQuality, ExportSettings, ExportRange } from '../features/export/types';
 import { DEFAULT_EXPORT_FPS } from '../features/export/plan';
 import { DEFAULT_EXPORT_RESOLUTION } from '../constants/export';
 import styles from './ExportModal.module.css';
@@ -42,9 +42,6 @@ const FPS_OPTIONS = [
 export default function ExportModal({ open, onClose, initialResolution, onExport }: ExportModalProps) {
   const { scenes, vaultPath } = useStore();
 
-  const format: ExportFormat = 'mp4';
-  const roundingMode: RoundingMode = 'round';
-  const copyMedia = true;
   const [mp4Quality, setMp4Quality] = useState<EncodingQuality>('medium');
   const [range, setRange] = useState<ExportRange>('all');
   const [fps, setFps] = useState<string>(String(DEFAULT_EXPORT_FPS));
@@ -102,18 +99,16 @@ export default function ExportModal({ open, onClose, initialResolution, onExport
           };
         })();
     const settings: ExportSettings = {
-      format,
+      format: 'mp4',
       outputRootPath: defaultOutputRoot,
       outputFolderName: outputFolderName.trim() || defaultFolderName,
       resolution,
       fps: parseIntOrDefault(fps, DEFAULT_EXPORT_FPS),
       range,
-      aviutl: { roundingMode, copyMedia },
       mp4: { quality: mp4Quality },
     };
     onExport(settings);
   }, [
-    format,
     defaultOutputRoot,
     outputFolderName,
     defaultFolderName,
@@ -122,8 +117,6 @@ export default function ExportModal({ open, onClose, initialResolution, onExport
     resolutionPreset,
     customWidth,
     customHeight,
-    roundingMode,
-    copyMedia,
     mp4Quality,
     onExport,
   ]);
@@ -146,7 +139,7 @@ export default function ExportModal({ open, onClose, initialResolution, onExport
             <button
               type="button"
               className={styles.formatCard}
-              data-selected={format === 'mp4'}
+              data-selected="true"
               onClick={() => {}}
             >
               <span className={styles.formatCardBadge}>Active</span>
@@ -164,12 +157,12 @@ export default function ExportModal({ open, onClose, initialResolution, onExport
               data-disabled="true"
               onClick={() => {}}
             >
-              <span className={styles.formatCardBadge}>Coming Soon</span>
+              <span className={styles.formatCardBadge}>Placeholder</span>
               <div className={styles.formatCardIcon}>
                 <FileText size={24} />
               </div>
-              <span className={styles.formatCardTitle}>AviUtl</span>
-              <span className={styles.formatCardDesc}>Export as .exo project</span>
+              <span className={styles.formatCardTitle}>Placeholder</span>
+              <span className={styles.formatCardDesc}>Reserved for future export format</span>
             </button>
           </div>
 
