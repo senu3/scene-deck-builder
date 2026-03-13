@@ -74,6 +74,8 @@ type ExportSequenceBridgeResult = {
   fileSize?: number;
   audioOutputPath?: string;
   audioFileSize?: number;
+  masterOutputPath?: string;
+  masterFileSize?: number;
   error?: string;
 };
 
@@ -245,6 +247,7 @@ type ExportSequenceOptionsLike = {
   height: number;
   fps: number;
   audioPlan?: ExportAudioPlanLike;
+  exportMasterWithAudio?: boolean;
 };
 
 type VaultInfoLike = {

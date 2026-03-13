@@ -18,7 +18,7 @@ describe('export plan', () => {
         resolution: { width: 1920, height: 1080 },
         fps: 30,
         range: 'all',
-        mp4: { quality: 'high' },
+        mp4: { quality: 'high', exportMasterWithAudio: true },
       },
       resolution: { width: 1920, height: 1080 },
     });
@@ -28,6 +28,7 @@ describe('export plan', () => {
     expect(plan.height).toBe(1080);
     expect(plan.fps).toBe(DEFAULT_EXPORT_FPS);
     expect(plan.quality).toBe('high');
+    expect(plan.exportMasterWithAudio).toBe(true);
     expect(plan.outputDir).toBe('C:/vault/export/video_20260211_120000');
     expect(plan.outputFilePath).toBe('C:/vault/export/video_20260211_120000/video.mp4');
     expect(plan.range).toBe('all');
@@ -42,7 +43,7 @@ describe('export plan', () => {
         resolution: { width: 1280, height: 720 },
         fps: 30,
         range: 'all',
-        mp4: { quality: 'medium' },
+        mp4: { quality: 'medium', exportMasterWithAudio: false },
       },
       resolution: { width: 1280, height: 720 },
       exportScope: { kind: 'scene', sceneId: 'scene-1' },

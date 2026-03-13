@@ -11,7 +11,7 @@ import {
   Body,
   useModalKeyboard,
 } from '../ui/primitives/Modal';
-import { Input, RadioGroup, Select, SettingsRow } from '../ui';
+import { Checkbox, Input, RadioGroup, Select, SettingsRow } from '../ui';
 import { useStore } from '../store/useStore';
 import type { EncodingQuality, ExportSettings, ExportRange } from '../features/export/types';
 import { DEFAULT_EXPORT_FPS } from '../features/export/plan';
@@ -43,6 +43,7 @@ export default function ExportModal({ open, onClose, initialResolution, onExport
   const { scenes, vaultPath } = useStore();
 
   const [mp4Quality, setMp4Quality] = useState<EncodingQuality>('medium');
+  const [exportMasterWithAudio, setExportMasterWithAudio] = useState(false);
   const [range, setRange] = useState<ExportRange>('all');
   const [fps, setFps] = useState<string>(String(DEFAULT_EXPORT_FPS));
   const [resolutionPreset, setResolutionPreset] = useState<string>(() => {
@@ -105,7 +106,10 @@ export default function ExportModal({ open, onClose, initialResolution, onExport
       resolution,
       fps: parseIntOrDefault(fps, DEFAULT_EXPORT_FPS),
       range,
-      mp4: { quality: mp4Quality },
+      mp4: {
+        quality: mp4Quality,
+        exportMasterWithAudio,
+      },
     };
     onExport(settings);
   }, [
@@ -118,6 +122,7 @@ export default function ExportModal({ open, onClose, initialResolution, onExport
     customWidth,
     customHeight,
     mp4Quality,
+    exportMasterWithAudio,
     onExport,
   ]);
 
@@ -289,6 +294,17 @@ export default function ExportModal({ open, onClose, initialResolution, onExport
                         </button>
                       ))}
                     </div>
+                  </div>
+
+                  <div className={`${styles.optionRow} ${styles.optionRowTop}`}>
+                    <span className={styles.optionLabel}>Master</span>
+                    <Checkbox
+                      checked={exportMasterWithAudio}
+                      onChange={setExportMasterWithAudio}
+                      className={styles.optionCheckbox}
+                      label="Also export Master MP4"
+                      description="Adds a second MP4 with mixed audio embedded."
+                    />
                   </div>
                 </div>
               </div>

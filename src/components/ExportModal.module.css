@@ -222,11 +222,19 @@
   padding: 8px 0;
 }
 
+.optionRowTop {
+  align-items: flex-start;
+}
+
 .optionLabel {
   min-width: 100px;
   font-size: 12px;
   color: var(--text-secondary);
   flex-shrink: 0;
+}
+
+.optionCheckbox {
+  flex: 1;
 }
 
 /* Radio pills for rounding mode */

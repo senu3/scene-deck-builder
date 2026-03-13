@@ -17,6 +17,7 @@ export interface Mp4ExportPlan {
   height: number;
   fps: number;
   quality: EncodingQuality;
+  exportMasterWithAudio: boolean;
   range: ExportRange;
   exportScope?: SceneExportScope;
 }
@@ -66,6 +67,7 @@ export function resolveExportPlan(input: {
     height,
     fps,
     quality: input.settings.mp4.quality,
+    exportMasterWithAudio: input.settings.mp4.exportMasterWithAudio,
     range: input.settings.range,
     ...(input.exportScope ? { exportScope: input.exportScope } : {}),
   };

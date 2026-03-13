@@ -1905,6 +1905,7 @@ interface ExportSequenceOptions {
   height: number;
   fps: number;
   audioPlan?: ExportAudioPlan;
+  exportMasterWithAudio?: boolean;
 }
 
 interface ExportSequenceResult {
@@ -1913,6 +1914,8 @@ interface ExportSequenceResult {
   fileSize?: number;
   audioOutputPath?: string;
   audioFileSize?: number;
+  masterOutputPath?: string;
+  masterFileSize?: number;
   error?: string;
 }
 
@@ -2093,6 +2096,49 @@ async function renderMixedAudioTrack(
   };
 }
 
+async function renderMasterMp4WithAudio(
+  ffmpegBinary: string,
+  videoOutputPath: string,
+  audioOutputPath: string,
+  masterOutputPath: string
+): Promise<ExportSequenceResult> {
+  if (!fs.existsSync(videoOutputPath)) {
+    return { success: false, error: 'Master export failed: base video is missing.' };
+  }
+  if (!fs.existsSync(audioOutputPath)) {
+    return { success: false, error: 'Master export failed: mixed audio is missing.' };
+  }
+
+  const args = [
+    '-y',
+    '-i', videoOutputPath,
+    '-i', audioOutputPath,
+    '-map', '0:v:0',
+    '-map', '1:a:0',
+    '-c:v', 'copy',
+    '-c:a', 'aac',
+    '-b:a', '320k',
+    '-movflags', '+faststart',
+    '-shortest',
+    masterOutputPath,
+  ];
+
+  const result = await runFfmpegWithResult(ffmpegBinary, args, {
+    queue: 'heavy',
+    outputPath: masterOutputPath,
+    logStderr: true,
+  });
+  if (!result.success) {
+    return { success: false, error: `Master export failed: ${result.error || 'unknown error'}` };
+  }
+
+  return {
+    success: true,
+    masterOutputPath,
+    masterFileSize: fs.existsSync(masterOutputPath) ? fs.statSync(masterOutputPath).size : undefined,
+  };
+}
+
 // Export sequence to MP4 using ffmpeg
 ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Promise<ExportSequenceResult> => {
   const { items, outputPath, fps } = options;
@@ -2112,6 +2158,7 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
       : 0,
     hasAudioPlan: Boolean(options.audioPlan),
     audioEventCount: options.audioPlan?.events?.length ?? 0,
+    exportMasterWithAudio: options.exportMasterWithAudio === true,
   });
 
   const ffmpegBinary = ffmpegPath as string | null;
@@ -2313,6 +2360,8 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
 
     let audioOutputPath: string | undefined;
     let audioFileSize: number | undefined;
+    let masterOutputPath: string | undefined;
+    let masterFileSize: number | undefined;
     if (options.audioPlan) {
       const outputExt = path.extname(outputPath);
       const outputBase = path.basename(outputPath, outputExt);
@@ -2329,6 +2378,26 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
       }
       audioOutputPath = mixedAudioResult.audioOutputPath;
       audioFileSize = mixedAudioResult.audioFileSize;
+
+      if (options.exportMasterWithAudio === true && audioOutputPath) {
+        const nextMasterOutputPath = path.join(outputDirForAudio, `${outputBase}.master.mp4`);
+        const masterResult = await renderMasterMp4WithAudio(
+          ffmpegBinary,
+          outputPath,
+          audioOutputPath,
+          nextMasterOutputPath
+        );
+        if (!masterResult.success) {
+          writeRuntimeLog('ERROR', 'export-sequence-master-mux-failed', {
+            outputPath,
+            error: masterResult.error ?? 'master mux failed',
+          });
+          cleanupTempFiles(tempFiles);
+          return masterResult;
+        }
+        masterOutputPath = masterResult.masterOutputPath;
+        masterFileSize = masterResult.masterFileSize;
+      }
     }
 
     const outputMeta = await probeVideoWithFfmpeg(ffmpegBinary, outputPath);
@@ -2351,11 +2420,15 @@ ipcMain.handle('export-sequence', async (_, options: ExportSequenceOptions): Pro
       fileSize: concatResult.fileSize,
       audioOutputPath,
       audioFileSize,
+      masterOutputPath,
+      masterFileSize,
     });
     return {
       ...concatResult,
       audioOutputPath,
       audioFileSize,
+      masterOutputPath,
+      masterFileSize,
     };
   } catch (error) {
     cleanupTempFiles(tempFiles);

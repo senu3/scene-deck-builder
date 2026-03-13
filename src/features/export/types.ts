@@ -13,5 +13,6 @@ export interface ExportSettings {
   range: ExportRange;
   mp4: {
     quality: EncodingQuality;
+    exportMasterWithAudio: boolean;
   };
 }

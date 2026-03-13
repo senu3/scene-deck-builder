@@ -246,6 +246,7 @@ export interface ExportSequenceOptions {
   height: number;
   fps: number;
   audioPlan?: ExportAudioPlan;
+  exportMasterWithAudio?: boolean;
 }
 
 export interface ExportSequenceResult {
@@ -254,6 +255,8 @@ export interface ExportSequenceResult {
   fileSize?: number;
   audioOutputPath?: string;
   audioFileSize?: number;
+  masterOutputPath?: string;
+  masterFileSize?: number;
   error?: string;
 }
 

@@ -590,7 +590,14 @@ function App() {
 
   const exportMp4Sequence = useCallback(async (
     sequencePlan: SequencePlan,
-    config: ResolutionInput & { fps: number; outputFilePath?: string; outputDir?: string; cutsForSidecar?: Cut[] }
+    config: ResolutionInput & {
+      fps: number;
+      outputFilePath?: string;
+      outputDir?: string;
+      cutsForSidecar?: Cut[];
+      exportMasterWithAudio?: boolean;
+      masterRequested?: boolean;
+    }
   ) => {
     if (!hasElectronBridge() || isExporting) return;
 
@@ -638,6 +645,7 @@ function App() {
         height,
         fps: config.fps,
         audioPlan: sequencePlan.audioPlan,
+        exportMasterWithAudio: config.exportMasterWithAudio === true,
       });
 
       if (result.success) {
@@ -678,7 +686,10 @@ function App() {
         });
         toast.success(
           'Export complete',
-          `${(result.fileSize! / 1024 / 1024).toFixed(2)} MB${result.audioOutputPath ? ` / audio: ${result.audioOutputPath}` : ''}`
+          `${(result.fileSize! / 1024 / 1024).toFixed(2)} MB` +
+          `${result.audioOutputPath ? ` / audio: ${result.audioOutputPath}` : ''}` +
+          `${result.masterOutputPath ? ` / master: ${result.masterOutputPath}` : ''}` +
+          `${config.masterRequested && !result.masterOutputPath ? ' / master: skipped (no audio)' : ''}`
         );
       } else {
         toast.error('Export failed', result.error || 'Unknown error');
@@ -717,7 +728,7 @@ function App() {
         resolution: exportResolution,
         fps: 30,
         range: 'all',
-        mp4: { quality: 'medium' },
+        mp4: { quality: 'medium', exportMasterWithAudio: false },
       },
       resolution: exportResolution,
       exportScope: { kind: 'scene', sceneId: scope.sceneId },
@@ -745,6 +756,7 @@ function App() {
       outputFilePath: scopedPath.outputFilePath,
       outputDir: scopedPath.outputDir,
       cutsForSidecar: cuts,
+      exportMasterWithAudio: false,
     });
   }, [isExporting, toast, scenes, sceneOrder, vaultPath, projectName, exportResolution, exportMp4Sequence, orderedScenes, metadataStore, getAsset, getCutRuntime]);
 
@@ -807,6 +819,8 @@ function App() {
         strictLipSync: false,
       });
 
+      const exportMasterWithAudio = plan.exportMasterWithAudio && sequencePlan.audioPlan.events.length > 0;
+
       await exportMp4Sequence(sequencePlan, {
         width: plan.width,
         height: plan.height,
@@ -814,6 +828,8 @@ function App() {
         outputFilePath: plan.outputFilePath,
         outputDir: plan.outputDir,
         cutsForSidecar: orderedCuts,
+        exportMasterWithAudio,
+        masterRequested: plan.exportMasterWithAudio,
       });
     } catch (error) {
       toast.error('Export error', String(error));
@@ -832,7 +848,7 @@ function App() {
         resolution,
         fps: 30,
         range: 'all',
-        mp4: { quality: 'medium' },
+        mp4: { quality: 'medium', exportMasterWithAudio: false },
       },
       resolution,
     });
