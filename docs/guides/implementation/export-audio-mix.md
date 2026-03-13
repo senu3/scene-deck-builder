@@ -21,6 +21,7 @@
 
 ## 基本仕様
 - 出力は `<exportBase>.audio.flac`。
+- opt-in 時のみ、上記 mixed audio を使って `<exportBase>.master.mp4` を追加生成してよい。
 - 音声はセグメント連結ではなく、`ffmpeg -filter_complex` で全体1回レンダー。
 - 無音ベースは `anullsrc` を全体尺で混ぜる。
 - ミックスは `amix=normalize=0`。
@@ -66,6 +67,7 @@
   - `adelay=<dstMs>:all=1`
 - 最後に `[base][a0]...[aN]amix=inputs=<N+1>:normalize=0` を適用。
 - 入力に音声ストリームが無い場合は、そのイベントをスキップする（個別無音イベントは作らない）。
+- Master MP4 を作る場合は、base video を copy しつつ mixed audio を audio codec 付きで mux する。timeline / timing の再計算は行わない。
 
 ## Canonical Guard
 - `buildExportAudioPlan` の入口は canonical cut（`ExportAudioPlanCut`）を前提とする。

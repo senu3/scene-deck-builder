@@ -39,6 +39,12 @@
   - Timeline 構造変更
   - Vault 書き込みポリシー
 
+## MP4 出力メモ
+- MP4 export は base video (`video.mp4`) を正本出力として扱う。
+- 分離音声が有効な場合は `<exportBase>.audio.flac` を併せて出力する。
+- UI で opt-in された場合のみ、base video と mixed audio を mux した `<exportBase>.master.mp4` を追加生成してよい。
+- Master MP4 は `SequencePlan` や timeline 定義を変えず、既存の mixed audio を再利用して生成する。
+
 ## SequencePlan 契約
 - Export は `buildSequencePlan(project, opts)` で生成された `SequencePlan` を正本入力として受け取る。
 - `buildSequencePlan` は pure に生成され、diagnostics は `warnings` に含まれる。
