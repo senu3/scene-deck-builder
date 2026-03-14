@@ -17,7 +17,7 @@
 
 ## Layer Boundaries
 - `primitives`
-  - 入力、表示、modal、menu などの低レベル表現を置く。
+  - 入力、表示、button、modal、menu などの低レベル表現を置く。
   - domain 用語、store 依存、feature 固有状態を持たない。
 - `patterns`
   - `primitives` を組み合わせた再利用パターンを置く。
@@ -35,6 +35,7 @@
 ## Usage Rules
 - modal / menu / tooltip は UI 構造だけを担当し、domain side effect の発火条件は consumer 側で決める。
 - form primitives は validation policy を持たず、入力表現とアクセシビリティだけに留める。
+- `Button` は modal footer で実際に使う action 表現を正本とし、feature 側で modal action 専用の class を重複定義しない。
 - `patterns` は feature 横断で繰り返す UI 構造に限定し、単一画面専用の見た目調整を置かない。
 - feedback API は message 表示、重複抑止、永続/自動 dismiss の制御を統一し、各 feature が独自 toast 実装を持たない。
 - `danger` 系 dialog は不可逆操作用に限定し、通常確認に流用しない。
