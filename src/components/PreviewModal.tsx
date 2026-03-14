@@ -9,7 +9,6 @@ import {
   selectGetAsset,
   selectGlobalVolume,
   selectGlobalMuted,
-  selectSetGlobalVolume,
   selectToggleGlobalMute,
   selectMetadataStore,
   selectGetCutRuntime,
@@ -81,7 +80,6 @@ export default function PreviewModal({
   const getAsset = useStore(selectGetAsset);
   const globalVolume = useStore(selectGlobalVolume);
   const globalMuted = useStore(selectGlobalMuted);
-  const setGlobalVolume = useStore(selectSetGlobalVolume);
   const toggleGlobalMute = useStore(selectToggleGlobalMute);
   const metadataStore = useStore(selectMetadataStore);
   const getCutRuntime = useStore(selectGetCutRuntime);
@@ -663,9 +661,7 @@ export default function PreviewModal({
           onHoldToggle={handleSingleModeHoldToggle}
           isLooping={isLooping}
           toggleLooping={interactionCommands.toggleLooping}
-          globalVolume={globalVolume}
           globalMuted={globalMuted}
-          setGlobalVolume={setGlobalVolume}
           toggleGlobalMute={interactionCommands.toggleMute}
           playbackSpeed={playbackSpeed}
           cycleSpeedUp={cycleSingleModeSpeed}
@@ -741,9 +737,7 @@ export default function PreviewModal({
         handleSetOutPoint={interactionCommands.setOutPoint}
         isLooping={isLooping}
         toggleLooping={interactionCommands.toggleLooping}
-        globalVolume={globalVolume}
         globalMuted={globalMuted}
-        setGlobalVolume={setGlobalVolume}
         toggleGlobalMute={interactionCommands.toggleMute}
         isFullscreen={isFullscreen}
         toggleFullscreen={toggleFullscreen}

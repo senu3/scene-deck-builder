@@ -55,9 +55,7 @@ interface PreviewModalSequenceViewProps {
   handleSetOutPoint: () => void;
   isLooping: boolean;
   toggleLooping: () => void;
-  globalVolume: number;
   globalMuted: boolean;
-  setGlobalVolume: (volume: number) => void;
   toggleGlobalMute: () => void;
   isFullscreen: boolean;
   toggleFullscreen: () => void;
@@ -110,9 +108,7 @@ export function PreviewModalSequenceView({
   handleSetOutPoint,
   isLooping,
   toggleLooping,
-  globalVolume,
   globalMuted,
-  setGlobalVolume,
   toggleGlobalMute,
   isFullscreen,
   toggleFullscreen,
@@ -329,9 +325,7 @@ export function PreviewModalSequenceView({
                   <Repeat size={16} />
                 </button>
                 <VolumeControl
-                  volume={globalVolume}
                   isMuted={globalMuted}
-                  onVolumeChange={setGlobalVolume}
                   onMuteToggle={toggleGlobalMute}
                 />
                 <button

@@ -61,9 +61,7 @@ interface PreviewModalSingleViewProps {
   onHoldToggle: () => void;
   isLooping: boolean;
   toggleLooping: () => void;
-  globalVolume: number;
   globalMuted: boolean;
-  setGlobalVolume: (volume: number) => void;
   toggleGlobalMute: () => void;
   playbackSpeed: number;
   cycleSpeedUp: () => void;
@@ -129,9 +127,7 @@ export function PreviewModalSingleView({
   onHoldToggle,
   isLooping,
   toggleLooping,
-  globalVolume,
   globalMuted,
-  setGlobalVolume,
   toggleGlobalMute,
   playbackSpeed,
   cycleSpeedUp,
@@ -371,9 +367,7 @@ export function PreviewModalSingleView({
                   <Repeat size={16} />
                 </button>
                 <VolumeControl
-                  volume={globalVolume}
                   isMuted={globalMuted}
-                  onVolumeChange={setGlobalVolume}
                   onMuteToggle={toggleGlobalMute}
                 />
                 {isSingleModeVideo && (
