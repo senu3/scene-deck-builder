@@ -37,22 +37,18 @@ export {
   MenuHeader,
   MenuItem,
   MenuSeparator,
-  MenuCheckboxItem,
   type MenuProps,
   type MenuHeaderProps,
   type MenuItemProps,
   type MenuItemVariant,
   type MenuSeparatorProps,
-  type MenuCheckboxItemProps,
 } from './Menu';
 
 // Context menu (positioned via Portal)
 export {
   ContextMenu,
-  useContextMenu,
   type ContextMenuProps,
   type ContextMenuPosition,
-  type UseContextMenuReturn,
 } from './ContextMenu';
 
 // Submenu

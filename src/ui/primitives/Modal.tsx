@@ -194,18 +194,3 @@ export function useModalKeyboard({ onEscape, enabled = true }: UseModalKeyboardO
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [enabled, onEscape]);
 }
-
-// ============================================
-// Convenience export
-// ============================================
-export const Modal = {
-  Overlay,
-  Container,
-  Header,
-  Body,
-  Footer,
-  Actions,
-  useKeyboard: useModalKeyboard,
-};
-
-export default Modal;

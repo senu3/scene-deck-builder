@@ -4,7 +4,7 @@
  * Renders a menu at a specific position using Portal.
  * Handles click-outside and escape key to close.
  */
-import { useRef, useEffect, useState, useCallback, type ReactNode } from 'react';
+import { useRef, useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Menu } from './Menu';
 
@@ -118,61 +118,4 @@ export function ContextMenu({
     </Menu>,
     document.body
   );
-}
-
-// ============================================================================
-// useContextMenu hook for easier state management
-// ============================================================================
-
-export interface UseContextMenuReturn {
-  isOpen: boolean;
-  position: ContextMenuPosition | null;
-  open: (e: React.MouseEvent) => void;
-  close: () => void;
-  props: {
-    position: ContextMenuPosition;
-    onClose: () => void;
-  } | null;
-}
-
-/**
- * Hook for managing context menu state
- *
- * @example
- * ```tsx
- * const menu = useContextMenu();
- *
- * <div onContextMenu={menu.open}>
- *   Right click me
- * </div>
- *
- * {menu.props && (
- *   <ContextMenu {...menu.props}>
- *     <MenuItem>Option 1</MenuItem>
- *   </ContextMenu>
- * )}
- * ```
- */
-export function useContextMenu(): UseContextMenuReturn {
-  const [position, setPosition] = useState<ContextMenuPosition | null>(null);
-
-  const open = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setPosition({ x: e.clientX, y: e.clientY });
-  }, []);
-
-  const close = useCallback(() => {
-    setPosition(null);
-  }, []);
-
-  return {
-    isOpen: position !== null,
-    position,
-    open,
-    close,
-    props: position
-      ? { position, onClose: close }
-      : null,
-  };
 }
