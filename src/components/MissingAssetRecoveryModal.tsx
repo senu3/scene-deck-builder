@@ -6,7 +6,7 @@ import {
   type RecoveryAssessment,
 } from '../features/project/recoveryAssessment';
 import { showOpenFileDialogBridge } from '../features/platform/electronGateway';
-import { UtilityButton } from '../ui';
+import { IconButton, UtilityButton } from '../ui';
 import { Overlay, useModalKeyboard } from '../ui/primitives/Modal';
 import './MissingAssetRecoveryModal.css';
 
@@ -180,9 +180,14 @@ export default function MissingAssetRecoveryModal({
             <h2>Missing Assets Found</h2>
             <p>{headerSubtitle}</p>
           </div>
-          <button className="close-btn" onClick={onCancel}>
+          <IconButton
+            className="close-btn"
+            variant="contrast"
+            onClick={onCancel}
+            aria-label="Close missing asset recovery"
+          >
             <X size={20} />
-          </button>
+          </IconButton>
         </div>
 
         <div className="modal-content">

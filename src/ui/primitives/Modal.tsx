@@ -18,6 +18,7 @@
 
 import { useEffect, useCallback, type ReactNode, type MouseEvent } from 'react';
 import { X } from 'lucide-react';
+import { IconButton } from './IconButton';
 import styles from './Modal.module.css';
 
 // ============================================
@@ -108,9 +109,9 @@ export function Header({
         {subtitle && <p className={styles.subtitle}>{subtitle}</p>}
       </div>
       {onClose && (
-        <button className={styles.closeButton} onClick={onClose} aria-label="Close">
+        <IconButton onClick={onClose} aria-label="Close">
           <X size={20} />
-        </button>
+        </IconButton>
       )}
     </div>
   );

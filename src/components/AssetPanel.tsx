@@ -42,7 +42,7 @@ import { getMediaType as getAnyMediaType } from '../utils/mediaType';
 import { collectAssetRefs, type AssetRefMap } from '../utils/assetRefs';
 import { getFirstSceneId } from '../utils/sceneOrder';
 import { resolveCutAssetId } from '../utils/assetResolve';
-import { UtilityButton, useBanner, useDialog, useToast } from '../ui';
+import { IconButton, UtilityButton, useBanner, useDialog, useToast } from '../ui';
 import {
   AssetContextMenu,
 } from './context-menus';
@@ -1022,9 +1022,9 @@ export default function AssetPanel({
         <div className="asset-panel-header">
           <h2>{effectiveHeaderTitle}</h2>
           {onClose && (
-            <button className="asset-panel-close-btn" onClick={onClose}>
+            <IconButton className="asset-panel-close-btn" onClick={onClose} aria-label="Close asset panel">
               <X size={20} />
-            </button>
+            </IconButton>
           )}
         </div>
 

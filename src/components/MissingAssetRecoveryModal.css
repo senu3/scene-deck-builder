@@ -47,20 +47,7 @@
 }
 
 .missing-asset-modal .close-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.missing-asset-modal .close-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  margin-left: 12px;
 }
 
 .missing-asset-modal .modal-content {

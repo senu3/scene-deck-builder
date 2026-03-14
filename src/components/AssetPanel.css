@@ -25,19 +25,7 @@
 }
 
 .asset-panel-close-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-md);
-  color: var(--text-secondary);
-  transition: all 0.15s ease;
-}
-
-.asset-panel-close-btn:hover {
-  background-color: var(--bg-hover);
-  color: var(--text-primary);
+  margin-left: 12px;
 }
 
 /* Toolbar */

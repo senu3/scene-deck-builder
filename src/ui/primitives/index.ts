@@ -14,6 +14,13 @@ export {
 } from './UtilityButton';
 
 export {
+  IconButton,
+  type IconButtonProps,
+  type IconButtonVariant,
+  type IconButtonSize,
+} from './IconButton';
+
+export {
   Overlay,
   Container,
   Header,
