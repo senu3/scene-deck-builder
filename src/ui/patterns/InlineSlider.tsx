@@ -46,6 +46,8 @@ export interface InlineSliderProps extends Omit<SliderProps, 'className'> {
   popoverWidth?: number;
   /** Close on outside click */
   closeOnOutsideClick?: boolean;
+  /** Portal target for popover. Defaults to document.body. */
+  portalContainer?: Element | DocumentFragment | null;
   /** Additional class for trigger */
   className?: string;
 }
@@ -59,6 +61,7 @@ export function InlineSlider({
   position = 'top',
   popoverWidth = 140,
   closeOnOutsideClick = true,
+  portalContainer,
   className = '',
   disabled,
   ...sliderProps
@@ -148,6 +151,7 @@ export function InlineSlider({
   const displayValue = sliderProps.formatValue
     ? sliderProps.formatValue(sliderProps.value)
     : sliderProps.value.toString();
+  const portalTarget = portalContainer ?? document.body;
 
   return (
     <>
@@ -178,7 +182,7 @@ export function InlineSlider({
           >
             <Slider {...sliderProps} disabled={disabled} />
           </div>,
-          document.body
+          portalTarget
         )}
     </>
   );
