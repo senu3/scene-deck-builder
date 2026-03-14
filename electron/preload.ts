@@ -82,6 +82,12 @@ export interface AssetIndex {
   assets: AssetIndexEntry[];
 }
 
+export type AssetIndexReadResult =
+  | { kind: 'readable'; index: AssetIndex }
+  | { kind: 'missing' }
+  | { kind: 'unreadable'; cause?: string }
+  | { kind: 'invalid-schema'; cause?: string };
+
 export interface VaultImportResult {
   success: boolean;
   vaultPath?: string;
@@ -455,8 +461,8 @@ const electronAPI = {
   ensureAssetsFolder: (vaultPath: string): Promise<string | null> =>
     ipcRenderer.invoke('ensure-assets-folder', vaultPath),
 
-  loadAssetIndex: (vaultPath: string): Promise<AssetIndex> =>
-    ipcRenderer.invoke('load-asset-index', vaultPath),
+  readAssetIndex: (vaultPath: string): Promise<AssetIndexReadResult> =>
+    ipcRenderer.invoke('read-asset-index', vaultPath),
 
   verifyVaultAssets: (vaultPath: string): Promise<VaultVerifyResult> =>
     ipcRenderer.invoke('verify-vault-assets', vaultPath),

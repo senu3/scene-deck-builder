@@ -71,7 +71,7 @@ const electronAPIMock = {
   })),
   calculateFileHash: vi.fn(async () => 'abc'),
   getFileInfo: vi.fn(async () => ({ size: 1234 })),
-  loadAssetIndex: vi.fn(async () => ({ version: 1, assets: [] })),
+  readAssetIndex: vi.fn(async () => ({ kind: 'readable' as const, index: { version: 1, assets: [] } })),
   isPathInVault: vi.fn(async () => false),
   vaultGateway: {
     importAndRegisterAsset: vi.fn(async () => ({

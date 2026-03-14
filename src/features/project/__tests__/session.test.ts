@@ -12,10 +12,10 @@ import {
   ensureAssetsFolderBridge,
   getFolderContentsBridge,
   getRecentProjectsBridge,
-  loadAssetIndexBridge,
   loadProjectBridge,
   loadProjectFromPathBridge,
   pathExistsBridge,
+  readAssetIndexBridge,
 } from '../../platform/electronGateway';
 import { loadMetadataStoreWithReport } from '../../../utils/metadataStore';
 import { resolveScenesAssets } from '../load';
@@ -25,10 +25,10 @@ vi.mock('../../platform/electronGateway', () => ({
   ensureAssetsFolderBridge: vi.fn(),
   getFolderContentsBridge: vi.fn(),
   getRecentProjectsBridge: vi.fn(),
-  loadAssetIndexBridge: vi.fn(),
   loadProjectBridge: vi.fn(),
   loadProjectFromPathBridge: vi.fn(),
   pathExistsBridge: vi.fn(),
+  readAssetIndexBridge: vi.fn(),
   selectVaultBridge: vi.fn(),
 }));
 
@@ -47,7 +47,10 @@ vi.mock('../load', async () => {
 describe('project session', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(loadAssetIndexBridge).mockResolvedValue({ version: 1, assets: [] });
+    vi.mocked(readAssetIndexBridge).mockResolvedValue({
+      kind: 'readable',
+      index: { version: 1, assets: [] },
+    });
     vi.mocked(loadMetadataStoreWithReport).mockResolvedValue({
       store: { version: 1, metadata: {}, sceneMetadata: {} },
       report: {

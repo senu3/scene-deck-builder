@@ -20,14 +20,13 @@ import {
 } from '../features/project/apply';
 import {
   type PendingProject,
-  type ProjectLoadOutcome,
+  type ProjectOpenRequestResult,
   type RecentProjectEntry,
-  buildProjectLoadOutcome,
   createProjectBootstrap,
   loadRecentProjectsWithCleanup,
+  openProjectAtPath,
+  openSelectedProject,
   projectPathExists,
-  requestProjectFromPath,
-  requestProjectSelection,
   selectProjectVaultPath,
 } from '../features/project/session';
 import {
@@ -197,14 +196,8 @@ export default function StartupModal() {
       return;
     }
 
-    const result = await requestProjectSelection();
-    if (result.kind === 'canceled') return;
-    if (result.kind === 'failure') {
-      await dialogAlert(buildProjectLoadFailureAlert(result.failure));
-      return;
-    }
-    const outcome = await buildProjectLoadOutcome(result.data, result.path, 'Loaded Project');
-    await applyProjectLoadOutcome(outcome);
+    const result = await openSelectedProject('Loaded Project');
+    await applyProjectOpenResult(result);
   };
 
   // Finalize project loading after recovery decisions (if any)
@@ -238,19 +231,22 @@ export default function StartupModal() {
     }
   };
 
-  const applyProjectLoadOutcome = async (outcome: ProjectLoadOutcome) => {
-    if (outcome.kind === 'corrupted') {
-      await dialogAlert(buildProjectLoadFailureAlert(outcome.failure));
+  const applyProjectOpenResult = async (result: ProjectOpenRequestResult) => {
+    if (result.kind === 'canceled') {
       return;
     }
-    if (outcome.kind === 'pending') {
-      setMissingAssets(outcome.missingAssets);
-      setPendingProject(outcome.payload);
-      setPendingAssessment(outcome.assessment);
+    if (result.kind === 'failure' || result.kind === 'corrupted') {
+      await dialogAlert(buildProjectLoadFailureAlert(result.failure));
+      return;
+    }
+    if (result.kind === 'pending') {
+      setMissingAssets(result.missingAssets);
+      setPendingProject(result.payload);
+      setPendingAssessment(result.assessment);
       setShowRecoveryDialog(true);
       return;
     }
-    await finalizeProjectLoad(outcome.payload);
+    await finalizeProjectLoad(result.payload);
   };
 
   // Handle recovery dialog completion
@@ -292,8 +288,7 @@ export default function StartupModal() {
 
     // Load the project file directly from the specified path
     try {
-      const result = await requestProjectFromPath(project.path);
-      if (result.kind === 'canceled') return;
+      const result = await openProjectAtPath(project.path, project.name);
       if (result.kind === 'failure') {
         await dialogAlert(buildProjectLoadFailureAlert(result.failure));
         if (result.failure.code === 'project-file-not-found') {
@@ -310,8 +305,7 @@ export default function StartupModal() {
         }
         return;
       }
-      const outcome = await buildProjectLoadOutcome(result.data, project.path, project.name);
-      await applyProjectLoadOutcome(outcome);
+      await applyProjectOpenResult(result);
     } catch (error) {
       console.error('Failed to load project:', error);
       alert('Failed to load project');

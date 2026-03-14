@@ -1534,19 +1534,84 @@ ipcMain.handle('ensure-assets-folder', async (_, vaultPath: string) => {
   }
 });
 
-// Load asset index from vault
-ipcMain.handle('load-asset-index', async (_, vaultPath: string) => {
-  try {
-    const indexPath = path.join(vaultPath, 'assets', '.index.json');
-    if (fs.existsSync(indexPath)) {
-      const data = fs.readFileSync(indexPath, 'utf-8');
-      return JSON.parse(data) as AssetIndex;
-    }
-    return { version: 1, assets: [] } as AssetIndex;
-  } catch (error) {
-    console.error('Failed to load asset index:', error);
-    return { version: 1, assets: [] } as AssetIndex;
+type AssetIndexReadResult =
+  | { kind: 'readable'; index: AssetIndex }
+  | { kind: 'missing' }
+  | { kind: 'unreadable'; cause?: string }
+  | { kind: 'invalid-schema'; cause?: string };
+
+function isAssetIndexUsageRefLike(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return false;
+  const ref = value as Record<string, unknown>;
+  return typeof ref.sceneId === 'string'
+    && typeof ref.sceneName === 'string'
+    && typeof ref.sceneOrder === 'number'
+    && typeof ref.cutId === 'string'
+    && typeof ref.cutOrder === 'number'
+    && typeof ref.cutIndex === 'number';
+}
+
+function isAssetIndexEntryLike(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return false;
+  const entry = value as Record<string, unknown>;
+  const usageRefs = entry.usageRefs;
+  return typeof entry.id === 'string'
+    && typeof entry.hash === 'string'
+    && typeof entry.filename === 'string'
+    && typeof entry.originalName === 'string'
+    && typeof entry.originalPath === 'string'
+    && (entry.type === 'image' || entry.type === 'video' || entry.type === 'audio')
+    && typeof entry.fileSize === 'number'
+    && Number.isFinite(entry.fileSize)
+    && typeof entry.importedAt === 'string'
+    && (usageRefs === undefined || (Array.isArray(usageRefs) && usageRefs.every(isAssetIndexUsageRefLike)));
+}
+
+function parseAssetIndexForRead(vaultPath: string): AssetIndexReadResult {
+  const indexPath = path.join(vaultPath, 'assets', '.index.json');
+  if (!fs.existsSync(indexPath)) {
+    return { kind: 'missing' };
   }
+
+  let raw: string;
+  try {
+    raw = fs.readFileSync(indexPath, 'utf-8');
+  } catch (error) {
+    return {
+      kind: 'unreadable',
+      cause: error instanceof Error ? error.message : String(error),
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (
+      !parsed
+      || typeof parsed !== 'object'
+      || typeof (parsed as { version?: unknown }).version !== 'number'
+      || !Array.isArray((parsed as { assets?: unknown }).assets)
+      || !(parsed as { assets: unknown[] }).assets.every(isAssetIndexEntryLike)
+    ) {
+      return {
+        kind: 'invalid-schema',
+        cause: 'asset-index-shape-invalid',
+      };
+    }
+    return {
+      kind: 'readable',
+      index: parsed as AssetIndex,
+    };
+  } catch (error) {
+    return {
+      kind: 'invalid-schema',
+      cause: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+// Read asset index from vault with explicit state
+ipcMain.handle('read-asset-index', async (_, vaultPath: string) => {
+  return parseAssetIndexForRead(vaultPath);
 });
 
 registerVaultGatewayHandlers(ipcMain);

@@ -77,8 +77,10 @@ export function getRecoveryAssessmentNotices(
 ): string[] {
   const rescuedCutCount = overrides.rescuedCutCount ?? assessment.report.rescuedCutCount;
   const notices: string[] = [];
+  const handledIssueCodes = new Set<string>();
 
   if (assessment.report.missingAssetCount > 0) {
+    handledIssueCodes.add('missing-assets');
     notices.push(
       context === 'save'
         ? `${assessment.report.missingAssetCount} asset reference(s) are missing.`
@@ -87,6 +89,7 @@ export function getRecoveryAssessmentNotices(
   }
 
   if (assessment.report.skippedMetadataCount > 0) {
+    handledIssueCodes.add('skipped-metadata');
     notices.push(
       context === 'save'
         ? 'Some metadata will be ignored.'
@@ -104,6 +107,11 @@ export function getRecoveryAssessmentNotices(
 
   if (context !== 'save' && assessment.report.readableSceneCount === 0) {
     notices.push('No readable scenes were recovered.');
+  }
+
+  for (const issue of assessment.issues) {
+    if (handledIssueCodes.has(issue.code)) continue;
+    notices.push(issue.message);
   }
 
   return notices;

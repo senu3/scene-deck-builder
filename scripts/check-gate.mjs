@@ -281,7 +281,7 @@ for (const file of files) {
 
   // Gate 7: metadata/video metadata APIs should not be called directly from target UI files.
   if (gate7MetadataUiFiles.has(r)) {
-    for (const m of findAll(src, /\bwindow\.electronAPI\??\.(getVideoMetadata|readImageMetadata|loadAssetIndex)\b/g)) {
+    for (const m of findAll(src, /\bwindow\.electronAPI\??\.(getVideoMetadata|readImageMetadata|readAssetIndex)\b/g)) {
       warnings.push({
         gate: 'Gate7',
         file: r,

@@ -39,20 +39,23 @@ describe('metadata load scene-audio hydration', () => {
       },
       path: 'C:/vault/.metadata.json',
     });
-    (window.electronAPI!.loadAssetIndex as any).mockResolvedValue({
-      version: 1,
-      assets: [
-        {
-          id: 'aud-1',
-          hash: 'hash-aud-1',
-          filename: 'aud_1.wav',
-          originalName: 'bgm.wav',
-          originalPath: 'imports/bgm.wav',
-          type: 'audio',
-          fileSize: 1024,
-          importedAt: '2026-02-20T00:00:00.000Z',
-        },
-      ],
+    (window.electronAPI!.readAssetIndex as any).mockResolvedValue({
+      kind: 'readable',
+      index: {
+        version: 1,
+        assets: [
+          {
+            id: 'aud-1',
+            hash: 'hash-aud-1',
+            filename: 'aud_1.wav',
+            originalName: 'bgm.wav',
+            originalPath: 'imports/bgm.wav',
+            type: 'audio',
+            fileSize: 1024,
+            importedAt: '2026-02-20T00:00:00.000Z',
+          },
+        ],
+      },
     });
     (window.electronAPI!.resolveVaultPath as any).mockResolvedValue({
       absolutePath: 'C:/vault/assets/aud_1.wav',
@@ -97,20 +100,23 @@ describe('metadata load scene-audio hydration', () => {
       },
       path: 'C:/vault/.metadata.json',
     });
-    (window.electronAPI!.loadAssetIndex as any).mockResolvedValue({
-      version: 1,
-      assets: [
-        {
-          id: 'aud-group-1',
-          hash: 'hash-aud-group-1',
-          filename: 'aud_group_1.wav',
-          originalName: 'group-bgm.wav',
-          originalPath: 'imports/group-bgm.wav',
-          type: 'audio',
-          fileSize: 2048,
-          importedAt: '2026-02-20T00:00:00.000Z',
-        },
-      ],
+    (window.electronAPI!.readAssetIndex as any).mockResolvedValue({
+      kind: 'readable',
+      index: {
+        version: 1,
+        assets: [
+          {
+            id: 'aud-group-1',
+            hash: 'hash-aud-group-1',
+            filename: 'aud_group_1.wav',
+            originalName: 'group-bgm.wav',
+            originalPath: 'imports/group-bgm.wav',
+            type: 'audio',
+            fileSize: 2048,
+            importedAt: '2026-02-20T00:00:00.000Z',
+          },
+        ],
+      },
     });
     (window.electronAPI!.resolveVaultPath as any).mockResolvedValue({
       absolutePath: 'C:/vault/assets/aud_group_1.wav',

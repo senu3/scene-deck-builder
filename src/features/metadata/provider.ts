@@ -2,7 +2,7 @@ import {
   getFileInfoBridge,
   hasVaultGatewayBridge,
   getVideoMetadataBridge,
-  loadAssetIndexBridge,
+  readAssetIndexBridge,
   moveToTrashWithMetaBridge,
   readImageMetadataBridge,
   resolveVaultPathBridge,
@@ -105,9 +105,9 @@ function isAssetIndexEntryLike(value: unknown): value is AssetIndexEntryLike {
 export async function loadAssetIndexEntries(vaultPath: string): Promise<AssetIndexEntryLike[]> {
   if (!vaultPath) return [];
   try {
-    const index = await loadAssetIndexBridge(vaultPath);
-    if (!index || !Array.isArray(index.assets)) return [];
-    return index.assets.filter(isAssetIndexEntryLike);
+    const result = await readAssetIndexBridge(vaultPath);
+    if (result.kind !== 'readable' || !Array.isArray(result.index.assets)) return [];
+    return result.index.assets.filter(isAssetIndexEntryLike);
   } catch {
     return [];
   }

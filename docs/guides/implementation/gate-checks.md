@@ -50,7 +50,7 @@
   - `set(...scenes:...)` の許可リスト外検出
 - Gate 7:
   - `src/utils` 配下の `window.electronAPI` 直呼び検出（platform bridge 経由へ統一）
-  - `AssetPanel` / `DetailsPanel` の metadata API（`getVideoMetadata` / `readImageMetadata` / `loadAssetIndex`）直呼び検出
+  - `AssetPanel` / `DetailsPanel` の metadata API（`getVideoMetadata` / `readImageMetadata` / `readAssetIndex`）直呼び検出
   - `src/store/slices` 配下の `window.electronAPI` 直呼び検出（provider/gateway 境界へ統一、allowlistなし）
   - `clipThumbnailRegenerationQueue` の直接import検出（`thumbnailEffects` または effect dispatch 実行境界以外を禁止）
 - Gate 8: `cut.asset` の `assetResolve.ts` 外参照検出

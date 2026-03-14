@@ -90,6 +90,12 @@ interface AssetIndex {
   assets: AssetIndexEntry[];
 }
 
+type AssetIndexReadResult =
+  | { kind: 'readable'; index: AssetIndex }
+  | { kind: 'missing' }
+  | { kind: 'unreadable'; cause?: string }
+  | { kind: 'invalid-schema'; cause?: string };
+
 interface VaultImportResult {
   success: boolean;
   vaultPath?: string;
@@ -388,7 +394,7 @@ interface ElectronAPI {
   // Vault asset sync operations
   calculateFileHash: (filePath: string) => Promise<string | null>;
   ensureAssetsFolder: (vaultPath: string) => Promise<string | null>;
-  loadAssetIndex: (vaultPath: string) => Promise<AssetIndex>;
+  readAssetIndex: (vaultPath: string) => Promise<AssetIndexReadResult>;
   verifyVaultAssets: (vaultPath: string) => Promise<VaultVerifyResult>;
   resolveVaultPath: (vaultPath: string, relativePath: string) => Promise<PathResolveResult>;
   getRelativePath: (vaultPath: string, absolutePath: string) => Promise<string | null>;

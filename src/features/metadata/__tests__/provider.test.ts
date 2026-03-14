@@ -13,20 +13,23 @@ import { resetElectronMocks } from '../../../test/setup.renderer';
 describe('metadata provider', () => {
   it('loads index entries via bridge', async () => {
     resetElectronMocks();
-    (window.electronAPI!.loadAssetIndex as any).mockResolvedValueOnce({
-      version: 1,
-      assets: [
-        {
-          id: 'asset-1',
-          hash: 'abc',
-          filename: 'a.png',
-          originalName: 'a.png',
-          originalPath: 'assets/a.png',
-          type: 'image',
-          fileSize: 100,
-          importedAt: '2026-01-01T00:00:00.000Z',
-        },
-      ],
+    (window.electronAPI!.readAssetIndex as any).mockResolvedValueOnce({
+      kind: 'readable',
+      index: {
+        version: 1,
+        assets: [
+          {
+            id: 'asset-1',
+            hash: 'abc',
+            filename: 'a.png',
+            originalName: 'a.png',
+            originalPath: 'assets/a.png',
+            type: 'image',
+            fileSize: 100,
+            importedAt: '2026-01-01T00:00:00.000Z',
+          },
+        ],
+      },
     });
     const entries = await loadAssetIndexEntries('C:/vault');
     expect(entries).toHaveLength(1);
@@ -35,27 +38,30 @@ describe('metadata provider', () => {
 
   it('returns empty array when index load fails', async () => {
     resetElectronMocks();
-    (window.electronAPI!.loadAssetIndex as any).mockRejectedValueOnce(new Error('fail'));
+    (window.electronAPI!.readAssetIndex as any).mockRejectedValueOnce(new Error('fail'));
     const entries = await loadAssetIndexEntries('C:/vault');
     expect(entries).toEqual([]);
   });
 
   it('hydrates assets by id from index and resolves absolute path', async () => {
     resetElectronMocks();
-    (window.electronAPI!.loadAssetIndex as any).mockResolvedValueOnce({
-      version: 1,
-      assets: [
-        {
-          id: 'aud-1',
-          hash: 'hash-aud-1',
-          filename: 'aud_1.wav',
-          originalName: 'bgm.wav',
-          originalPath: 'imports/bgm.wav',
-          type: 'audio',
-          fileSize: 1024,
-          importedAt: '2026-02-20T00:00:00.000Z',
-        },
-      ],
+    (window.electronAPI!.readAssetIndex as any).mockResolvedValueOnce({
+      kind: 'readable',
+      index: {
+        version: 1,
+        assets: [
+          {
+            id: 'aud-1',
+            hash: 'hash-aud-1',
+            filename: 'aud_1.wav',
+            originalName: 'bgm.wav',
+            originalPath: 'imports/bgm.wav',
+            type: 'audio',
+            fileSize: 1024,
+            importedAt: '2026-02-20T00:00:00.000Z',
+          },
+        ],
+      },
     });
     (window.electronAPI!.resolveVaultPath as any).mockResolvedValueOnce({
       absolutePath: 'C:/vault/assets/aud_1.wav',

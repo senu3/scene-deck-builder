@@ -1,4 +1,4 @@
-import type { Asset, AssetIndexEntry, Cut, Scene } from '../../types';
+import type { Asset, AssetIndex, AssetIndexEntry, Cut, Scene } from '../../types';
 import type { MissingAssetInfo, RecoveryDecision } from '../../components/MissingAssetRecoveryModal';
 import { registerAssetFile } from '../asset/write';
 import { readCanonicalAssetMetadataForPath } from '../metadata/provider';
@@ -11,7 +11,7 @@ import {
   resolveCutAssetSnapshot,
 } from '../../utils/assetResolve';
 import {
-  loadAssetIndexBridge,
+  readAssetIndexBridge,
   pathExistsBridge,
   resolveVaultPathBridge,
 } from '../platform/electronGateway';
@@ -114,21 +114,28 @@ async function resolveAssetPath(asset: Asset, vaultPath: string): Promise<Asset>
   return asset;
 }
 
-export async function resolveScenesAssets(scenes: Scene[], vaultPath: string): Promise<{ scenes: Scene[]; missingAssets: MissingAssetInfo[] }> {
+export async function resolveScenesAssets(
+  scenes: Scene[],
+  vaultPath: string,
+  options: { assetIndex?: AssetIndex | null } = {}
+): Promise<{ scenes: Scene[]; missingAssets: MissingAssetInfo[] }> {
   const resolvedScenes: Scene[] = [];
   const missingAssets: MissingAssetInfo[] = [];
   const assetIndexById = new Map<string, AssetIndexEntry>();
   const hydratedAssetById = new Map<string, Asset>();
 
-  try {
-    const index = await loadAssetIndexBridge(vaultPath);
-    for (const entry of index?.assets || []) {
-      if (entry?.id) {
-        assetIndexById.set(entry.id, entry);
-      }
+  let index = options.assetIndex;
+  if (index === undefined) {
+    const readResult = await readAssetIndexBridge(vaultPath).catch(() => ({
+      kind: 'unreadable' as const,
+    }));
+    index = readResult.kind === 'readable' ? readResult.index : null;
+  }
+
+  for (const entry of index?.assets || []) {
+    if (entry?.id) {
+      assetIndexById.set(entry.id, entry);
     }
-  } catch {
-    // Keep best-effort path.
   }
 
   const hydrateAssetFromIndex = async (assetId: string, fallback?: Asset): Promise<Asset | undefined> => {

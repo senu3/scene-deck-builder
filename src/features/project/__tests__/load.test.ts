@@ -19,7 +19,7 @@ vi.mock('../../thumbnails/api', () => ({
 }));
 
 vi.mock('../../platform/electronGateway', () => ({
-  loadAssetIndexBridge: vi.fn(),
+  readAssetIndexBridge: vi.fn(),
   pathExistsBridge: vi.fn(),
   resolveVaultPathBridge: vi.fn(),
 }));
@@ -73,10 +73,13 @@ describe('project load recovery helpers', () => {
   });
 
   it('routes unresolved assetId cuts into missing recovery instead of swallowing them', async () => {
-    const { loadAssetIndexBridge } = await import('../../platform/electronGateway');
-    vi.mocked(loadAssetIndexBridge).mockResolvedValue({
-      version: 1,
-      assets: [],
+    const { readAssetIndexBridge } = await import('../../platform/electronGateway');
+    vi.mocked(readAssetIndexBridge).mockResolvedValue({
+      kind: 'readable',
+      index: {
+        version: 1,
+        assets: [],
+      },
     });
 
     const result = await resolveScenesAssets([{

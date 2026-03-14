@@ -46,6 +46,12 @@ export type ProjectFileLoadResult =
   | { kind: 'canceled' }
   | { kind: 'error'; code: ProjectFileLoadErrorCode; path: string };
 
+export type AssetIndexReadResult =
+  | { kind: 'readable'; index: AssetIndex }
+  | { kind: 'missing' }
+  | { kind: 'unreadable'; cause?: string }
+  | { kind: 'invalid-schema'; cause?: string };
+
 type VaultImportResult = {
   success: boolean;
   vaultPath?: string;
@@ -419,8 +425,11 @@ export async function generateThumbnailBridge(
   return getElectronAPI()?.generateThumbnail?.(filePath, type as any, options as any) ?? null;
 }
 
-export async function loadAssetIndexBridge(vaultPath: string): Promise<AssetIndex | null> {
-  return getElectronAPI()?.loadAssetIndex?.(vaultPath) ?? null;
+export async function readAssetIndexBridge(vaultPath: string): Promise<AssetIndexReadResult> {
+  return (await getElectronAPI()?.readAssetIndex?.(vaultPath)) ?? {
+    kind: 'unreadable',
+    cause: 'electron-unavailable',
+  };
 }
 
 export async function ensureAssetsFolderBridge(vaultPath: string): Promise<string | null> {
