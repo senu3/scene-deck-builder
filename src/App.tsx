@@ -86,6 +86,21 @@ const EnvironmentSettingsModal = lazy(() => import('./components/EnvironmentSett
 const NotificationTestModal = lazy(() => import('./components/NotificationTestModal'));
 const DevOverlayHost = lazy(() => import('./debug/DevOverlayHost'));
 
+type ExportModalRequest =
+  | { kind: 'timeline' }
+  | {
+      kind: 'scene';
+      sceneId: string;
+      sceneName: string;
+      outputRootPath: string;
+      outputFolderName: string;
+      stats: {
+        sceneCount: number;
+        cutCount: number;
+        totalDuration: number;
+      };
+    };
+
 function DndMonitorShim({ onDragStart }: { onDragStart: () => void }) {
   useDndMonitor({
     onDragStart,
@@ -132,7 +147,7 @@ function App() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeType, setActiveType] = useState<'cut' | 'scene' | null>(null);
   const [showPreview, setShowPreview] = useState(false);
-  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportModalRequest, setExportModalRequest] = useState<ExportModalRequest | null>(null);
   const [showEnvironmentSettings, setShowEnvironmentSettings] = useState(false);
   const [showNotificationTests, setShowNotificationTests] = useState(false);
   const dndDebugEnabled = isDndDebugEnabled();
@@ -554,7 +569,7 @@ function App() {
   // Open export modal from controls
   const handleExportFromControls = useCallback(() => {
     if (isExporting) return;
-    setShowExportModal(true);
+    setExportModalRequest({ kind: 'timeline' });
   }, [isExporting]);
 
   const handleOpenNotificationTests = useCallback(() => {
@@ -702,65 +717,8 @@ function App() {
     }
   }, [banner, getAsset, isExporting, metadataStore, orderedScenes, toast]);
 
-  const startExportForCuts = useCallback(async (
-    cuts: Cut[],
-    scope: { kind: 'scene'; sceneId: string; sceneName: string }
-  ) => {
-    if (isExporting) return;
-    if (cuts.length === 0) {
-      toast.warning('No items to export', 'Add cuts to this scene first.');
-      return;
-    }
-
-    const sceneIndex = getSceneIndex(scenes, sceneOrder, scope.sceneId);
-    const scopedPath = buildSceneScopedExportPath({
-      vaultPath,
-      projectName,
-      sceneId: scope.sceneId,
-      sceneName: scope.sceneName,
-      sceneIndex,
-    });
-    const plan = resolveExportPlan({
-      settings: {
-        format: 'mp4',
-        outputRootPath: scopedPath.outputRootPath,
-        outputFolderName: scopedPath.outputFolderName,
-        resolution: exportResolution,
-        fps: 30,
-        range: 'all',
-        mp4: { quality: 'medium', exportMasterWithAudio: false },
-      },
-      resolution: exportResolution,
-      exportScope: { kind: 'scene', sceneId: scope.sceneId },
-    });
-
-    const sequencePlan = buildSequencePlan({
-      scenes,
-      sceneOrder,
-    }, {
-      target: {
-        kind: 'cuts',
-        cuts,
-      },
-      metadataStore: metadataStore ?? null,
-      getAssetById: getAsset,
-      resolveCutRuntimeById: getCutRuntime,
-      framingDefaults: EXPORT_FRAMING_DEFAULTS,
-      strictLipSync: false,
-    });
-
-    await exportMp4Sequence(sequencePlan, {
-      width: plan.width,
-      height: plan.height,
-      fps: plan.fps,
-      outputFilePath: scopedPath.outputFilePath,
-      outputDir: scopedPath.outputDir,
-      cutsForSidecar: cuts,
-      exportMasterWithAudio: false,
-    });
-  }, [isExporting, toast, scenes, sceneOrder, vaultPath, projectName, exportResolution, exportMp4Sequence, orderedScenes, metadataStore, getAsset, getCutRuntime]);
-
   const handleExportScene = useCallback(async (sceneId: string) => {
+    if (isExporting) return;
     const scene = resolveSceneById(scenes, sceneId);
     if (!scene) {
       toast.warning('Scene not found', 'This scene may have been removed.');
@@ -771,36 +729,71 @@ function App() {
       toast.info('Scene is empty', 'Add cuts to this scene first.');
       return;
     }
-    await startExportForCuts(cuts, { kind: 'scene', sceneId: scene.id, sceneName: scene.name });
-  }, [scenes, startExportForCuts, toast]);
+    const sceneIndex = getSceneIndex(scenes, sceneOrder, scene.id);
+    const scopedPath = buildSceneScopedExportPath({
+      vaultPath,
+      projectName,
+      sceneId: scene.id,
+      sceneName: scene.name,
+      sceneIndex,
+    });
+    const totalDuration = cuts.reduce((acc, cut) => acc + cut.displayTime, 0);
+    setExportModalRequest({
+      kind: 'scene',
+      sceneId: scene.id,
+      sceneName: scene.name,
+      outputRootPath: scopedPath.outputRootPath,
+      outputFolderName: scopedPath.outputFolderName,
+      stats: {
+        sceneCount: 1,
+        cutCount: cuts.length,
+        totalDuration,
+      },
+    });
+  }, [isExporting, projectName, sceneOrder, scenes, toast, vaultPath]);
 
   // Handle export from ExportModal
   const handleExport = useCallback(async (settings: ExportSettings) => {
-    if (!hasElectronBridge() || isExporting) return;
+    if (!hasElectronBridge() || isExporting || !exportModalRequest) return;
 
-    setShowExportModal(false);
+    const request = exportModalRequest;
+    setExportModalRequest(null);
 
     try {
-      const orderedCutsAll = getScenesAndCutsInTimelineOrder(scenes, sceneOrder).flatMap((scene) => scene.cuts);
-
-      if (orderedCutsAll.length === 0) {
-        toast.warning('No items to export', 'Add cuts to the timeline first.');
-        return;
-      }
-
       const plan = resolveExportPlan({
         settings,
         resolution: exportResolution,
+        exportScope: request.kind === 'scene'
+          ? { kind: 'scene', sceneId: request.sceneId }
+          : undefined,
       });
 
-      const orderedCuts = plan.range === 'selection'
-          ? getCutIdsInTimelineOrder(scenes, getSelectedCutIds(), sceneOrder)
-          .map((cutId) => orderedCutsAll.find((cut) => cut.id === cutId))
-          .filter((cut): cut is Cut => !!cut)
-        : orderedCutsAll;
+      let orderedCuts: Cut[] = [];
+      if (request.kind === 'scene') {
+        const scene = resolveSceneById(scenes, request.sceneId);
+        if (!scene) {
+          toast.warning('Scene not found', 'This scene may have been removed.');
+          return;
+        }
+        orderedCuts = getCutsInTimelineOrder(scene.cuts);
+      } else {
+        const orderedCutsAll = getScenesAndCutsInTimelineOrder(scenes, sceneOrder).flatMap((scene) => scene.cuts);
+        if (orderedCutsAll.length === 0) {
+          toast.warning('No items to export', 'Add cuts to the timeline first.');
+          return;
+        }
+        orderedCuts = plan.range === 'selection'
+            ? getCutIdsInTimelineOrder(scenes, getSelectedCutIds(), sceneOrder)
+            .map((cutId) => orderedCutsAll.find((cut) => cut.id === cutId))
+            .filter((cut): cut is Cut => !!cut)
+          : orderedCutsAll;
+      }
 
       if (orderedCuts.length === 0) {
-        toast.warning('No cuts in selected range', 'Select cuts or use All Cuts.');
+        toast.warning(
+          request.kind === 'scene' ? 'Scene is empty' : 'No cuts in selected range',
+          request.kind === 'scene' ? 'Add cuts to this scene first.' : 'Select cuts or use All Cuts.'
+        );
         return;
       }
 
@@ -834,7 +827,7 @@ function App() {
     } catch (error) {
       toast.error('Export error', String(error));
     }
-  }, [scenes, sceneOrder, exportResolution, isExporting, exportMp4Sequence, getSelectedCutIds, toast, orderedScenes, metadataStore, getAsset, getCutRuntime]);
+  }, [exportModalRequest, scenes, sceneOrder, exportResolution, isExporting, exportMp4Sequence, getSelectedCutIds, toast, metadataStore, getAsset, getCutRuntime]);
 
   const handlePreviewExport = useCallback(async (
     sequencePlan: SequencePlan,
@@ -1082,12 +1075,19 @@ function App() {
             />
           )}
           <ExportModal
-            open={showExportModal}
-            onClose={() => setShowExportModal(false)}
+            open={exportModalRequest !== null}
+            onClose={() => setExportModalRequest(null)}
+            title={exportModalRequest?.kind === 'scene' ? 'Export Scene' : 'Export Sequence'}
+            subtitle={exportModalRequest?.kind === 'scene' ? `Scene: ${exportModalRequest.sceneName}` : undefined}
             initialResolution={{
               width: exportResolution.width > 0 ? exportResolution.width : DEFAULT_EXPORT_RESOLUTION.width,
               height: exportResolution.height > 0 ? exportResolution.height : DEFAULT_EXPORT_RESOLUTION.height,
             }}
+            initialOutputRootPath={exportModalRequest?.kind === 'scene' ? exportModalRequest.outputRootPath : undefined}
+            initialOutputFolderName={exportModalRequest?.kind === 'scene' ? exportModalRequest.outputFolderName : undefined}
+            initialRange={exportModalRequest?.kind === 'scene' ? 'selection' : 'all'}
+            rangeLocked={exportModalRequest?.kind === 'scene'}
+            statsOverride={exportModalRequest?.kind === 'scene' ? exportModalRequest.stats : undefined}
             onExport={handleExport}
           />
           <EnvironmentSettingsModal

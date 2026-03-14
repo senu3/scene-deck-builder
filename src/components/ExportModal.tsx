@@ -2,7 +2,7 @@
  * ExportModal - Sequence export settings modal (Redesigned)
  */
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Download, FileText, Film, Settings, Layers, Clock, Check } from 'lucide-react';
 import {
   Overlay,
@@ -22,6 +22,17 @@ export interface ExportModalProps {
   open: boolean;
   onClose: () => void;
   initialResolution?: { width: number; height: number };
+  title?: string;
+  subtitle?: string;
+  initialOutputRootPath?: string;
+  initialOutputFolderName?: string;
+  initialRange?: ExportRange;
+  rangeLocked?: boolean;
+  statsOverride?: {
+    sceneCount: number;
+    cutCount: number;
+    totalDuration: number;
+  };
   onExport: (settings: ExportSettings) => void;
 }
 
@@ -39,34 +50,52 @@ const FPS_OPTIONS = [
   { value: '60', label: '60 fps' },
 ];
 
-export default function ExportModal({ open, onClose, initialResolution, onExport }: ExportModalProps) {
+export default function ExportModal({
+  open,
+  onClose,
+  initialResolution,
+  title = 'Export Sequence',
+  subtitle,
+  initialOutputRootPath,
+  initialOutputFolderName,
+  initialRange = 'all',
+  rangeLocked = false,
+  statsOverride,
+  onExport,
+}: ExportModalProps) {
   const { scenes, vaultPath } = useStore();
+  const initialWidth = initialResolution?.width && initialResolution.width > 0
+    ? initialResolution.width
+    : DEFAULT_EXPORT_RESOLUTION.width;
+  const initialHeight = initialResolution?.height && initialResolution.height > 0
+    ? initialResolution.height
+    : DEFAULT_EXPORT_RESOLUTION.height;
 
   const [mp4Quality, setMp4Quality] = useState<EncodingQuality>('medium');
   const [exportMasterWithAudio, setExportMasterWithAudio] = useState(false);
-  const [range, setRange] = useState<ExportRange>('all');
+  const [range, setRange] = useState<ExportRange>(initialRange);
   const [fps, setFps] = useState<string>(String(DEFAULT_EXPORT_FPS));
   const [resolutionPreset, setResolutionPreset] = useState<string>(() => {
-    const width = initialResolution?.width && initialResolution.width > 0 ? initialResolution.width : DEFAULT_EXPORT_RESOLUTION.width;
-    const height = initialResolution?.height && initialResolution.height > 0 ? initialResolution.height : DEFAULT_EXPORT_RESOLUTION.height;
-    const key = `${width}x${height}`;
+    const key = `${initialWidth}x${initialHeight}`;
     return RESOLUTION_OPTIONS.some((option) => option.value === key) ? key : 'custom';
   });
-  const [customWidth, setCustomWidth] = useState<string>(() => String(
-    initialResolution?.width && initialResolution.width > 0 ? initialResolution.width : DEFAULT_EXPORT_RESOLUTION.width
-  ));
-  const [customHeight, setCustomHeight] = useState<string>(() => String(
-    initialResolution?.height && initialResolution.height > 0 ? initialResolution.height : DEFAULT_EXPORT_RESOLUTION.height
-  ));
+  const [customWidth, setCustomWidth] = useState<string>(() => String(initialWidth));
+  const [customHeight, setCustomHeight] = useState<string>(() => String(initialHeight));
 
   const defaultOutputRoot = useMemo(() => {
+    if (initialOutputRootPath && initialOutputRootPath.trim().length > 0) {
+      return initialOutputRootPath.replace(/\\/g, '/');
+    }
     if (!vaultPath) return '';
     return `${vaultPath}/export`.replace(/\\/g, '/');
-  }, [vaultPath]);
+  }, [initialOutputRootPath, vaultPath]);
   const defaultFolderName = useMemo(() => {
+    if (initialOutputFolderName && initialOutputFolderName.trim().length > 0) {
+      return initialOutputFolderName.trim();
+    }
     const timestamp = new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14);
     return `export_${timestamp}`;
-  }, []);
+  }, [initialOutputFolderName]);
   const [outputFolderName, setOutputFolderName] = useState(defaultFolderName);
 
   // Calculate summary stats
@@ -77,10 +106,25 @@ export default function ExportModal({ open, onClose, initialResolution, onExport
       (acc, s) => acc + s.cuts.reduce((cutAcc, c) => cutAcc + c.displayTime, 0),
       0
     );
-    return { sceneCount, cutCount, totalDuration };
-  }, [scenes]);
+    return statsOverride ?? { sceneCount, cutCount, totalDuration };
+  }, [scenes, statsOverride]);
 
   useModalKeyboard({ onEscape: onClose, enabled: open });
+
+  useEffect(() => {
+    if (!open) return;
+
+    const key = `${initialWidth}x${initialHeight}`;
+
+    setMp4Quality('medium');
+    setExportMasterWithAudio(false);
+    setRange(initialRange);
+    setFps(String(DEFAULT_EXPORT_FPS));
+    setResolutionPreset(RESOLUTION_OPTIONS.some((option) => option.value === key) ? key : 'custom');
+    setCustomWidth(String(initialWidth));
+    setCustomHeight(String(initialHeight));
+    setOutputFolderName(defaultFolderName);
+  }, [open, initialWidth, initialHeight, initialRange, defaultFolderName]);
 
   const handleExport = useCallback(() => {
     const parseIntOrDefault = (value: string, fallback: number) => {
@@ -132,7 +176,8 @@ export default function ExportModal({ open, onClose, initialResolution, onExport
     <Overlay onClick={onClose} blur>
       <Container size="md">
         <Header
-          title="Export Sequence"
+          title={title}
+          subtitle={subtitle}
           icon={<Download size={22} />}
           iconVariant="info"
           onClose={onClose}
@@ -260,10 +305,12 @@ export default function ExportModal({ open, onClose, initialResolution, onExport
                   name="export-range"
                   value={range}
                   direction="horizontal"
-                  options={[
-                    { value: 'all', label: 'All Cuts' },
-                    { value: 'selection', label: 'Selection' },
-                  ]}
+                  options={rangeLocked
+                    ? [{ value: 'selection', label: 'Selection' }]
+                    : [
+                        { value: 'all', label: 'All Cuts' },
+                        { value: 'selection', label: 'Selection' },
+                      ]}
                   onChange={(value) => setRange(value as ExportRange)}
                 />
               </SettingsRow>
@@ -297,13 +344,12 @@ export default function ExportModal({ open, onClose, initialResolution, onExport
                   </div>
 
                   <div className={`${styles.optionRow} ${styles.optionRowTop}`}>
-                    <span className={styles.optionLabel}>Master</span>
+                    <span className={styles.optionLabel}>Master MP4</span>
                     <Checkbox
                       checked={exportMasterWithAudio}
                       onChange={setExportMasterWithAudio}
                       className={styles.optionCheckbox}
-                      label="Also export Master MP4"
-                      description="Adds a second MP4 with mixed audio embedded."
+                      label="Adds an MP4 with audio."
                     />
                   </div>
                 </div>

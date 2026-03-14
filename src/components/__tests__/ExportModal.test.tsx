@@ -52,7 +52,7 @@ describe('ExportModal', () => {
 
     const masterCheckbox = host.querySelector('input[type="checkbox"]') as HTMLInputElement | null;
     const masterLabel = Array.from(host.querySelectorAll('label'))
-      .find((label) => label.textContent?.includes('Also export Master MP4'));
+      .find((label) => label.textContent?.includes('Adds an MP4 with audio.'));
     expect(masterCheckbox).not.toBeNull();
     expect(masterLabel).not.toBeUndefined();
     act(() => {
