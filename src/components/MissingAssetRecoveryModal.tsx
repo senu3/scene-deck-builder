@@ -6,6 +6,7 @@ import {
   type RecoveryAssessment,
 } from '../features/project/recoveryAssessment';
 import { showOpenFileDialogBridge } from '../features/platform/electronGateway';
+import { UtilityButton } from '../ui';
 import { Overlay, useModalKeyboard } from '../ui/primitives/Modal';
 import './MissingAssetRecoveryModal.css';
 
@@ -267,33 +268,39 @@ export default function MissingAssetRecoveryModal({
 
         <div className="modal-footer">
           <div className="nav-buttons">
-            <button
+            <UtilityButton
               className="nav-btn"
+              variant="overlay"
+              size="md"
               onClick={moveToPrevious}
               disabled={currentIndex === 0}
             >
               Previous
-            </button>
-            <button
+            </UtilityButton>
+            <UtilityButton
               className="nav-btn"
+              variant="overlay"
+              size="md"
               onClick={moveToNext}
               disabled={currentIndex >= missingAssets.length - 1}
             >
               Next
-            </button>
+            </UtilityButton>
           </div>
           <div className="complete-buttons">
-            <button className="skip-all-btn" onClick={handleSkipAll}>
+            <UtilityButton className="skip-all-btn" variant="overlayOutline" size="lg" onClick={handleSkipAll}>
               Skip All
-            </button>
-            <button
+            </UtilityButton>
+            <UtilityButton
               className="complete-btn"
+              variant="overlayPrimary"
+              size="lg"
               onClick={handleComplete}
               disabled={isProcessing}
             >
               <Check size={18} />
               {isProcessing ? 'Processing...' : 'Apply Changes'}
-            </button>
+            </UtilityButton>
           </div>
         </div>
       </div>

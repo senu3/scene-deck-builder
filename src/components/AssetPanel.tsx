@@ -42,7 +42,7 @@ import { getMediaType as getAnyMediaType } from '../utils/mediaType';
 import { collectAssetRefs, type AssetRefMap } from '../utils/assetRefs';
 import { getFirstSceneId } from '../utils/sceneOrder';
 import { resolveCutAssetId } from '../utils/assetResolve';
-import { useBanner, useDialog, useToast } from '../ui';
+import { UtilityButton, useBanner, useDialog, useToast } from '../ui';
 import {
   AssetContextMenu,
 } from './context-menus';
@@ -1172,20 +1172,22 @@ export default function AssetPanel({
         {(effectiveShowConfirmButton || effectiveShowImportButton) && (
           <div className="asset-panel-footer">
             {effectiveShowImportButton && onImportExternal && (
-              <button className="asset-panel-import-btn" onClick={onImportExternal}>
+              <UtilityButton variant="soft" size="md" className="asset-panel-import-btn" onClick={onImportExternal}>
                 <Download size={16} />
                 <span>Import from File</span>
-              </button>
+              </UtilityButton>
             )}
             {effectiveShowConfirmButton && (
-              <button
+              <UtilityButton
+                variant="primary"
+                size="lg"
                 className="asset-panel-confirm-btn"
                 onClick={handleConfirm}
                 disabled={!selectedAsset}
               >
                 <Check size={16} />
                 <span>Select</span>
-              </button>
+              </UtilityButton>
             )}
           </div>
         )}

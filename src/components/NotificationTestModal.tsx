@@ -5,6 +5,7 @@
 import { useCallback, useState } from 'react';
 import { Bell, Info, AlertTriangle, Zap } from 'lucide-react';
 import {
+  UtilityButton,
   Overlay,
   Container,
   Header,
@@ -130,18 +131,18 @@ export default function NotificationTestModal({ open, onClose }: NotificationTes
                 controlsClassName={styles.rowControls}
               >
                 <div className={styles.buttonGroup}>
-                  <button type="button" className={styles.actionBtn} onClick={() => toast.success('Saved', 'All good.')}>
+                  <UtilityButton variant="panel" size="sm" className={styles.actionBtn} onClick={() => toast.success('Saved', 'All good.')}>
                     Success
-                  </button>
-                  <button type="button" className={styles.actionBtn} onClick={() => toast.info('Heads up', 'FYI notice.')}>
+                  </UtilityButton>
+                  <UtilityButton variant="panel" size="sm" className={styles.actionBtn} onClick={() => toast.info('Heads up', 'FYI notice.')}>
                     Info
-                  </button>
-                  <button type="button" className={styles.actionBtn} onClick={() => toast.warning('Warning', 'Check your inputs.')}>
+                  </UtilityButton>
+                  <UtilityButton variant="panel" size="sm" className={styles.actionBtn} onClick={() => toast.warning('Warning', 'Check your inputs.')}>
                     Warning
-                  </button>
-                  <button type="button" className={styles.actionBtn} onClick={() => toast.error('Error', 'Something failed.')}>
+                  </UtilityButton>
+                  <UtilityButton variant="panel" size="sm" className={styles.actionBtn} onClick={() => toast.error('Error', 'Something failed.')}>
                     Error
-                  </button>
+                  </UtilityButton>
                 </div>
               </SettingsRow>
 
@@ -155,8 +156,9 @@ export default function NotificationTestModal({ open, onClose }: NotificationTes
                 controlsClassName={styles.rowControls}
               >
                 <div className={styles.buttonGroup}>
-                  <button
-                    type="button"
+                  <UtilityButton
+                    variant="panel"
+                    size="sm"
                     className={styles.actionBtn}
                     onClick={() => {
                       const id = toast.info('Processing...', 'This stays until dismissed.', { duration: 0 });
@@ -164,9 +166,10 @@ export default function NotificationTestModal({ open, onClose }: NotificationTes
                     }}
                   >
                     Persistent
-                  </button>
-                  <button
-                    type="button"
+                  </UtilityButton>
+                  <UtilityButton
+                    variant="panel"
+                    size="sm"
                     className={styles.actionBtn}
                     onClick={() =>
                       toast.success('Action ready', 'Click to run.', {
@@ -175,9 +178,10 @@ export default function NotificationTestModal({ open, onClose }: NotificationTes
                     }
                   >
                     With Action
-                  </button>
-                  <button
-                    type="button"
+                  </UtilityButton>
+                  <UtilityButton
+                    variant="panel"
+                    size="sm"
                     className={styles.actionBtn}
                     onClick={() => {
                       if (persistentToastId) {
@@ -187,10 +191,10 @@ export default function NotificationTestModal({ open, onClose }: NotificationTes
                     }}
                   >
                     Dismiss
-                  </button>
-                  <button type="button" className={styles.actionBtn} onClick={() => toast.dismissAll()}>
+                  </UtilityButton>
+                  <UtilityButton variant="panel" size="sm" className={styles.actionBtn} onClick={() => toast.dismissAll()}>
                     Dismiss All
-                  </button>
+                  </UtilityButton>
                 </div>
               </SettingsRow>
             </div>
@@ -212,20 +216,22 @@ export default function NotificationTestModal({ open, onClose }: NotificationTes
                 controlsClassName={styles.rowControls}
               >
                 <div className={styles.buttonGroup}>
-                  <button
-                    type="button"
+                  <UtilityButton
+                    variant="panel"
+                    size="sm"
                     className={styles.actionBtn}
                     onClick={() => void alert({ title: 'Info', message: 'This is a basic alert.', variant: 'info' })}
                   >
                     Info Alert
-                  </button>
-                  <button
-                    type="button"
+                  </UtilityButton>
+                  <UtilityButton
+                    variant="panel"
+                    size="sm"
                     className={styles.actionBtn}
                     onClick={() => void alert({ title: 'Warning', message: 'Double-check the settings.', variant: 'warning' })}
                   >
                     Warning Alert
-                  </button>
+                  </UtilityButton>
                 </div>
               </SettingsRow>
 
@@ -239,27 +245,15 @@ export default function NotificationTestModal({ open, onClose }: NotificationTes
                 controlsClassName={styles.rowControls}
               >
                 <div className={styles.buttonGroup}>
-                  <button
-                    type="button"
-                    className={styles.actionBtn}
-                    onClick={() => void handleConfirmResult('default')}
-                  >
+                  <UtilityButton variant="panel" size="sm" className={styles.actionBtn} onClick={() => void handleConfirmResult('default')}>
                     Standard
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.actionBtn}
-                    onClick={() => void handleConfirmResult('warning')}
-                  >
+                  </UtilityButton>
+                  <UtilityButton variant="panel" size="sm" className={styles.actionBtn} onClick={() => void handleConfirmResult('warning')}>
                     Warning
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.actionBtn}
-                    onClick={() => void handleConfirmResult('danger')}
-                  >
+                  </UtilityButton>
+                  <UtilityButton variant="panel" size="sm" className={styles.actionBtn} onClick={() => void handleConfirmResult('danger')}>
                     Danger
-                  </button>
+                  </UtilityButton>
                 </div>
               </SettingsRow>
             </div>
@@ -281,8 +275,9 @@ export default function NotificationTestModal({ open, onClose }: NotificationTes
                 controlsClassName={styles.rowControls}
               >
                 <div className={styles.buttonGroup}>
-                  <button
-                    type="button"
+                  <UtilityButton
+                    variant="panel"
+                    size="sm"
                     className={styles.actionBtn}
                     onClick={() => {
                       const id = banner.show({ variant: 'info', message: 'Connected to sync service.', icon: 'info', dismissible: true });
@@ -290,9 +285,10 @@ export default function NotificationTestModal({ open, onClose }: NotificationTes
                     }}
                   >
                     Info
-                  </button>
-                  <button
-                    type="button"
+                  </UtilityButton>
+                  <UtilityButton
+                    variant="panel"
+                    size="sm"
                     className={styles.actionBtn}
                     onClick={() => {
                       const id = banner.show({ variant: 'warning', message: 'Network unstable.', icon: 'wifi-off', dismissible: true });
@@ -300,9 +296,10 @@ export default function NotificationTestModal({ open, onClose }: NotificationTes
                     }}
                   >
                     Warning
-                  </button>
-                  <button
-                    type="button"
+                  </UtilityButton>
+                  <UtilityButton
+                    variant="panel"
+                    size="sm"
                     className={styles.actionBtn}
                     onClick={() => {
                       const id = banner.show({ variant: 'error', message: 'Sync failed. Retry needed.', icon: 'alert', dismissible: true });
@@ -310,9 +307,10 @@ export default function NotificationTestModal({ open, onClose }: NotificationTes
                     }}
                   >
                     Error
-                  </button>
-                  <button
-                    type="button"
+                  </UtilityButton>
+                  <UtilityButton
+                    variant="panel"
+                    size="sm"
                     className={styles.actionBtn}
                     onClick={() => {
                       if (lastBannerId) {
@@ -322,10 +320,10 @@ export default function NotificationTestModal({ open, onClose }: NotificationTes
                     }}
                   >
                     Dismiss
-                  </button>
-                  <button type="button" className={styles.actionBtn} onClick={() => banner.dismissAll()}>
+                  </UtilityButton>
+                  <UtilityButton variant="panel" size="sm" className={styles.actionBtn} onClick={() => banner.dismissAll()}>
                     Dismiss All
-                  </button>
+                  </UtilityButton>
                 </div>
               </SettingsRow>
 
@@ -339,15 +337,15 @@ export default function NotificationTestModal({ open, onClose }: NotificationTes
                 controlsClassName={styles.rowControls}
               >
                 <div className={styles.buttonGroup}>
-                  <button type="button" className={styles.actionBtn} onClick={handleStartProgressBanner}>
+                  <UtilityButton variant="panel" size="sm" className={styles.actionBtn} onClick={handleStartProgressBanner}>
                     Start
-                  </button>
-                  <button type="button" className={styles.actionBtn} onClick={handleAdvanceProgressBanner}>
+                  </UtilityButton>
+                  <UtilityButton variant="panel" size="sm" className={styles.actionBtn} onClick={handleAdvanceProgressBanner}>
                     Advance
-                  </button>
-                  <button type="button" className={styles.actionBtn} onClick={handleDismissProgressBanner}>
+                  </UtilityButton>
+                  <UtilityButton variant="panel" size="sm" className={styles.actionBtn} onClick={handleDismissProgressBanner}>
                     Dismiss
-                  </button>
+                  </UtilityButton>
                 </div>
               </SettingsRow>
             </div>
@@ -369,44 +367,49 @@ export default function NotificationTestModal({ open, onClose }: NotificationTes
                 controlsClassName={styles.rowControls}
               >
                 <div className={styles.buttonGroup}>
-                  <button
-                    type="button"
+                  <UtilityButton
+                    variant="panel"
+                    size="sm"
                     className={styles.actionBtn}
                     onClick={() => showMiniToast('Saved!', 'success')}
                   >
                     Success
-                  </button>
-                  <button
-                    type="button"
+                  </UtilityButton>
+                  <UtilityButton
+                    variant="panel"
+                    size="sm"
                     className={styles.actionBtn}
                     onClick={() => showMiniToast('Heads up', 'info')}
                   >
                     Info
-                  </button>
-                  <button
-                    type="button"
+                  </UtilityButton>
+                  <UtilityButton
+                    variant="panel"
+                    size="sm"
                     className={styles.actionBtn}
                     onClick={() => showMiniToast('Low disk space', 'warning')}
                   >
                     Warning
-                  </button>
-                  <button
-                    type="button"
+                  </UtilityButton>
+                  <UtilityButton
+                    variant="panel"
+                    size="sm"
                     className={styles.actionBtn}
                     onClick={() => showMiniToast('Sync failed', 'error')}
                   >
                     Error
-                  </button>
-                  <button
-                    type="button"
+                  </UtilityButton>
+                  <UtilityButton
+                    variant="panel"
+                    size="sm"
                     className={styles.actionBtn}
                     onClick={() => showMiniToast('Persistent toast', 'info', 0)}
                   >
                     Persistent
-                  </button>
-                  <button type="button" className={styles.actionBtn} onClick={dismissMiniToast}>
+                  </UtilityButton>
+                  <UtilityButton variant="panel" size="sm" className={styles.actionBtn} onClick={dismissMiniToast}>
                     Dismiss
-                  </button>
+                  </UtilityButton>
                 </div>
               </SettingsRow>
             </div>

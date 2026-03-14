@@ -7,9 +7,9 @@ import {
   Body,
   Footer,
   Actions,
-  ActionButton,
   useModalKeyboard,
 } from '../../ui/primitives/Modal';
+import { Button } from '../../ui/primitives';
 
 interface VideoHoldModalProps {
   open: boolean;
@@ -72,10 +72,10 @@ export default function VideoHoldModal({
         </Body>
         <Footer>
           <Actions>
-            <ActionButton variant="secondary" onClick={onClose}>Cancel</ActionButton>
-            <ActionButton variant="primary" onClick={handleConfirm} disabled={!isValid}>
+            <Button variant="ghost" onClick={onClose}>Cancel</Button>
+            <Button variant="primary" size="lg" onClick={handleConfirm} disabled={!isValid}>
               Apply
-            </ActionButton>
+            </Button>
           </Actions>
         </Footer>
       </Container>

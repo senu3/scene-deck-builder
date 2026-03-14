@@ -8,10 +8,9 @@ import {
   Body,
   Footer,
   Actions,
-  ActionButton,
   useModalKeyboard,
 } from '../ui/primitives/Modal';
-import { SettingsRow } from '../ui/primitives';
+import { Button, SettingsRow } from '../ui/primitives';
 import styles from './ImageCropModal.module.css';
 
 type AnchorPresetId =
@@ -225,10 +224,10 @@ export default function ImageCropModal({
         </Body>
         <Footer>
           <Actions>
-            <ActionButton variant="secondary" onClick={onClose}>Cancel</ActionButton>
-            <ActionButton variant="primary" onClick={handleConfirm} disabled={!isValid}>
+            <Button variant="ghost" onClick={onClose}>Cancel</Button>
+            <Button variant="primary" size="lg" onClick={handleConfirm} disabled={!isValid}>
               Crop (Add Cut)
-            </ActionButton>
+            </Button>
           </Actions>
         </Footer>
       </Container>

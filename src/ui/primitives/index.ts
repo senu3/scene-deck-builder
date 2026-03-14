@@ -1,5 +1,19 @@
 // UI Primitives - Basic building blocks
 export {
+  Button,
+  type ButtonProps,
+  type ButtonVariant,
+  type ButtonSize,
+} from './Button';
+
+export {
+  UtilityButton,
+  type UtilityButtonProps,
+  type UtilityButtonVariant,
+  type UtilityButtonSize,
+} from './UtilityButton';
+
+export {
   Modal,
   Overlay,
   Container,
@@ -7,7 +21,6 @@ export {
   Body,
   Footer,
   Actions,
-  ActionButton,
   useModalKeyboard,
   type OverlayProps,
   type ContainerProps,
@@ -19,8 +32,6 @@ export {
   type FooterProps,
   type FooterAlign,
   type ActionsProps,
-  type ActionButtonProps,
-  type ActionButtonVariant,
   type UseModalKeyboardOptions,
 } from './Modal';
 

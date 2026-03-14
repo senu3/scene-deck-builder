@@ -28,6 +28,8 @@ import {
   Bell,
 } from 'lucide-react';
 import {
+  Button,
+  UtilityButton,
   Overlay,
   Container,
   Header,
@@ -687,14 +689,10 @@ export default function EnvironmentSettingsModal({
                   </SettingsRow>
 
                   <div className={styles.actionRow}>
-                    <button
-                      type="button"
-                      className={styles.actionBtn}
-                      onClick={handleEmptyTrash}
-                    >
+                    <UtilityButton variant="panel" size="sm" className={styles.actionBtn} onClick={handleEmptyTrash}>
                       <Trash2 size={14} />
                       Empty Trash Now
-                    </button>
+                    </UtilityButton>
                   </div>
                 </div>
               </div>
@@ -764,14 +762,10 @@ export default function EnvironmentSettingsModal({
                   </SettingsRow>
 
                   <div className={styles.actionRow}>
-                    <button
-                      type="button"
-                      className={styles.actionBtn}
-                      onClick={handleClearCache}
-                    >
+                    <UtilityButton variant="panel" size="sm" className={styles.actionBtn} onClick={handleClearCache}>
                       <HardDrive size={14} />
                       Clear Cache
-                    </button>
+                    </UtilityButton>
                   </div>
                 </div>
               </div>
@@ -953,14 +947,10 @@ export default function EnvironmentSettingsModal({
                       descriptionClassName={styles.rowDesc}
                       controlsClassName={styles.rowControls}
                     >
-                      <button
-                        type="button"
-                        className={styles.actionBtn}
-                        onClick={onOpenNotificationTests}
-                      >
+                      <UtilityButton variant="panel" size="sm" className={styles.actionBtn} onClick={onOpenNotificationTests}>
                         <Bell size={14} />
                         Open Tests
-                      </button>
+                      </UtilityButton>
                     </SettingsRow>
                   )}
                 </div>
@@ -980,22 +970,14 @@ export default function EnvironmentSettingsModal({
                   </div>
 
                   <div className={styles.actionButtonsRow}>
-                    <button
-                      type="button"
-                      className={styles.actionBtn}
-                      onClick={handleForceRecovery}
-                    >
+                    <UtilityButton variant="panel" size="sm" className={styles.actionBtn} onClick={handleForceRecovery}>
                       <Download size={14} />
                       Force Recovery
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.actionBtn}
-                      onClick={handleResetDefaults}
-                    >
+                    </UtilityButton>
+                    <UtilityButton variant="panel" size="sm" className={styles.actionBtn} onClick={handleResetDefaults}>
                       <RotateCcw size={14} />
                       Reset to Defaults
-                    </button>
+                    </UtilityButton>
                   </div>
                 </div>
               </div>
@@ -1033,17 +1015,13 @@ export default function EnvironmentSettingsModal({
             )}
           </div>
           <div className={styles.footerActions}>
-            <button type="button" className={styles.cancelBtn} onClick={onClose}>
+            <Button variant="ghost" size="md" onClick={onClose}>
               Cancel
-            </button>
-            <button
-              type="button"
-              className={styles.saveBtn}
-              onClick={handleSave}
-            >
+            </Button>
+            <Button variant="primary" size="lg" className={styles.saveBtn} onClick={handleSave}>
               <Check size={16} />
               Save Settings
-            </button>
+            </Button>
           </div>
         </div>
       </Container>

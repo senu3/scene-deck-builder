@@ -314,23 +314,7 @@
 }
 
 .missing-asset-modal .nav-btn {
-  padding: 8px 16px;
-  background: rgba(255, 255, 255, 0.1);
-  border: none;
-  border-radius: 6px;
-  color: #e2e8f0;
-  font-size: 13px;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.missing-asset-modal .nav-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.15);
-}
-
-.missing-asset-modal .nav-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  min-width: 92px;
 }
 
 .missing-asset-modal .complete-buttons {
@@ -339,41 +323,9 @@
 }
 
 .missing-asset-modal .skip-all-btn {
-  padding: 10px 20px;
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  color: var(--text-secondary);
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.missing-asset-modal .skip-all-btn:hover {
-  border-color: rgba(255, 255, 255, 0.4);
-  color: #e2e8f0;
+  min-width: 102px;
 }
 
 .missing-asset-modal .complete-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-  background: linear-gradient(135deg, var(--accent-secondary), var(--accent-purple));
-  border: none;
-  border-radius: 6px;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: opacity 0.15s;
-}
-
-.missing-asset-modal .complete-btn:hover:not(:disabled) {
-  opacity: 0.9;
-}
-
-.missing-asset-modal .complete-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+  min-width: 138px;
 }

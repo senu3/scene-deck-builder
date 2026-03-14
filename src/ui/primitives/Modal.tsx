@@ -8,15 +8,15 @@
  *     <Body>Content here</Body>
  *     <Footer>
  *       <Actions>
- *         <ActionButton variant="secondary" onClick={onClose}>Cancel</ActionButton>
- *         <ActionButton variant="primary" onClick={onConfirm}>Confirm</ActionButton>
+ *         <Button variant="ghost" onClick={onClose}>Cancel</Button>
+ *         <Button variant="primary" size="lg" onClick={onConfirm}>Confirm</Button>
  *       </Actions>
  *     </Footer>
  *   </Container>
  * </Overlay>
  */
 
-import { useEffect, useCallback, forwardRef, type ReactNode, type MouseEvent, type Ref } from 'react';
+import { useEffect, useCallback, type ReactNode, type MouseEvent } from 'react';
 import { X } from 'lucide-react';
 import styles from './Modal.module.css';
 
@@ -173,39 +173,6 @@ export function Actions({ children, className = '' }: ActionsProps) {
 }
 
 // ============================================
-// ActionButton
-// ============================================
-export type ActionButtonVariant = 'primary' | 'secondary' | 'danger' | 'outlined';
-
-export interface ActionButtonProps {
-  children: ReactNode;
-  variant?: ActionButtonVariant;
-  disabled?: boolean;
-  onClick?: () => void;
-  className?: string;
-  ref?: Ref<HTMLButtonElement>;
-}
-
-export const ActionButton = forwardRef<HTMLButtonElement, ActionButtonProps>(
-  function ActionButton(
-    { children, variant = 'secondary', disabled = false, onClick, className = '' },
-    ref
-  ) {
-    return (
-      <button
-        ref={ref}
-        className={`${styles.actionBtn} ${className}`}
-        data-variant={variant}
-        disabled={disabled}
-        onClick={onClick}
-      >
-        {children}
-      </button>
-    );
-  }
-);
-
-// ============================================
 // useModalKeyboard - Hook for ESC key handling
 // ============================================
 export interface UseModalKeyboardOptions {
@@ -238,7 +205,6 @@ export const Modal = {
   Body,
   Footer,
   Actions,
-  ActionButton,
   useKeyboard: useModalKeyboard,
 };
 

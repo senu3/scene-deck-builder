@@ -39,15 +39,15 @@ import {
 } from 'react';
 import { AlertTriangle, Info, AlertCircle } from 'lucide-react';
 import {
+  Button,
   Overlay,
   Container,
   Header,
   Body,
   Footer,
   Actions,
-  ActionButton,
   useModalKeyboard,
-} from '../primitives/Modal';
+} from '../primitives';
 import styles from './Dialog.module.css';
 
 // ============================================
@@ -278,22 +278,23 @@ function DialogModal({ type, options, onClose }: DialogModalProps) {
         <Footer align={isDanger ? 'between' : 'end'}>
           <Actions>
             {isConfirm && (
-              <ActionButton
+              <Button
                 ref={isDanger ? cancelRef : undefined}
-                variant={isDanger ? 'outlined' : 'secondary'}
+                variant="ghost"
                 onClick={() => onClose(false)}
                 className={isDanger ? styles.cancelButtonDanger : ''}
               >
                 {getCancelLabel()}
-              </ActionButton>
+              </Button>
             )}
-            <ActionButton
+            <Button
               ref={isDanger ? undefined : confirmRef}
               variant={isDanger ? 'danger' : 'primary'}
+              size={isDanger ? 'md' : 'lg'}
               onClick={() => onClose(true)}
             >
               {getConfirmLabel()}
-            </ActionButton>
+            </Button>
           </Actions>
         </Footer>
       </Container>

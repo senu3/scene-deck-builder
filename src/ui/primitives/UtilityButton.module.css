@@ -1,0 +1,96 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(var(--accent-primary-rgb), 0.35);
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.button[data-size="sm"] {
+  padding: 8px 14px;
+  font-size: 12px;
+}
+
+.button[data-size="md"] {
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
+.button[data-size="lg"] {
+  padding: 10px 20px;
+  font-size: 13px;
+}
+
+.button[data-variant="panel"] {
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+
+.button[data-variant="panel"]:hover:not(:disabled) {
+  background-color: var(--bg-hover);
+  border-color: var(--border-light);
+  color: var(--text-primary);
+}
+
+.button[data-variant="soft"] {
+  background-color: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.button[data-variant="soft"]:hover:not(:disabled) {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.button[data-variant="primary"] {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary-deep));
+  color: white;
+}
+
+.button[data-variant="primary"]:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.button[data-variant="overlay"] {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+}
+
+.button[data-variant="overlay"]:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.button[data-variant="overlayOutline"] {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--text-secondary);
+}
+
+.button[data-variant="overlayOutline"]:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #e2e8f0;
+}
+
+.button[data-variant="overlayPrimary"] {
+  background: linear-gradient(135deg, var(--accent-secondary), var(--accent-purple));
+  color: white;
+}
+
+.button[data-variant="overlayPrimary"]:hover:not(:disabled) {
+  opacity: 0.9;
+}

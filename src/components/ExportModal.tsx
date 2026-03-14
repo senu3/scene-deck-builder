@@ -11,7 +11,7 @@ import {
   Body,
   useModalKeyboard,
 } from '../ui/primitives/Modal';
-import { Checkbox, Input, RadioGroup, Select, SettingsRow } from '../ui';
+import { Button, Checkbox, Input, RadioGroup, Select, SettingsRow } from '../ui';
 import { useStore } from '../store/useStore';
 import type { EncodingQuality, ExportSettings, ExportRange } from '../features/export/types';
 import { DEFAULT_EXPORT_FPS } from '../features/export/plan';
@@ -376,18 +376,19 @@ export default function ExportModal({
           </div>
 
           <div className={styles.footerActions}>
-            <button type="button" className={styles.cancelBtn} onClick={onClose}>
+            <Button variant="ghost" size="md" onClick={onClose}>
               Cancel
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="primary"
+              size="lg"
               className={styles.exportBtn}
               onClick={handleExport}
               disabled={stats.cutCount === 0}
             >
               <Check size={16} />
               Export
-            </button>
+            </Button>
           </div>
         </div>
       </Container>

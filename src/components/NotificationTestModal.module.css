@@ -94,24 +94,7 @@
 }
 
 .actionBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background-color: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.actionBtn:hover {
-  background-color: var(--bg-hover);
-  border-color: var(--border-light);
-  color: var(--text-primary);
+  min-width: 0;
 }
 
 @media (max-width: 640px) {
