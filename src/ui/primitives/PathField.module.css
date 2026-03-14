@@ -6,11 +6,11 @@
 
 .pathValue {
   flex: 1;
-  padding: 8px 12px;
+  padding: 10px 12px;
   background-color: var(--bg-tertiary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  font-size: 12px;
+  font-size: 13px;
   font-family: var(--font-mono);
   color: var(--text-secondary);
   overflow: hidden;
@@ -18,19 +18,45 @@
   white-space: nowrap;
 }
 
+.pathValue[data-empty="true"] {
+  color: var(--text-muted);
+}
+
+.pathField[data-size="sm"] .pathValue {
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+}
+
 .pathButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   padding: 8px 14px;
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.15s ease;
   flex-shrink: 0;
 }
 
+.pathButton[data-size="sm"] {
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+}
+
 .pathButton:hover {
   background-color: var(--bg-hover);
   color: var(--text-primary);
+}
+
+.pathButtonIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }

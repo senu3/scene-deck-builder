@@ -43,7 +43,7 @@ import {
   getRecoveryAssessmentNotices,
 } from '../features/project/recoveryAssessment';
 import { hasElectronBridge } from '../features/platform/electronGateway';
-import { useDialog } from '../ui';
+import { PathField, useDialog } from '../ui';
 import './StartupModal.css';
 
 function logFeatureEffectWarnings(scope: string, result: AppEffectDispatchResult): void {
@@ -436,21 +436,17 @@ export default function StartupModal() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="vault-location">Vault Location</label>
-                  <div className="vault-selector">
-                    <input
-                      id="vault-location"
-                      type="text"
-                      placeholder="Select a folder..."
-                      value={vaultPath}
-                      readOnly
-                      title={vaultPath}
-                    />
-                    <button onClick={handleSelectVault}>
-                      <FolderOpen size={16} />
-                      Browse
-                    </button>
-                  </div>
+                  <label>Vault Location</label>
+                  <PathField
+                    value={vaultPath}
+                    placeholder="Select a folder..."
+                    onBrowse={handleSelectVault}
+                    browseLabel="Browse"
+                    browseIcon={<FolderOpen size={16} />}
+                    className="vault-selector"
+                    valueClassName="vault-selector-value"
+                    buttonClassName="vault-selector-button"
+                  />
                   <p className="form-hint">
                     A new folder named <strong>{projectName.trim() || '...'}</strong> will
                     be created inside this location.

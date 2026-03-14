@@ -149,37 +149,16 @@
 /* Path field inline */
 .pathFieldInline {
   flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+}
+
+.pathField {
+  width: 100%;
 }
 
 .pathDisplay {
-  flex: 1;
-  padding: 6px 10px;
   background-color: var(--bg-tertiary);
-  border-radius: var(--radius-sm);
-  font-size: 11px;
-  font-family: var(--font-mono);
+  border: none;
   color: var(--text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.pathChangeBtn {
-  padding: 6px 10px;
-  background-color: var(--bg-tertiary);
-  border-radius: var(--radius-sm);
-  font-size: 11px;
-  color: var(--text-secondary);
-  transition: all 0.15s ease;
-  flex-shrink: 0;
-}
-
-.pathChangeBtn:hover {
-  background-color: var(--bg-hover);
-  color: var(--text-primary);
 }
 
 /* ========================================

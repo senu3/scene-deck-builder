@@ -39,7 +39,7 @@ import {
   Toggle,
   Select,
   StatDisplay,
-  Input,
+  InputGroup,
   SettingsRow,
   type TabItem,
 } from '../ui';
@@ -481,19 +481,19 @@ export default function EnvironmentSettingsModal({
                     data-disabled={!autosaveEnabled}
                     controlsClassName=""
                   >
-                    <div className={styles.inputWithUnit}>
-                      <Input
-                        type="number"
-                        value={autosaveInterval}
-                        onChange={(e) => handleChange(setAutosaveInterval)(Number(e.target.value))}
-                        min={5}
-                        max={300}
-                        step={5}
-                        disabled={!autosaveEnabled}
-                        className={styles.numberInput}
-                      />
-                      <span className={styles.inputUnit}>sec</span>
-                    </div>
+                    <InputGroup
+                      unit="sec"
+                      className={styles.inputWithUnit}
+                      inputClassName={styles.numberInput}
+                      unitClassName={styles.inputUnit}
+                      type="number"
+                      value={autosaveInterval}
+                      onChange={(e) => handleChange(setAutosaveInterval)(Number(e.target.value))}
+                      min={5}
+                      max={300}
+                      step={5}
+                      disabled={!autosaveEnabled}
+                    />
                   </SettingsRow>
 
                   <div className={styles.divider} />
@@ -630,18 +630,18 @@ export default function EnvironmentSettingsModal({
                     descriptionClassName={styles.rowDesc}
                     controlsClassName=""
                   >
-                    <div className={styles.inputWithUnit}>
-                      <Input
-                        type="number"
-                        value={defaultCutDuration}
-                        onChange={(e) => handleChange(setDefaultCutDuration)(Number(e.target.value))}
-                        min={0.5}
-                        max={30}
-                        step={0.5}
-                        className={styles.numberInput}
-                      />
-                      <span className={styles.inputUnit}>sec</span>
-                    </div>
+                    <InputGroup
+                      unit="sec"
+                      className={styles.inputWithUnit}
+                      inputClassName={styles.numberInput}
+                      unitClassName={styles.inputUnit}
+                      type="number"
+                      value={defaultCutDuration}
+                      onChange={(e) => handleChange(setDefaultCutDuration)(Number(e.target.value))}
+                      min={0.5}
+                      max={30}
+                      step={0.5}
+                    />
                   </SettingsRow>
                 </div>
               </div>
@@ -724,18 +724,18 @@ export default function EnvironmentSettingsModal({
                     descriptionClassName={styles.rowDesc}
                     controlsClassName=""
                   >
-                    <div className={styles.inputWithUnit}>
-                      <Input
-                        type="number"
-                        value={maxMb}
-                        onChange={(e) => handleChange(setMaxMb)(Number(e.target.value))}
-                        min={1}
-                        max={512}
-                        step={8}
-                        className={styles.numberInput}
-                      />
-                      <span className={styles.inputUnit}>MB</span>
-                    </div>
+                    <InputGroup
+                      unit="MB"
+                      className={styles.inputWithUnit}
+                      inputClassName={styles.numberInput}
+                      unitClassName={styles.inputUnit}
+                      type="number"
+                      value={maxMb}
+                      onChange={(e) => handleChange(setMaxMb)(Number(e.target.value))}
+                      min={1}
+                      max={512}
+                      step={8}
+                    />
                   </SettingsRow>
 
                   <SettingsRow
@@ -747,18 +747,18 @@ export default function EnvironmentSettingsModal({
                     descriptionClassName={styles.rowDesc}
                     controlsClassName=""
                   >
-                    <div className={styles.inputWithUnit}>
-                      <Input
-                        type="number"
-                        value={maxItems}
-                        onChange={(e) => handleChange(setMaxItems)(Number(e.target.value))}
-                        min={10}
-                        max={1000}
-                        step={10}
-                        className={styles.numberInput}
-                      />
-                      <span className={styles.inputUnit}>items</span>
-                    </div>
+                    <InputGroup
+                      unit="items"
+                      className={styles.inputWithUnit}
+                      inputClassName={styles.numberInput}
+                      unitClassName={styles.inputUnit}
+                      type="number"
+                      value={maxItems}
+                      onChange={(e) => handleChange(setMaxItems)(Number(e.target.value))}
+                      min={10}
+                      max={1000}
+                      step={10}
+                    />
                   </SettingsRow>
 
                   <div className={styles.actionRow}>
@@ -803,18 +803,18 @@ export default function EnvironmentSettingsModal({
                     descriptionClassName={styles.rowDesc}
                     controlsClassName=""
                   >
-                    <div className={styles.inputWithUnit}>
-                      <Input
-                        type="number"
-                        value={stderrMaxKb}
-                        onChange={(e) => handleChange(setStderrMaxKb)(Number(e.target.value))}
-                        min={16}
-                        max={1024}
-                        step={16}
-                        className={styles.numberInput}
-                      />
-                      <span className={styles.inputUnit}>KB</span>
-                    </div>
+                    <InputGroup
+                      unit="KB"
+                      className={styles.inputWithUnit}
+                      inputClassName={styles.numberInput}
+                      unitClassName={styles.inputUnit}
+                      type="number"
+                      value={stderrMaxKb}
+                      onChange={(e) => handleChange(setStderrMaxKb)(Number(e.target.value))}
+                      min={16}
+                      max={1024}
+                      step={16}
+                    />
                   </SettingsRow>
 
                   <div className={styles.divider} />
@@ -827,66 +827,66 @@ export default function EnvironmentSettingsModal({
                   <div className={styles.twoColumnGrid}>
                     <div className={styles.compactRow}>
                       <span className={styles.compactLabel}>Per-Clip Duration</span>
-                      <div className={styles.inputWithUnit}>
-                        <Input
-                          type="number"
-                          value={maxClipSeconds}
-                          onChange={(e) => handleChange(setMaxClipSeconds)(Number(e.target.value))}
-                          min={10}
-                          max={600}
-                          step={10}
-                          className={styles.numberInput}
-                        />
-                        <span className={styles.inputUnit}>sec</span>
-                      </div>
+                      <InputGroup
+                        unit="sec"
+                        className={styles.inputWithUnit}
+                        inputClassName={styles.numberInput}
+                        unitClassName={styles.inputUnit}
+                        type="number"
+                        value={maxClipSeconds}
+                        onChange={(e) => handleChange(setMaxClipSeconds)(Number(e.target.value))}
+                        min={10}
+                        max={600}
+                        step={10}
+                      />
                     </div>
 
                     <div className={styles.compactRow}>
                       <span className={styles.compactLabel}>Per-Clip Size</span>
-                      <div className={styles.inputWithUnit}>
-                        <Input
-                          type="number"
-                          value={maxClipMb}
-                          onChange={(e) => handleChange(setMaxClipMb)(Number(e.target.value))}
-                          min={8}
-                          max={256}
-                          step={8}
-                          className={styles.numberInput}
-                        />
-                        <span className={styles.inputUnit}>MB</span>
-                      </div>
+                      <InputGroup
+                        unit="MB"
+                        className={styles.inputWithUnit}
+                        inputClassName={styles.numberInput}
+                        unitClassName={styles.inputUnit}
+                        type="number"
+                        value={maxClipMb}
+                        onChange={(e) => handleChange(setMaxClipMb)(Number(e.target.value))}
+                        min={8}
+                        max={256}
+                        step={8}
+                      />
                     </div>
 
                     <div className={styles.compactRow}>
                       <span className={styles.compactLabel}>Total Duration</span>
-                      <div className={styles.inputWithUnit}>
-                        <Input
-                          type="number"
-                          value={Math.round(maxTotalSeconds / 60)}
-                          onChange={(e) => handleChange(setMaxTotalSeconds)(Number(e.target.value) * 60)}
-                          min={1}
-                          max={60}
-                          step={1}
-                          className={styles.numberInput}
-                        />
-                        <span className={styles.inputUnit}>min</span>
-                      </div>
+                      <InputGroup
+                        unit="min"
+                        className={styles.inputWithUnit}
+                        inputClassName={styles.numberInput}
+                        unitClassName={styles.inputUnit}
+                        type="number"
+                        value={Math.round(maxTotalSeconds / 60)}
+                        onChange={(e) => handleChange(setMaxTotalSeconds)(Number(e.target.value) * 60)}
+                        min={1}
+                        max={60}
+                        step={1}
+                      />
                     </div>
 
                     <div className={styles.compactRow}>
                       <span className={styles.compactLabel}>Total Size</span>
-                      <div className={styles.inputWithUnit}>
-                        <Input
-                          type="number"
-                          value={maxTotalMb}
-                          onChange={(e) => handleChange(setMaxTotalMb)(Number(e.target.value))}
-                          min={64}
-                          max={1024}
-                          step={64}
-                          className={styles.numberInput}
-                        />
-                        <span className={styles.inputUnit}>MB</span>
-                      </div>
+                      <InputGroup
+                        unit="MB"
+                        className={styles.inputWithUnit}
+                        inputClassName={styles.numberInput}
+                        unitClassName={styles.inputUnit}
+                        type="number"
+                        value={maxTotalMb}
+                        onChange={(e) => handleChange(setMaxTotalMb)(Number(e.target.value))}
+                        min={64}
+                        max={1024}
+                        step={64}
+                      />
                     </div>
                   </div>
                 </div>

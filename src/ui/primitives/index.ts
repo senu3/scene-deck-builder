@@ -53,6 +53,11 @@ export {
 } from './Input';
 
 export {
+  InputGroup,
+  type InputGroupProps,
+} from './InputGroup';
+
+export {
   Select,
   type SelectOption,
   type SelectProps,
@@ -68,6 +73,12 @@ export {
   Checkbox,
   type CheckboxProps,
 } from './Checkbox';
+
+export {
+  PathField,
+  type PathFieldProps,
+  type PathFieldSize,
+} from './PathField';
 
 export {
   Toggle,

@@ -7,19 +7,9 @@ export {
 } from './Tooltip';
 
 export {
-  InputGroup,
-  type InputGroupProps,
-} from './InputGroup';
-
-export {
   ReadOnlyValue,
   type ReadOnlyValueProps,
 } from './ReadOnlyValue';
-
-export {
-  PathField,
-  type PathFieldProps,
-} from './PathField';
 
 export {
   SettingsSection,

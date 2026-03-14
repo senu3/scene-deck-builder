@@ -11,7 +11,7 @@ import {
   Body,
   useModalKeyboard,
 } from '../ui/primitives/Modal';
-import { Button, Checkbox, Input, RadioGroup, Select, SettingsRow } from '../ui';
+import { Button, Checkbox, Input, PathField, RadioGroup, Select, SettingsRow } from '../ui';
 import { useStore } from '../store/useStore';
 import type { EncodingQuality, ExportSettings, ExportRange } from '../features/export/types';
 import { DEFAULT_EXPORT_FPS } from '../features/export/plan';
@@ -232,9 +232,12 @@ export default function ExportModal({
                 labelClassName={styles.settingsLabel}
                 controlsClassName={styles.pathFieldInline}
               >
-                <span className={styles.pathDisplay} title={defaultOutputRoot}>
-                  {defaultOutputRoot}
-                </span>
+                <PathField
+                  value={defaultOutputRoot}
+                  size="sm"
+                  className={styles.pathField}
+                  valueClassName={styles.pathDisplay}
+                />
               </SettingsRow>
 
               <SettingsRow

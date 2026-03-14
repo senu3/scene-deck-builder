@@ -503,30 +503,17 @@
   gap: 8px;
 }
 
-.vault-selector input {
-  flex: 1;
+.vault-selector-value {
   cursor: default;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.vault-selector button {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 12px 16px;
+.vault-selector-button {
   background-color: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
   color: var(--text-primary);
-  font-size: 13px;
   font-weight: 500;
-  white-space: nowrap;
-  transition: all 0.15s ease;
 }
 
-.vault-selector button:hover {
+.vault-selector-button:hover {
   background-color: var(--bg-hover);
   border-color: var(--accent-primary);
 }
