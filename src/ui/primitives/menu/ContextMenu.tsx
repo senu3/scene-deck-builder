@@ -4,8 +4,9 @@
  * Renders a menu at a specific position using Portal.
  * Handles click-outside and escape key to close.
  */
-import { useRef, useEffect, useState, type ReactNode } from 'react';
+import { useRef, useEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { resolvePortalContainer, useFixedPointPosition, type PortalContainer } from '../floating';
 import { Menu } from './Menu';
 
 export interface ContextMenuPosition {
@@ -18,6 +19,8 @@ export interface ContextMenuProps {
   position: ContextMenuPosition;
   onClose: () => void;
   className?: string;
+  /** Portal target for the menu. Defaults to document.body. */
+  portalContainer?: PortalContainer;
 }
 
 /**
@@ -48,38 +51,15 @@ export function ContextMenu({
   position,
   onClose,
   className,
+  portalContainer,
 }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
-  const [adjustedPosition, setAdjustedPosition] = useState(position);
-
-  // Adjust position after menu renders to keep within viewport
-  useEffect(() => {
-    if (!menuRef.current) {
-      setAdjustedPosition(position);
-      return;
-    }
-
-    const menuWidth = menuRef.current.offsetWidth;
-    const menuHeight = menuRef.current.offsetHeight;
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    const padding = 8;
-
-    let adjustedX = position.x;
-    let adjustedY = position.y;
-
-    // Adjust X if menu overflows right edge
-    if (position.x + menuWidth + padding > viewportWidth) {
-      adjustedX = Math.max(padding, viewportWidth - menuWidth - padding);
-    }
-
-    // Adjust Y if menu overflows bottom edge
-    if (position.y + menuHeight + padding > viewportHeight) {
-      adjustedY = Math.max(padding, viewportHeight - menuHeight - padding);
-    }
-
-    setAdjustedPosition({ x: adjustedX, y: adjustedY });
-  }, [position]);
+  const adjustedPosition = useFixedPointPosition({
+    open: true,
+    floatingRef: menuRef,
+    position,
+  });
+  const portalTarget = resolvePortalContainer(portalContainer);
 
   // Close on click outside
   useEffect(() => {
@@ -116,6 +96,6 @@ export function ContextMenu({
     >
       {children}
     </Menu>,
-    document.body
+    portalTarget
   );
 }

@@ -19,6 +19,7 @@ import {
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { resolvePortalContainer, useAnchoredPosition, type PortalContainer } from './floating';
 import styles from './Tooltip.module.css';
 
 // ============================================
@@ -37,6 +38,8 @@ export interface TooltipProps {
   children: ReactElement;
   /** Disable tooltip */
   disabled?: boolean;
+  /** Portal target for tooltip. Defaults to document.body. */
+  portalContainer?: PortalContainer;
 }
 
 // ============================================
@@ -48,12 +51,19 @@ export function Tooltip({
   delay = 200,
   children,
   disabled = false,
+  portalContainer,
 }: TooltipProps) {
   const [visible, setVisible] = useState(false);
-  const [coords, setCoords] = useState({ x: 0, y: 0 });
   const triggerRef = useRef<HTMLElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<number | null>(null);
+  const coords = useAnchoredPosition({
+    open: visible,
+    anchorRef: triggerRef,
+    floatingRef: tooltipRef,
+    position,
+  });
+  const portalTarget = resolvePortalContainer(portalContainer);
 
   const show = () => {
     if (disabled) return;
@@ -69,43 +79,6 @@ export function Tooltip({
     }
     setVisible(false);
   };
-
-  // Calculate position when visible
-  useEffect(() => {
-    if (!visible || !triggerRef.current || !tooltipRef.current) return;
-
-    const trigger = triggerRef.current.getBoundingClientRect();
-    const tooltip = tooltipRef.current.getBoundingClientRect();
-    const gap = 8;
-
-    let x = 0;
-    let y = 0;
-
-    switch (position) {
-      case 'top':
-        x = trigger.left + trigger.width / 2 - tooltip.width / 2;
-        y = trigger.top - tooltip.height - gap;
-        break;
-      case 'bottom':
-        x = trigger.left + trigger.width / 2 - tooltip.width / 2;
-        y = trigger.bottom + gap;
-        break;
-      case 'left':
-        x = trigger.left - tooltip.width - gap;
-        y = trigger.top + trigger.height / 2 - tooltip.height / 2;
-        break;
-      case 'right':
-        x = trigger.right + gap;
-        y = trigger.top + trigger.height / 2 - tooltip.height / 2;
-        break;
-    }
-
-    // Keep within viewport
-    x = Math.max(8, Math.min(x, window.innerWidth - tooltip.width - 8));
-    y = Math.max(8, Math.min(y, window.innerHeight - tooltip.height - 8));
-
-    setCoords({ x, y });
-  }, [visible, position]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -161,7 +134,7 @@ export function Tooltip({
           >
             {content}
           </div>,
-          document.body
+          portalTarget
         )}
     </>
   );

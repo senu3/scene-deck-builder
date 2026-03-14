@@ -28,12 +28,18 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { Slider, type SliderProps } from '../primitives/Slider';
+import {
+  resolvePortalContainer,
+  useAnchoredPosition,
+  type FloatingDirection,
+  type PortalContainer,
+} from '../primitives/floating';
 import styles from './InlineSlider.module.css';
 
 // ============================================
 // Types
 // ============================================
-export type PopoverPosition = 'top' | 'bottom' | 'left' | 'right';
+export type PopoverPosition = FloatingDirection;
 
 export interface InlineSliderProps extends Omit<SliderProps, 'className'> {
   /** Icon to show as trigger */
@@ -47,7 +53,7 @@ export interface InlineSliderProps extends Omit<SliderProps, 'className'> {
   /** Close on outside click */
   closeOnOutsideClick?: boolean;
   /** Portal target for popover. Defaults to document.body. */
-  portalContainer?: Element | DocumentFragment | null;
+  portalContainer?: PortalContainer;
   /** Additional class for trigger */
   className?: string;
 }
@@ -67,52 +73,21 @@ export function InlineSlider({
   ...sliderProps
 }: InlineSliderProps) {
   const [open, setOpen] = useState(false);
-  const [coords, setCoords] = useState({ x: 0, y: 0 });
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const coords = useAnchoredPosition({
+    open,
+    anchorRef: triggerRef,
+    floatingRef: popoverRef,
+    position,
+  });
+  const portalTarget = resolvePortalContainer(portalContainer);
 
   // Toggle popover
   const handleTriggerClick = useCallback(() => {
     if (disabled) return;
     setOpen((prev) => !prev);
   }, [disabled]);
-
-  // Calculate popover position
-  useEffect(() => {
-    if (!open || !triggerRef.current || !popoverRef.current) return;
-
-    const trigger = triggerRef.current.getBoundingClientRect();
-    const popover = popoverRef.current.getBoundingClientRect();
-    const gap = 8;
-
-    let x = 0;
-    let y = 0;
-
-    switch (position) {
-      case 'top':
-        x = trigger.left + trigger.width / 2 - popover.width / 2;
-        y = trigger.top - popover.height - gap;
-        break;
-      case 'bottom':
-        x = trigger.left + trigger.width / 2 - popover.width / 2;
-        y = trigger.bottom + gap;
-        break;
-      case 'left':
-        x = trigger.left - popover.width - gap;
-        y = trigger.top + trigger.height / 2 - popover.height / 2;
-        break;
-      case 'right':
-        x = trigger.right + gap;
-        y = trigger.top + trigger.height / 2 - popover.height / 2;
-        break;
-    }
-
-    // Keep within viewport
-    x = Math.max(8, Math.min(x, window.innerWidth - popover.width - 8));
-    y = Math.max(8, Math.min(y, window.innerHeight - popover.height - 8));
-
-    setCoords({ x, y });
-  }, [open, position]);
 
   // Close on outside click
   useEffect(() => {
@@ -151,7 +126,6 @@ export function InlineSlider({
   const displayValue = sliderProps.formatValue
     ? sliderProps.formatValue(sliderProps.value)
     : sliderProps.value.toString();
-  const portalTarget = portalContainer ?? document.body;
 
   return (
     <>

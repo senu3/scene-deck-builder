@@ -13,16 +13,21 @@
 import {
   useState,
   useRef,
-  useEffect,
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
+import {
+  resolvePortalContainer,
+  useAnchoredPosition,
+  type FloatingDirection,
+  type PortalContainer,
+} from '../primitives/floating';
 import styles from './DisabledReason.module.css';
 
 // ============================================
 // Types
 // ============================================
-export type BalloonPosition = 'top' | 'bottom' | 'left' | 'right';
+export type BalloonPosition = FloatingDirection;
 
 export interface DisabledReasonProps {
   /** Reason why the element is disabled */
@@ -35,6 +40,8 @@ export interface DisabledReasonProps {
   children: ReactNode;
   /** Additional class name */
   className?: string;
+  /** Portal target for balloon. Defaults to document.body. */
+  portalContainer?: PortalContainer;
 }
 
 // ============================================
@@ -46,11 +53,18 @@ export function DisabledReason({
   position = 'top',
   children,
   className = '',
+  portalContainer,
 }: DisabledReasonProps) {
   const [visible, setVisible] = useState(false);
-  const [coords, setCoords] = useState({ x: 0, y: 0 });
   const wrapperRef = useRef<HTMLDivElement>(null);
   const balloonRef = useRef<HTMLDivElement>(null);
+  const coords = useAnchoredPosition({
+    open: visible,
+    anchorRef: wrapperRef,
+    floatingRef: balloonRef,
+    position,
+  });
+  const portalTarget = resolvePortalContainer(portalContainer);
 
   const show = () => {
     if (disabled) {
@@ -61,43 +75,6 @@ export function DisabledReason({
   const hide = () => {
     setVisible(false);
   };
-
-  // Calculate position when visible
-  useEffect(() => {
-    if (!visible || !wrapperRef.current || !balloonRef.current) return;
-
-    const wrapper = wrapperRef.current.getBoundingClientRect();
-    const balloon = balloonRef.current.getBoundingClientRect();
-    const gap = 8;
-
-    let x = 0;
-    let y = 0;
-
-    switch (position) {
-      case 'top':
-        x = wrapper.left + wrapper.width / 2 - balloon.width / 2;
-        y = wrapper.top - balloon.height - gap;
-        break;
-      case 'bottom':
-        x = wrapper.left + wrapper.width / 2 - balloon.width / 2;
-        y = wrapper.bottom + gap;
-        break;
-      case 'left':
-        x = wrapper.left - balloon.width - gap;
-        y = wrapper.top + wrapper.height / 2 - balloon.height / 2;
-        break;
-      case 'right':
-        x = wrapper.right + gap;
-        y = wrapper.top + wrapper.height / 2 - balloon.height / 2;
-        break;
-    }
-
-    // Keep within viewport
-    x = Math.max(8, Math.min(x, window.innerWidth - balloon.width - 8));
-    y = Math.max(8, Math.min(y, window.innerHeight - balloon.height - 8));
-
-    setCoords({ x, y });
-  }, [visible, position]);
 
   // If not disabled, just render children
   if (!disabled) {
@@ -125,7 +102,7 @@ export function DisabledReason({
           >
             {reason}
           </div>,
-          document.body
+          portalTarget
         )}
     </>
   );
