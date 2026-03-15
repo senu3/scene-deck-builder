@@ -8,7 +8,6 @@ import { getScenesInOrder } from '../utils/sceneOrder';
 import MissingAssetRecoveryModal from './MissingAssetRecoveryModal';
 import { useHeaderProjectController } from '../hooks/useHeaderProjectController';
 import { formatTimeCode } from '../hooks/useStoryTimelinePosition';
-import DurationTargetGauge from './DurationTargetGauge';
 import SceneDurationBar from './SceneDurationBar';
 import './Header.css';
 
@@ -247,7 +246,6 @@ export default function Header({ onOpenSettings, onPreview, onExport, isExportin
                   </div>
                 )}
               </div>
-              <DurationTargetGauge totalSec={totalDuration} targetSec={effectiveTargetSec} />
             </div>
 
             {/* Preview Button */}
