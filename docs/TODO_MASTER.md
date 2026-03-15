@@ -68,12 +68,12 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
   - BlockedBy: なし
   - DoneWhen: AttachAudio ON/OFF が export 経路に反映される
   - 関連: `docs/guides/export.md`
-- `TODO-NICE-003` `.index.json` / `.trash/.trash.json` を人間向け recovery clue として読みやすくし、recovery import の手掛かりとして使える形にする
+- `TODO-NICE-003` `.index.json` / `.trash/.trash.json` を人間向け recovery clue として読みやすくし、recovery import へ渡せる clue 契約を整える
   - Track: `Nice-to-have`
   - Status: `ready`
   - StartWhen: Vault index/trash の改善に着手するとき
   - BlockedBy: なし
-  - DoneWhen: `.index.json` の usage summary が cut/audio/lipSync の主要参照を表せて、clip/hold 時間を秒ベースで読めるようになり、`.trash/.trash.json` の entry shape が単純化され、project 破損時の recovery import で clue として利用できる
+  - DoneWhen: `.index.json` の usage summary が cut/audio/lipSync の主要参照を表し、scene/cut の ID 系 clue と秒ベース timing を読めるようになり、`.trash/.trash.json` の entry shape が単純化され、project 破損時に index/metadata/trash から recovery import 用の clue collection を組み立てられる
   - 関連: `docs/guides/vault-assets.md`, `docs/notes/index-trash-human-readable-plan-2026-03-12.md`
 
 ## Investigation Track
