@@ -26,20 +26,49 @@ import {
   resolveScenesAssets,
   type LoadedVaultPathResolution,
 } from './load';
-function normalizeLoadedScenesInput(scenes: LoadedProjectData['scenes']): { scenes: Scene[]; normalized: boolean } {
+
+export interface LoadedProjectStructureReport {
+  invalidSceneCount: number;
+  missingCutsArrayCount: number;
+  missingNotesArrayCount: number;
+  invalidGroupCollectionCount: number;
+  invalidGroupCutIdCount: number;
+  assignedCutOrderCount: number;
+  normalizedCutAudioBindingsCount: number;
+  normalized: boolean;
+}
+
+function createEmptyLoadedProjectStructureReport(): LoadedProjectStructureReport {
+  return {
+    invalidSceneCount: 0,
+    missingCutsArrayCount: 0,
+    missingNotesArrayCount: 0,
+    invalidGroupCollectionCount: 0,
+    invalidGroupCutIdCount: 0,
+    assignedCutOrderCount: 0,
+    normalizedCutAudioBindingsCount: 0,
+    normalized: false,
+  };
+}
+
+function parseLoadedScenesInput(scenes: LoadedProjectData['scenes']): { scenes: Scene[]; report: LoadedProjectStructureReport } {
   if (!Array.isArray(scenes)) {
     return {
       scenes: [],
-      normalized: scenes !== undefined,
+      report: {
+        ...createEmptyLoadedProjectStructureReport(),
+        missingCutsArrayCount: scenes !== undefined ? 1 : 0,
+        normalized: scenes !== undefined,
+      },
     };
   }
 
-  let normalized = false;
+  const report = createEmptyLoadedProjectStructureReport();
   const normalizedScenes = scenes.map((scene) => {
     const isValidScene = scene && typeof scene === 'object';
     const candidate = (isValidScene ? scene : {}) as Scene;
     if (!isValidScene) {
-      normalized = true;
+      report.invalidSceneCount += 1;
     }
 
     const cuts = Array.isArray(candidate.cuts)
@@ -47,7 +76,8 @@ function normalizeLoadedScenesInput(scenes: LoadedProjectData['scenes']): { scen
           const hasOrder = typeof cut?.order === 'number';
           const hasAudioBindings = cut?.audioBindings === undefined || Array.isArray(cut.audioBindings);
           if (!hasOrder || !hasAudioBindings) {
-            normalized = true;
+            if (!hasOrder) report.assignedCutOrderCount += 1;
+            if (!hasAudioBindings) report.normalizedCutAudioBindingsCount += 1;
           }
           return {
             ...cut,
@@ -57,7 +87,7 @@ function normalizeLoadedScenesInput(scenes: LoadedProjectData['scenes']): { scen
         })
       : [];
     if (!Array.isArray(candidate.cuts)) {
-      normalized = true;
+      report.missingCutsArrayCount += 1;
     }
 
     let groups: Scene['groups'];
@@ -67,7 +97,11 @@ function normalizeLoadedScenesInput(scenes: LoadedProjectData['scenes']): { scen
           ? group.cutIds.filter((cutId): cutId is string => typeof cutId === 'string')
           : [];
         if (!Array.isArray(group?.cutIds) || nextCutIds.length !== (group?.cutIds?.length ?? 0)) {
-          normalized = true;
+          if (!Array.isArray(group?.cutIds)) {
+            report.invalidGroupCollectionCount += 1;
+          } else {
+            report.invalidGroupCutIdCount += (group?.cutIds?.length ?? 0) - nextCutIds.length;
+          }
         }
         return {
           ...group,
@@ -77,12 +111,12 @@ function normalizeLoadedScenesInput(scenes: LoadedProjectData['scenes']): { scen
     } else {
       groups = undefined;
       if (candidate.groups !== undefined) {
-        normalized = true;
+        report.invalidGroupCollectionCount += 1;
       }
     }
 
     if (!Array.isArray(candidate.notes)) {
-      normalized = true;
+      report.missingNotesArrayCount += 1;
     }
 
     return {
@@ -95,7 +129,17 @@ function normalizeLoadedScenesInput(scenes: LoadedProjectData['scenes']): { scen
 
   return {
     scenes: normalizedScenes,
-    normalized,
+    report: {
+      ...report,
+      normalized:
+        report.invalidSceneCount > 0
+        || report.missingCutsArrayCount > 0
+        || report.missingNotesArrayCount > 0
+        || report.invalidGroupCollectionCount > 0
+        || report.invalidGroupCutIdCount > 0
+        || report.assignedCutOrderCount > 0
+        || report.normalizedCutAudioBindingsCount > 0,
+    },
   };
 }
 
@@ -143,6 +187,24 @@ function normalizeLoadedSourcePanelState(sourcePanel: LoadedProjectData['sourceP
   };
 }
 
+export function parseLoadedProjectForOpen(
+  projectData: LoadedProjectData,
+  projectPath: string,
+  fallbackName: string
+): ParsedLoadedProjectForOpen {
+  const parsedScenes = parseLoadedScenesInput(projectData.scenes);
+  return {
+    name: normalizeLoadedProjectName(projectData.name, fallbackName),
+    vaultPathResolution: resolveLoadedVaultPath(projectData.vaultPath, projectPath),
+    scenes: parsedScenes.scenes,
+    sceneOrder: normalizeLoadedSceneOrder(projectData.sceneOrder),
+    targetTotalDurationSec: typeof projectData.targetTotalDurationSec === 'number' ? projectData.targetTotalDurationSec : undefined,
+    cutRuntimeById: projectData.cutRuntimeById,
+    sourcePanelState: normalizeLoadedSourcePanelState(projectData.sourcePanel),
+    structureReport: parsedScenes.report,
+  };
+}
+
 function isLoadedProjectRoot(projectData: unknown): projectData is LoadedProjectData {
   return typeof projectData === 'object' && projectData !== null;
 }
@@ -187,6 +249,17 @@ export interface PendingProject {
   projectPath: string;
 }
 
+export interface ParsedLoadedProjectForOpen {
+  name: string;
+  vaultPathResolution: LoadedVaultPathResolution;
+  scenes: Scene[];
+  sceneOrder?: string[];
+  targetTotalDurationSec?: number;
+  cutRuntimeById?: unknown;
+  sourcePanelState?: SourcePanelState;
+  structureReport: LoadedProjectStructureReport;
+}
+
 export type ProjectSelectionResult =
   | { kind: 'success'; data: LoadedProjectData; path: string }
   | { kind: 'canceled' }
@@ -209,11 +282,13 @@ export interface ProjectOpenInputs {
   assetIndex: AssetIndexReadResult;
   metadataAssessment: Awaited<ReturnType<typeof loadMetadataStoreWithReport>>;
   vaultPathResolution?: LoadedVaultPathResolution;
+  structureReport?: LoadedProjectStructureReport;
 }
 
 export interface ProjectOpenDiagnosis extends ProjectStateAssessmentResult {
   assetIndex: AssetIndexReadResult;
   vaultPathResolution?: LoadedVaultPathResolution;
+  structureReport?: LoadedProjectStructureReport;
   severity: 'none' | 'warning' | 'fatal';
   recommendedAction: 'open' | 'recover' | 'abort';
 }
@@ -336,6 +411,7 @@ export async function readProjectOpenInputs(
   vaultPath: string,
   options: {
     vaultPathResolution?: LoadedVaultPathResolution;
+    structureReport?: LoadedProjectStructureReport;
   } = {},
 ): Promise<ProjectOpenInputs> {
   const assetIndex = await readAssetIndexBridge(vaultPath).catch(() => ({
@@ -356,6 +432,7 @@ export async function readProjectOpenInputs(
     assetIndex,
     metadataAssessment,
     vaultPathResolution: options.vaultPathResolution,
+    structureReport: options.structureReport,
   };
 }
 
@@ -389,6 +466,7 @@ export function diagnoseProjectOpen(
     assessment,
     assetIndex: inputs.assetIndex,
     vaultPathResolution: inputs.vaultPathResolution,
+    structureReport: inputs.structureReport,
     severity,
     recommendedAction,
   };
@@ -441,30 +519,30 @@ export async function buildProjectLoadOutcome(
   }
 
   try {
-    const vaultPathResolution = resolveLoadedVaultPath(projectData.vaultPath, projectPath);
-    const normalizedScenes = normalizeLoadedScenesInput(projectData.scenes);
+    const parsedProject = parseLoadedProjectForOpen(projectData, projectPath, fallbackName);
     const openInputs = await readProjectOpenInputs(
-      normalizedScenes.scenes,
-      vaultPathResolution.effectiveVaultPath,
+      parsedProject.scenes,
+      parsedProject.vaultPathResolution.effectiveVaultPath,
       {
-        vaultPathResolution,
+        vaultPathResolution: parsedProject.vaultPathResolution,
+        structureReport: parsedProject.structureReport,
       }
     );
     const diagnosis = diagnoseProjectOpen(openInputs, {
       projectSchemaVersion: 3,
       normalizationFlags: {
-        sceneStructureNormalized: normalizedScenes.normalized,
+        sceneStructureNormalized: parsedProject.structureReport.normalized,
       },
     });
 
     const payload: PendingProject = {
-      name: normalizeLoadedProjectName(projectData.name, fallbackName),
-      vaultPath: vaultPathResolution.effectiveVaultPath,
+      name: parsedProject.name,
+      vaultPath: parsedProject.vaultPathResolution.effectiveVaultPath,
       scenes: diagnosis.scenes,
-      sceneOrder: normalizeLoadedSceneOrder(projectData.sceneOrder),
-      targetTotalDurationSec: typeof projectData.targetTotalDurationSec === 'number' ? projectData.targetTotalDurationSec : undefined,
-      cutRuntimeById: normalizePersistedCutRuntimeById(projectData.cutRuntimeById, diagnosis.scenes),
-      sourcePanelState: normalizeLoadedSourcePanelState(projectData.sourcePanel),
+      sceneOrder: parsedProject.sceneOrder,
+      targetTotalDurationSec: parsedProject.targetTotalDurationSec,
+      cutRuntimeById: normalizePersistedCutRuntimeById(parsedProject.cutRuntimeById, diagnosis.scenes),
+      sourcePanelState: parsedProject.sourcePanelState,
       projectPath,
     };
 

@@ -5,6 +5,7 @@ import {
   buildProjectOpenRequestResult,
   createProjectBootstrap,
   loadRecentProjectsWithCleanup,
+  parseLoadedProjectForOpen,
   requestProjectFromPath,
   requestProjectSelection,
 } from '../session';
@@ -198,6 +199,44 @@ describe('project session', () => {
       })],
     }));
     expect(outcome.assessment.report.normalizationFlags.sceneStructureNormalized).toBe(true);
+  });
+
+  it('reports structural normalization separately from parsed scene values', () => {
+    const parsed = parseLoadedProjectForOpen({
+      name: 'Legacy',
+      scenes: [{
+        id: 'scene-1',
+        name: 'Scene 1',
+        cuts: [{
+          id: 'cut-1',
+          assetId: 'asset-1',
+          displayTime: 1,
+          audioBindings: 'broken',
+        }],
+        notes: 'broken',
+        groups: [{
+          id: 'group-1',
+          cutIds: ['cut-1', 123],
+        }],
+      } as unknown as Scene],
+      version: 3,
+    }, 'C:/vault/project.sdp', 'Legacy Project');
+
+    expect(parsed.structureReport).toMatchObject({
+      missingNotesArrayCount: 1,
+      invalidGroupCutIdCount: 1,
+      assignedCutOrderCount: 1,
+      normalizedCutAudioBindingsCount: 1,
+      normalized: true,
+    });
+    expect(parsed.scenes[0]).toEqual(expect.objectContaining({
+      notes: [],
+      groups: [expect.objectContaining({ cutIds: ['cut-1'] })],
+      cuts: [expect.objectContaining({
+        order: 0,
+        audioBindings: undefined,
+      })],
+    }));
   });
 
   it('falls back to the project directory when embedded vaultPath is invalid', async () => {
