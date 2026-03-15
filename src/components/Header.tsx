@@ -221,9 +221,9 @@ export default function Header({ onOpenSettings, onPreview, onExport, isExportin
                     <Download size={16} />
                     <span>{isExporting ? 'Exporting...' : 'Export'}</span>
                   </button>
-                  <button onClick={() => { handleCloseProject(); setShowMoreMenu(false); }} title="Open Project">
+                  <button onClick={() => { handleCloseProject(); setShowMoreMenu(false); }} title="Close Project">
                     <FolderOpen size={16} />
-                    <span>Open Project</span>
+                    <span>Close Project</span>
                   </button>
                   <div className="menu-divider" />
                   <button onClick={() => { onOpenSettings?.(); setShowMoreMenu(false); }} title="Settings">
@@ -252,9 +252,9 @@ export default function Header({ onOpenSettings, onPreview, onExport, isExportin
 
                   <div className="menu-divider" />
 
-                  <button onClick={() => { handleCloseApp(); setShowMoreMenu(false); }} className="danger" title="Close App">
+                  <button onClick={() => { handleCloseApp(); setShowMoreMenu(false); }} className="danger" title="Exit App">
                     <X size={16} />
-                    <span>Close</span>
+                    <span>Exit App</span>
                   </button>
                 </div>
               )}
