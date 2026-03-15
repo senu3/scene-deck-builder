@@ -255,9 +255,11 @@ function normalizePathForCompare(p: string): string {
   return p.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
 }
 
-export function resolveLoadedVaultPath(projectVaultPath: string | undefined, projectPath: string): string {
+export function resolveLoadedVaultPath(projectVaultPath: unknown, projectPath: string): string {
   const fromProjectFile = getVaultPathFromProjectFile(projectPath);
-  if (!projectVaultPath) return fromProjectFile;
+  if (typeof projectVaultPath !== 'string' || projectVaultPath.trim().length === 0) {
+    return fromProjectFile;
+  }
   if (normalizePathForCompare(projectVaultPath) !== normalizePathForCompare(fromProjectFile)) {
     console.warn('[ProjectLoad] vaultPath mismatch. Using project file directory.', {
       embeddedVaultPath: projectVaultPath,

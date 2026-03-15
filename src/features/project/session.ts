@@ -100,6 +100,45 @@ function normalizeLoadedSceneOrder(sceneOrder: LoadedProjectData['sceneOrder']):
   return sceneOrder.filter((sceneId): sceneId is string => typeof sceneId === 'string');
 }
 
+function normalizeLoadedProjectName(name: LoadedProjectData['name'], fallbackName: string): string {
+  if (typeof name !== 'string') return fallbackName;
+  const trimmed = name.trim();
+  return trimmed.length > 0 ? trimmed : fallbackName;
+}
+
+function deriveProjectFallbackName(projectPath: string, fallbackName: string): string {
+  const normalized = projectPath.replace(/\\/g, '/');
+  const lastSegment = normalized.split('/').filter(Boolean).pop();
+  if (!lastSegment) return fallbackName;
+  const withoutExtension = lastSegment.replace(/\.sdp$/i, '');
+  return withoutExtension || fallbackName;
+}
+
+function normalizeLoadedSourcePanelState(sourcePanel: LoadedProjectData['sourcePanel']): SourcePanelState | undefined {
+  if (!sourcePanel || typeof sourcePanel !== 'object') {
+    return undefined;
+  }
+
+  const candidate = sourcePanel as unknown as Record<string, unknown>;
+  const folders = Array.isArray(candidate.folders)
+    ? candidate.folders.filter((folder): folder is SourcePanelState['folders'][number] => {
+      if (!folder || typeof folder !== 'object') return false;
+      const folderRecord = folder as { path?: unknown; name?: unknown };
+      return typeof folderRecord.path === 'string' && typeof folderRecord.name === 'string';
+    })
+    : [];
+  const expandedPaths = Array.isArray(candidate.expandedPaths)
+    ? candidate.expandedPaths.filter((path): path is string => typeof path === 'string')
+    : [];
+  const viewMode = candidate.viewMode === 'grid' ? 'grid' : 'list';
+
+  return {
+    folders,
+    expandedPaths,
+    viewMode,
+  };
+}
+
 function isLoadedProjectRoot(projectData: unknown): projectData is LoadedProjectData {
   return typeof projectData === 'object' && projectData !== null;
 }
@@ -381,32 +420,49 @@ export async function buildProjectLoadOutcome(
       failure: createProjectLoadFailure('unsupported-schema', projectPath, projectData.version),
     };
   }
-
-  const loadedVaultPath = resolveLoadedVaultPath(projectData.vaultPath, projectPath);
-  const normalizedScenes = normalizeLoadedScenesInput(projectData.scenes);
-  const openInputs = await readProjectOpenInputs(normalizedScenes.scenes, loadedVaultPath);
-  const diagnosis = diagnoseProjectOpen(openInputs, {
-    projectSchemaVersion: 3,
-    normalizationFlags: {
-      sceneStructureNormalized: normalizedScenes.normalized,
-    },
-  });
-
-  const payload: PendingProject = {
-    name: projectData.name || fallbackName,
-    vaultPath: loadedVaultPath,
-    scenes: diagnosis.scenes,
-    sceneOrder: normalizeLoadedSceneOrder(projectData.sceneOrder),
-    targetTotalDurationSec: typeof projectData.targetTotalDurationSec === 'number' ? projectData.targetTotalDurationSec : undefined,
-    cutRuntimeById: normalizePersistedCutRuntimeById(projectData.cutRuntimeById, diagnosis.scenes),
-    sourcePanelState: projectData.sourcePanel,
-    projectPath,
-  };
-
-  if (diagnosis.missingAssets.length > 0) {
-    return { kind: 'pending', payload, missingAssets: diagnosis.missingAssets, assessment: diagnosis.assessment };
+  if (!Array.isArray(projectData.scenes)) {
+    return {
+      kind: 'corrupted',
+      failure: createProjectLoadFailure('invalid-project-structure', projectPath),
+    };
   }
-  return { kind: 'ready', payload, assessment: diagnosis.assessment };
+
+  try {
+    const loadedVaultPath = resolveLoadedVaultPath(projectData.vaultPath, projectPath);
+    const normalizedScenes = normalizeLoadedScenesInput(projectData.scenes);
+    const openInputs = await readProjectOpenInputs(normalizedScenes.scenes, loadedVaultPath);
+    const diagnosis = diagnoseProjectOpen(openInputs, {
+      projectSchemaVersion: 3,
+      normalizationFlags: {
+        sceneStructureNormalized: normalizedScenes.normalized,
+      },
+    });
+
+    const payload: PendingProject = {
+      name: normalizeLoadedProjectName(projectData.name, fallbackName),
+      vaultPath: loadedVaultPath,
+      scenes: diagnosis.scenes,
+      sceneOrder: normalizeLoadedSceneOrder(projectData.sceneOrder),
+      targetTotalDurationSec: typeof projectData.targetTotalDurationSec === 'number' ? projectData.targetTotalDurationSec : undefined,
+      cutRuntimeById: normalizePersistedCutRuntimeById(projectData.cutRuntimeById, diagnosis.scenes),
+      sourcePanelState: normalizeLoadedSourcePanelState(projectData.sourcePanel),
+      projectPath,
+    };
+
+    if (diagnosis.missingAssets.length > 0) {
+      return { kind: 'pending', payload, missingAssets: diagnosis.missingAssets, assessment: diagnosis.assessment };
+    }
+    return { kind: 'ready', payload, assessment: diagnosis.assessment };
+  } catch (error) {
+    console.error('[ProjectLoad] Failed to build load outcome for project.', {
+      projectPath,
+      error,
+    });
+    return {
+      kind: 'corrupted',
+      failure: createProjectLoadFailure('invalid-project-structure', projectPath),
+    };
+  }
 }
 
 export async function buildProjectOpenRequestResult(
@@ -419,7 +475,11 @@ export async function buildProjectOpenRequestResult(
   if (selection.kind === 'failure') {
     return selection;
   }
-  return buildProjectLoadOutcome(selection.data, selection.path, fallbackName);
+  return buildProjectLoadOutcome(
+    selection.data,
+    selection.path,
+    deriveProjectFallbackName(selection.path, fallbackName)
+  );
 }
 
 export async function openSelectedProject(

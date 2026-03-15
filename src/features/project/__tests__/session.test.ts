@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Scene } from '../../../types';
 import {
   buildProjectLoadOutcome,
+  buildProjectOpenRequestResult,
   createProjectBootstrap,
   loadRecentProjectsWithCleanup,
   requestProjectFromPath,
@@ -197,6 +198,84 @@ describe('project session', () => {
       })],
     }));
     expect(outcome.assessment.report.normalizationFlags.sceneStructureNormalized).toBe(true);
+  });
+
+  it('falls back to the project directory when embedded vaultPath is invalid', async () => {
+    vi.mocked(resolveScenesAssets).mockResolvedValue({
+      scenes: [],
+      missingAssets: [],
+    });
+
+    const outcome = await buildProjectLoadOutcome({
+      name: { invalid: true },
+      vaultPath: { invalid: true },
+      sourcePanel: 'broken',
+      scenes: [],
+      version: 3,
+    }, 'C:/vault/project.sdp', 'Fallback Project');
+
+    if (outcome.kind !== 'ready') {
+      throw new Error(`expected ready outcome, received ${outcome.kind}`);
+    }
+    expect(outcome.payload.name).toBe('Fallback Project');
+    expect(outcome.payload.vaultPath).toBe('C:/vault');
+    expect(outcome.payload.sourcePanelState).toBeUndefined();
+  });
+
+  it('rejects v3 projects that do not include a scenes array', async () => {
+    const outcome = await buildProjectLoadOutcome({
+      name: 'Broken',
+      vaultPath: 'C:/vault',
+      version: 3,
+    }, 'C:/vault/project.sdp', 'Broken Project');
+
+    expect(outcome).toEqual({
+      kind: 'corrupted',
+      failure: {
+        code: 'invalid-project-structure',
+        projectPath: 'C:/vault/project.sdp',
+      },
+    });
+  });
+
+  it('derives the fallback name from the project file path for path-based opens', async () => {
+    vi.mocked(resolveScenesAssets).mockResolvedValue({
+      scenes: [],
+      missingAssets: [],
+    });
+
+    const result = await buildProjectOpenRequestResult({
+      kind: 'success',
+      path: 'C:/vault/broken.sdp',
+      data: {
+        version: 3,
+        scenes: [],
+      },
+    }, 'stale-name');
+
+    if (result.kind !== 'ready') {
+      throw new Error(`expected ready result, received ${result.kind}`);
+    }
+    expect(result.payload.name).toBe('broken');
+  });
+
+  it('returns corrupted outcome when load diagnosis throws unexpectedly', async () => {
+    vi.mocked(resolveScenesAssets).mockRejectedValue(new Error('boom'));
+
+    const outcome = await buildProjectLoadOutcome({
+      name: 'Broken',
+      vaultPath: 'C:/vault',
+      scenes: [],
+      version: 3,
+    }, 'C:/vault/project.sdp', 'Broken Project');
+
+    expect(outcome).toEqual({
+      kind: 'corrupted',
+      failure: {
+        code: 'invalid-project-structure',
+        projectPath: 'C:/vault/project.sdp',
+      },
+    });
   });
 
   it('maps file-load errors into selection failures', async () => {
