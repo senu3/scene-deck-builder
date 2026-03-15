@@ -399,7 +399,7 @@ export default function StartupModal() {
     return '.../' + segments.slice(-2).join('/');
   };
 
-  const projectFolderName = projectName.trim() || 'YourProject';
+  const projectFolderName = projectName.trim() || 'Your Project';
   const vaultFolderDisplay = vaultPath
     ? `${getVaultDisplayPath(vaultPath)}/${projectFolderName}/`
     : `.../${projectFolderName}/`;
@@ -610,25 +610,14 @@ export default function StartupModal() {
                 </div>
                 <ChevronRight size={18} className="action-arrow" />
               </button>
-
-              <button className="action-card" onClick={handleLoadProject}>
-                <div className="action-icon-wrapper">
-                  <FolderOpen size={22} />
-                </div>
-                <div className="action-text">
-                  <span className="action-title">Open Project</span>
-                  <span className="action-desc">Load an existing .sdp project file</span>
-                </div>
-                <ChevronRight size={18} className="action-arrow" />
-              </button>
             </div>
 
-            {recentProjects.length > 0 && (
-              <div className="recent-projects">
-                <h3>
-                  <Clock size={14} />
-                  Recent Projects
-                </h3>
+            <div className="recent-projects">
+              <h3>
+                <Clock size={14} />
+                Recent Projects
+              </h3>
+              {recentProjects.length > 0 && (
                 <div className="recent-list">
                   {recentProjects.map((project, index) => (
                     <button
@@ -644,8 +633,14 @@ export default function StartupModal() {
                     </button>
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+              <button type="button" className="recent-item recent-item-ghost" onClick={handleLoadProject}>
+                <div className="recent-info">
+                  <FolderOpen size={14} className="recent-icon" />
+                  <span className="recent-name recent-ghost-label">Open another project...</span>
+                </div>
+              </button>
+            </div>
           </div>
         </div>
       </div>
