@@ -1,14 +1,13 @@
 export type SceneDurationBarMode = 'relative' | 'target';
+export const DURATION_TARGET_SETTINGS_CHANGED_EVENT = 'scene-duration-target-settings-changed';
 
 export interface DurationTargetSettings {
-  envDefaultTargetSec?: number;
   sceneDurationBarMode: SceneDurationBarMode;
 }
 
 const STORAGE_KEY = 'scene-deck.duration-target-settings.v1';
 
 const DEFAULT_SETTINGS: DurationTargetSettings = {
-  envDefaultTargetSec: undefined,
   sceneDurationBarMode: 'relative',
 };
 
@@ -18,11 +17,8 @@ function normalizeSec(value: unknown): number | undefined {
   return num > 0 ? num : undefined;
 }
 
-export function resolveEffectiveTargetDurationSec(
-  projectTargetSec?: number,
-  envDefaultTargetSec?: number
-): number | undefined {
-  return normalizeSec(projectTargetSec) ?? normalizeSec(envDefaultTargetSec);
+export function resolveProjectTargetDurationSec(projectTargetSec?: number): number | undefined {
+  return normalizeSec(projectTargetSec);
 }
 
 export function getDurationTargetSettings(): DurationTargetSettings {
@@ -32,7 +28,6 @@ export function getDurationTargetSettings(): DurationTargetSettings {
     const parsed = JSON.parse(raw) as Partial<DurationTargetSettings>;
     const sceneDurationBarMode = parsed.sceneDurationBarMode === 'target' ? 'target' : 'relative';
     return {
-      envDefaultTargetSec: normalizeSec(parsed.envDefaultTargetSec),
       sceneDurationBarMode,
     };
   } catch {
@@ -45,16 +40,13 @@ export function saveDurationTargetSettings(
 ): DurationTargetSettings {
   const current = getDurationTargetSettings();
   const merged: DurationTargetSettings = {
-    envDefaultTargetSec:
-      partial.envDefaultTargetSec === undefined
-        ? current.envDefaultTargetSec
-        : normalizeSec(partial.envDefaultTargetSec),
     sceneDurationBarMode:
       partial.sceneDurationBarMode === 'target' ? 'target' : partial.sceneDurationBarMode === 'relative' ? 'relative' : current.sceneDurationBarMode,
   };
 
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+    window.dispatchEvent(new CustomEvent(DURATION_TARGET_SETTINGS_CHANGED_EVENT, { detail: merged }));
   } catch {
     // ignore localStorage failures
   }

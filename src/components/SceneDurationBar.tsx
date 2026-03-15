@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Scene } from '../types';
 import { formatTimeCode } from '../hooks/useStoryTimelinePosition';
 import {
   getDurationTargetSettings,
   saveDurationTargetSettings,
+  DURATION_TARGET_SETTINGS_CHANGED_EVENT,
   type SceneDurationBarMode,
 } from '../utils/durationTarget';
 import styles from './SceneDurationBar.module.css';
@@ -71,6 +72,14 @@ export default function SceneDurationBar({
     setMode(next);
     saveDurationTargetSettings({ sceneDurationBarMode: next });
   };
+
+  useEffect(() => {
+    const syncMode = () => {
+      setMode(getDurationTargetSettings().sceneDurationBarMode);
+    };
+    window.addEventListener(DURATION_TARGET_SETTINGS_CHANGED_EVENT, syncMode);
+    return () => window.removeEventListener(DURATION_TARGET_SETTINGS_CHANGED_EVENT, syncMode);
+  }, []);
 
   if (scenes.length === 0) {
     return (

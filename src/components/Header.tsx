@@ -1,9 +1,9 @@
-import { useMemo, useState, useRef, useEffect } from 'react';
-import { Clapperboard, ArrowLeft, Save, MoreVertical, Undo, Redo, X, Play, Download, Clock, Layers, Film, Settings } from 'lucide-react';
+import { useMemo, useState, useRef, useEffect, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { Clapperboard, ArrowLeft, Save, MoreVertical, Undo, Redo, X, Play, Download, Clock, Layers, Film, Settings, Flag } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { useHistoryStore } from '../store/historyStore';
 import { Input } from '../ui';
-import { getDurationTargetSettings, resolveEffectiveTargetDurationSec } from '../utils/durationTarget';
+import { resolveProjectTargetDurationSec, saveDurationTargetSettings } from '../utils/durationTarget';
 import { getScenesInOrder } from '../utils/sceneOrder';
 import MissingAssetRecoveryModal from './MissingAssetRecoveryModal';
 import { useHeaderProjectController } from '../hooks/useHeaderProjectController';
@@ -36,8 +36,11 @@ export default function Header({ onOpenSettings, onPreview, onExport, isExportin
   } = useHeaderProjectController();
 
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showGoalEditor, setShowGoalEditor] = useState(false);
   const [targetMinutesInput, setTargetMinutesInput] = useState('');
   const moreMenuRef = useRef<HTMLDivElement>(null);
+  const goalEditorRef = useRef<HTMLDivElement>(null);
+  const hasProjectDurationGoal = Number.isFinite(targetTotalDurationSec) && (targetTotalDurationSec as number) > 0;
 
   // Project stats
   const { totalDuration, totalCuts, selectedCutTime } = useMemo(() => {
@@ -79,16 +82,27 @@ export default function Header({ onOpenSettings, onPreview, onExport, isExportin
   }, [showMoreMenu]);
 
   useEffect(() => {
-    if (!showMoreMenu) return;
-    const minutes = Number.isFinite(targetTotalDurationSec) && (targetTotalDurationSec as number) > 0
+    if (!showGoalEditor) return;
+    const minutes = hasProjectDurationGoal
       ? Math.round((targetTotalDurationSec as number) / 60)
       : 0;
-    setTargetMinutesInput(String(minutes));
-  }, [showMoreMenu, targetTotalDurationSec]);
+    setTargetMinutesInput(minutes > 0 ? String(minutes) : '');
+  }, [hasProjectDurationGoal, showGoalEditor, targetTotalDurationSec]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (goalEditorRef.current && !goalEditorRef.current.contains(e.target as Node)) {
+        setShowGoalEditor(false);
+      }
+    };
+    if (showGoalEditor) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showGoalEditor]);
 
   const effectiveTargetSec = useMemo(() => {
-    const settings = getDurationTargetSettings();
-    return resolveEffectiveTargetDurationSec(targetTotalDurationSec, settings.envDefaultTargetSec);
+    return resolveProjectTargetDurationSec(targetTotalDurationSec);
   }, [targetTotalDurationSec]);
 
   const handleUndo = async () => {
@@ -126,9 +140,24 @@ export default function Header({ onOpenSettings, onPreview, onExport, isExportin
     const parsed = Number(targetMinutesInput);
     if (!Number.isFinite(parsed) || parsed <= 0) {
       setTargetTotalDurationSec(undefined);
+      setShowGoalEditor(false);
       return;
     }
+    saveDurationTargetSettings({ sceneDurationBarMode: 'target' });
     setTargetTotalDurationSec(Math.round(parsed * 60));
+    setShowGoalEditor(false);
+  };
+
+  const handleGoalInputKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleApplyTargetMinutes();
+      return;
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setShowGoalEditor(false);
+    }
   };
 
   return (
@@ -165,6 +194,58 @@ export default function Header({ onOpenSettings, onPreview, onExport, isExportin
                 </span>
                 <span className="header-time-sep">/</span>
                 <span className="header-time-total">{formatTimeCode(totalDuration)}</span>
+              </div>
+              <div className="header-goal" ref={goalEditorRef}>
+                <button
+                  type="button"
+                  className={`header-goal-trigger ${showGoalEditor ? 'is-open' : ''}`}
+                  onClick={() => setShowGoalEditor((current) => !current)}
+                  aria-expanded={showGoalEditor}
+                  aria-label={effectiveTargetSec ? 'Edit duration goal' : 'Set duration goal'}
+                  title={effectiveTargetSec ? 'Edit duration goal' : 'Set duration goal'}
+                >
+                  <Flag size={14} />
+                  <span className="header-goal-label">Duration Goal:</span>
+                  <span className={`header-goal-value ${effectiveTargetSec ? '' : 'is-empty'}`}>
+                    {effectiveTargetSec ? formatTimeCode(effectiveTargetSec) : 'Not set'}
+                  </span>
+                </button>
+
+                {showGoalEditor && (
+                  <div className="header-goal-popover">
+                    <span className="header-goal-popover-label">Duration Goal (min)</span>
+                    <div className="header-goal-popover-row">
+                      <Input
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={targetMinutesInput}
+                        onChange={(e) => setTargetMinutesInput(e.target.value)}
+                        onKeyDown={handleGoalInputKeyDown}
+                        className="header-goal-number"
+                        title="Set project duration goal in minutes"
+                        autoFocus
+                      />
+                      <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={handleApplyTargetMinutes}>
+                        Set
+                      </button>
+                      {hasProjectDurationGoal && (
+                        <button
+                          type="button"
+                          className="secondary"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            setTargetMinutesInput('');
+                            setTargetTotalDurationSec(undefined);
+                            setShowGoalEditor(false);
+                          }}
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
               <DurationTargetGauge totalSec={totalDuration} targetSec={effectiveTargetSec} />
             </div>
@@ -230,26 +311,6 @@ export default function Header({ onOpenSettings, onPreview, onExport, isExportin
                     <Settings size={16} />
                     <span>Environment Settings</span>
                   </button>
-
-                  <div className="menu-divider" />
-
-                  <div className="header-menu-input">
-                    <span className="header-menu-input-label">Target (min)</span>
-                    <div className="header-menu-input-row">
-                      <Input
-                        type="number"
-                        min={0}
-                        step={1}
-                        value={targetMinutesInput}
-                        onChange={(e) => setTargetMinutesInput(e.target.value)}
-                        onBlur={handleApplyTargetMinutes}
-                        className="header-menu-number"
-                        title="Set project target duration in minutes"
-                      />
-                      <button type="button" onClick={handleApplyTargetMinutes}>Set</button>
-                    </div>
-                  </div>
-
                   <div className="menu-divider" />
 
                   <button onClick={() => { handleCloseApp(); setShowMoreMenu(false); }} className="danger" title="Exit App">

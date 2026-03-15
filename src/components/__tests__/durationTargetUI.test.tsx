@@ -25,7 +25,7 @@ function makeScene(id: string, duration: number): Scene {
 
 describe('duration target UI', () => {
   beforeEach(() => {
-    saveDurationTargetSettings({ sceneDurationBarMode: 'relative', envDefaultTargetSec: undefined });
+    saveDurationTargetSettings({ sceneDurationBarMode: 'relative' });
   });
 
   it('hides gauge and mode toggle when target is unset', () => {
@@ -123,6 +123,35 @@ describe('duration target UI', () => {
     act(() => {
       gaugeRoot.unmount();
       barRoot.unmount();
+    });
+  });
+
+  it('syncs scene duration bar mode when settings change outside the component', () => {
+    const host = document.createElement('div');
+    const root = createRoot(host);
+    act(() => {
+      root.render(
+        <SceneDurationBar
+          scenes={[makeScene('1', 30), makeScene('2', 20)]}
+          selectedSceneId={null}
+          onSelectScene={() => {}}
+          targetSec={120}
+        />
+      );
+    });
+
+    const barBefore = host.querySelector('[aria-label="Scene duration bar"]');
+    expect(barBefore?.getAttribute('data-mode')).toBe('relative');
+
+    act(() => {
+      saveDurationTargetSettings({ sceneDurationBarMode: 'target' });
+    });
+
+    const barAfter = host.querySelector('[aria-label="Scene duration bar"]');
+    expect(barAfter?.getAttribute('data-mode')).toBe('target');
+
+    act(() => {
+      root.unmount();
     });
   });
 });
