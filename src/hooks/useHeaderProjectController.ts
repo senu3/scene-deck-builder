@@ -3,7 +3,6 @@ import { useStore } from '../store/useStore';
 import { useDialog, useToast } from '../ui';
 import type { MissingAssetInfo, RecoveryDecision } from '../components/MissingAssetRecoveryModal';
 import { createAutosaveController, subscribeProjectChanges } from '../utils/autosave';
-import { collectAssetRefs, findDanglingAssetRefs } from '../utils/assetRefs';
 import { assessMetadataStore } from '../utils/metadataStore';
 import {
   buildDerivedAssetIndexForSave,
@@ -24,8 +23,11 @@ import {
 } from '../features/project/recoveryAssessment';
 import {
   type PendingProject,
+  buildProjectOpenInputs,
+  diagnoseProjectOpen,
   loadRecentProjectsWithCleanup,
   openSelectedProject,
+  readProjectIntegrityState,
   type ProjectOpenRequestResult,
 } from '../features/project/session';
 import { createProjectIntegrityAssessment } from '../features/project/integrity';
@@ -41,7 +43,6 @@ import {
   hasElectronBridge,
   notifyAutosaveFlushedBridge,
   onAutosaveFlushRequestBridge,
-  readAssetIndexBridge,
   setAutosaveEnabledBridge,
 } from '../features/platform/electronGateway';
 
@@ -116,20 +117,16 @@ export function useHeaderProjectController() {
     try {
       const sceneIds = normalizedScenes.map((scene) => scene.id);
       if (vaultPath) {
-        const assetIndexResult = await readAssetIndexBridge(vaultPath);
-        const index = assetIndexResult.kind === 'readable' ? assetIndexResult.index : null;
-        const refs = collectAssetRefs(normalizedScenes, metadataStore);
-        const existingAssetIdSet = new Set(index?.assets.map((entry) => entry.id) || []);
-        const danglingRefs = index ? findDanglingAssetRefs(refs, existingAssetIdSet) : [];
+        const readState = await readProjectIntegrityState(normalizedScenes, vaultPath);
         const metadataAssessment = assessMetadataStore(metadataStore, {
-          sceneIds,
-          assetIds: index?.assets.map((entry) => entry.id),
+          sceneIds: readState.scenes.map((scene) => scene.id),
+          assetIds: readState.assetIndex.kind === 'readable'
+            ? readState.assetIndex.index.assets.map((entry) => entry.id)
+            : undefined,
         });
-        const validationAssessment = createProjectIntegrityAssessment({
-          readableSceneCount: normalizedScenes.length,
-          missingAssetCount: danglingRefs.length,
-          assetIndexState: assetIndexResult.kind,
-          metadataReport: metadataAssessment.report,
+        const validationDiagnosis = diagnoseProjectOpen(buildProjectOpenInputs(readState, {
+          metadataAssessment,
+        }), {
           projectSchemaVersion: 3,
           normalizationFlags: {
             sceneIdsAssigned: missingCount > 0,
@@ -138,12 +135,15 @@ export function useHeaderProjectController() {
             metadataNormalized: metadataAssessment.report.normalized,
           },
         });
+        const validationAssessment = validationDiagnosis.assessment;
+        const validationMessage = formatRecoveryAssessmentSummary(validationAssessment, 'save')
+          || 'Project save was canceled because recovery checks could not be completed.';
 
-        if (!index) {
+        if (validationDiagnosis.recommendedAction === 'abort' || validationDiagnosis.assetIndex.kind !== 'readable') {
           if (options?.notify !== false) {
             await dialogAlert({
               title: 'Save Validation Failed',
-              message: formatRecoveryAssessmentSummary(validationAssessment, 'save') || 'Asset index checks could not be completed.',
+              message: validationMessage,
               variant: 'warning',
             });
           }
@@ -151,7 +151,6 @@ export function useHeaderProjectController() {
         }
 
         if (validationAssessment.mode === 'repairable' && options?.allowPrompt !== false) {
-          const validationMessage = formatRecoveryAssessmentSummary(validationAssessment, 'save');
           const confirmed = await dialogConfirm({
             title: 'Save Validation',
             message: `Continue saving with warnings? ${validationMessage}`,
@@ -164,7 +163,7 @@ export function useHeaderProjectController() {
           }
         }
 
-        newIndex = buildDerivedAssetIndexForSave(index, normalizedScenes, normalizedSceneOrder);
+        newIndex = buildDerivedAssetIndexForSave(validationDiagnosis.assetIndex.index, normalizedScenes, normalizedSceneOrder);
       } else {
         const metadataAssessment = assessMetadataStore(metadataStore, {
           sceneIds,

@@ -13,9 +13,10 @@ import {
   regenerateCutClipThumbnails,
 } from './load';
 import {
-  assessProjectState,
+  diagnoseProjectState,
   loadRecentProjectsWithCleanup,
   type PendingProject,
+  type ProjectOpenDiagnosis,
   type RecentProjectEntry,
 } from './session';
 import type { RecoveryAssessment } from './recoveryAssessment';
@@ -55,6 +56,7 @@ export interface ProjectLoadPersistencePlan {
 export interface FinalizeProjectLoadResult {
   finalScenes: Scene[];
   missingAssets: MissingAssetInfo[];
+  diagnosis: ProjectOpenDiagnosis;
   assessment: RecoveryAssessment;
   persistencePlan: ProjectLoadPersistencePlan;
   recentSaveResult: AppEffectDispatchResult;
@@ -63,6 +65,7 @@ export interface FinalizeProjectLoadResult {
 export interface ApplyPendingProjectResult {
   finalScenes: Scene[];
   missingAssets: MissingAssetInfo[];
+  diagnosis: ProjectOpenDiagnosis;
   assessment: RecoveryAssessment;
 }
 
@@ -79,11 +82,11 @@ export async function applyPendingProjectToStore(
   }
   let finalScenes = recoveryCommit.scenes;
   finalScenes = await regenerateCutClipThumbnails(finalScenes);
-  const postRecoveryState = await assessProjectState(finalScenes, project.vaultPath, {
+  const postRecoveryDiagnosis = await diagnoseProjectState(finalScenes, project.vaultPath, {
     rescuedCutCount: recoveryCommit.committedRelinks.length,
     projectSchemaVersion: 3,
   });
-  finalScenes = postRecoveryState.scenes;
+  finalScenes = postRecoveryDiagnosis.scenes;
   const recoveryRelinks = collectRecoveryRelinkEventCandidates(beforeRecoveryScenes, finalScenes, recoveryDecisions);
   const finalCutIds = new Set(
     finalScenes.flatMap((scene) => scene.cuts.map((cut) => cut.id))
@@ -120,8 +123,9 @@ export async function applyPendingProjectToStore(
 
   return {
     finalScenes,
-    missingAssets: postRecoveryState.missingAssets,
-    assessment: postRecoveryState.assessment,
+    missingAssets: postRecoveryDiagnosis.missingAssets,
+    diagnosis: postRecoveryDiagnosis,
+    assessment: postRecoveryDiagnosis.assessment,
   };
 }
 
@@ -132,7 +136,7 @@ export async function finalizePendingProjectLoad(
 ): Promise<FinalizeProjectLoadResult> {
   const applied = await applyPendingProjectToStore(project, deps, recoveryDecisions);
   const recentProjects = await loadRecentProjectsWithCleanup();
-  const persistencePlan = buildProjectLoadPersistencePlan(project, applied.finalScenes, recentProjects);
+  const persistencePlan = buildProjectLoadPersistencePlan(project, recentProjects, applied.diagnosis);
   const recentSaveResult = await dispatchAppEffects([
     createSaveRecentProjectsEffect({
       projects: persistencePlan.recentProjects,
@@ -144,17 +148,28 @@ export async function finalizePendingProjectLoad(
   return {
     finalScenes: applied.finalScenes,
     missingAssets: applied.missingAssets,
+    diagnosis: applied.diagnosis,
     assessment: applied.assessment,
     persistencePlan,
     recentSaveResult,
   };
 }
 
+function shouldPersistRecentProject(diagnosis: ProjectOpenDiagnosis): boolean {
+  return diagnosis.recommendedAction !== 'abort';
+}
+
 export function buildProjectLoadPersistencePlan(
   project: PendingProject,
-  _finalScenes: Scene[],
-  recentProjects: RecentProjectEntry[]
+  recentProjects: RecentProjectEntry[],
+  diagnosis: ProjectOpenDiagnosis,
 ): ProjectLoadPersistencePlan {
+  if (!shouldPersistRecentProject(diagnosis)) {
+    return {
+      recentProjects,
+    };
+  }
+
   const newRecent: RecentProjectEntry = {
     name: project.name,
     path: project.projectPath,

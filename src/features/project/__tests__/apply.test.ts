@@ -1,13 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   applyPendingProjectToStore,
+  buildProjectLoadPersistencePlan,
   finalizePendingProjectLoad,
 } from '../apply';
 import {
   createSaveRecentProjectsEffect,
   dispatchAppEffects,
 } from '../../platform/effects';
-import { assessProjectState, loadRecentProjectsWithCleanup } from '../session';
+import { diagnoseProjectState, loadRecentProjectsWithCleanup } from '../session';
 import {
   commitRecoverySceneChanges,
   collectRecoveryRelinkEventCandidates,
@@ -32,7 +33,7 @@ vi.mock('../session', async () => {
   const actual = await vi.importActual<typeof import('../session')>('../session');
   return {
     ...actual,
-    assessProjectState: vi.fn(),
+    diagnoseProjectState: vi.fn(),
     loadRecentProjectsWithCleanup: vi.fn(),
   };
 });
@@ -71,9 +72,13 @@ describe('project apply', () => {
       results: [],
       warnings: [],
     });
-    vi.mocked(assessProjectState).mockImplementation(async (scenes) => ({
+    vi.mocked(diagnoseProjectState).mockImplementation(async (scenes) => ({
       scenes,
       missingAssets: [],
+      assetIndex: {
+        kind: 'readable',
+        index: { version: 1, assets: [] },
+      },
       assessment: {
         mode: 'full',
         report: {
@@ -93,6 +98,8 @@ describe('project apply', () => {
         },
         issues: [],
       },
+      severity: 'none',
+      recommendedAction: 'open',
     }));
   });
 
@@ -252,7 +259,7 @@ describe('project apply', () => {
       scenes: plannedScenes,
     }));
     expect(result.finalScenes).toEqual(committedScenes);
-    expect(assessProjectState).toHaveBeenCalledWith(committedScenes, '/vault', {
+    expect(diagnoseProjectState).toHaveBeenCalledWith(committedScenes, '/vault', {
       rescuedCutCount: 0,
       projectSchemaVersion: 3,
     });
@@ -311,5 +318,53 @@ describe('project apply', () => {
       path: project.projectPath,
     }));
     expect(result.assessment.mode).toBe('full');
+  });
+
+  it('preserves existing recent projects when post-load diagnosis recommends abort', () => {
+    const project = {
+      name: 'Loaded Project',
+      vaultPath: '/vault',
+      scenes: [],
+      projectPath: '/vault/project.sdp',
+    };
+    const recentProjects = [
+      { name: 'Existing', path: '/other/project.sdp', date: '2026-03-09T00:00:00.000Z' },
+    ];
+
+    const plan = buildProjectLoadPersistencePlan(project, recentProjects, {
+      scenes: [],
+      missingAssets: [],
+      assetIndex: {
+        kind: 'invalid-schema',
+        cause: 'invalid-json',
+      },
+      assessment: {
+        mode: 'corrupted',
+        report: {
+          readableSceneCount: 0,
+          missingAssetCount: 0,
+          skippedMetadataCount: 0,
+          rescuedCutCount: 0,
+          orphanMetadataCount: 0,
+          projectSchemaVersion: 3,
+          metadataSchemaVersion: 1,
+          normalizationFlags: {
+            sceneIdsAssigned: false,
+            sceneOrderNormalized: false,
+            sceneStructureNormalized: false,
+            metadataNormalized: false,
+          },
+        },
+        issues: [{
+          severity: 'fatal',
+          code: 'project-open-abort',
+          message: 'abort',
+        }],
+      },
+      severity: 'fatal',
+      recommendedAction: 'abort',
+    });
+
+    expect(plan.recentProjects).toEqual(recentProjects);
   });
 });

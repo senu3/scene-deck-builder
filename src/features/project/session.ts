@@ -276,11 +276,19 @@ export interface ProjectStateAssessmentResult {
   assessment: RecoveryAssessment;
 }
 
+export type ProjectMetadataAssessment = Awaited<ReturnType<typeof loadMetadataStoreWithReport>>;
+
+export interface ProjectIntegrityReadState {
+  scenes: Scene[];
+  missingAssets: MissingAssetInfo[];
+  assetIndex: AssetIndexReadResult;
+}
+
 export interface ProjectOpenInputs {
   scenes: Scene[];
   missingAssets: MissingAssetInfo[];
   assetIndex: AssetIndexReadResult;
-  metadataAssessment: Awaited<ReturnType<typeof loadMetadataStoreWithReport>>;
+  metadataAssessment: ProjectMetadataAssessment;
   vaultPathResolution?: LoadedVaultPathResolution;
   structureReport?: LoadedProjectStructureReport;
 }
@@ -410,10 +418,30 @@ export async function readProjectOpenInputs(
   scenes: Scene[],
   vaultPath: string,
   options: {
+    metadataAssessment?: ProjectMetadataAssessment;
     vaultPathResolution?: LoadedVaultPathResolution;
     structureReport?: LoadedProjectStructureReport;
   } = {},
 ): Promise<ProjectOpenInputs> {
+  const readState = await readProjectIntegrityState(scenes, vaultPath);
+  const metadataAssessment = options.metadataAssessment ?? await loadMetadataStoreWithReport(vaultPath, {
+    sceneIds: readState.scenes.map((scene) => scene.id),
+    assetIds: readState.assetIndex.kind === 'readable'
+      ? readState.assetIndex.index.assets.map((entry) => entry.id)
+      : undefined,
+  });
+
+  return buildProjectOpenInputs(readState, {
+    metadataAssessment,
+    vaultPathResolution: options.vaultPathResolution,
+    structureReport: options.structureReport,
+  });
+}
+
+export async function readProjectIntegrityState(
+  scenes: Scene[],
+  vaultPath: string,
+): Promise<ProjectIntegrityReadState> {
   const assetIndex = await readAssetIndexBridge(vaultPath).catch(() => ({
     kind: 'unreadable' as const,
     cause: 'read-asset-index-failed',
@@ -421,16 +449,27 @@ export async function readProjectOpenInputs(
   const resolved = await resolveScenesAssets(scenes, vaultPath, {
     assetIndex: assetIndex.kind === 'readable' ? assetIndex.index : null,
   });
-  const metadataAssessment = await loadMetadataStoreWithReport(vaultPath, {
-    sceneIds: resolved.scenes.map((scene) => scene.id),
-    assetIds: assetIndex.kind === 'readable' ? assetIndex.index.assets.map((entry) => entry.id) : undefined,
-  });
 
   return {
     scenes: resolved.scenes,
     missingAssets: resolved.missingAssets,
     assetIndex,
-    metadataAssessment,
+  };
+}
+
+export function buildProjectOpenInputs(
+  readState: ProjectIntegrityReadState,
+  options: {
+    metadataAssessment: ProjectMetadataAssessment;
+    vaultPathResolution?: LoadedVaultPathResolution;
+    structureReport?: LoadedProjectStructureReport;
+  }
+): ProjectOpenInputs {
+  return {
+    scenes: readState.scenes,
+    missingAssets: readState.missingAssets,
+    assetIndex: readState.assetIndex,
+    metadataAssessment: options.metadataAssessment,
     vaultPathResolution: options.vaultPathResolution,
     structureReport: options.structureReport,
   };
@@ -472,6 +511,21 @@ export function diagnoseProjectOpen(
   };
 }
 
+export async function diagnoseProjectState(
+  scenes: Scene[],
+  vaultPath: string,
+  options?: {
+    rescuedCutCount?: number;
+    projectSchemaVersion?: number;
+    normalizationFlags?: Partial<RecoveryNormalizationFlags>;
+  }
+): Promise<ProjectOpenDiagnosis> {
+  const inputs = await readProjectOpenInputs(scenes, vaultPath, {
+    vaultPathResolution: createProjectFileVaultPathResolution(vaultPath),
+  });
+  return diagnoseProjectOpen(inputs, options);
+}
+
 export async function assessProjectState(
   scenes: Scene[],
   vaultPath: string,
@@ -481,10 +535,7 @@ export async function assessProjectState(
     normalizationFlags?: Partial<RecoveryNormalizationFlags>;
   }
 ): Promise<ProjectStateAssessmentResult> {
-  const inputs = await readProjectOpenInputs(scenes, vaultPath, {
-    vaultPathResolution: createProjectFileVaultPathResolution(vaultPath),
-  });
-  const diagnosis = diagnoseProjectOpen(inputs, options);
+  const diagnosis = await diagnoseProjectState(scenes, vaultPath, options);
 
   return {
     scenes: diagnosis.scenes,
