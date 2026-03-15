@@ -343,12 +343,22 @@ export interface ProjectOpenInputs {
   structureReport?: LoadedProjectStructureReport;
 }
 
+export type ProjectOpenIssueKind =
+  | 'none'
+  | 'missing-assets'
+  | 'missing-index'
+  | 'unreadable-index'
+  | 'invalid-index'
+  | 'vault-link-broken'
+  | 'project-damaged';
+
 export interface ProjectOpenDiagnosis extends ProjectStateAssessmentResult {
   assetIndex: AssetIndexReadResult;
   vaultPathResolution?: LoadedVaultPathResolution;
   structureReport?: LoadedProjectStructureReport;
   severity: 'none' | 'warning' | 'fatal';
   recommendedAction: 'open' | 'recover' | 'abort';
+  issueKind: ProjectOpenIssueKind;
 }
 
 export type ProjectOpenRequestResult =
@@ -529,6 +539,41 @@ export function buildProjectOpenInputs(
   };
 }
 
+function deriveProjectOpenIssueKind(
+  inputs: ProjectOpenInputs,
+  assessment: RecoveryAssessment,
+): ProjectOpenIssueKind {
+  if (inputs.vaultPathResolution?.linkState === 'embedded-mismatch' && inputs.assetIndex.kind !== 'readable') {
+    return 'vault-link-broken';
+  }
+
+  switch (inputs.assetIndex.kind) {
+    case 'missing':
+      return 'missing-index';
+    case 'unreadable':
+      return 'unreadable-index';
+    case 'invalid-schema':
+      return 'invalid-index';
+    default:
+      break;
+  }
+
+  if (
+    inputs.vaultPathResolution?.linkState === 'embedded-invalid'
+    || inputs.vaultPathResolution?.linkState === 'embedded-mismatch'
+    || inputs.structureReport?.normalized
+    || assessment.mode === 'corrupted'
+  ) {
+    return 'project-damaged';
+  }
+
+  if (inputs.missingAssets.length > 0) {
+    return 'missing-assets';
+  }
+
+  return 'none';
+}
+
 export function diagnoseProjectOpen(
   inputs: ProjectOpenInputs,
   options?: {
@@ -552,6 +597,7 @@ export function diagnoseProjectOpen(
   const recommendedAction = severity === 'fatal'
     ? 'abort'
     : (inputs.missingAssets.length > 0 ? 'recover' : 'open');
+  const issueKind = deriveProjectOpenIssueKind(inputs, assessment);
 
   return {
     scenes: inputs.scenes,
@@ -562,6 +608,7 @@ export function diagnoseProjectOpen(
     structureReport: inputs.structureReport,
     severity,
     recommendedAction,
+    issueKind,
   };
 }
 

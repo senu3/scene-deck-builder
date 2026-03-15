@@ -100,6 +100,7 @@ describe('project apply', () => {
       },
       severity: 'none',
       recommendedAction: 'open',
+      issueKind: 'none',
     }));
   });
 
@@ -363,6 +364,7 @@ describe('project apply', () => {
       },
       severity: 'fatal',
       recommendedAction: 'abort',
+      issueKind: 'project-damaged',
     });
 
     expect(plan.recentProjects).toEqual(recentProjects);
@@ -411,6 +413,7 @@ describe('project apply', () => {
       },
       severity: 'none',
       recommendedAction: 'open',
+      issueKind: 'none',
     });
 
     expect(plan.recentProjects).toHaveLength(2);

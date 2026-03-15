@@ -4,6 +4,7 @@ import {
   buildProjectLoadOutcome,
   buildProjectOpenRequestResult,
   createProjectBootstrap,
+  diagnoseProjectOpen,
   loadRecentProjectsWithCleanup,
   parseLoadedProjectForOpen,
   requestProjectFromPath,
@@ -59,6 +60,20 @@ vi.mock('../load', async () => {
 });
 
 describe('project session', () => {
+  const metadataAssessment = {
+    store: { version: 1, metadata: {}, sceneMetadata: {} },
+    report: {
+      metadataSchemaVersion: 1,
+      skippedMetadataCount: 0,
+      orphanMetadataCount: 0,
+      orphanSceneMetadataCount: 0,
+      orphanAssetMetadataCount: 0,
+      normalizedLipSyncCount: 0,
+      invalidRootFallbackCount: 0,
+      normalized: false,
+    },
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(readAssetIndexBridge).mockResolvedValue({
@@ -82,17 +97,8 @@ describe('project session', () => {
     vi.mocked(saveAssetIndexBridge).mockResolvedValue(true);
     vi.mocked(withSerializedAssetIndexMutationBridge).mockImplementation(async (run: () => Promise<unknown>) => run());
     vi.mocked(loadMetadataStoreWithReport).mockResolvedValue({
-      store: { version: 1, metadata: {}, sceneMetadata: {} },
-      report: {
-        metadataSchemaVersion: 1,
-        skippedMetadataCount: 0,
-        orphanMetadataCount: 0,
-        orphanSceneMetadataCount: 0,
-        orphanAssetMetadataCount: 0,
-        normalizedLipSyncCount: 0,
-        invalidRootFallbackCount: 0,
-        normalized: false,
-      },
+      store: metadataAssessment.store,
+      report: metadataAssessment.report,
     });
   });
 
@@ -132,6 +138,46 @@ describe('project session', () => {
     expect(result?.structure).toEqual([
       { name: 'assets', path: 'C:/vault/Test/assets', isDirectory: true },
     ]);
+  });
+
+  it('adds issueKind for invalid asset index without widening recommendedAction', () => {
+    const diagnosis = diagnoseProjectOpen({
+      scenes: [],
+      missingAssets: [],
+      assetIndex: {
+        kind: 'invalid-schema',
+        cause: 'invalid-json',
+      },
+      metadataAssessment,
+    }, {
+      projectSchemaVersion: 3,
+    });
+
+    expect(diagnosis.issueKind).toBe('invalid-index');
+    expect(diagnosis.recommendedAction).toBe('open');
+  });
+
+  it('classifies vault-link-broken as an internal issue kind', () => {
+    const diagnosis = diagnoseProjectOpen({
+      scenes: [],
+      missingAssets: [],
+      assetIndex: {
+        kind: 'unreadable',
+        cause: 'read-failed',
+      },
+      metadataAssessment,
+      vaultPathResolution: {
+        projectFileVaultPath: 'C:/vault',
+        embeddedVaultPath: 'D:/other',
+        effectiveVaultPath: 'C:/vault',
+        linkState: 'embedded-mismatch',
+      },
+    }, {
+      projectSchemaVersion: 3,
+    });
+
+    expect(diagnosis.issueKind).toBe('vault-link-broken');
+    expect(diagnosis.recommendedAction).toBe('open');
   });
 
   it('builds pending load outcome when resolved scenes still have missing assets', async () => {
