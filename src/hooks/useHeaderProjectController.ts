@@ -138,10 +138,7 @@ export function useHeaderProjectController() {
             console.warn('[ProjectSave] Autosave skipped because asset index repair requires confirmation.', preparedAssetIndex.action);
             return;
           }
-          const confirmed = await dialogConfirm({
-            ...buildProjectAssetIndexRepairMessage(preparedAssetIndex.action, 'save'),
-            variant: 'warning',
-          });
+          const confirmed = await dialogConfirm(buildProjectAssetIndexRepairMessage(preparedAssetIndex.action, 'save'));
           if (!confirmed) {
             return;
           }
@@ -423,7 +420,7 @@ export function useHeaderProjectController() {
       if (result.kind === 'repair-required') {
         await dialogAlert({
           title: 'Project Could Not Be Repaired',
-          message: 'The asset index still requires manual repair. Open was canceled.',
+          message: 'The asset index could not be repaired.',
           variant: 'warning',
         });
         return;
@@ -463,10 +460,7 @@ export function useHeaderProjectController() {
     try {
       let result = await openSelectedProject('Loaded Project');
       if (result.kind === 'repair-required') {
-        const confirmed = await dialogConfirm({
-          ...buildProjectAssetIndexRepairMessage(result.action, 'load'),
-          variant: 'warning',
-        });
+        const confirmed = await dialogConfirm(buildProjectAssetIndexRepairMessage(result.action, 'load'));
         if (!confirmed) return;
         result = await openSelectedProject('Loaded Project', { allowRepair: true });
       }

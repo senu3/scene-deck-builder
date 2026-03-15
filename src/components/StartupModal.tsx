@@ -114,12 +114,12 @@ export default function StartupModal() {
 
   const confirmRemoveRecentProject = async (code: string) => {
     const message = code === 'project-file-not-found'
-      ? 'This recent project no longer exists. Remove it from Recent Projects?'
-      : 'This recent project can no longer be opened safely. Remove it from Recent Projects?';
+      ? 'This project file can\'t be found. Remove it from Recent Projects?'
+      : 'This project can\'t be opened. Remove it from Recent Projects?';
     return dialogConfirm({
       title: 'Remove Recent Project?',
       message,
-      variant: 'warning',
+      variant: code === 'project-file-not-found' ? 'info' : 'warning',
       confirmLabel: 'Remove',
       cancelLabel: 'Keep',
     });
@@ -240,10 +240,7 @@ export default function StartupModal() {
     try {
       let result = await openSelectedProject('Loaded Project');
       if (result.kind === 'repair-required') {
-        const confirmed = await dialogConfirm({
-          ...buildProjectAssetIndexRepairMessage(result.action, 'load'),
-          variant: 'warning',
-        });
+        const confirmed = await dialogConfirm(buildProjectAssetIndexRepairMessage(result.action, 'load'));
         if (!confirmed) return;
         result = await openSelectedProject('Loaded Project', { allowRepair: true });
       }
@@ -293,7 +290,7 @@ export default function StartupModal() {
       if (result.kind === 'repair-required') {
         await dialogAlert({
           title: 'Project Could Not Be Repaired',
-          message: 'The asset index still requires manual repair. Open was canceled.',
+          message: 'The asset index could not be repaired.',
           variant: 'warning',
         });
         return;
@@ -338,10 +335,6 @@ export default function StartupModal() {
 
     const exists = await projectPathExists(project.path);
     if (!exists) {
-      await dialogAlert(buildProjectLoadFailureAlert({
-        code: 'project-file-not-found',
-        projectPath: project.path,
-      }));
       const remove = await confirmRemoveRecentProject('project-file-not-found');
       if (remove) {
         await removeRecentProjectEntry(project.path, 'startup-remove-missing-recent');
@@ -353,7 +346,9 @@ export default function StartupModal() {
     try {
       let result = await openProjectAtPath(project.path, project.name);
       if (result.kind === 'failure') {
-        await dialogAlert(buildProjectLoadFailureAlert(result.failure));
+        if (result.failure.code !== 'project-file-not-found') {
+          await dialogAlert(buildProjectLoadFailureAlert(result.failure));
+        }
         if (shouldPromptRecentRemoval(result.failure.code)) {
           const remove = await confirmRemoveRecentProject(result.failure.code);
           if (remove) {
@@ -363,10 +358,7 @@ export default function StartupModal() {
         return;
       }
       if (result.kind === 'repair-required') {
-        const confirmed = await dialogConfirm({
-          ...buildProjectAssetIndexRepairMessage(result.action, 'load'),
-          variant: 'warning',
-        });
+        const confirmed = await dialogConfirm(buildProjectAssetIndexRepairMessage(result.action, 'load'));
         if (!confirmed) {
           return;
         }

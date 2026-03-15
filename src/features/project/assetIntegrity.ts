@@ -219,29 +219,38 @@ export function formatProjectAssetIntegrityMessage(
 export function buildProjectAssetIndexRepairMessage(
   action: Extract<ProjectAssetIndexAction, { kind: 'repair-confirm' }>,
   context: 'load' | 'save'
-): { title: string; message: string; confirmLabel: string; cancelLabel: string } {
+): {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  cancelLabel: string;
+  variant: 'info' | 'warning';
+} {
   if (action.reason === 'index-unreadable') {
     return {
       title: context === 'load' ? 'Repair Asset Index?' : 'Repair Asset Index Before Save?',
-      message: 'The vault contains `assets/.index.json`, but it could not be read. The app can overwrite it using project references, rebuild usage data, and then continue. Unused inventory entries that cannot be read from the current file will be lost.',
+      message: 'The asset index could not be read. Repair it from the project and continue?',
       confirmLabel: context === 'load' ? 'Repair And Open' : 'Repair And Save',
       cancelLabel: 'Cancel',
+      variant: 'warning',
     };
   }
 
   if (action.reason === 'index-invalid-schema') {
     return {
       title: context === 'load' ? 'Repair Asset Index?' : 'Repair Asset Index Before Save?',
-      message: 'The vault contains `assets/.index.json`, but its structure is invalid. The app can overwrite it using project references, rebuild usage data, and then continue. Unused inventory entries that cannot be parsed from the current file will be lost.',
+      message: 'The asset index is damaged. Repair it from the project and continue?',
       confirmLabel: context === 'load' ? 'Repair And Open' : 'Repair And Save',
       cancelLabel: 'Cancel',
+      variant: 'warning',
     };
   }
 
   return {
     title: context === 'load' ? 'Repair Asset Index?' : 'Repair Asset Index Before Save?',
-    message: 'The project references assets that do not fully match `assets/.index.json`. The app can repair referenced entries from the project, rebuild usage data, and keep existing unused inventory entries before continuing.',
+    message: 'The project file and asset index do not match. Repair the asset index and continue?',
     confirmLabel: context === 'load' ? 'Repair And Open' : 'Repair And Save',
     cancelLabel: 'Cancel',
+    variant: 'info',
   };
 }
