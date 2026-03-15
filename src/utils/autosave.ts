@@ -1,49 +1,17 @@
-import type { CutRuntimeState, Scene, SourcePanelState } from '../types';
-import type { PersistedCutRuntimeById } from './projectSave';
-import { collectPersistedCutRuntimeById } from './projectSave';
+import {
+  buildPersistedSnapshot,
+  hasPersistedSnapshotChanged,
+  serializePersistedSnapshot,
+  type PersistedProjectSnapshot,
+  type PersistedProjectStateLike,
+} from '../features/project/persistedSnapshot';
 
-export interface ProjectSaveSnapshot {
-  name: string;
-  vaultPath: string | null;
-  scenes: Scene[];
-  sceneOrder: string[];
-  cutRuntimeById?: PersistedCutRuntimeById;
-  targetTotalDurationSec?: number;
-  sourcePanel: SourcePanelState | undefined;
-}
+export type ProjectSaveSnapshot = PersistedProjectSnapshot;
+export type ProjectStateLike = PersistedProjectStateLike;
 
-export interface ProjectStateLike {
-  projectName: string;
-  vaultPath: string | null;
-  scenes: Scene[];
-  sceneOrder: string[];
-  cutRuntimeById?: Record<string, CutRuntimeState>;
-  targetTotalDurationSec?: number;
-  getSourcePanelState?: () => SourcePanelState;
-  sourcePanelState?: SourcePanelState;
-}
-
-export function pickProjectStateForSave(state: ProjectStateLike): ProjectSaveSnapshot {
-  const sourcePanel = state.getSourcePanelState ? state.getSourcePanelState() : state.sourcePanelState;
-  const persistedCutRuntimeById = collectPersistedCutRuntimeById(state.cutRuntimeById, state.scenes);
-  return {
-    name: state.projectName,
-    vaultPath: state.vaultPath,
-    scenes: state.scenes,
-    sceneOrder: state.sceneOrder,
-    cutRuntimeById: Object.keys(persistedCutRuntimeById).length > 0 ? persistedCutRuntimeById : undefined,
-    targetTotalDurationSec: state.targetTotalDurationSec,
-    sourcePanel,
-  };
-}
-
-export function serializeProjectSnapshot(snapshot: ProjectSaveSnapshot): string {
-  return JSON.stringify(snapshot);
-}
-
-export function isProjectDirty(prev: ProjectSaveSnapshot, next: ProjectSaveSnapshot): boolean {
-  return serializeProjectSnapshot(prev) !== serializeProjectSnapshot(next);
-}
+export const pickProjectStateForSave = buildPersistedSnapshot;
+export const serializeProjectSnapshot = serializePersistedSnapshot;
+export const isProjectDirty = hasPersistedSnapshotChanged;
 
 export function subscribeProjectChanges(
   store: { subscribe: (listener: (state: ProjectStateLike, prevState: ProjectStateLike) => void) => () => void },

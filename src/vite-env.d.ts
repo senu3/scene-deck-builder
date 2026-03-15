@@ -419,7 +419,9 @@ interface ElectronAPI {
   // App menu events
   onToggleSidebar: (callback: () => void) => () => void;
   onAutosaveFlushRequest: (callback: () => void | Promise<void>) => () => void;
+  onAppCloseRequest: (callback: () => void | Promise<void>) => () => void;
   notifyAutosaveFlushed: () => void;
+  respondToAppCloseRequest: (allowed: boolean) => void;
   setAutosaveEnabled: (enabled: boolean) => Promise<boolean>;
   reportRendererError?: (payload: Record<string, unknown>) => void;
 }

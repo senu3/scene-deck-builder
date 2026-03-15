@@ -577,10 +577,18 @@ export function onAutosaveFlushRequestBridge(callback: () => void | Promise<void
   return getElectronAPI()?.onAutosaveFlushRequest?.(callback) ?? null;
 }
 
+export function onAppCloseRequestBridge(callback: () => void | Promise<void>): (() => void) | null {
+  return getElectronAPI()?.onAppCloseRequest?.(callback) ?? null;
+}
+
 export function onToggleSidebarBridge(callback: () => void): (() => void) | null {
   return getElectronAPI()?.onToggleSidebar?.(callback) ?? null;
 }
 
 export function notifyAutosaveFlushedBridge(): void {
   getElectronAPI()?.notifyAutosaveFlushed?.();
+}
+
+export function respondToAppCloseRequestBridge(allowed: boolean): void {
+  getElectronAPI()?.respondToAppCloseRequest?.(allowed);
 }

@@ -43,6 +43,7 @@ export const useStore = create<AppState>((set, get) => ({
   vaultPath: null,
   trashPath: null,
   projectName: 'Untitled Project',
+  lastPersistedSnapshot: null,
   targetTotalDurationSec: undefined,
   metadataStore: null,
 

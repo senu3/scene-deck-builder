@@ -24,6 +24,7 @@ import type {
   StoreEventContract,
   SourceFolderContract,
 } from './contracts';
+import type { PersistedProjectSnapshot } from '../features/project/persistedSnapshot';
 
 export interface SourceFolder extends SourceFolderContract {}
 
@@ -53,6 +54,7 @@ export interface AppState
   vaultPath: string | null;
   trashPath: string | null;
   projectName: string;
+  lastPersistedSnapshot: PersistedProjectSnapshot | null;
   targetTotalDurationSec?: number;
 
   metadataStore: MetadataStore | null;

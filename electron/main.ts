@@ -15,11 +15,15 @@ const IPC_TOGGLE_SIDEBAR = 'toggle-sidebar';
 const IPC_AUTOSAVE_FLUSH_REQUEST = 'autosave-flush-request';
 const IPC_AUTOSAVE_FLUSH_COMPLETE = 'autosave-flush-complete';
 const IPC_AUTOSAVE_ENABLED = 'autosave-enabled';
+const IPC_APP_CLOSE_REQUEST = 'app-close-request';
+const IPC_APP_CLOSE_RESPONSE = 'app-close-response';
 const IPC_RENDERER_ERROR_REPORT = 'renderer-error-report';
 
 let mainWindow: BrowserWindow | null = null;
 let isQuitting = false;
 let autosaveEnabled = false;
+let closeApprovalInProgress = false;
+let closeApprovalTimer: NodeJS.Timeout | null = null;
 let autosaveFlushInProgress = false;
 let autosaveFlushTimer: NodeJS.Timeout | null = null;
 let runtimeLogPathCache: string | null = null;
@@ -635,34 +639,79 @@ function createWindow() {
 
   mainWindow.on('close', (event) => {
     if (isQuitting) return;
-    if (!autosaveEnabled) return;
-    if (autosaveFlushInProgress) return;
+    if (closeApprovalInProgress || autosaveFlushInProgress) {
+      event.preventDefault();
+      return;
+    }
 
     event.preventDefault();
-    autosaveFlushInProgress = true;
-    mainWindow?.webContents.send(IPC_AUTOSAVE_FLUSH_REQUEST);
+    closeApprovalInProgress = true;
+
+    const clearCloseApproval = () => {
+      closeApprovalInProgress = false;
+      if (closeApprovalTimer) {
+        clearTimeout(closeApprovalTimer);
+        closeApprovalTimer = null;
+      }
+    };
 
     const finalizeClose = () => {
-      if (!autosaveFlushInProgress) return;
-      autosaveFlushInProgress = false;
+      if (autosaveFlushInProgress) {
+        autosaveFlushInProgress = false;
+      }
       if (autosaveFlushTimer) {
         clearTimeout(autosaveFlushTimer);
         autosaveFlushTimer = null;
       }
+      clearCloseApproval();
       if (!mainWindow) return;
       isQuitting = true;
       mainWindow.close();
     };
 
-    ipcMain.once(IPC_AUTOSAVE_FLUSH_COMPLETE, () => {
-      finalizeClose();
-    });
+    const beginAutosaveFlushOrClose = () => {
+      if (!autosaveEnabled) {
+        finalizeClose();
+        return;
+      }
 
-    autosaveFlushTimer = setTimeout(() => {
-      console.warn('[Autosave] Flush timed out, closing anyway.');
-      writeRuntimeLog('WARN', 'autosave-flush-timeout');
-      finalizeClose();
+      autosaveFlushInProgress = true;
+      mainWindow?.webContents.send(IPC_AUTOSAVE_FLUSH_REQUEST);
+
+      const handleFlushComplete = () => {
+        ipcMain.removeListener(IPC_AUTOSAVE_FLUSH_COMPLETE, handleFlushComplete);
+        finalizeClose();
+      };
+
+      ipcMain.on(IPC_AUTOSAVE_FLUSH_COMPLETE, handleFlushComplete);
+
+      autosaveFlushTimer = setTimeout(() => {
+        ipcMain.removeListener(IPC_AUTOSAVE_FLUSH_COMPLETE, handleFlushComplete);
+        console.warn('[Autosave] Flush timed out, closing anyway.');
+        writeRuntimeLog('WARN', 'autosave-flush-timeout');
+        finalizeClose();
+      }, 5000);
+    };
+
+    const handleCloseApproval = (_event: Electron.IpcMainEvent, allowed: boolean) => {
+      ipcMain.removeListener(IPC_APP_CLOSE_RESPONSE, handleCloseApproval);
+      if (!allowed) {
+        clearCloseApproval();
+        return;
+      }
+      clearCloseApproval();
+      beginAutosaveFlushOrClose();
+    };
+
+    ipcMain.on(IPC_APP_CLOSE_RESPONSE, handleCloseApproval);
+
+    closeApprovalTimer = setTimeout(() => {
+      ipcMain.removeListener(IPC_APP_CLOSE_RESPONSE, handleCloseApproval);
+      writeRuntimeLog('WARN', 'app-close-approval-timeout');
+      clearCloseApproval();
     }, 5000);
+
+    mainWindow?.webContents.send(IPC_APP_CLOSE_REQUEST);
   });
 
   mainWindow.on('closed', () => {
@@ -768,9 +817,14 @@ app.on('child-process-gone', (_event, details) => {
   writeRuntimeLog('ERROR', 'app-child-process-gone', { details: details as unknown as Record<string, unknown> });
 });
 
-app.on('before-quit', () => {
+app.on('before-quit', (event) => {
   writeRuntimeLog('INFO', 'app-before-quit');
-  isQuitting = true;
+  if (isQuitting || mainWindow === null) {
+    isQuitting = true;
+    return;
+  }
+  event.preventDefault();
+  mainWindow.close();
 });
 
 app.on('window-all-closed', () => {

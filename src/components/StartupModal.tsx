@@ -46,6 +46,7 @@ import {
   getRecoveryAssessmentNotices,
 } from '../features/project/recoveryAssessment';
 import { buildProjectAssetIndexRepairMessage } from '../features/project/assetIntegrity';
+import { buildPersistedSnapshot } from '../features/project/persistedSnapshot';
 import {
   removeRecentProjectsByPath,
 } from '../features/project/recentProjects';
@@ -70,6 +71,7 @@ export default function StartupModal() {
     setRootFolder,
     initializeSourcePanel,
     loadMetadata,
+    setLastPersistedSnapshot,
     setProjectPath,
     setCutRuntimeHold,
     createStoreEventOperation,
@@ -207,12 +209,14 @@ export default function StartupModal() {
 
         // Initialize source panel with default vault assets folder
         await initializeSourcePanel(undefined, bootstrap.vaultPath);
+        setLastPersistedSnapshot(buildPersistedSnapshot(useStore.getState()));
       } else {
         // Demo mode
         initializeProject({
           name: projectName,
           vaultPath: '/demo/vault/' + projectName,
         });
+        setLastPersistedSnapshot(buildPersistedSnapshot(useStore.getState()));
       }
     } catch (error) {
       console.error('Failed to create project:', error);
@@ -258,6 +262,7 @@ export default function StartupModal() {
       runWithStoreEventContext,
       emitCutRelinked,
     }, recoveryDecisions);
+    setLastPersistedSnapshot(buildPersistedSnapshot(useStore.getState()));
 
     setRecentProjects(result.persistencePlan.recentProjects);
     logFeatureEffectWarnings('startup-save-recents', result.recentSaveResult);

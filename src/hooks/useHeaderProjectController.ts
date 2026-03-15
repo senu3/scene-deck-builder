@@ -31,9 +31,14 @@ import {
   type ProjectOpenRequestResult,
 } from '../features/project/session';
 import {
+  buildProjectCloseConfirmContent,
+  getCloseGuardResult,
+} from '../features/project/closeGuard';
+import {
   buildProjectAssetIndexRepairMessage,
   formatProjectAssetIntegrityMessage,
 } from '../features/project/assetIntegrity';
+import { buildPersistedSnapshot } from '../features/project/persistedSnapshot';
 import { upsertRecentProjectEntry } from '../features/project/recentProjects';
 import {
   prepareProjectAssetIndexState,
@@ -75,11 +80,12 @@ export function useHeaderProjectController() {
     getAsset,
     clearProject,
     projectName,
+    lastPersistedSnapshot,
     targetTotalDurationSec,
     cutRuntimeById,
     metadataStore,
-    setProjectLoaded,
     setProjectPath,
+    setLastPersistedSnapshot,
     initializeProject,
     getSourcePanelState,
     initializeSourcePanel,
@@ -284,6 +290,15 @@ export function useHeaderProjectController() {
 
     // Get source panel state for saving
     const sourcePanelState = getSourcePanelState();
+    const persistedSnapshot = buildPersistedSnapshot({
+      projectName,
+      vaultPath,
+      scenes: normalizedScenes,
+      sceneOrder: normalizedSceneOrder,
+      cutRuntimeById,
+      targetTotalDurationSec,
+      sourcePanelState,
+    });
 
     // Reorder asset index by Storyline order (scene/cut order)
     if (vaultPath && newIndex) {
@@ -342,6 +357,7 @@ export function useHeaderProjectController() {
 
     if (targetProjectPath && !hasFailedEffect(saveResult, 'SAVE_PROJECT')) {
       setProjectPath(targetProjectPath);
+      setLastPersistedSnapshot(persistedSnapshot);
       if (options?.notify !== false) {
         await dialogAlert({
           title: 'Saved',
@@ -350,7 +366,7 @@ export function useHeaderProjectController() {
         });
       }
     }
-  }, [cutRuntimeById, dialogAlert, dialogConfirm, getAsset, getSourcePanelState, loadProject, metadataStore, projectName, projectPath, sceneOrder, scenes, setProjectPath, targetTotalDurationSec, vaultPath]);
+  }, [cutRuntimeById, dialogAlert, dialogConfirm, getAsset, getSourcePanelState, loadProject, metadataStore, projectName, projectPath, sceneOrder, scenes, setLastPersistedSnapshot, setProjectPath, targetTotalDurationSec, vaultPath]);
 
   const handleSaveProject = useCallback(async () => {
     await saveProjectInternal();
@@ -388,6 +404,7 @@ export function useHeaderProjectController() {
         variant: 'warning',
       });
     }
+    setLastPersistedSnapshot(buildPersistedSnapshot(useStore.getState()));
   }, [
     createStoreEventOperation,
     dialogAlert,
@@ -397,6 +414,7 @@ export function useHeaderProjectController() {
     loadMetadata,
     runWithStoreEventContext,
     setCutRuntimeHold,
+    setLastPersistedSnapshot,
     setProjectPath,
   ]);
 
@@ -472,29 +490,46 @@ export function useHeaderProjectController() {
   }, [applyProjectOpenResult, dialogAlert, showUnexpectedProjectLoadAlert]);
 
   const handleCloseProject = useCallback(async () => {
-    const confirmed = await dialogConfirm({
-      title: 'Open Project',
-      message: 'Return to the startup screen? Any unsaved changes will be lost.',
-      variant: 'danger',
-      confirmLabel: 'Open Project',
-      cancelLabel: 'Cancel',
+    const result = getCloseGuardResult({
+      projectLoaded,
+      lastPersistedSnapshot,
+      currentProject: {
+        projectName,
+        vaultPath,
+        scenes,
+        sceneOrder,
+        cutRuntimeById,
+        targetTotalDurationSec,
+        getSourcePanelState,
+      },
+      target: 'project',
     });
-    if (!confirmed) return;
+    if (result.kind === 'blocked') return;
+    if (result.kind === 'confirm-warning') {
+      const confirmed = await dialogConfirm({
+        ...buildProjectCloseConfirmContent('project'),
+        variant: 'warning',
+      });
+      if (!confirmed) return;
+    }
     clearProject();
-    setProjectLoaded(false);
-  }, [clearProject, dialogConfirm, setProjectLoaded]);
+  }, [
+    clearProject,
+    cutRuntimeById,
+    dialogConfirm,
+    getSourcePanelState,
+    lastPersistedSnapshot,
+    projectLoaded,
+    projectName,
+    sceneOrder,
+    scenes,
+    targetTotalDurationSec,
+    vaultPath,
+  ]);
 
   const handleCloseApp = useCallback(async () => {
-    const confirmed = await dialogConfirm({
-      title: 'Close App',
-      message: 'Close the app? Any unsaved changes will be lost.',
-      variant: 'danger',
-      confirmLabel: 'Close',
-      cancelLabel: 'Cancel',
-    });
-    if (!confirmed) return;
     window.close();
-  }, [dialogConfirm]);
+  }, []);
 
   const disableAutosave = import.meta.env.VITE_DISABLE_AUTOSAVE === '1';
   const autosaveActive = projectLoaded && !!vaultPath && !disableAutosave;

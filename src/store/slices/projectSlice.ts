@@ -8,6 +8,7 @@ import {
   checkPathExistsForSourcePanel,
   readFolderContentsForSourcePanel,
 } from '../../features/project/sourcePanelProvider';
+import type { PersistedProjectSnapshot } from '../../features/project/persistedSnapshot';
 import type { SourceFolder } from '../stateTypes';
 import type { ProjectSliceContract } from '../contracts';
 import type { SliceGet, SliceSet } from './sliceTypes';
@@ -56,6 +57,7 @@ export function createProjectSlice(set: SliceSet, get: SliceGet): ProjectSliceCo
     setVaultPath: (path) => set({ vaultPath: path }),
     setTrashPath: (path) => set({ trashPath: path }),
     setProjectName: (name) => set({ projectName: name }),
+    setLastPersistedSnapshot: (snapshot: PersistedProjectSnapshot | null) => set({ lastPersistedSnapshot: snapshot }),
     setTargetTotalDurationSec: (seconds) =>
       set({
         targetTotalDurationSec:
@@ -80,6 +82,7 @@ export function createProjectSlice(set: SliceSet, get: SliceGet): ProjectSliceCo
         vaultPath: project.vaultPath || null,
         trashPath: project.vaultPath ? `${project.vaultPath}/.trash` : null,
         projectName: project.name || 'Untitled Project',
+        lastPersistedSnapshot: null,
         targetTotalDurationSec:
           Number.isFinite(project.targetTotalDurationSec) && (project.targetTotalDurationSec as number) > 0
             ? Math.floor(project.targetTotalDurationSec as number)
@@ -106,6 +109,7 @@ export function createProjectSlice(set: SliceSet, get: SliceGet): ProjectSliceCo
         vaultPath: null,
         trashPath: null,
         projectName: 'Untitled Project',
+        lastPersistedSnapshot: null,
         targetTotalDurationSec: undefined,
         metadataStore: null,
         scenes: [],

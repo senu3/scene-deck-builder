@@ -20,6 +20,7 @@ import type {
 import type { CutImportSource } from '../utils/cutImport';
 import type { AssetRef } from '../utils/assetRefs';
 import type { AppEffectWarning } from '../features/platform/effects';
+import type { PersistedProjectSnapshot } from '../features/project/persistedSnapshot';
 import type {
   StoreEvent,
   StoreEventInput,
@@ -39,6 +40,7 @@ export interface ProjectSliceContract {
   setVaultPath: (path: string | null) => void;
   setTrashPath: (path: string | null) => void;
   setProjectName: (name: string) => void;
+  setLastPersistedSnapshot: (snapshot: PersistedProjectSnapshot | null) => void;
   setTargetTotalDurationSec: (seconds: number | undefined) => void;
   initializeProject: (project: Partial<Project>) => void;
   clearProject: () => void;

@@ -3,6 +3,8 @@ const IPC_TOGGLE_SIDEBAR = 'toggle-sidebar';
 const IPC_AUTOSAVE_FLUSH_REQUEST = 'autosave-flush-request';
 const IPC_AUTOSAVE_FLUSH_COMPLETE = 'autosave-flush-complete';
 const IPC_AUTOSAVE_ENABLED = 'autosave-enabled';
+const IPC_APP_CLOSE_REQUEST = 'app-close-request';
+const IPC_APP_CLOSE_RESPONSE = 'app-close-response';
 const IPC_RENDERER_ERROR_REPORT = 'renderer-error-report';
 
 type ProjectFileLoadErrorCode =
@@ -535,8 +537,18 @@ const electronAPI = {
     ipcRenderer.on(IPC_AUTOSAVE_FLUSH_REQUEST, handler);
     return () => ipcRenderer.removeListener(IPC_AUTOSAVE_FLUSH_REQUEST, handler);
   },
+  onAppCloseRequest: (callback: () => void | Promise<void>): (() => void) => {
+    const handler = () => {
+      void callback();
+    };
+    ipcRenderer.on(IPC_APP_CLOSE_REQUEST, handler);
+    return () => ipcRenderer.removeListener(IPC_APP_CLOSE_REQUEST, handler);
+  },
   notifyAutosaveFlushed: (): void => {
     ipcRenderer.send(IPC_AUTOSAVE_FLUSH_COMPLETE);
+  },
+  respondToAppCloseRequest: (allowed: boolean): void => {
+    ipcRenderer.send(IPC_APP_CLOSE_RESPONSE, allowed);
   },
   setAutosaveEnabled: (enabled: boolean): Promise<boolean> =>
     ipcRenderer.invoke(IPC_AUTOSAVE_ENABLED, enabled),
