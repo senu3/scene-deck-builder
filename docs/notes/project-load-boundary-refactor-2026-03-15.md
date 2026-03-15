@@ -2,8 +2,9 @@
 
 ## TL;DR
 - `assets/.index.json` の読込は empty fallback をやめ、`readable | missing | unreadable | invalid-schema` を返す。
-- project open は `readProjectOpenInputs -> diagnoseProjectOpen -> buildProjectLoadOutcome` の3段へ分ける。
-- load/save は同じ integrity evaluator を共有し、UI outcome は共有しすぎない。
+- project open は `readProjectIntegrityState -> readProjectOpenInputs -> diagnoseProjectOpen -> buildProjectLoadOutcome` の流れに分ける。
+- load/save は同じ integrity evaluator だけでなく、asset/index 読込も共有する。
+- recent 更新は post-load diagnosis が `abort` でない場合だけ行う。
 
 ## 目的
 project load/save 周辺で I/O 失敗と診断結果が混ざっていたため、`.index.json` 破損や project-vault link 問題を追加修正しづらい状態を解消する。
@@ -29,19 +30,22 @@ project load/save 周辺で I/O 失敗と診断結果が混ざっていたため
 ## 今回固定した境界
 - `readAssetIndex`
   - main/preload/renderer で `AssetIndexReadResult` を通す。
+- `readProjectIntegrityState`
+  - asset index 読込と scene asset 解決だけを担う共有 read model。
 - `readProjectOpenInputs`
-  - asset index 読込、scene asset 解決、metadata assessment の read-only I/O を担う。
+  - shared read model に metadata assessment を合成して load diagnosis 入力を作る。
 - `diagnoseProjectOpen`
   - read 済み入力から `RecoveryAssessment` と推奨 action を作る。
 - `buildProjectLoadOutcome`
   - project payload 化と UI 向け `ready/pending/corrupted` 変換のみを担う。
 
 ## 保存側の扱い
-- save/autosave は `createProjectIntegrityAssessment` を共有利用する。
-- ただし UI outcome は load と共有しない。
+- save/autosave は `readProjectIntegrityState + diagnoseProjectOpen` を使う。
+- metadata assessment だけは save 側で in-memory store を渡す。
+- UI outcome は load と共有しない。
 - `assetIndex.kind !== 'readable'` のときは save を止める。autosave では黙って skip する。
 
 ## 未解決
 - project-vault repair planner 自体は別件。
-- recent 更新条件のさらなる厳格化は repair 仕様と一緒に詰める。
+- repair/relink 導線が入ったときの `recommendedAction` 粒度は再設計が必要。
 - `readAssetIndex` へ寄せた後の docs 文言整理は継続対象。
