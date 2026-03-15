@@ -255,20 +255,74 @@ function normalizePathForCompare(p: string): string {
   return p.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
 }
 
-export function resolveLoadedVaultPath(projectVaultPath: unknown, projectPath: string): string {
-  const fromProjectFile = getVaultPathFromProjectFile(projectPath);
-  if (typeof projectVaultPath !== 'string' || projectVaultPath.trim().length === 0) {
-    return fromProjectFile;
+export type LoadedVaultPathLinkState =
+  | 'project-file'
+  | 'embedded-matched'
+  | 'embedded-missing'
+  | 'embedded-invalid'
+  | 'embedded-mismatch';
+
+export interface LoadedVaultPathResolution {
+  projectFileVaultPath: string;
+  embeddedVaultPath?: string;
+  effectiveVaultPath: string;
+  linkState: LoadedVaultPathLinkState;
+}
+
+export function createProjectFileVaultPathResolution(vaultPath: string): LoadedVaultPathResolution {
+  return {
+    projectFileVaultPath: vaultPath,
+    effectiveVaultPath: vaultPath,
+    linkState: 'project-file',
+  };
+}
+
+export function resolveLoadedVaultPath(projectVaultPath: unknown, projectPath: string): LoadedVaultPathResolution {
+  const projectFileVaultPath = getVaultPathFromProjectFile(projectPath);
+  if (projectVaultPath === undefined || projectVaultPath === null) {
+    return {
+      projectFileVaultPath,
+      effectiveVaultPath: projectFileVaultPath,
+      linkState: 'embedded-missing',
+    };
   }
-  if (normalizePathForCompare(projectVaultPath) !== normalizePathForCompare(fromProjectFile)) {
-    console.warn('[ProjectLoad] vaultPath mismatch. Using project file directory.', {
+  if (typeof projectVaultPath !== 'string') {
+    return {
+      projectFileVaultPath,
+      effectiveVaultPath: projectFileVaultPath,
+      linkState: 'embedded-invalid',
+    };
+  }
+
+  const trimmedEmbeddedVaultPath = projectVaultPath.trim();
+  if (trimmedEmbeddedVaultPath.length === 0) {
+    return {
+      projectFileVaultPath,
       embeddedVaultPath: projectVaultPath,
-      projectFileDir: fromProjectFile,
+      effectiveVaultPath: projectFileVaultPath,
+      linkState: 'embedded-invalid',
+    };
+  }
+
+  if (normalizePathForCompare(trimmedEmbeddedVaultPath) !== normalizePathForCompare(projectFileVaultPath)) {
+    console.warn('[ProjectLoad] vaultPath mismatch. Using project file directory.', {
+      embeddedVaultPath: trimmedEmbeddedVaultPath,
+      projectFileDir: projectFileVaultPath,
       projectPath,
     });
-    return fromProjectFile;
+    return {
+      projectFileVaultPath,
+      embeddedVaultPath: trimmedEmbeddedVaultPath,
+      effectiveVaultPath: projectFileVaultPath,
+      linkState: 'embedded-mismatch',
+    };
   }
-  return projectVaultPath;
+  return {
+    projectFileVaultPath,
+    embeddedVaultPath: trimmedEmbeddedVaultPath,
+    effectiveVaultPath: trimmedEmbeddedVaultPath,
+    linkState: 'embedded-matched',
+  };
 }
 
 export async function applyRecoveryDecisionsToScenes(

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   commitRecoverySceneChanges,
   planRecoverySceneChanges,
+  resolveLoadedVaultPath,
   resolveScenesAssets,
 } from '../load';
 
@@ -111,6 +112,15 @@ describe('project load recovery helpers', () => {
         path: '',
       }),
     }));
+  });
+
+  it('preserves vault mismatch evidence while using the project file directory as effective path', () => {
+    expect(resolveLoadedVaultPath('D:/other-vault', 'C:/vault/project.sdp')).toEqual({
+      projectFileVaultPath: 'C:/vault',
+      embeddedVaultPath: 'D:/other-vault',
+      effectiveVaultPath: 'C:/vault',
+      linkState: 'embedded-mismatch',
+    });
   });
 
   it('plans relinks as value-only data without drafted asset state', async () => {

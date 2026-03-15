@@ -20,8 +20,12 @@ import {
 import type { ProjectLoadFailure } from './loadFailure';
 import { type RecoveryAssessment, type RecoveryNormalizationFlags } from './recoveryAssessment';
 import { createProjectIntegrityAssessment } from './integrity';
-import { resolveLoadedVaultPath, resolveScenesAssets } from './load';
-
+import {
+  createProjectFileVaultPathResolution,
+  resolveLoadedVaultPath,
+  resolveScenesAssets,
+  type LoadedVaultPathResolution,
+} from './load';
 function normalizeLoadedScenesInput(scenes: LoadedProjectData['scenes']): { scenes: Scene[]; normalized: boolean } {
   if (!Array.isArray(scenes)) {
     return {
@@ -204,10 +208,12 @@ export interface ProjectOpenInputs {
   missingAssets: MissingAssetInfo[];
   assetIndex: AssetIndexReadResult;
   metadataAssessment: Awaited<ReturnType<typeof loadMetadataStoreWithReport>>;
+  vaultPathResolution?: LoadedVaultPathResolution;
 }
 
 export interface ProjectOpenDiagnosis extends ProjectStateAssessmentResult {
   assetIndex: AssetIndexReadResult;
+  vaultPathResolution?: LoadedVaultPathResolution;
   severity: 'none' | 'warning' | 'fatal';
   recommendedAction: 'open' | 'recover' | 'abort';
 }
@@ -328,6 +334,9 @@ export async function projectPathExists(projectPath: string): Promise<boolean> {
 export async function readProjectOpenInputs(
   scenes: Scene[],
   vaultPath: string,
+  options: {
+    vaultPathResolution?: LoadedVaultPathResolution;
+  } = {},
 ): Promise<ProjectOpenInputs> {
   const assetIndex = await readAssetIndexBridge(vaultPath).catch(() => ({
     kind: 'unreadable' as const,
@@ -346,6 +355,7 @@ export async function readProjectOpenInputs(
     missingAssets: resolved.missingAssets,
     assetIndex,
     metadataAssessment,
+    vaultPathResolution: options.vaultPathResolution,
   };
 }
 
@@ -378,6 +388,7 @@ export function diagnoseProjectOpen(
     missingAssets: inputs.missingAssets,
     assessment,
     assetIndex: inputs.assetIndex,
+    vaultPathResolution: inputs.vaultPathResolution,
     severity,
     recommendedAction,
   };
@@ -392,7 +403,9 @@ export async function assessProjectState(
     normalizationFlags?: Partial<RecoveryNormalizationFlags>;
   }
 ): Promise<ProjectStateAssessmentResult> {
-  const inputs = await readProjectOpenInputs(scenes, vaultPath);
+  const inputs = await readProjectOpenInputs(scenes, vaultPath, {
+    vaultPathResolution: createProjectFileVaultPathResolution(vaultPath),
+  });
   const diagnosis = diagnoseProjectOpen(inputs, options);
 
   return {
@@ -428,9 +441,15 @@ export async function buildProjectLoadOutcome(
   }
 
   try {
-    const loadedVaultPath = resolveLoadedVaultPath(projectData.vaultPath, projectPath);
+    const vaultPathResolution = resolveLoadedVaultPath(projectData.vaultPath, projectPath);
     const normalizedScenes = normalizeLoadedScenesInput(projectData.scenes);
-    const openInputs = await readProjectOpenInputs(normalizedScenes.scenes, loadedVaultPath);
+    const openInputs = await readProjectOpenInputs(
+      normalizedScenes.scenes,
+      vaultPathResolution.effectiveVaultPath,
+      {
+        vaultPathResolution,
+      }
+    );
     const diagnosis = diagnoseProjectOpen(openInputs, {
       projectSchemaVersion: 3,
       normalizationFlags: {
@@ -440,7 +459,7 @@ export async function buildProjectLoadOutcome(
 
     const payload: PendingProject = {
       name: normalizeLoadedProjectName(projectData.name, fallbackName),
-      vaultPath: loadedVaultPath,
+      vaultPath: vaultPathResolution.effectiveVaultPath,
       scenes: diagnosis.scenes,
       sceneOrder: normalizeLoadedSceneOrder(projectData.sceneOrder),
       targetTotalDurationSec: typeof projectData.targetTotalDurationSec === 'number' ? projectData.targetTotalDurationSec : undefined,
