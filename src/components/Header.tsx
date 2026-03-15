@@ -1,5 +1,5 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
-import { Clapperboard, FolderOpen, Save, MoreVertical, Undo, Redo, X, Play, Download, Clock, Layers, Film, Settings } from 'lucide-react';
+import { Clapperboard, ArrowLeft, Save, MoreVertical, Undo, Redo, X, Play, Download, Clock, Layers, Film, Settings } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { useHistoryStore } from '../store/historyStore';
 import { Input } from '../ui';
@@ -222,7 +222,7 @@ export default function Header({ onOpenSettings, onPreview, onExport, isExportin
                     <span>{isExporting ? 'Exporting...' : 'Export'}</span>
                   </button>
                   <button onClick={() => { handleCloseProject(); setShowMoreMenu(false); }} title="Close Project">
-                    <FolderOpen size={16} />
+                    <ArrowLeft size={16} />
                     <span>Close Project</span>
                   </button>
                   <div className="menu-divider" />

@@ -359,14 +359,10 @@ export function useHeaderProjectController() {
       setProjectPath(targetProjectPath);
       setLastPersistedSnapshot(persistedSnapshot);
       if (options?.notify !== false) {
-        await dialogAlert({
-          title: 'Saved',
-          message: 'Project saved successfully.',
-          variant: 'info',
-        });
+        toast.success('Project saved');
       }
     }
-  }, [cutRuntimeById, dialogAlert, dialogConfirm, getAsset, getSourcePanelState, loadProject, metadataStore, projectName, projectPath, sceneOrder, scenes, setLastPersistedSnapshot, setProjectPath, targetTotalDurationSec, vaultPath]);
+  }, [cutRuntimeById, dialogAlert, dialogConfirm, getAsset, getSourcePanelState, loadProject, metadataStore, projectName, projectPath, sceneOrder, scenes, setLastPersistedSnapshot, setProjectPath, targetTotalDurationSec, toast, vaultPath]);
 
   const handleSaveProject = useCallback(async () => {
     await saveProjectInternal();
