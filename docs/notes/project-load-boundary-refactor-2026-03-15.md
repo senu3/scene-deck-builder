@@ -6,6 +6,8 @@
 - load/save は同じ integrity evaluator だけでなく、asset/index 読込も共有する。
 - recent 更新は open 成功時と manual save 成功時だけ行い、identity は normalized `project.sdp` path を使う。
 - asset index planner は `load | repair-silent | repair-confirm | block` を返し、open/save の confirm 分岐を UI から分離する。
+- 外向き `recommendedAction` は `open | recover | abort` のまま維持し、細かい診断理由は `issueKind` へ寄せる。
+- 通常 open repair は asset index repair より先へ広げず、project 破損時は recovery import 導線へ送る。
 
 ## 目的
 project load/save 周辺で I/O 失敗と診断結果が混ざっていたため、`.index.json` 破損や project-vault link 問題を追加修正しづらい状態を解消する。
@@ -35,10 +37,12 @@ project load/save 周辺で I/O 失敗と診断結果が混ざっていたため
   - asset index 読込と scene asset 解決だけを担う共有 read model。
 - `prepareProjectAssetIndexState`
   - `assetId` 整合 / usage mismatch / project seed からの repair 可否を評価し、asset index action を返す。
+  - repair の責務は最小限に留め、inventory 全置換や timeline 再構成までは持ち込まない。
 - `readProjectOpenInputs`
   - shared read model に metadata assessment を合成して load diagnosis 入力を作る。
 - `diagnoseProjectOpen`
   - read 済み入力から `RecoveryAssessment` と推奨 action を作る。
+  - `recommendedAction` は増やさず、内向き分類は `issueKind` に載せる。
 - `buildProjectLoadOutcome`
   - project payload 化と UI 向け `ready/pending/corrupted` 変換のみを担う。
 
@@ -51,7 +55,6 @@ project load/save 周辺で I/O 失敗と診断結果が混ざっていたため
 - `assetIndex.kind !== 'readable'` のときは save を止める。autosave では黙って skip する。
 - recent は autosave / close / repair cancel では更新しない。
 
-## 未解決
-- project-vault repair planner 自体は別件。
-- repair/relink 導線が入ったときの `recommendedAction` 粒度は再設計が必要。
-- `readAssetIndex` へ寄せた後の docs 文言整理は継続対象。
+## フォローアップ
+- project 破損時は open で深追いせず、`.index.json` などを clue とした recovery import 導線へ寄せる（`TODO-NICE-003`）。
+- `.index.json` は完全復元器ではなく reconstruction clue として扱う。
