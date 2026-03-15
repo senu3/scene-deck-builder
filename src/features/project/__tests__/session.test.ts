@@ -10,14 +10,20 @@ import {
   requestProjectSelection,
 } from '../session';
 import {
+  calculateFileHashBridge,
   createVaultBridge,
   ensureAssetsFolderBridge,
+  getFileInfoBridge,
   getFolderContentsBridge,
+  getRelativePathBridge,
   getRecentProjectsBridge,
   loadProjectBridge,
   loadProjectFromPathBridge,
   pathExistsBridge,
   readAssetIndexBridge,
+  resolveVaultPathBridge,
+  saveAssetIndexBridge,
+  withSerializedAssetIndexMutationBridge,
 } from '../../platform/electronGateway';
 import { loadMetadataStoreWithReport } from '../../../utils/metadataStore';
 import { resolveScenesAssets } from '../load';
@@ -31,6 +37,12 @@ vi.mock('../../platform/electronGateway', () => ({
   loadProjectFromPathBridge: vi.fn(),
   pathExistsBridge: vi.fn(),
   readAssetIndexBridge: vi.fn(),
+  getRelativePathBridge: vi.fn(),
+  resolveVaultPathBridge: vi.fn(),
+  getFileInfoBridge: vi.fn(),
+  calculateFileHashBridge: vi.fn(),
+  saveAssetIndexBridge: vi.fn(),
+  withSerializedAssetIndexMutationBridge: vi.fn(async (run: () => Promise<unknown>) => run()),
   selectVaultBridge: vi.fn(),
 }));
 
@@ -53,6 +65,22 @@ describe('project session', () => {
       kind: 'readable',
       index: { version: 1, assets: [] },
     });
+    vi.mocked(getRelativePathBridge).mockResolvedValue(null);
+    vi.mocked(resolveVaultPathBridge).mockResolvedValue({
+      absolutePath: 'C:/vault/assets/legacy.png',
+      exists: true,
+    });
+    vi.mocked(getFileInfoBridge).mockResolvedValue({
+      name: 'legacy.png',
+      path: 'C:/vault/assets/legacy.png',
+      size: 123,
+      modified: new Date('2026-03-14T00:00:00.000Z'),
+      type: 'image',
+      extension: 'png',
+    });
+    vi.mocked(calculateFileHashBridge).mockResolvedValue('hash-legacy');
+    vi.mocked(saveAssetIndexBridge).mockResolvedValue(true);
+    vi.mocked(withSerializedAssetIndexMutationBridge).mockImplementation(async (run: () => Promise<unknown>) => run());
     vi.mocked(loadMetadataStoreWithReport).mockResolvedValue({
       store: { version: 1, metadata: {}, sceneMetadata: {} },
       report: {
@@ -146,6 +174,30 @@ describe('project session', () => {
   });
 
   it('normalizes legacy scene collections before recovery planning', async () => {
+    vi.mocked(readAssetIndexBridge).mockResolvedValue({
+      kind: 'readable',
+      index: {
+        version: 1,
+        assets: [{
+          id: 'asset-1',
+          hash: 'hash-legacy',
+          filename: 'legacy.png',
+          originalName: 'legacy.png',
+          originalPath: 'assets/legacy.png',
+          usageRefs: [{
+            sceneId: 'scene-1',
+            sceneName: 'Scene 1',
+            sceneOrder: 0,
+            cutId: 'cut-1',
+            cutOrder: 0,
+            cutIndex: 1,
+          }],
+          type: 'image',
+          fileSize: 123,
+          importedAt: '2026-03-14T00:00:00.000Z',
+        }],
+      },
+    });
     vi.mocked(resolveScenesAssets).mockResolvedValue({
       scenes: [{
         id: 'scene-1',
@@ -199,6 +251,62 @@ describe('project session', () => {
       })],
     }));
     expect(outcome.assessment.report.normalizationFlags.sceneStructureNormalized).toBe(true);
+  });
+
+  it('returns repair-required when referenced asset ids require confirmation before rebuilding index', async () => {
+    vi.mocked(resolveScenesAssets).mockResolvedValue({
+      scenes: [{
+        id: 'scene-1',
+        name: 'Scene 1',
+        cuts: [{
+          id: 'cut-1',
+          assetId: 'asset-1',
+          displayTime: 1,
+          order: 0,
+          asset: {
+            id: 'asset-1',
+            name: 'legacy.png',
+            path: 'assets/legacy.png',
+            vaultRelativePath: 'assets/legacy.png',
+            type: 'image',
+          },
+        }],
+        notes: [],
+      }],
+      missingAssets: [],
+    });
+
+    const outcome = await buildProjectLoadOutcome({
+      name: 'Repair',
+      vaultPath: 'C:/vault',
+      scenes: [{
+        id: 'scene-1',
+        name: 'Scene 1',
+        cuts: [{
+          id: 'cut-1',
+          assetId: 'asset-1',
+          displayTime: 1,
+          order: 0,
+          asset: {
+            id: 'asset-1',
+            name: 'legacy.png',
+            path: 'assets/legacy.png',
+            vaultRelativePath: 'assets/legacy.png',
+            type: 'image',
+          },
+        }],
+        notes: [],
+      }],
+      version: 3,
+    }, 'C:/vault/project.sdp', 'Repair Project');
+
+    expect(outcome).toEqual({
+      kind: 'repair-required',
+      action: {
+        kind: 'repair-confirm',
+        reason: 'referenced-asset-mismatch',
+      },
+    });
   });
 
   it('reports structural normalization separately from parsed scene values', () => {
@@ -271,7 +379,7 @@ describe('project session', () => {
     expect(outcome).toEqual({
       kind: 'corrupted',
       failure: {
-        code: 'invalid-project-structure',
+        code: 'project-corrupted-index-present',
         projectPath: 'C:/vault/project.sdp',
       },
     });
@@ -300,6 +408,9 @@ describe('project session', () => {
 
   it('returns corrupted outcome when load diagnosis throws unexpectedly', async () => {
     vi.mocked(resolveScenesAssets).mockRejectedValue(new Error('boom'));
+    vi.mocked(readAssetIndexBridge).mockResolvedValue({
+      kind: 'missing',
+    });
 
     const outcome = await buildProjectLoadOutcome({
       name: 'Broken',
@@ -311,7 +422,7 @@ describe('project session', () => {
     expect(outcome).toEqual({
       kind: 'corrupted',
       failure: {
-        code: 'invalid-project-structure',
+        code: 'project-vault-link-broken',
         projectPath: 'C:/vault/project.sdp',
       },
     });
@@ -382,7 +493,7 @@ describe('project session', () => {
     expect(outcome).toEqual({
       kind: 'corrupted',
       failure: {
-        code: 'invalid-project-structure',
+        code: 'project-corrupted-index-present',
         projectPath: 'C:/vault/project.sdp',
       },
     });

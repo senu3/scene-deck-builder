@@ -30,6 +30,14 @@ import {
   readProjectIntegrityState,
   type ProjectOpenRequestResult,
 } from '../features/project/session';
+import {
+  buildProjectAssetIndexRepairMessage,
+  formatProjectAssetIntegrityMessage,
+} from '../features/project/assetIntegrity';
+import {
+  prepareProjectAssetIndexState,
+  repairProjectAssetIndexFromProject,
+} from '../features/project/assetIndexRepair';
 import { createProjectIntegrityAssessment } from '../features/project/integrity';
 import {
   type AppEffect,
@@ -117,7 +125,69 @@ export function useHeaderProjectController() {
     try {
       const sceneIds = normalizedScenes.map((scene) => scene.id);
       if (vaultPath) {
-        const readState = await readProjectIntegrityState(normalizedScenes, vaultPath);
+        let readState = await readProjectIntegrityState(normalizedScenes, vaultPath);
+        const preparedAssetIndex = await prepareProjectAssetIndexState({
+          scenes: readState.scenes,
+          sceneOrder: normalizedSceneOrder,
+          vaultPath,
+          assetIndex: readState.assetIndex,
+        });
+
+        if (preparedAssetIndex.action.kind === 'repair-confirm') {
+          if (options?.allowPrompt === false) {
+            console.warn('[ProjectSave] Autosave skipped because asset index repair requires confirmation.', preparedAssetIndex.action);
+            return;
+          }
+          const confirmed = await dialogConfirm({
+            ...buildProjectAssetIndexRepairMessage(preparedAssetIndex.action, 'save'),
+            variant: 'warning',
+          });
+          if (!confirmed) {
+            return;
+          }
+          const repairedIndex = await repairProjectAssetIndexFromProject({
+            scenes: readState.scenes,
+            sceneOrder: normalizedSceneOrder,
+            vaultPath,
+            assetIndex: readState.assetIndex,
+            repairContext: preparedAssetIndex.repairContext,
+          });
+          if (!repairedIndex) {
+            throw new Error('Failed to repair asset index before save');
+          }
+          readState = await readProjectIntegrityState(normalizedScenes, vaultPath);
+        } else if (preparedAssetIndex.action.kind === 'repair-silent') {
+          const repairedIndex = await repairProjectAssetIndexFromProject({
+            scenes: readState.scenes,
+            sceneOrder: normalizedSceneOrder,
+            vaultPath,
+            assetIndex: readState.assetIndex,
+            repairContext: preparedAssetIndex.repairContext,
+          });
+          if (!repairedIndex) {
+            throw new Error('Failed to repair asset index before save');
+          }
+          readState = await readProjectIntegrityState(normalizedScenes, vaultPath);
+        } else if (preparedAssetIndex.action.kind === 'block') {
+          const message = preparedAssetIndex.action.reason === 'index-unreadable'
+            ? 'The vault contains `assets/.index.json`, but it could not be read and the current project data is not enough to repair it safely.'
+            : preparedAssetIndex.action.reason === 'index-invalid-schema'
+              ? 'The vault contains `assets/.index.json`, but its structure is invalid and the current project data is not enough to repair it safely.'
+              : preparedAssetIndex.action.reason === 'index-missing-unrebuildable'
+                ? 'The vault is missing `assets/.index.json`, and the current project data is not enough to rebuild it safely.'
+                : `${formatProjectAssetIntegrityMessage(preparedAssetIndex.integrity)} Check \`project.sdp\` and \`assets/.index.json\` before saving.`;
+          if (options?.notify !== false) {
+            await dialogAlert({
+              title: 'Save Blocked',
+              message,
+              variant: 'warning',
+            });
+          } else {
+            console.warn('[ProjectSave] Save blocked by asset integrity.', preparedAssetIndex);
+          }
+          return;
+        }
+
         const metadataAssessment = assessMetadataStore(metadataStore, {
           sceneIds: readState.scenes.map((scene) => scene.id),
           assetIds: readState.assetIndex.kind === 'readable'
@@ -350,6 +420,14 @@ export function useHeaderProjectController() {
       if (result.kind === 'canceled') {
         return;
       }
+      if (result.kind === 'repair-required') {
+        await dialogAlert({
+          title: 'Project Could Not Be Repaired',
+          message: 'The asset index still requires manual repair. Open was canceled.',
+          variant: 'warning',
+        });
+        return;
+      }
       if (result.kind === 'failure' || result.kind === 'corrupted') {
         await dialogAlert(buildProjectLoadFailureAlert(result.failure));
         return;
@@ -383,7 +461,15 @@ export function useHeaderProjectController() {
     }
 
     try {
-      const result = await openSelectedProject('Loaded Project');
+      let result = await openSelectedProject('Loaded Project');
+      if (result.kind === 'repair-required') {
+        const confirmed = await dialogConfirm({
+          ...buildProjectAssetIndexRepairMessage(result.action, 'load'),
+          variant: 'warning',
+        });
+        if (!confirmed) return;
+        result = await openSelectedProject('Loaded Project', { allowRepair: true });
+      }
       await applyProjectOpenResult(result);
     } catch (error) {
       console.error('Failed to load selected project:', error);

@@ -4,7 +4,11 @@ import type { ProjectFileLoadErrorCode } from '../platform/electronGateway';
 export type ProjectLoadFailureCode =
   | ProjectFileLoadErrorCode
   | 'unsupported-schema'
-  | 'invalid-project-structure';
+  | 'invalid-project-structure'
+  | 'asset-index-unreadable'
+  | 'asset-index-invalid-schema'
+  | 'project-corrupted-index-present'
+  | 'project-vault-link-broken';
 
 export interface ProjectLoadFailure {
   code: ProjectLoadFailureCode;
@@ -38,6 +42,30 @@ export function buildProjectLoadFailureAlert(failure: ProjectLoadFailure): Alert
       return {
         title: 'Project File Is Damaged',
         message: `The project file structure is incomplete or invalid. ${buildVaultGuidance()}`,
+        variant: 'warning',
+      };
+    case 'asset-index-unreadable':
+      return {
+        title: 'Asset Index Could Not Be Read',
+        message: `The vault contains \`assets/.index.json\`, but it could not be read or repaired safely from the current project data. ${buildVaultGuidance()}`,
+        variant: 'warning',
+      };
+    case 'asset-index-invalid-schema':
+      return {
+        title: 'Asset Index Is Damaged',
+        message: `The vault contains \`assets/.index.json\`, but its structure is invalid and it could not be repaired safely from the current project data. ${buildVaultGuidance()}`,
+        variant: 'warning',
+      };
+    case 'project-corrupted-index-present':
+      return {
+        title: 'Project File Is Damaged',
+        message: `The project file could not be opened, but \`assets/.index.json\` is still present in the vault. Vault assets may still be recoverable, but scene order and timing are not restored from the index alone. ${buildVaultGuidance()}`,
+        variant: 'warning',
+      };
+    case 'project-vault-link-broken':
+      return {
+        title: 'Project And Vault Link Is Broken',
+        message: `The project could not be matched with a usable \`assets/.index.json\`, and the current project data does not contain enough vault paths to repair it automatically. ${buildVaultGuidance()}`,
         variant: 'warning',
       };
     case 'invalid-json':

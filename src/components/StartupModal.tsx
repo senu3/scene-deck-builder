@@ -41,6 +41,7 @@ import {
   formatRecoveryAssessmentSummary,
   getRecoveryAssessmentNotices,
 } from '../features/project/recoveryAssessment';
+import { buildProjectAssetIndexRepairMessage } from '../features/project/assetIntegrity';
 import { hasElectronBridge } from '../features/platform/electronGateway';
 import { PathField, useDialog } from '../ui';
 import './StartupModal.css';
@@ -56,7 +57,7 @@ function hasFailedEffect(result: AppEffectDispatchResult, effectType: string): b
 }
 
 export default function StartupModal() {
-  const { alert: dialogAlert } = useDialog();
+  const { alert: dialogAlert, confirm: dialogConfirm } = useDialog();
   const {
     initializeProject,
     setRootFolder,
@@ -90,6 +91,39 @@ export default function StartupModal() {
   useEffect(() => {
     loadRecentProjects();
   }, []);
+
+  const removeRecentProjectEntry = async (projectPath: string, logScope: string) => {
+    const filtered = recentProjects.filter((entry) => entry.path !== projectPath);
+    setRecentProjects(filtered);
+    const saveResult = await dispatchAppEffects([
+      createSaveRecentProjectsEffect({
+        projects: filtered,
+      }),
+    ], {
+      origin: 'feature',
+    });
+    logFeatureEffectWarnings(logScope, saveResult);
+  };
+
+  const shouldPromptRecentRemoval = (code: string) =>
+    code === 'project-file-not-found'
+    || code === 'project-corrupted-index-present'
+    || code === 'project-vault-link-broken'
+    || code === 'asset-index-unreadable'
+    || code === 'asset-index-invalid-schema';
+
+  const confirmRemoveRecentProject = async (code: string) => {
+    const message = code === 'project-file-not-found'
+      ? 'This recent project no longer exists. Remove it from Recent Projects?'
+      : 'This recent project can no longer be opened safely. Remove it from Recent Projects?';
+    return dialogConfirm({
+      title: 'Remove Recent Project?',
+      message,
+      variant: 'warning',
+      confirmLabel: 'Remove',
+      cancelLabel: 'Keep',
+    });
+  };
 
   const loadRecentProjects = async () => {
     if (!hasElectronBridge()) return;
@@ -204,7 +238,15 @@ export default function StartupModal() {
     }
 
     try {
-      const result = await openSelectedProject('Loaded Project');
+      let result = await openSelectedProject('Loaded Project');
+      if (result.kind === 'repair-required') {
+        const confirmed = await dialogConfirm({
+          ...buildProjectAssetIndexRepairMessage(result.action, 'load'),
+          variant: 'warning',
+        });
+        if (!confirmed) return;
+        result = await openSelectedProject('Loaded Project', { allowRepair: true });
+      }
       await applyProjectOpenResult(result);
     } catch (error) {
       console.error('Failed to load selected project:', error);
@@ -246,6 +288,14 @@ export default function StartupModal() {
   const applyProjectOpenResult = async (result: ProjectOpenRequestResult) => {
     try {
       if (result.kind === 'canceled') {
+        return;
+      }
+      if (result.kind === 'repair-required') {
+        await dialogAlert({
+          title: 'Project Could Not Be Repaired',
+          message: 'The asset index still requires manual repair. Open was canceled.',
+          variant: 'warning',
+        });
         return;
       }
       if (result.kind === 'failure' || result.kind === 'corrupted') {
@@ -292,36 +342,41 @@ export default function StartupModal() {
         code: 'project-file-not-found',
         projectPath: project.path,
       }));
-      // Remove from recent
-      const filtered = recentProjects.filter(p => p.path !== project.path);
-      setRecentProjects(filtered);
-      const filteredSaveResult = await dispatchAppEffects([
-        createSaveRecentProjectsEffect({
-          projects: filtered,
-        }),
-      ], {
-        origin: 'feature',
-      });
-      logFeatureEffectWarnings('startup-remove-missing-recent', filteredSaveResult);
+      const remove = await confirmRemoveRecentProject('project-file-not-found');
+      if (remove) {
+        await removeRecentProjectEntry(project.path, 'startup-remove-missing-recent');
+      }
       return;
     }
 
     // Load the project file directly from the specified path
     try {
-      const result = await openProjectAtPath(project.path, project.name);
+      let result = await openProjectAtPath(project.path, project.name);
       if (result.kind === 'failure') {
         await dialogAlert(buildProjectLoadFailureAlert(result.failure));
-        if (result.failure.code === 'project-file-not-found') {
-          const filtered = recentProjects.filter((entry) => entry.path !== project.path);
-          setRecentProjects(filtered);
-          const filteredSaveResult = await dispatchAppEffects([
-            createSaveRecentProjectsEffect({
-              projects: filtered,
-            }),
-          ], {
-            origin: 'feature',
-          });
-          logFeatureEffectWarnings('startup-remove-missing-recent', filteredSaveResult);
+        if (shouldPromptRecentRemoval(result.failure.code)) {
+          const remove = await confirmRemoveRecentProject(result.failure.code);
+          if (remove) {
+            await removeRecentProjectEntry(project.path, 'startup-remove-broken-recent');
+          }
+        }
+        return;
+      }
+      if (result.kind === 'repair-required') {
+        const confirmed = await dialogConfirm({
+          ...buildProjectAssetIndexRepairMessage(result.action, 'load'),
+          variant: 'warning',
+        });
+        if (!confirmed) {
+          return;
+        }
+        result = await openProjectAtPath(project.path, project.name, { allowRepair: true });
+      }
+      if (result.kind === 'corrupted' && shouldPromptRecentRemoval(result.failure.code)) {
+        await dialogAlert(buildProjectLoadFailureAlert(result.failure));
+        const remove = await confirmRemoveRecentProject(result.failure.code);
+        if (remove) {
+          await removeRecentProjectEntry(project.path, 'startup-remove-broken-recent');
         }
         return;
       }

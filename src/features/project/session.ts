@@ -21,6 +21,12 @@ import type { ProjectLoadFailure } from './loadFailure';
 import { type RecoveryAssessment, type RecoveryNormalizationFlags } from './recoveryAssessment';
 import { createProjectIntegrityAssessment } from './integrity';
 import {
+  prepareProjectAssetIndexState,
+  repairProjectAssetIndexFromProject,
+  type PreparedProjectAssetIndexState,
+} from './assetIndexRepair';
+import { type ProjectAssetIndexAction } from './assetIntegrity';
+import {
   createProjectFileVaultPathResolution,
   resolveLoadedVaultPath,
   resolveScenesAssets,
@@ -221,6 +227,48 @@ function createProjectLoadFailure(
   };
 }
 
+async function classifyCorruptedProjectFailure(projectPath: string): Promise<ProjectLoadFailure> {
+  try {
+    const vaultPath = resolveLoadedVaultPath(undefined, projectPath).effectiveVaultPath;
+    const assetIndex = await readAssetIndexBridge(vaultPath).catch(() => ({
+      kind: 'unreadable' as const,
+      cause: 'read-asset-index-failed',
+    }));
+    if (assetIndex.kind === 'readable') {
+      return createProjectLoadFailure('project-corrupted-index-present', projectPath);
+    }
+    if (assetIndex.kind === 'invalid-schema') {
+      return createProjectLoadFailure('asset-index-invalid-schema', projectPath);
+    }
+    if (assetIndex.kind === 'unreadable') {
+      return createProjectLoadFailure('asset-index-unreadable', projectPath);
+    }
+  } catch (error) {
+    console.warn('[ProjectLoad] Failed to classify corrupted project failure.', {
+      projectPath,
+      error,
+    });
+  }
+  return createProjectLoadFailure('project-vault-link-broken', projectPath);
+}
+
+function mapAssetIndexActionToLoadFailure(
+  action: Exclude<ProjectAssetIndexAction, { kind: 'load' }>,
+  projectPath: string
+): ProjectLoadFailure {
+  switch (action.reason) {
+    case 'index-unreadable':
+      return createProjectLoadFailure('asset-index-unreadable', projectPath);
+    case 'index-invalid-schema':
+      return createProjectLoadFailure('asset-index-invalid-schema', projectPath);
+    case 'index-missing-unrebuildable':
+    case 'project-vault-link-broken':
+      return createProjectLoadFailure('project-vault-link-broken', projectPath);
+    default:
+      return createProjectLoadFailure('project-vault-link-broken', projectPath);
+  }
+}
+
 export interface RecentProjectEntry {
   name: string;
   path: string;
@@ -268,6 +316,7 @@ export type ProjectSelectionResult =
 export type ProjectLoadOutcome =
   | { kind: 'pending'; payload: PendingProject; missingAssets: MissingAssetInfo[]; assessment: RecoveryAssessment }
   | { kind: 'ready'; payload: PendingProject; assessment: RecoveryAssessment }
+  | { kind: 'repair-required'; action: Extract<ProjectAssetIndexAction, { kind: 'repair-confirm' }> }
   | { kind: 'corrupted'; failure: ProjectLoadFailure };
 
 export interface ProjectStateAssessmentResult {
@@ -547,12 +596,15 @@ export async function assessProjectState(
 export async function buildProjectLoadOutcome(
   projectData: unknown,
   projectPath: string,
-  fallbackName: string
+  fallbackName: string,
+  options?: {
+    allowRepair?: boolean;
+  }
 ): Promise<ProjectLoadOutcome> {
   if (!isLoadedProjectRoot(projectData)) {
     return {
       kind: 'corrupted',
-      failure: createProjectLoadFailure('invalid-project-structure', projectPath),
+      failure: await classifyCorruptedProjectFailure(projectPath),
     };
   }
 
@@ -565,20 +617,116 @@ export async function buildProjectLoadOutcome(
   if (!Array.isArray(projectData.scenes)) {
     return {
       kind: 'corrupted',
-      failure: createProjectLoadFailure('invalid-project-structure', projectPath),
+      failure: await classifyCorruptedProjectFailure(projectPath),
     };
   }
 
   try {
     const parsedProject = parseLoadedProjectForOpen(projectData, projectPath, fallbackName);
-    const openInputs = await readProjectOpenInputs(
+    let readState = await readProjectIntegrityState(
       parsedProject.scenes,
       parsedProject.vaultPathResolution.effectiveVaultPath,
+    );
+    let preparedAssetIndex: PreparedProjectAssetIndexState = await prepareProjectAssetIndexState({
+      scenes: readState.scenes,
+      sceneOrder: parsedProject.sceneOrder,
+      vaultPath: parsedProject.vaultPathResolution.effectiveVaultPath,
+      assetIndex: readState.assetIndex,
+    });
+
+    if (preparedAssetIndex.action.kind === 'repair-silent') {
+      const repairedIndex = await repairProjectAssetIndexFromProject({
+        scenes: readState.scenes,
+        sceneOrder: parsedProject.sceneOrder,
+        vaultPath: parsedProject.vaultPathResolution.effectiveVaultPath,
+        assetIndex: readState.assetIndex,
+        repairContext: preparedAssetIndex.repairContext,
+      });
+      if (!repairedIndex) {
+        return {
+          kind: 'corrupted',
+          failure: mapAssetIndexActionToLoadFailure({
+            kind: 'block',
+            reason: preparedAssetIndex.action.reason === 'index-missing-rebuildable'
+              ? 'index-missing-unrebuildable'
+              : 'project-vault-link-broken',
+          }, projectPath),
+        };
+      }
+      readState = await readProjectIntegrityState(
+        parsedProject.scenes,
+        parsedProject.vaultPathResolution.effectiveVaultPath,
+      );
+      preparedAssetIndex = await prepareProjectAssetIndexState({
+        scenes: readState.scenes,
+        sceneOrder: parsedProject.sceneOrder,
+        vaultPath: parsedProject.vaultPathResolution.effectiveVaultPath,
+        assetIndex: readState.assetIndex,
+      });
+    } else if (preparedAssetIndex.action.kind === 'repair-confirm') {
+      if (!options?.allowRepair) {
+        return {
+          kind: 'repair-required',
+          action: preparedAssetIndex.action,
+        };
+      }
+
+      const repairedIndex = await repairProjectAssetIndexFromProject({
+        scenes: readState.scenes,
+        sceneOrder: parsedProject.sceneOrder,
+        vaultPath: parsedProject.vaultPathResolution.effectiveVaultPath,
+        assetIndex: readState.assetIndex,
+        repairContext: preparedAssetIndex.repairContext,
+      });
+      if (!repairedIndex) {
+        return {
+          kind: 'corrupted',
+          failure: mapAssetIndexActionToLoadFailure(preparedAssetIndex.action, projectPath),
+        };
+      }
+      readState = await readProjectIntegrityState(
+        parsedProject.scenes,
+        parsedProject.vaultPathResolution.effectiveVaultPath,
+      );
+      preparedAssetIndex = await prepareProjectAssetIndexState({
+        scenes: readState.scenes,
+        sceneOrder: parsedProject.sceneOrder,
+        vaultPath: parsedProject.vaultPathResolution.effectiveVaultPath,
+        assetIndex: readState.assetIndex,
+      });
+    } else if (preparedAssetIndex.action.kind === 'block') {
+      return {
+        kind: 'corrupted',
+        failure: mapAssetIndexActionToLoadFailure(preparedAssetIndex.action, projectPath),
+      };
+    }
+
+    if (preparedAssetIndex.action.kind !== 'load') {
+      return {
+        kind: 'corrupted',
+        failure: mapAssetIndexActionToLoadFailure(
+          preparedAssetIndex.action.kind === 'repair-silent'
+            ? { kind: 'block', reason: 'project-vault-link-broken' }
+            : preparedAssetIndex.action,
+          projectPath,
+        ),
+      };
+    }
+
+    const metadataAssessment = await loadMetadataStoreWithReport(
+      parsedProject.vaultPathResolution.effectiveVaultPath,
       {
-        vaultPathResolution: parsedProject.vaultPathResolution,
-        structureReport: parsedProject.structureReport,
+        sceneIds: readState.scenes.map((scene) => scene.id),
+        assetIds: readState.assetIndex.kind === 'readable'
+          ? readState.assetIndex.index.assets.map((entry) => entry.id)
+          : undefined,
       }
     );
+    const openInputs = buildProjectOpenInputs(readState, {
+      metadataAssessment,
+      vaultPathResolution: parsedProject.vaultPathResolution,
+      structureReport: parsedProject.structureReport,
+    });
     const diagnosis = diagnoseProjectOpen(openInputs, {
       projectSchemaVersion: 3,
       normalizationFlags: {
@@ -608,14 +756,17 @@ export async function buildProjectLoadOutcome(
     });
     return {
       kind: 'corrupted',
-      failure: createProjectLoadFailure('invalid-project-structure', projectPath),
+      failure: await classifyCorruptedProjectFailure(projectPath),
     };
   }
 }
 
 export async function buildProjectOpenRequestResult(
   selection: ProjectSelectionResult,
-  fallbackName: string
+  fallbackName: string,
+  options?: {
+    allowRepair?: boolean;
+  }
 ): Promise<ProjectOpenRequestResult> {
   if (selection.kind === 'canceled') {
     return selection;
@@ -626,21 +777,28 @@ export async function buildProjectOpenRequestResult(
   return buildProjectLoadOutcome(
     selection.data,
     selection.path,
-    deriveProjectFallbackName(selection.path, fallbackName)
+    deriveProjectFallbackName(selection.path, fallbackName),
+    options,
   );
 }
 
 export async function openSelectedProject(
-  fallbackName = 'Loaded Project'
+  fallbackName = 'Loaded Project',
+  options?: {
+    allowRepair?: boolean;
+  }
 ): Promise<ProjectOpenRequestResult> {
   const selection = await requestProjectSelection();
-  return buildProjectOpenRequestResult(selection, fallbackName);
+  return buildProjectOpenRequestResult(selection, fallbackName, options);
 }
 
 export async function openProjectAtPath(
   projectPath: string,
-  fallbackName: string
+  fallbackName: string,
+  options?: {
+    allowRepair?: boolean;
+  }
 ): Promise<ProjectOpenRequestResult> {
   const selection = await requestProjectFromPath(projectPath);
-  return buildProjectOpenRequestResult(selection, fallbackName);
+  return buildProjectOpenRequestResult(selection, fallbackName, options);
 }
