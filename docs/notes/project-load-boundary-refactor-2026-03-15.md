@@ -4,7 +4,7 @@
 - `assets/.index.json` の読込は empty fallback をやめ、`readable | missing | unreadable | invalid-schema` を返す。
 - project open は `readProjectIntegrityState -> readProjectOpenInputs -> diagnoseProjectOpen -> buildProjectLoadOutcome` の流れに分ける。
 - load/save は同じ integrity evaluator だけでなく、asset/index 読込も共有する。
-- recent 更新は post-load diagnosis が `abort` でない場合だけ行う。
+- recent 更新は open 成功時と manual save 成功時だけ行い、identity は normalized `project.sdp` path を使う。
 - asset index planner は `load | repair-silent | repair-confirm | block` を返し、open/save の confirm 分岐を UI から分離する。
 
 ## 目的
@@ -49,6 +49,7 @@ project load/save 周辺で I/O 失敗と診断結果が混ざっていたため
 - asset index repair が silent で済む場合は save 前に自動実行する。
 - confirm が必要な repair は manual save のみ dialog を出し、autosave は skip する。
 - `assetIndex.kind !== 'readable'` のときは save を止める。autosave では黙って skip する。
+- recent は autosave / close / repair cancel では更新しない。
 
 ## 未解決
 - project-vault repair planner 自体は別件。
