@@ -1,5 +1,9 @@
 /* Dialog - Confirm/Alert feedback */
 
+.dialogOverlay {
+  z-index: 3000;
+}
+
 /* ========================================
    Dialog Content
    ======================================== */

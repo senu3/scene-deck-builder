@@ -88,6 +88,13 @@ export function useHeaderProjectController() {
   const [pendingProject, setPendingProject] = useState<PendingProject | null>(null);
   const [pendingAssessment, setPendingAssessment] = useState<RecoveryAssessment | null>(null);
 
+  const showUnexpectedProjectLoadAlert = useCallback(async (projectPath: string) => {
+    await dialogAlert(buildProjectLoadFailureAlert({
+      code: 'invalid-project-structure',
+      projectPath,
+    }));
+  }, [dialogAlert]);
+
   const saveProjectInternal = useCallback(async (options?: { notify?: boolean; updateRecent?: boolean; allowPrompt?: boolean }) => {
     if (!hasElectronBridge()) {
       if (options?.notify !== false) {
@@ -340,23 +347,31 @@ export function useHeaderProjectController() {
   }, []);
 
   const applyProjectOpenResult = useCallback(async (result: ProjectOpenRequestResult) => {
-    if (result.kind === 'canceled') {
-      return;
-    }
-    if (result.kind === 'failure' || result.kind === 'corrupted') {
-      await dialogAlert(buildProjectLoadFailureAlert(result.failure));
-      return;
-    }
-    if (result.kind === 'pending') {
-      setMissingAssets(result.missingAssets);
-      setPendingProject(result.payload);
-      setPendingAssessment(result.assessment);
-      setShowRecoveryDialog(true);
-      return;
-    }
+    try {
+      if (result.kind === 'canceled') {
+        return;
+      }
+      if (result.kind === 'failure' || result.kind === 'corrupted') {
+        await dialogAlert(buildProjectLoadFailureAlert(result.failure));
+        return;
+      }
+      if (result.kind === 'pending') {
+        setMissingAssets(result.missingAssets);
+        setPendingProject(result.payload);
+        setPendingAssessment(result.assessment);
+        setShowRecoveryDialog(true);
+        return;
+      }
 
-    await finalizeProjectLoad(result.payload);
-  }, [dialogAlert, finalizeProjectLoad]);
+      await finalizeProjectLoad(result.payload);
+    } catch (error) {
+      console.error('Failed to apply project open result:', error);
+      const fallbackPath = result.kind === 'pending' || result.kind === 'ready'
+        ? result.payload.projectPath
+        : (result.kind === 'failure' || result.kind === 'corrupted' ? result.failure.projectPath : 'selected-project');
+      await showUnexpectedProjectLoadAlert(fallbackPath);
+    }
+  }, [dialogAlert, finalizeProjectLoad, showUnexpectedProjectLoadAlert]);
 
   const handleLoadProject = useCallback(async () => {
     if (!hasElectronBridge()) {
@@ -368,9 +383,14 @@ export function useHeaderProjectController() {
       return;
     }
 
-    const result = await openSelectedProject('Loaded Project');
-    await applyProjectOpenResult(result);
-  }, [applyProjectOpenResult, dialogAlert]);
+    try {
+      const result = await openSelectedProject('Loaded Project');
+      await applyProjectOpenResult(result);
+    } catch (error) {
+      console.error('Failed to load selected project:', error);
+      await showUnexpectedProjectLoadAlert('selected-project');
+    }
+  }, [applyProjectOpenResult, dialogAlert, showUnexpectedProjectLoadAlert]);
 
   const handleCloseProject = useCallback(async () => {
     const confirmed = await dialogConfirm({

@@ -259,7 +259,7 @@ function DialogModal({ type, options, onClose }: DialogModalProps) {
   };
 
   return (
-    <Overlay onClick={() => onClose(false)}>
+    <Overlay onClick={() => onClose(false)} className={styles.dialogOverlay}>
       <Container size="sm">
         <Header
           title={options.title}

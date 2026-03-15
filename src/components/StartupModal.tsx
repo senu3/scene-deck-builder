@@ -80,6 +80,13 @@ export default function StartupModal() {
   const [pendingProject, setPendingProject] = useState<PendingProject | null>(null);
   const [pendingAssessment, setPendingAssessment] = useState<RecoveryAssessment | null>(null);
 
+  const showUnexpectedProjectLoadAlert = async (projectPath: string) => {
+    await dialogAlert(buildProjectLoadFailureAlert({
+      code: 'invalid-project-structure',
+      projectPath,
+    }));
+  };
+
   useEffect(() => {
     loadRecentProjects();
   }, []);
@@ -196,8 +203,13 @@ export default function StartupModal() {
       return;
     }
 
-    const result = await openSelectedProject('Loaded Project');
-    await applyProjectOpenResult(result);
+    try {
+      const result = await openSelectedProject('Loaded Project');
+      await applyProjectOpenResult(result);
+    } catch (error) {
+      console.error('Failed to load selected project:', error);
+      await showUnexpectedProjectLoadAlert('selected-project');
+    }
   };
 
   // Finalize project loading after recovery decisions (if any)
@@ -232,21 +244,29 @@ export default function StartupModal() {
   };
 
   const applyProjectOpenResult = async (result: ProjectOpenRequestResult) => {
-    if (result.kind === 'canceled') {
-      return;
+    try {
+      if (result.kind === 'canceled') {
+        return;
+      }
+      if (result.kind === 'failure' || result.kind === 'corrupted') {
+        await dialogAlert(buildProjectLoadFailureAlert(result.failure));
+        return;
+      }
+      if (result.kind === 'pending') {
+        setMissingAssets(result.missingAssets);
+        setPendingProject(result.payload);
+        setPendingAssessment(result.assessment);
+        setShowRecoveryDialog(true);
+        return;
+      }
+      await finalizeProjectLoad(result.payload);
+    } catch (error) {
+      console.error('Failed to apply project open result:', error);
+      const fallbackPath = result.kind === 'pending' || result.kind === 'ready'
+        ? result.payload.projectPath
+        : (result.kind === 'failure' || result.kind === 'corrupted' ? result.failure.projectPath : 'selected-project');
+      await showUnexpectedProjectLoadAlert(fallbackPath);
     }
-    if (result.kind === 'failure' || result.kind === 'corrupted') {
-      await dialogAlert(buildProjectLoadFailureAlert(result.failure));
-      return;
-    }
-    if (result.kind === 'pending') {
-      setMissingAssets(result.missingAssets);
-      setPendingProject(result.payload);
-      setPendingAssessment(result.assessment);
-      setShowRecoveryDialog(true);
-      return;
-    }
-    await finalizeProjectLoad(result.payload);
   };
 
   // Handle recovery dialog completion
@@ -308,7 +328,7 @@ export default function StartupModal() {
       await applyProjectOpenResult(result);
     } catch (error) {
       console.error('Failed to load project:', error);
-      alert('Failed to load project');
+      await showUnexpectedProjectLoadAlert(project.path);
     }
   };
 
