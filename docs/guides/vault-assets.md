@@ -41,6 +41,9 @@
   4. `.trash/.trash.json`
 - `project.sdp` が破損している場合、アプリは「破損通知 + Vault確認導線」を優先する。
 - `.index.json` は asset inventory / 実体解決の正本であり、scene/cut/timing の完全復元を単独で保証しない。
+- `project.sdp` から `.index.json` を repair する場合は、referenced asset entry の補修と `usageRefs` 再構成だけを許可する。
+- readable な `.index.json` に含まれる未使用 inventory は、project ベース repair でも保持する。
+- unreadable / invalid-schema な `.index.json` を上書き repair する場合は、unused inventory が失われ得るため confirm 前提で扱う。
 
 ## 正本ファイルの責務
 - `.index.json`:

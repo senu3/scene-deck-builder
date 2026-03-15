@@ -5,6 +5,7 @@
 - project open は `readProjectIntegrityState -> readProjectOpenInputs -> diagnoseProjectOpen -> buildProjectLoadOutcome` の流れに分ける。
 - load/save は同じ integrity evaluator だけでなく、asset/index 読込も共有する。
 - recent 更新は post-load diagnosis が `abort` でない場合だけ行う。
+- asset index planner は `load | repair-silent | repair-confirm | block` を返し、open/save の confirm 分岐を UI から分離する。
 
 ## 目的
 project load/save 周辺で I/O 失敗と診断結果が混ざっていたため、`.index.json` 破損や project-vault link 問題を追加修正しづらい状態を解消する。
@@ -32,6 +33,8 @@ project load/save 周辺で I/O 失敗と診断結果が混ざっていたため
   - main/preload/renderer で `AssetIndexReadResult` を通す。
 - `readProjectIntegrityState`
   - asset index 読込と scene asset 解決だけを担う共有 read model。
+- `prepareProjectAssetIndexState`
+  - `assetId` 整合 / usage mismatch / project seed からの repair 可否を評価し、asset index action を返す。
 - `readProjectOpenInputs`
   - shared read model に metadata assessment を合成して load diagnosis 入力を作る。
 - `diagnoseProjectOpen`
@@ -43,6 +46,8 @@ project load/save 周辺で I/O 失敗と診断結果が混ざっていたため
 - save/autosave は `readProjectIntegrityState + diagnoseProjectOpen` を使う。
 - metadata assessment だけは save 側で in-memory store を渡す。
 - UI outcome は load と共有しない。
+- asset index repair が silent で済む場合は save 前に自動実行する。
+- confirm が必要な repair は manual save のみ dialog を出し、autosave は skip する。
 - `assetIndex.kind !== 'readable'` のときは save を止める。autosave では黙って skip する。
 
 ## 未解決
