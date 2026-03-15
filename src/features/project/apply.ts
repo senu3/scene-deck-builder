@@ -20,6 +20,7 @@ import {
   type RecentProjectEntry,
 } from './session';
 import type { RecoveryAssessment } from './recoveryAssessment';
+import { upsertRecentProjectEntry } from './recentProjects';
 
 export interface ProjectLoadApplyDeps {
   initializeProject: (project: {
@@ -137,13 +138,18 @@ export async function finalizePendingProjectLoad(
   const applied = await applyPendingProjectToStore(project, deps, recoveryDecisions);
   const recentProjects = await loadRecentProjectsWithCleanup();
   const persistencePlan = buildProjectLoadPersistencePlan(project, recentProjects, applied.diagnosis);
-  const recentSaveResult = await dispatchAppEffects([
-    createSaveRecentProjectsEffect({
-      projects: persistencePlan.recentProjects,
-    }),
-  ], {
-    origin: 'feature',
-  });
+  const recentSaveResult = shouldPersistRecentProject(applied.diagnosis)
+    ? await dispatchAppEffects([
+        createSaveRecentProjectsEffect({
+          projects: persistencePlan.recentProjects,
+        }),
+      ], {
+        origin: 'feature',
+      })
+    : {
+        results: [],
+        warnings: [],
+      };
 
   return {
     finalScenes: applied.finalScenes,
@@ -175,8 +181,7 @@ export function buildProjectLoadPersistencePlan(
     path: project.projectPath,
     date: new Date().toISOString(),
   };
-  const filtered = recentProjects.filter((entry) => entry.path !== project.projectPath);
   return {
-    recentProjects: [newRecent, ...filtered.slice(0, 9)],
+    recentProjects: upsertRecentProjectEntry(recentProjects, newRecent),
   };
 }

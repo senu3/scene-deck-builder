@@ -96,12 +96,14 @@ describe('project session', () => {
     });
   });
 
-  it('filters missing recent projects and persists cleanup through callback', async () => {
+  it('filters missing recent projects, dedupes normalized paths, and persists cleanup through callback', async () => {
     vi.mocked(getRecentProjectsBridge).mockResolvedValue([
       { name: 'A', path: 'C:/a/project.sdp', date: '2026-03-10T00:00:00.000Z' },
-      { name: 'B', path: 'C:/b/project.sdp', date: '2026-03-09T00:00:00.000Z' },
+      { name: 'A duplicate', path: 'c:\\a\\project.sdp', date: '2026-03-09T00:00:00.000Z' },
+      { name: 'B', path: 'C:/b/project.sdp', date: '2026-03-08T00:00:00.000Z' },
     ]);
     vi.mocked(pathExistsBridge)
+      .mockResolvedValueOnce(true)
       .mockResolvedValueOnce(true)
       .mockResolvedValueOnce(false);
     const persist = vi.fn(async () => undefined);

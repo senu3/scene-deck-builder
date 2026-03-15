@@ -35,13 +35,20 @@ import {
   dispatchAppEffects,
   type AppEffectDispatchResult,
 } from '../features/platform/effects';
-import { buildProjectLoadFailureAlert } from '../features/project/loadFailure';
+import {
+  buildProjectLoadFailureAlert,
+  classifyRecentProjectIssue,
+  type RecentProjectIssueKind,
+} from '../features/project/loadFailure';
 import {
   type RecoveryAssessment,
   formatRecoveryAssessmentSummary,
   getRecoveryAssessmentNotices,
 } from '../features/project/recoveryAssessment';
 import { buildProjectAssetIndexRepairMessage } from '../features/project/assetIntegrity';
+import {
+  removeRecentProjectsByPath,
+} from '../features/project/recentProjects';
 import { hasElectronBridge } from '../features/platform/electronGateway';
 import { PathField, useDialog } from '../ui';
 import './StartupModal.css';
@@ -93,7 +100,7 @@ export default function StartupModal() {
   }, []);
 
   const removeRecentProjectEntry = async (projectPath: string, logScope: string) => {
-    const filtered = recentProjects.filter((entry) => entry.path !== projectPath);
+    const filtered = removeRecentProjectsByPath(recentProjects, projectPath);
     setRecentProjects(filtered);
     const saveResult = await dispatchAppEffects([
       createSaveRecentProjectsEffect({
@@ -105,21 +112,18 @@ export default function StartupModal() {
     logFeatureEffectWarnings(logScope, saveResult);
   };
 
-  const shouldPromptRecentRemoval = (code: string) =>
-    code === 'project-file-not-found'
-    || code === 'project-corrupted-index-present'
-    || code === 'project-vault-link-broken'
-    || code === 'asset-index-unreadable'
-    || code === 'asset-index-invalid-schema';
-
-  const confirmRemoveRecentProject = async (code: string) => {
-    const message = code === 'project-file-not-found'
+  const confirmRemoveRecentProject = async (issue: RecentProjectIssueKind) => {
+    const message = issue === 'missing'
       ? 'This project file can\'t be found. Remove it from Recent Projects?'
-      : 'This project can\'t be opened. Remove it from Recent Projects?';
+      : issue === 'damaged-project'
+        ? 'This project file is damaged. Remove it from Recent Projects?'
+        : issue === 'unreadable'
+          ? 'This project file can\'t be read. Remove it from Recent Projects?'
+          : 'This project file can\'t be opened. Remove it from Recent Projects?';
     return dialogConfirm({
       title: 'Remove Recent Project?',
       message,
-      variant: code === 'project-file-not-found' ? 'info' : 'warning',
+      variant: issue === 'missing' ? 'info' : 'warning',
       confirmLabel: 'Remove',
       cancelLabel: 'Keep',
     });
@@ -167,19 +171,10 @@ export default function StartupModal() {
           return;
         }
 
-        const existingRecent = await loadRecentProjectsWithCleanup();
-        const newRecent: RecentProjectEntry = {
-          name: projectName,
-          path: bootstrap.projectFilePath,
-          date: new Date().toISOString(),
-        };
         const createResult = await dispatchAppEffects([
           createSaveProjectEffect({
             projectPath: bootstrap.projectFilePath,
             projectData: bootstrap.projectData,
-          }),
-          createSaveRecentProjectsEffect({
-            projects: [newRecent, ...existingRecent.slice(0, 9)],
           }),
         ], {
           origin: 'feature',
@@ -335,7 +330,7 @@ export default function StartupModal() {
 
     const exists = await projectPathExists(project.path);
     if (!exists) {
-      const remove = await confirmRemoveRecentProject('project-file-not-found');
+      const remove = await confirmRemoveRecentProject('missing');
       if (remove) {
         await removeRecentProjectEntry(project.path, 'startup-remove-missing-recent');
       }
@@ -346,11 +341,11 @@ export default function StartupModal() {
     try {
       let result = await openProjectAtPath(project.path, project.name);
       if (result.kind === 'failure') {
-        if (result.failure.code !== 'project-file-not-found') {
+        const issue = classifyRecentProjectIssue(result.failure.code);
+        if (!issue) {
           await dialogAlert(buildProjectLoadFailureAlert(result.failure));
-        }
-        if (shouldPromptRecentRemoval(result.failure.code)) {
-          const remove = await confirmRemoveRecentProject(result.failure.code);
+        } else {
+          const remove = await confirmRemoveRecentProject(issue);
           if (remove) {
             await removeRecentProjectEntry(project.path, 'startup-remove-broken-recent');
           }
@@ -364,9 +359,13 @@ export default function StartupModal() {
         }
         result = await openProjectAtPath(project.path, project.name, { allowRepair: true });
       }
-      if (result.kind === 'corrupted' && shouldPromptRecentRemoval(result.failure.code)) {
-        await dialogAlert(buildProjectLoadFailureAlert(result.failure));
-        const remove = await confirmRemoveRecentProject(result.failure.code);
+      if (result.kind === 'corrupted') {
+        const issue = classifyRecentProjectIssue(result.failure.code);
+        if (!issue) {
+          await dialogAlert(buildProjectLoadFailureAlert(result.failure));
+          return;
+        }
+        const remove = await confirmRemoveRecentProject(issue);
         if (remove) {
           await removeRecentProjectEntry(project.path, 'startup-remove-broken-recent');
         }

@@ -34,6 +34,7 @@ import {
   buildProjectAssetIndexRepairMessage,
   formatProjectAssetIntegrityMessage,
 } from '../features/project/assetIntegrity';
+import { upsertRecentProjectEntry } from '../features/project/recentProjects';
 import {
   prepareProjectAssetIndexState,
   repairProjectAssetIndexFromProject,
@@ -329,9 +330,8 @@ export function useHeaderProjectController() {
         path: targetProjectPath,
         date: new Date().toISOString(),
       };
-      const filtered = recentProjects.filter(p => p.path !== targetProjectPath);
       saveEffects.push(createSaveRecentProjectsEffect({
-        projects: [newRecent, ...filtered.slice(0, 9)],
+        projects: upsertRecentProjectEntry(recentProjects, newRecent),
       }));
     }
 

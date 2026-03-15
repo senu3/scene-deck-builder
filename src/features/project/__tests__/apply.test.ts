@@ -367,4 +367,57 @@ describe('project apply', () => {
 
     expect(plan.recentProjects).toEqual(recentProjects);
   });
+
+  it('updates recents using normalized project path identity', () => {
+    const project = {
+      name: 'Loaded Project',
+      vaultPath: '/vault',
+      scenes: [],
+      projectPath: 'c:\\vault\\project.sdp',
+    };
+    const recentProjects = [
+      { name: 'Older Name', path: 'C:/vault/project.sdp', date: '2026-03-09T00:00:00.000Z' },
+      { name: 'Other', path: '/other/project.sdp', date: '2026-03-08T00:00:00.000Z' },
+    ];
+
+    const plan = buildProjectLoadPersistencePlan(project, recentProjects, {
+      scenes: [],
+      missingAssets: [],
+      assetIndex: {
+        kind: 'readable',
+        index: {
+          version: 1,
+          assets: [],
+        },
+      },
+      assessment: {
+        mode: 'full',
+        report: {
+          readableSceneCount: 0,
+          missingAssetCount: 0,
+          skippedMetadataCount: 0,
+          rescuedCutCount: 0,
+          orphanMetadataCount: 0,
+          projectSchemaVersion: 3,
+          metadataSchemaVersion: 1,
+          normalizationFlags: {
+            sceneIdsAssigned: false,
+            sceneOrderNormalized: false,
+            sceneStructureNormalized: false,
+            metadataNormalized: false,
+          },
+        },
+        issues: [],
+      },
+      severity: 'none',
+      recommendedAction: 'open',
+    });
+
+    expect(plan.recentProjects).toHaveLength(2);
+    expect(plan.recentProjects[0]).toEqual(expect.objectContaining({
+      name: 'Loaded Project',
+      path: 'c:\\vault\\project.sdp',
+    }));
+    expect(plan.recentProjects[1]).toEqual(recentProjects[1]);
+  });
 });

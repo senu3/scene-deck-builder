@@ -32,6 +32,7 @@ import {
   resolveScenesAssets,
   type LoadedVaultPathResolution,
 } from './load';
+import { dedupeRecentProjectEntries } from './recentProjects';
 
 export interface LoadedProjectStructureReport {
   invalidSceneCount: number;
@@ -369,18 +370,22 @@ export async function loadRecentProjectsWithCleanup(
 ): Promise<RecentProjectEntry[]> {
   const projects = await getRecentProjectsBridge();
   const validProjects: RecentProjectEntry[] = [];
+  let changed = false;
   for (const project of projects) {
     const exists = await pathExistsBridge(project.path);
     if (exists) {
       validProjects.push(project);
+    } else {
+      changed = true;
     }
   }
 
-  if (persistRecentProjects && validProjects.length !== projects.length) {
-    await persistRecentProjects(validProjects);
+  const deduped = dedupeRecentProjectEntries(validProjects);
+  if (persistRecentProjects && (changed || deduped.changed)) {
+    await persistRecentProjects(deduped.projects);
   }
 
-  return validProjects;
+  return deduped.projects;
 }
 
 export async function selectProjectVaultPath(): Promise<string | null> {

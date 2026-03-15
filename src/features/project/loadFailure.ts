@@ -16,6 +16,32 @@ export interface ProjectLoadFailure {
   schemaVersion?: number;
 }
 
+export type RecentProjectIssueKind =
+  | 'missing'
+  | 'damaged-project'
+  | 'vault-link-broken'
+  | 'unreadable';
+
+export function classifyRecentProjectIssue(code: ProjectLoadFailureCode): RecentProjectIssueKind | null {
+  switch (code) {
+    case 'project-file-not-found':
+      return 'missing';
+    case 'project-vault-link-broken':
+      return 'vault-link-broken';
+    case 'read-failed':
+    case 'asset-index-unreadable':
+      return 'unreadable';
+    case 'unsupported-schema':
+    case 'invalid-project-structure':
+    case 'invalid-json':
+    case 'asset-index-invalid-schema':
+    case 'project-corrupted-index-present':
+      return 'damaged-project';
+    default:
+      return null;
+  }
+}
+
 function buildVaultGuidance(): string {
   return 'If you need to recover anything, check `assets/.index.json`.';
 }
