@@ -8,10 +8,10 @@ import {
   ArrowLeft,
   HardDrive,
   FileImage,
-  Shield,
   FolderTree,
   Copy,
   Database,
+  MousePointer2,
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import MissingAssetRecoveryModal, { MissingAssetInfo, RecoveryDecision } from './MissingAssetRecoveryModal';
@@ -399,6 +399,11 @@ export default function StartupModal() {
     return '.../' + segments.slice(-2).join('/');
   };
 
+  const projectFolderName = projectName.trim() || 'YourProject';
+  const vaultFolderDisplay = vaultPath
+    ? `${getVaultDisplayPath(vaultPath)}/${projectFolderName}/`
+    : `.../${projectFolderName}/`;
+
   // ─── New Project Screen ───
   if (step === 'new-project') {
     return (
@@ -417,40 +422,45 @@ export default function StartupModal() {
                 <div className="info-icon-wrapper">
                   <HardDrive size={28} />
                 </div>
-                <h2>Vault Structure</h2>
+                <h2>Where The Vault Goes</h2>
                 <p>
-                  Each project creates a dedicated <strong>vault folder</strong> that
-                  stores everything needed to restore your work.
+                  Choose a parent folder first. The app creates one
+                  <strong> project folder</strong> inside it, and that new folder becomes the vault.
                 </p>
               </div>
 
               <div className="vault-tree-visual">
-                <div className="tree-item tree-root">
-                  <FolderTree size={14} />
-                  <span className="tree-label">YourProject/</span>
+                <div className="tree-item tree-parent">
+                  <FolderOpen size={14} />
+                  <span className="tree-label">Parent Folder/</span>
                 </div>
-                <div className="tree-item tree-child">
+                <div className="tree-item tree-child tree-root">
+                  <FolderTree size={14} />
+                  <span className="tree-label">{projectFolderName}/</span>
+                  <span className="tree-badge">Vault</span>
+                </div>
+                <div className="tree-item tree-grandchild">
                   <Database size={14} />
                   <span className="tree-label">project.sdp</span>
-                  <span className="tree-tag">Scene order &amp; timing</span>
+                  <span className="tree-tag">Story structure</span>
                 </div>
-                <div className="tree-item tree-child">
+                <div className="tree-item tree-grandchild">
                   <FolderTree size={14} />
                   <span className="tree-label">assets/</span>
-                  <span className="tree-tag">All media files</span>
+                  <span className="tree-tag">Copied media</span>
+                </div>
+                <div className="tree-item tree-grandchild tree-deep">
+                  <FileImage size={14} />
+                  <span className="tree-label tree-muted">image_hash.png</span>
+                </div>
+                <div className="tree-item tree-grandchild tree-deep">
+                  <FileImage size={14} />
+                  <span className="tree-label tree-muted">video_hash.mp4</span>
                 </div>
                 <div className="tree-item tree-grandchild">
-                  <FileImage size={14} />
-                  <span className="tree-label tree-muted">img_a1b2c3.png</span>
-                </div>
-                <div className="tree-item tree-grandchild">
-                  <FileImage size={14} />
-                  <span className="tree-label tree-muted">vid_d4e5f6.mp4</span>
-                </div>
-                <div className="tree-item tree-child">
                   <Database size={14} />
                   <span className="tree-label">.index.json</span>
-                  <span className="tree-tag">Asset index</span>
+                  <span className="tree-tag">Asset lookup</span>
                 </div>
               </div>
 
@@ -458,16 +468,14 @@ export default function StartupModal() {
                 <div className="info-note">
                   <Copy size={14} />
                   <span>
-                    Imported files are <strong>copied</strong> into
-                    {' '}<code>assets/</code> with unique hash names.
-                    The original files remain untouched.
+                    Imported files are <strong>copied</strong> into <code>assets/</code>.
+                    Your original media files stay where they are.
                   </span>
                 </div>
                 <div className="info-note">
-                  <Shield size={14} />
+                  <HardDrive size={14} />
                   <span>
-                    The vault folder is self-contained.
-                    Copy or move it anywhere and your project stays intact.
+                    Copy or move this one vault folder and the whole project moves with it.
                   </span>
                 </div>
               </div>
@@ -484,11 +492,11 @@ export default function StartupModal() {
 
               <div className="new-project-form">
                 <div className="form-group">
-                  <label htmlFor="project-name">Project Name</label>
+                  <label htmlFor="project-name">Your Project Name</label>
                   <input
                     id="project-name"
                     type="text"
-                    placeholder="My AI Scene Project"
+                    placeholder="My Scene Project"
                     value={projectName}
                     onChange={(e) => setProjectName(e.target.value)}
                     autoFocus
@@ -496,7 +504,7 @@ export default function StartupModal() {
                 </div>
 
                 <div className="form-group">
-                  <label>Vault Location</label>
+                  <label>Parent Folder</label>
                   <PathField
                     value={vaultPath}
                     placeholder="Select a folder..."
@@ -508,16 +516,16 @@ export default function StartupModal() {
                     buttonClassName="vault-selector-button"
                   />
                   <p className="form-hint">
-                    A new folder named <strong>{projectName.trim() || '...'}</strong> will
-                    be created inside this location.
+                    A new folder named <strong>{projectFolderName}</strong> will be created here.
+                    That new folder becomes the vault.
                   </p>
                 </div>
 
                 {vaultPath && projectName.trim() && (
                   <div className="vault-preview">
-                    <span className="vault-preview-label">Created at:</span>
+                    <span className="vault-preview-label">Vault Folder:</span>
                     <code className="vault-preview-path">
-                      {getVaultDisplayPath(vaultPath)}/{projectName.trim()}/
+                      {vaultFolderDisplay}
                     </code>
                   </div>
                 )}
@@ -549,17 +557,28 @@ export default function StartupModal() {
             <div className="hero-brand">
               <Clapperboard size={48} className="hero-logo" />
               <h1>AI Scene Deck</h1>
-              <p className="hero-tagline">Visual asset management for AI-generated content</p>
+              <p className="hero-tagline">
+                Build story structure from your media with simple, local project files.
+              </p>
             </div>
 
             <div className="hero-features">
               <div className="hero-feature">
                 <div className="feature-icon">
-                  <HardDrive size={18} />
+                  <Clapperboard size={18} />
                 </div>
                 <div className="feature-text">
-                  <strong>Self-contained Vault</strong>
-                  <span>All assets are copied into a dedicated project folder. Safe to move or back up.</span>
+                  <strong>Build from Media</strong>
+                  <span>Turn images and clips into scenes and cuts to build a clear visual storyline.</span>
+                </div>
+              </div>
+              <div className="hero-feature">
+                <div className="feature-icon">
+                  <MousePointer2 size={18} />
+                </div>
+                <div className="feature-text">
+                  <strong>Drag, Drop, Arrange</strong>
+                  <span>Import media by dragging files directly into scenes and arranging cuts visually.</span>
                 </div>
               </div>
               <div className="hero-feature">
@@ -567,17 +586,8 @@ export default function StartupModal() {
                   <Copy size={18} />
                 </div>
                 <div className="feature-text">
-                  <strong>Non-destructive Import</strong>
-                  <span>Original files are never modified. Assets are duplicated with hash-based names.</span>
-                </div>
-              </div>
-              <div className="hero-feature">
-                <div className="feature-icon">
-                  <Shield size={18} />
-                </div>
-                <div className="feature-text">
-                  <strong>Vault Asset Recovery</strong>
-                  <span>Vault assets stay reusable even when the project file is damaged.</span>
+                  <strong>Project-Managed Copies</strong>
+                  <span>Imported media is copied into the project, preventing broken links and keeping projects portable.</span>
                 </div>
               </div>
             </div>

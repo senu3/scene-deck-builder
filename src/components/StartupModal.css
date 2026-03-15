@@ -151,6 +151,10 @@
   color: var(--text-secondary);
 }
 
+.tree-parent {
+  color: var(--text-secondary);
+}
+
 .tree-root {
   color: var(--accent-primary);
   font-weight: 600;
@@ -160,6 +164,19 @@
   color: var(--accent-primary);
 }
 
+.tree-badge {
+  margin-left: auto;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(var(--accent-primary-rgb), 0.14);
+  color: var(--accent-primary);
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .tree-child {
   padding-left: 20px;
 }
@@ -167,6 +184,10 @@
 .tree-grandchild {
   padding-left: 40px;
   opacity: 0.6;
+}
+
+.tree-deep {
+  padding-left: 60px;
 }
 
 .tree-label {
