@@ -96,6 +96,12 @@
   gap: 4px;
 }
 
+.header-time-divider {
+  color: var(--text-muted);
+  font-size: 10px;
+  margin: 0 2px 0 4px;
+}
+
 .header-goal {
   position: relative;
 }
@@ -103,21 +109,20 @@
 .header-goal-trigger {
   display: flex;
   align-items: center;
-  gap: 6px;
-  min-height: 30px;
-  padding: 0 10px;
+  gap: 4px;
+  min-height: 20px;
+  padding: 0 6px;
   border: 1px solid var(--border-glass);
   border-radius: var(--radius-pill);
   background: var(--panel-bg);
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 11px;
   transition: all 0.15s ease;
 }
 
 .header-goal-trigger:hover {
   border-color: var(--border-glass-hover);
   color: var(--text-primary);
-  transform: translateY(-1px);
 }
 
 .header-goal-trigger:focus-visible {
@@ -130,13 +135,14 @@
 }
 
 .header-goal-label {
-  color: var(--text-muted);
+  color: inherit;
 }
 
 .header-goal-value {
   color: var(--text-primary);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+  font-size: 11px;
 }
 
 .header-goal-value.is-empty {
@@ -159,9 +165,20 @@
 
 .header-goal-popover-label {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   font-size: 11px;
   color: var(--text-muted);
+}
+
+.header-goal-help {
+  display: block;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.header-goal-help.is-error {
+  color: var(--danger-text, #ef4444);
 }
 
 .header-goal-popover-row {
@@ -171,9 +188,10 @@
 }
 
 .header-goal-number {
-  width: 76px;
+  width: 88px;
   height: 30px;
   font-size: 12px;
+  font-family: var(--font-mono);
 }
 
 .header-goal-popover-row button {
@@ -190,22 +208,11 @@
   color: var(--text-secondary);
 }
 
-.header-time-current {
-  color: var(--accent-primary);
+.header-time-total {
+  color: var(--text-primary);
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
-}
-
-.header-time-sep {
-  color: var(--text-muted);
-  font-size: 10px;
-}
-
-.header-time-total {
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-  font-size: 11px;
 }
 
 /* Header Buttons */

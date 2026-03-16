@@ -1,5 +1,5 @@
 import { useMemo, useState, useRef, useEffect, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { Clapperboard, ArrowLeft, Save, MoreVertical, Undo, Redo, X, Play, Download, Clock, Layers, Film, Settings, Flag } from 'lucide-react';
+import { Clapperboard, ArrowLeft, Save, MoreVertical, Undo, Redo, X, Play, Download, Clock, Layers, Film, Settings } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { useHistoryStore } from '../store/historyStore';
 import { Input } from '../ui';
@@ -18,8 +18,62 @@ interface HeaderProps {
   isExporting?: boolean;
 }
 
+function formatGoalInputValue(totalSec?: number): string {
+  if (!Number.isFinite(totalSec) || (totalSec as number) <= 0) {
+    return '';
+  }
+  const safeTotalSec = Math.round(totalSec as number);
+  const minutes = Math.floor(safeTotalSec / 60);
+  const seconds = safeTotalSec % 60;
+  if (minutes === 0) {
+    return String(seconds);
+  }
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+function formatGoalTimeCode(totalSec?: number): string {
+  if (!Number.isFinite(totalSec) || (totalSec as number) <= 0) {
+    return 'Not set';
+  }
+  const safeTotalSec = Math.round(totalSec as number);
+  const minutes = Math.floor(safeTotalSec / 60);
+  const seconds = safeTotalSec % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+function parseGoalInputValue(rawValue: string): { totalSec?: number; error?: string } {
+  const value = rawValue.trim();
+  if (!value) {
+    return { error: 'Enter seconds or m:ss' };
+  }
+  if (/^\d+$/.test(value)) {
+    const totalSec = Number(value);
+    if (!Number.isFinite(totalSec) || totalSec <= 0) {
+      return { error: 'Enter a value above 0.' };
+    }
+    return { totalSec: Math.round(totalSec) };
+  }
+
+  const match = /^(\d+):(\d{1,2})$/.exec(value);
+  if (!match) {
+    return { error: 'Use seconds or m:ss' };
+  }
+
+  const minutes = Number(match[1]);
+  const seconds = Number(match[2]);
+  if (seconds >= 60) {
+    return { error: 'Seconds must be 00-59.' };
+  }
+
+  const totalSec = (minutes * 60) + seconds;
+  if (totalSec <= 0) {
+    return { error: 'Enter a value above 0.' };
+  }
+  return { totalSec };
+}
+
 export default function Header({ onOpenSettings, onPreview, onExport, isExporting }: HeaderProps) {
-  const { projectName, scenes, sceneOrder, selectedSceneId, selectedCutId, selectScene, targetTotalDurationSec, setTargetTotalDurationSec } = useStore();
+  const { projectName, scenes, sceneOrder, selectedSceneId, selectScene, targetTotalDurationSec, setTargetTotalDurationSec } = useStore();
   const orderedScenes = getScenesInOrder(scenes, sceneOrder);
   const { undo, redo, canUndo, canRedo, getUndoPreview } = useHistoryStore();
   const {
@@ -36,25 +90,20 @@ export default function Header({ onOpenSettings, onPreview, onExport, isExportin
 
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showGoalEditor, setShowGoalEditor] = useState(false);
-  const [targetMinutesInput, setTargetMinutesInput] = useState('');
+  const [targetGoalInput, setTargetGoalInput] = useState('');
+  const [goalInputError, setGoalInputError] = useState('');
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const goalEditorRef = useRef<HTMLDivElement>(null);
   const hasProjectDurationGoal = Number.isFinite(targetTotalDurationSec) && (targetTotalDurationSec as number) > 0;
 
   // Project stats
-  const { totalDuration, totalCuts, selectedCutTime } = useMemo(() => {
+  const { totalDuration, totalCuts } = useMemo(() => {
     let duration = 0;
     let cuts = 0;
-    let cutTime: number | null = null;
-    let elapsed = 0;
 
     for (const scene of orderedScenes) {
       for (const cut of scene.cuts) {
         const dt = isFinite(cut.displayTime) ? cut.displayTime : 0;
-        if (selectedCutId && cut.id === selectedCutId && cutTime === null) {
-          cutTime = elapsed;
-        }
-        elapsed += dt;
         duration += dt;
         cuts++;
       }
@@ -63,9 +112,8 @@ export default function Header({ onOpenSettings, onPreview, onExport, isExportin
     return {
       totalDuration: duration,
       totalCuts: cuts,
-      selectedCutTime: selectedCutId ? cutTime : null,
     };
-  }, [orderedScenes, selectedCutId]);
+  }, [orderedScenes]);
 
   // Close menu on outside click
   useEffect(() => {
@@ -82,10 +130,8 @@ export default function Header({ onOpenSettings, onPreview, onExport, isExportin
 
   useEffect(() => {
     if (!showGoalEditor) return;
-    const minutes = hasProjectDurationGoal
-      ? Math.round((targetTotalDurationSec as number) / 60)
-      : 0;
-    setTargetMinutesInput(minutes > 0 ? String(minutes) : '');
+    setTargetGoalInput(formatGoalInputValue(targetTotalDurationSec));
+    setGoalInputError('');
   }, [hasProjectDurationGoal, showGoalEditor, targetTotalDurationSec]);
 
   useEffect(() => {
@@ -135,22 +181,22 @@ export default function Header({ onOpenSettings, onPreview, onExport, isExportin
     setShowMoreMenu(false);
   };
 
-  const handleApplyTargetMinutes = () => {
-    const parsed = Number(targetMinutesInput);
-    if (!Number.isFinite(parsed) || parsed <= 0) {
-      setTargetTotalDurationSec(undefined);
-      setShowGoalEditor(false);
+  const handleApplyTargetGoal = () => {
+    const result = parseGoalInputValue(targetGoalInput);
+    if (result.error || !result.totalSec) {
+      setGoalInputError(result.error ?? 'Use seconds or m:ss');
       return;
     }
     saveDurationTargetSettings({ sceneDurationBarMode: 'target' });
-    setTargetTotalDurationSec(Math.round(parsed * 60));
+    setTargetTotalDurationSec(result.totalSec);
+    setGoalInputError('');
     setShowGoalEditor(false);
   };
 
   const handleGoalInputKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter') {
       event.preventDefault();
-      handleApplyTargetMinutes();
+      handleApplyTargetGoal();
       return;
     }
     if (event.key === 'Escape') {
@@ -188,63 +234,67 @@ export default function Header({ onOpenSettings, onPreview, onExport, isExportin
               </div>
               <div className="header-stat header-stat-time">
                 <Clock size={14} />
-                <span className="header-time-current">
-                  {selectedCutTime !== null ? formatTimeCode(selectedCutTime) : '--'}
-                </span>
-                <span className="header-time-sep">/</span>
                 <span className="header-time-total">{formatTimeCode(totalDuration)}</span>
-              </div>
-              <div className="header-goal" ref={goalEditorRef}>
-                <button
-                  type="button"
-                  className={`header-goal-trigger ${showGoalEditor ? 'is-open' : ''}`}
-                  onClick={() => setShowGoalEditor((current) => !current)}
-                  aria-expanded={showGoalEditor}
-                  aria-label={effectiveTargetSec ? 'Edit duration goal' : 'Set duration goal'}
-                  title={effectiveTargetSec ? 'Edit duration goal' : 'Set duration goal'}
-                >
-                  <Flag size={14} />
-                  <span className="header-goal-label">Duration Goal:</span>
-                  <span className={`header-goal-value ${effectiveTargetSec ? '' : 'is-empty'}`}>
-                    {effectiveTargetSec ? formatTimeCode(effectiveTargetSec) : 'Not set'}
-                  </span>
-                </button>
+                <span className="header-time-divider" aria-hidden="true">|</span>
+                <span className="header-goal-label">goal</span>
+                <div className="header-goal" ref={goalEditorRef}>
+                  <button
+                    type="button"
+                    className={`header-goal-trigger ${showGoalEditor ? 'is-open' : ''}`}
+                    onClick={() => setShowGoalEditor((current) => !current)}
+                    aria-expanded={showGoalEditor}
+                    aria-label={effectiveTargetSec ? 'Edit duration goal' : 'Set duration goal'}
+                    title={effectiveTargetSec ? 'Edit duration goal' : 'Set duration goal'}
+                  >
+                    <span className={`header-goal-value ${effectiveTargetSec ? '' : 'is-empty'}`}>
+                      {formatGoalTimeCode(effectiveTargetSec)}
+                    </span>
+                  </button>
 
-                {showGoalEditor && (
-                  <div className="header-goal-popover">
-                    <span className="header-goal-popover-label">Duration Goal (min)</span>
-                    <div className="header-goal-popover-row">
-                      <Input
-                        type="number"
-                        min={0}
-                        step={1}
-                        value={targetMinutesInput}
-                        onChange={(e) => setTargetMinutesInput(e.target.value)}
-                        onKeyDown={handleGoalInputKeyDown}
-                        className="header-goal-number"
-                        title="Set project duration goal in minutes"
-                        autoFocus
-                      />
-                      <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={handleApplyTargetMinutes}>
-                        Set
-                      </button>
-                      {hasProjectDurationGoal && (
-                        <button
-                          type="button"
-                          className="secondary"
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => {
-                            setTargetMinutesInput('');
-                            setTargetTotalDurationSec(undefined);
-                            setShowGoalEditor(false);
+                  {showGoalEditor && (
+                    <div className="header-goal-popover">
+                      <span className="header-goal-popover-label">Duration Goal</span>
+                      <div className="header-goal-popover-row">
+                        <Input
+                          type="text"
+                          placeholder="1:30"
+                          value={targetGoalInput}
+                          onChange={(e) => {
+                            setTargetGoalInput(e.target.value);
+                            if (goalInputError) {
+                              setGoalInputError('');
+                            }
                           }}
-                        >
-                          Clear
+                          onKeyDown={handleGoalInputKeyDown}
+                          className="header-goal-number"
+                          title="Set project duration goal as seconds or m:ss"
+                          autoFocus
+                        />
+                        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={handleApplyTargetGoal}>
+                          Set
                         </button>
-                      )}
+                        {hasProjectDurationGoal && (
+                          <button
+                            type="button"
+                            className="secondary"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => {
+                              setTargetGoalInput('');
+                              setGoalInputError('');
+                              setTargetTotalDurationSec(undefined);
+                              setShowGoalEditor(false);
+                            }}
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+                      <span className={`header-goal-help ${goalInputError ? 'is-error' : ''}`}>
+                        {goalInputError || 'Enter seconds or m:ss'}
+                      </span>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
 
