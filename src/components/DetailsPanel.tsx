@@ -66,7 +66,7 @@ import {
 import { selectAndImportAssetToVault } from "../features/asset/import";
 import { useAssetMetadataHydration } from "../features/metadata/useAssetMetadataHydration";
 import {
-  ensureAssetsFolderBridge,
+  ensureVaultStagingFolderBridge,
   extractVideoFrameBridge,
   getFileInfoBridge,
 } from "../features/platform/electronGateway";
@@ -566,9 +566,9 @@ export default function DetailsPanel() {
 
     try {
       // Ensure assets folder exists
-      const assetsFolder = await ensureAssetsFolderBridge(vaultPath);
-      if (!assetsFolder) {
-        throw new Error('Failed to access assets folder');
+      const stagingFolder = await ensureVaultStagingFolderBridge(vaultPath);
+      if (!stagingFolder) {
+        throw new Error('Failed to access vault staging folder');
       }
 
       // Generate unique filename: {video_name}_frame_{timestamp}_{uuid}.png
@@ -576,7 +576,7 @@ export default function DetailsPanel() {
       const timeStr = timestamp.toFixed(2).replace(".", "_");
       const uniqueId = uuidv4().substring(0, 8);
       const frameFileName = `${baseName}_frame_${timeStr}_${uniqueId}.png`;
-      const outputPath = `${assetsFolder}/${frameFileName}`.replace(/\\/g, "/");
+      const outputPath = `${stagingFolder}/${frameFileName}`.replace(/\\/g, "/");
 
       // Extract frame using ffmpeg
       const result = await extractVideoFrameBridge({
@@ -609,7 +609,6 @@ export default function DetailsPanel() {
         type: "image",
         thumbnail: thumbnailBase64 || undefined,
         fileSize,
-        vaultRelativePath: `assets/${frameFileName}`,
       };
 
       const importedAsset = await importFileToVault(outputPath, vaultPath, newAssetId, baseAsset);

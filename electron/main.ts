@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import { pathToFileURL } from 'url';
 import { spawn } from 'child_process';
 import ffmpegPath from 'ffmpeg-static';
-import { calculateFileHashStream, getMediaType, importAssetToVaultInternal, moveToTrashInternal, registerVaultGatewayHandlers, saveAssetIndexInternal, type AssetIndex, type TrashMeta } from './vaultGateway';
+import { calculateFileHashStream, getMediaType, ensureVaultStagingPath, moveToTrashInternal, registerVaultGatewayHandlers, type AssetIndex, type TrashMeta } from './vaultGateway';
 import { createSaveProjectHandler } from './handlers/saveProject';
 import { validateStartAssetDragOutPayload, type StartAssetDragOutPayload } from './handlers/assetFileDrag';
 import { createFfmpegController } from './services/ffmpegController';
@@ -1583,6 +1583,15 @@ ipcMain.handle('ensure-assets-folder', async (_, vaultPath: string) => {
     return assetsPath;
   } catch (error) {
     console.error('Failed to create assets folder:', error);
+    return null;
+  }
+});
+
+ipcMain.handle('ensure-vault-staging-folder', async (_, vaultPath: string) => {
+  try {
+    return ensureVaultStagingPath(vaultPath);
+  } catch (error) {
+    console.error('Failed to create vault staging folder:', error);
     return null;
   }
 });

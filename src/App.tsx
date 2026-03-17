@@ -65,7 +65,7 @@ import type { ExportSettings } from './features/export/types';
 import { buildSceneScopedExportPath } from './features/export/sceneScope';
 import { buildExportTimelineEntries, buildManifestJson, buildTimelineText } from './features/export/manifest';
 import {
-  ensureAssetsFolderBridge,
+  ensureVaultStagingFolderBridge,
   exportSequenceBridge,
   extractVideoFrameBridge,
   hasElectronBridge,
@@ -932,16 +932,16 @@ function App() {
     }
 
     try {
-      const assetsFolder = await ensureAssetsFolderBridge(vaultPath);
-      if (!assetsFolder) {
-        throw new Error('Failed to access assets folder');
+      const stagingFolder = await ensureVaultStagingFolderBridge(vaultPath);
+      if (!stagingFolder) {
+        throw new Error('Failed to access vault staging folder');
       }
 
       const baseName = asset.name.replace(/\.[^/.]+$/, '');
       const timeStr = timestamp.toFixed(2).replace('.', '_');
       const uniqueId = uuidv4().substring(0, 8);
       const frameFileName = `${baseName}_frame_${timeStr}_${uniqueId}.png`;
-      const outputPath = `${assetsFolder}/${frameFileName}`.replace(/\\/g, '/');
+      const outputPath = `${stagingFolder}/${frameFileName}`.replace(/\\/g, '/');
 
       const result = await extractVideoFrameBridge({
         sourcePath: asset.path,
@@ -965,7 +965,6 @@ function App() {
         path: outputPath,
         type: 'image',
         thumbnail: thumbnailBase64 || undefined,
-        vaultRelativePath: `assets/${frameFileName}`,
       };
 
       const importedAsset = await importFileToVault(outputPath, vaultPath, newAssetId, baseAsset);

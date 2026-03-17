@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { moveToTrashInternal } from '../vaultGateway';
+import { finalizeAssetIntoVaultInternal, moveToTrashInternal } from '../vaultGateway';
 
 const tempDirs: string[] = [];
 
@@ -100,5 +100,58 @@ describe('moveToTrashInternal', () => {
       indexEntry: { id: 'asset-1' },
       indexEntries: [{ id: 'asset-1' }, { id: 'asset-2' }],
     });
+  });
+});
+
+describe('finalizeAssetIntoVaultInternal', () => {
+  it('imports external files into managed hash filenames and updates the index', async () => {
+    const { vaultPath, assetsPath } = mkVaultFixture();
+    const sourcePath = path.join(path.dirname(vaultPath), 'source.png');
+    fs.writeFileSync(sourcePath, 'image-data');
+
+    const result = await finalizeAssetIntoVaultInternal(sourcePath, vaultPath, 'asset-1', {
+      originalName: 'display.png',
+      originalPath: sourcePath,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.relativePath).toMatch(/^assets\/img_[a-f0-9]{12}\.png$/);
+    expect(result.vaultPath).toMatch(/[\\/]assets[\\/]img_[a-f0-9]{12}\.png$/);
+    expect(fs.existsSync(sourcePath)).toBe(true);
+
+    const index = JSON.parse(fs.readFileSync(path.join(assetsPath, '.index.json'), 'utf-8')) as {
+      assets: Array<{ id: string; filename: string; originalName: string; originalPath: string }>;
+    };
+    expect(index.assets).toEqual([expect.objectContaining({
+      id: 'asset-1',
+      filename: result.relativePath?.replace(/^assets\//, ''),
+      originalName: 'display.png',
+    })]);
+  });
+
+  it('normalizes pre-existing assets files to managed hash filenames and removes the original file', async () => {
+    const { vaultPath, assetsPath } = mkVaultFixture();
+    const sourcePath = path.join(assetsPath, 'captured-frame.png');
+    fs.writeFileSync(sourcePath, 'frame-data');
+
+    const result = await finalizeAssetIntoVaultInternal(sourcePath, vaultPath, 'asset-frame', {
+      originalName: 'Captured Frame',
+      originalPath: sourcePath,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.relativePath).toMatch(/^assets\/img_[a-f0-9]{12}\.png$/);
+    expect(fs.existsSync(sourcePath)).toBe(false);
+    expect(result.vaultPath && fs.existsSync(result.vaultPath)).toBe(true);
+
+    const index = JSON.parse(fs.readFileSync(path.join(assetsPath, '.index.json'), 'utf-8')) as {
+      assets: Array<{ id: string; filename: string; originalName: string; originalPath: string }>;
+    };
+    expect(index.assets).toEqual([expect.objectContaining({
+      id: 'asset-frame',
+      filename: result.relativePath?.replace(/^assets\//, ''),
+      originalName: 'Captured Frame',
+      originalPath: 'assets/captured-frame.png',
+    })]);
   });
 });

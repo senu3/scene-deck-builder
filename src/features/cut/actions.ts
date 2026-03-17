@@ -4,7 +4,7 @@ import type { CutGroup } from '../../types';
 import { importFileToVault } from '../../utils/assetPath';
 import {
   cropImageToAspectBridge,
-  ensureAssetsFolderBridge,
+  ensureVaultStagingFolderBridge,
   extractAudioBridge,
   finalizeClipBridge,
   getFfmpegQueueStatsBridge,
@@ -157,9 +157,9 @@ async function finalizeClipToDerivedFile({
     return { success: false, reason: 'queue-busy', error: 'FFmpeg queue is busy. Please wait for current operation to finish.' };
   }
 
-  const assetsFolder = await ensureAssetsFolderBridge(vaultPath);
-  if (!assetsFolder) {
-    return { success: false, reason: 'runtime', error: 'Failed to access assets folder in vault.' };
+  const stagingFolder = await ensureVaultStagingFolderBridge(vaultPath);
+  if (!stagingFolder) {
+    return { success: false, reason: 'runtime', error: 'Failed to access vault staging folder.' };
   }
 
   const clipStart = Math.min(inPoint, outPoint);
@@ -171,7 +171,7 @@ async function finalizeClipToDerivedFile({
     reverseOutput ? 'clip_reverse' : 'clip',
     'mp4'
   );
-  const outputPath = `${assetsFolder}/${fileName}`.replace(/\\/g, '/');
+  const outputPath = `${stagingFolder}/${fileName}`.replace(/\\/g, '/');
 
   const result = await finalizeClipBridge({
     sourcePath: sourceAssetPath,
@@ -265,7 +265,7 @@ export async function finalizeClipAndRegisterAsset({
     fileName: finalized.fileName,
     fileSize: finalized.fileSize,
     assetId,
-    outputPath: finalized.outputPath,
+    outputPath: registered.path,
   };
 }
 
@@ -445,9 +445,9 @@ export async function extractAudioAndRegisterAsset({
     return { success: false, reason: 'queue-busy', error: 'FFmpeg queue is busy. Please wait for current operation to finish.' };
   }
 
-  const assetsFolder = await ensureAssetsFolderBridge(vaultPath);
-  if (!assetsFolder) {
-    return { success: false, reason: 'runtime', error: 'Failed to access assets folder in vault.' };
+  const stagingFolder = await ensureVaultStagingFolderBridge(vaultPath);
+  if (!stagingFolder) {
+    return { success: false, reason: 'runtime', error: 'Failed to access vault staging folder.' };
   }
 
   const hasRange = typeof inPoint === 'number' && typeof outPoint === 'number';
@@ -459,7 +459,7 @@ export async function extractAudioAndRegisterAsset({
     'audio_extract',
     'wav'
   );
-  const outputPath = `${assetsFolder}/${fileName}`.replace(/\\/g, '/');
+  const outputPath = `${stagingFolder}/${fileName}`.replace(/\\/g, '/');
   const extractResult = await extractAudioBridge({
     sourcePath: sourceAssetPath,
     outputPath,
@@ -502,7 +502,7 @@ export async function extractAudioAndRegisterAsset({
     fileName,
     fileSize: extractResult.fileSize,
     assetId,
-    outputPath,
+    outputPath: registered.path,
   };
 }
 
@@ -560,9 +560,9 @@ export async function cropImageAndAddCut({
   getCutGroup,
   updateGroupCutOrder,
 }: CropImageAddCutParams): Promise<CropImageAddCutResult> {
-  const assetsFolder = await ensureAssetsFolderBridge(vaultPath);
-  if (!assetsFolder) {
-    return { success: false, error: 'Failed to access assets folder in vault.' };
+  const stagingFolder = await ensureVaultStagingFolderBridge(vaultPath);
+  if (!stagingFolder) {
+    return { success: false, error: 'Failed to access vault staging folder.' };
   }
 
   const fileName = buildDerivedFileName(
@@ -572,7 +572,7 @@ export async function cropImageAndAddCut({
     'png',
     `${targetWidth}x${targetHeight}`
   );
-  const outputPath = `${assetsFolder}/${fileName}`.replace(/\\/g, '/');
+  const outputPath = `${stagingFolder}/${fileName}`.replace(/\\/g, '/');
 
   const result = await cropImageToAspectBridge({
     sourcePath: sourceAssetPath,

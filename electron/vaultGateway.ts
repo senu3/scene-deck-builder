@@ -50,6 +50,11 @@ export interface VaultImportResult {
   error?: string;
 }
 
+export interface FinalizeVaultAssetOptions {
+  originalName?: string;
+  originalPath?: string;
+}
+
 export interface MoveToTrashResult {
   success: boolean;
   trashedPath?: string;
@@ -79,6 +84,7 @@ interface TrashIndex {
 
 const TRASH_INDEX_NAME = '.trash.json';
 const DEFAULT_TRASH_RETENTION_DAYS = 30;
+const VAULT_STAGING_DIR_NAME = '.staging';
 
 export async function calculateFileHashStream(filePath: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -142,6 +148,14 @@ function ensureAssetsPath(vaultPath: string): string {
   return assetsPath;
 }
 
+export function ensureVaultStagingPath(vaultPath: string): string {
+  const stagingPath = path.join(vaultPath, VAULT_STAGING_DIR_NAME);
+  if (!fs.existsSync(stagingPath)) {
+    fs.mkdirSync(stagingPath, { recursive: true });
+  }
+  return stagingPath;
+}
+
 function getAssetIndexPath(vaultPath: string): string {
   return path.join(ensureAssetsPath(vaultPath), '.index.json');
 }
@@ -167,9 +181,24 @@ function upsertAssetIndexEntry(index: AssetIndex, entry: AssetIndexEntry) {
   }
 }
 
+function writeTextFileAtomically(targetPath: string, contents: string) {
+  const tempPath = `${targetPath}.${process.pid}.${crypto.randomUUID()}.tmp`;
+  fs.writeFileSync(tempPath, contents, 'utf-8');
+  try {
+    fs.renameSync(tempPath, targetPath);
+  } catch (error) {
+    try {
+      fs.unlinkSync(tempPath);
+    } catch {
+      // ignore cleanup failure
+    }
+    throw error;
+  }
+}
+
 function writeAssetIndexForVault(vaultPath: string, index: AssetIndex) {
   const indexPath = getAssetIndexPath(vaultPath);
-  fs.writeFileSync(indexPath, JSON.stringify(index, null, 2), 'utf-8');
+  writeTextFileAtomically(indexPath, JSON.stringify(index, null, 2));
 }
 
 function isPathInsideAssets(vaultPath: string, filePath: string): boolean {
@@ -177,6 +206,52 @@ function isPathInsideAssets(vaultPath: string, filePath: string): boolean {
   const targetPath = path.resolve(filePath);
   const relative = path.relative(assetsPath, targetPath);
   return relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative);
+}
+
+function isPathInsideStaging(vaultPath: string, filePath: string): boolean {
+  const stagingPath = path.resolve(ensureVaultStagingPath(vaultPath));
+  const targetPath = path.resolve(filePath);
+  const relative = path.relative(stagingPath, targetPath);
+  return relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative);
+}
+
+function buildManagedFilename(
+  filePath: string,
+  mediaType: 'image' | 'video' | 'audio',
+  hash: string,
+): string {
+  const ext = path.extname(filePath).toLowerCase();
+  const shortHash = hash.substring(0, 12);
+  const prefix = mediaType === 'image' ? 'img' : mediaType === 'video' ? 'vid' : 'aud';
+  return `${prefix}_${shortHash}${ext}`;
+}
+
+function resolveUniqueManagedPath(
+  assetsPath: string,
+  desiredFilename: string,
+): { filename: string; absolutePath: string } {
+  const desiredPath = path.join(assetsPath, desiredFilename);
+  if (!fs.existsSync(desiredPath)) {
+    return {
+      filename: desiredFilename,
+      absolutePath: desiredPath,
+    };
+  }
+
+  const ext = path.extname(desiredFilename);
+  const baseName = path.basename(desiredFilename, ext);
+  let counter = 1;
+  let nextFilename = `${baseName}_${counter}${ext}`;
+  let nextPath = path.join(assetsPath, nextFilename);
+  while (fs.existsSync(nextPath)) {
+    counter += 1;
+    nextFilename = `${baseName}_${counter}${ext}`;
+    nextPath = path.join(assetsPath, nextFilename);
+  }
+  return {
+    filename: nextFilename,
+    absolutePath: nextPath,
+  };
 }
 
 function purgeExpiredTrash(trashPath: string, index: TrashIndex): TrashIndex {
@@ -231,11 +306,112 @@ export function saveAssetIndexInternal(vaultPath: string, index: AssetIndex): bo
       ...entry,
       originalPath: toVaultRelativePath(vaultPath, entry.originalPath),
     }));
-    fs.writeFileSync(indexPath, JSON.stringify({ ...index, assets: normalizedAssets }, null, 2), 'utf-8');
+    writeTextFileAtomically(indexPath, JSON.stringify({ ...index, assets: normalizedAssets }, null, 2));
     return true;
   } catch (error) {
     console.error('Failed to save asset index:', error);
     return false;
+  }
+}
+
+export async function finalizeAssetIntoVaultInternal(
+  sourcePath: string,
+  vaultPath: string,
+  assetId: string,
+  options: FinalizeVaultAssetOptions = {},
+): Promise<VaultImportResult> {
+  try {
+    const stats = fs.statSync(sourcePath);
+    if (!stats.isFile()) {
+      return { success: false, error: 'Asset path must point to a file' };
+    }
+
+    const mediaType = getMediaType(path.basename(sourcePath));
+    if (!mediaType) {
+      return { success: false, error: 'Unsupported file type' };
+    }
+
+    const assetsPath = ensureAssetsPath(vaultPath);
+    const hash = await calculateFileHashStream(sourcePath);
+    const desiredFilename = buildManagedFilename(sourcePath, mediaType, hash);
+    let finalFilename = desiredFilename;
+    let finalPath = path.join(assetsPath, desiredFilename);
+    let isDuplicate = false;
+    const sourceResolvedPath = path.resolve(sourcePath);
+    const desiredResolvedPath = path.resolve(finalPath);
+
+    if (sourceResolvedPath !== desiredResolvedPath && fs.existsSync(finalPath)) {
+      const existingHash = await calculateFileHashStream(finalPath);
+      if (existingHash === hash) {
+        isDuplicate = true;
+      } else {
+        const uniqueTarget = resolveUniqueManagedPath(assetsPath, desiredFilename);
+        finalFilename = uniqueTarget.filename;
+        finalPath = uniqueTarget.absolutePath;
+      }
+    }
+
+    const finalResolvedPath = path.resolve(finalPath);
+    const samePhysicalPath = sourceResolvedPath === finalResolvedPath;
+    const sourceInsideAssets = isPathInsideAssets(vaultPath, sourcePath);
+    const sourceInsideStaging = isPathInsideStaging(vaultPath, sourcePath);
+    const shouldRemoveSource = (sourceInsideAssets || sourceInsideStaging) && !samePhysicalPath;
+
+    const index = loadAssetIndexForVault(vaultPath);
+    const entry: AssetIndexEntry = {
+      id: assetId,
+      hash,
+      filename: finalFilename,
+      originalName: options.originalName || path.basename(sourcePath),
+      originalPath: toVaultRelativePath(vaultPath, options.originalPath ?? sourcePath),
+      type: mediaType,
+      fileSize: stats.size,
+      importedAt: new Date().toISOString(),
+    };
+    upsertAssetIndexEntry(index, entry);
+
+    let createdFinalFile = false;
+    let removedSource = false;
+    try {
+      if (!samePhysicalPath && !isDuplicate) {
+        fs.copyFileSync(sourcePath, finalPath);
+        createdFinalFile = true;
+      }
+
+      if (shouldRemoveSource) {
+        fs.unlinkSync(sourcePath);
+        removedSource = true;
+      }
+
+      writeAssetIndexForVault(vaultPath, index);
+
+      return {
+        success: true,
+        vaultPath: finalPath,
+        relativePath: `assets/${finalFilename}`,
+        hash,
+        isDuplicate,
+      };
+    } catch (error) {
+      if (removedSource) {
+        try {
+          fs.copyFileSync(finalPath, sourcePath);
+        } catch (restoreError) {
+          console.error('Failed to restore source asset after finalize rollback:', restoreError);
+        }
+      }
+      if (createdFinalFile) {
+        try {
+          fs.unlinkSync(finalPath);
+        } catch (cleanupError) {
+          console.error('Failed to cleanup finalized asset after rollback:', cleanupError);
+        }
+      }
+      throw error;
+    }
+  } catch (error) {
+    console.error('Failed to finalize asset into vault:', error);
+    return { success: false, error: String(error) };
   }
 }
 
@@ -244,101 +420,7 @@ export async function importAssetToVaultInternal(
   vaultPath: string,
   assetId: string
 ): Promise<VaultImportResult> {
-  try {
-    const assetsPath = ensureAssetsPath(vaultPath);
-
-    const sourceStats = fs.statSync(sourcePath);
-    // Calculate hash without loading the full file into memory.
-    const hash = await calculateFileHashStream(sourcePath);
-    const shortHash = hash.substring(0, 12);
-
-    // Determine file type and extension
-    const ext = path.extname(sourcePath).toLowerCase();
-    const mediaType = getMediaType(path.basename(sourcePath));
-    if (!mediaType) {
-      return { success: false, error: 'Unsupported file type' };
-    }
-
-    // Create hash-based filename: img_abc123.png, vid_abc123.mp4, or aud_abc123.mp3
-    const prefix = mediaType === 'image' ? 'img' : mediaType === 'video' ? 'vid' : 'aud';
-    const newFilename = `${prefix}_${shortHash}${ext}`;
-
-    const destPath = path.join(assetsPath, newFilename);
-    const relativePath = `assets/${newFilename}`;
-
-    const index = loadAssetIndexForVault(vaultPath);
-    const baseEntry: AssetIndexEntry = {
-      id: assetId,
-      hash,
-      filename: newFilename,
-      originalName: path.basename(sourcePath),
-      originalPath: toVaultRelativePath(vaultPath, sourcePath),
-      type: mediaType,
-      fileSize: sourceStats.size,
-      importedAt: new Date().toISOString(),
-    };
-
-    // Check if file with same hash already exists
-    if (fs.existsSync(destPath)) {
-      // Verify it's the same file by comparing hashes
-      const existingHash = await calculateFileHashStream(destPath);
-
-      if (existingHash === hash) {
-        upsertAssetIndexEntry(index, baseEntry);
-        writeAssetIndexForVault(vaultPath, index);
-        // Exact duplicate - return existing path
-        return {
-          success: true,
-          vaultPath: destPath,
-          relativePath,
-          hash,
-          isDuplicate: true,
-        };
-      }
-
-      // Hash collision (very rare) - add suffix
-      let counter = 1;
-      let uniqueFilename = `${prefix}_${shortHash}_${counter}${ext}`;
-      let uniquePath = path.join(assetsPath, uniqueFilename);
-      while (fs.existsSync(uniquePath)) {
-        counter++;
-        uniqueFilename = `${prefix}_${shortHash}_${counter}${ext}`;
-        uniquePath = path.join(assetsPath, uniqueFilename);
-      }
-
-      fs.copyFileSync(sourcePath, uniquePath);
-      const collisionEntry: AssetIndexEntry = {
-        ...baseEntry,
-        filename: uniqueFilename,
-      };
-      upsertAssetIndexEntry(index, collisionEntry);
-      writeAssetIndexForVault(vaultPath, index);
-      return {
-        success: true,
-        vaultPath: uniquePath,
-        relativePath: `assets/${uniqueFilename}`,
-        hash,
-        isDuplicate: false,
-      };
-    }
-
-    // Copy file to vault
-    fs.copyFileSync(sourcePath, destPath);
-
-    upsertAssetIndexEntry(index, baseEntry);
-    writeAssetIndexForVault(vaultPath, index);
-
-    return {
-      success: true,
-      vaultPath: destPath,
-      relativePath,
-      hash,
-      isDuplicate: false,
-    };
-  } catch (error) {
-    console.error('Failed to import asset to vault:', error);
-    return { success: false, error: String(error) };
-  }
+  return finalizeAssetIntoVaultInternal(sourcePath, vaultPath, assetId);
 }
 
 export async function registerVaultAssetInternal(
@@ -346,50 +428,7 @@ export async function registerVaultAssetInternal(
   vaultPath: string,
   assetId: string
 ): Promise<VaultImportResult> {
-  try {
-    if (!isPathInsideAssets(vaultPath, filePath)) {
-      return { success: false, error: 'Asset must already exist inside vault/assets' };
-    }
-
-    const stats = fs.statSync(filePath);
-    if (!stats.isFile()) {
-      return { success: false, error: 'Asset path must point to a file' };
-    }
-
-    const filename = path.basename(filePath);
-    const mediaType = getMediaType(filename);
-    if (!mediaType) {
-      return { success: false, error: 'Unsupported file type' };
-    }
-
-    const hash = await calculateFileHashStream(filePath);
-    const index = loadAssetIndexForVault(vaultPath);
-    const relativePath = `assets/${filename}`;
-    const entry: AssetIndexEntry = {
-      id: assetId,
-      hash,
-      filename,
-      originalName: filename,
-      originalPath: toVaultRelativePath(vaultPath, filePath),
-      type: mediaType,
-      fileSize: stats.size,
-      importedAt: new Date().toISOString(),
-    };
-
-    upsertAssetIndexEntry(index, entry);
-    writeAssetIndexForVault(vaultPath, index);
-
-    return {
-      success: true,
-      vaultPath: filePath,
-      relativePath,
-      hash,
-      isDuplicate: false,
-    };
-  } catch (error) {
-    console.error('Failed to register existing vault asset:', error);
-    return { success: false, error: String(error) };
-  }
+  return finalizeAssetIntoVaultInternal(filePath, vaultPath, assetId);
 }
 
 export async function importDataUrlToVaultInternal(
@@ -541,6 +580,19 @@ export async function moveToTrashInternal(filePath: string, trashPath: string, m
 }
 
 export function registerVaultGatewayHandlers(ipcMain: IpcMain) {
+  ipcMain.handle(
+    'vault-gateway-finalize-asset',
+    async (
+      _,
+      sourcePath: string,
+      vaultPath: string,
+      assetId: string,
+      options?: FinalizeVaultAssetOptions,
+    ) => {
+      return finalizeAssetIntoVaultInternal(sourcePath, vaultPath, assetId, options);
+    },
+  );
+
   ipcMain.handle('vault-gateway-import-asset', async (_, sourcePath: string, vaultPath: string, assetId: string) => {
     return importAssetToVaultInternal(sourcePath, vaultPath, assetId);
   });

@@ -417,6 +417,10 @@ export async function ensureAssetsFolderBridge(vaultPath: string): Promise<strin
   return getElectronAPI()?.ensureAssetsFolder?.(vaultPath) ?? null;
 }
 
+export async function ensureVaultStagingFolderBridge(vaultPath: string): Promise<string | null> {
+  return getElectronAPI()?.ensureVaultStagingFolder?.(vaultPath) ?? null;
+}
+
 export async function finalizeClipBridge(
   options: FinalizeClipOptionsLike
 ): Promise<FinalizeClipResultLike> {
@@ -497,6 +501,15 @@ export async function importAndRegisterAssetBridge(
   assetId: string
 ): Promise<VaultImportResult | null> {
   return getElectronAPI()?.vaultGateway?.importAndRegisterAsset?.(sourcePath, vaultPath, assetId) ?? null;
+}
+
+export async function finalizeVaultAssetBridge(
+  sourcePath: string,
+  vaultPath: string,
+  assetId: string,
+  options?: { originalName?: string; originalPath?: string },
+): Promise<VaultImportResult | null> {
+  return getElectronAPI()?.vaultGateway?.finalizeAsset?.(sourcePath, vaultPath, assetId, options) ?? null;
 }
 
 export async function registerVaultAssetBridge(

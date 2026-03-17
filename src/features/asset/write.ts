@@ -1,10 +1,8 @@
 import type { Asset } from '../../types';
 import { readCanonicalAssetMetadataForPath } from '../metadata/provider';
 import {
+  finalizeVaultAssetBridge,
   hasVaultGatewayBridge,
-  importAndRegisterAssetBridge,
-  isPathInVaultBridge,
-  registerVaultAssetBridge,
   withSerializedAssetIndexMutationBridge,
 } from '../platform/electronGateway';
 import { getMediaType } from '../../utils/mediaType';
@@ -48,12 +46,11 @@ export async function registerAssetFile({
     metadata: existingAsset?.metadata,
   });
 
-  const inVaultAssets = await isPathInVaultBridge(`${vaultPath}/assets`, sourcePath);
   const result = await withSerializedAssetIndexMutationBridge(async () => {
-    if (inVaultAssets) {
-      return registerVaultAssetBridge(sourcePath, vaultPath, assetId);
-    }
-    return importAndRegisterAssetBridge(sourcePath, vaultPath, assetId);
+    return finalizeVaultAssetBridge(sourcePath, vaultPath, assetId, {
+      originalName: existingAsset?.name,
+      originalPath: existingAsset?.originalPath || sourcePath,
+    });
   });
 
   if (!result?.success) {

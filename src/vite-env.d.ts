@@ -105,6 +105,11 @@ interface VaultImportResult {
   error?: string;
 }
 
+interface FinalizeVaultAssetOptions {
+  originalName?: string;
+  originalPath?: string;
+}
+
 interface MoveToTrashResult {
   success: boolean;
   trashedPath?: string;
@@ -120,6 +125,12 @@ interface VaultVerifyResult {
 }
 
 interface VaultGatewayAPI {
+  finalizeAsset: (
+    sourcePath: string,
+    vaultPath: string,
+    assetId: string,
+    options?: FinalizeVaultAssetOptions,
+  ) => Promise<VaultImportResult>;
   importAndRegisterAsset: (sourcePath: string, vaultPath: string, assetId: string) => Promise<VaultImportResult>;
   registerVaultAsset: (filePath: string, vaultPath: string, assetId: string) => Promise<VaultImportResult>;
   importDataUrlAsset: (dataUrl: string, vaultPath: string, assetId: string) => Promise<VaultImportResult>;
@@ -375,6 +386,7 @@ interface ElectronAPI {
   // Vault asset sync operations
   calculateFileHash: (filePath: string) => Promise<string | null>;
   ensureAssetsFolder: (vaultPath: string) => Promise<string | null>;
+  ensureVaultStagingFolder: (vaultPath: string) => Promise<string | null>;
   readAssetIndex: (vaultPath: string) => Promise<AssetIndexReadResult>;
   verifyVaultAssets: (vaultPath: string) => Promise<VaultVerifyResult>;
   resolveVaultPath: (vaultPath: string, relativePath: string) => Promise<PathResolveResult>;

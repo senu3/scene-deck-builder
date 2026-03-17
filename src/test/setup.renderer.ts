@@ -41,6 +41,7 @@ const electronAPIMock = {
     timelinePath: 'C:/mock/timeline.txt',
   })),
   ensureAssetsFolder: vi.fn(async () => 'C:/mock/vault/assets'),
+  ensureVaultStagingFolder: vi.fn(async () => 'C:/mock/vault/.staging'),
   extractVideoFrame: vi.fn(async () => ({
     success: true,
     outputPath: 'C:/mock/vault/assets/frame.png',
@@ -79,6 +80,13 @@ const electronAPIMock = {
   readAssetIndex: vi.fn(async () => ({ kind: 'readable' as const, index: { version: 1, assets: [] } })),
   isPathInVault: vi.fn(async () => false),
   vaultGateway: {
+    finalizeAsset: vi.fn(async () => ({
+      success: true,
+      vaultPath: 'C:/mock/vault/assets/img_abc.png',
+      relativePath: 'assets/img_abc.png',
+      hash: 'abc',
+      isDuplicate: false,
+    })),
     importAndRegisterAsset: vi.fn(async () => ({
       success: true,
       vaultPath: 'C:/mock/vault/assets/img_abc.png',

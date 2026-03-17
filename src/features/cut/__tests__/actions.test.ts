@@ -43,11 +43,11 @@ describe('cut actions', () => {
 
   it('finalizes clip and creates derived cut', async () => {
     const finalizeClip = vi.fn(async (_options: { outputPath: string }) => ({ success: true, fileSize: 1024 * 1024 }));
-    const ensureAssetsFolder = vi.fn(async () => 'C:/vault/assets');
+    const ensureVaultStagingFolder = vi.fn(async () => 'C:/vault/.staging');
     Object.defineProperty(window, 'electronAPI', {
       value: {
         finalizeClip,
-        ensureAssetsFolder,
+        ensureVaultStagingFolder,
       },
       writable: true,
     });
@@ -78,23 +78,22 @@ describe('cut actions', () => {
 
   it('finalizes clip and registers derived asset without creating cut', async () => {
     const finalizeClip = vi.fn(async (_options: { outputPath: string }) => ({ success: true, fileSize: 2048 }));
-    const ensureAssetsFolder = vi.fn(async () => 'C:/vault/assets');
-    const registerVaultAsset = vi.fn(async () => ({
+    const ensureVaultStagingFolder = vi.fn(async () => 'C:/vault/.staging');
+    const finalizeAsset = vi.fn(async () => ({
       success: true,
-      vaultPath: 'C:/vault/assets/derived.mp4',
-      relativePath: 'assets/derived.mp4',
+      vaultPath: 'C:/vault/assets/vid_hash.mp4',
+      relativePath: 'assets/vid_hash.mp4',
       hash: 'abc',
       isDuplicate: false,
     }));
     Object.defineProperty(window, 'electronAPI', {
       value: {
         finalizeClip,
-        ensureAssetsFolder,
-        isPathInVault: vi.fn(async () => true),
+        ensureVaultStagingFolder,
         getFileInfo: vi.fn(async () => ({ size: 2048 })),
         getVideoMetadata: vi.fn(async () => ({ duration: 2, width: 1920, height: 1080 })),
         vaultGateway: {
-          registerVaultAsset,
+          finalizeAsset,
         },
       },
       writable: true,
@@ -111,16 +110,17 @@ describe('cut actions', () => {
 
     expect(result.success).toBe(true);
     expect(finalizeClip).toHaveBeenCalledTimes(1);
-    expect(registerVaultAsset).toHaveBeenCalledTimes(1);
+    expect(finalizeAsset).toHaveBeenCalledTimes(1);
+    expect(result.outputPath).toBe('C:/vault/assets/vid_hash.mp4');
   });
 
   it('crops image and creates derived cut', async () => {
     const cropImageToAspect = vi.fn(async () => ({ success: true, fileSize: 2048 }));
-    const ensureAssetsFolder = vi.fn(async () => 'C:/vault/assets');
+    const ensureVaultStagingFolder = vi.fn(async () => 'C:/vault/.staging');
     Object.defineProperty(window, 'electronAPI', {
       value: {
         cropImageToAspect,
-        ensureAssetsFolder,
+        ensureVaultStagingFolder,
       },
       writable: true,
     });
@@ -153,22 +153,21 @@ describe('cut actions', () => {
 
   it('extracts audio and registers as derived asset only', async () => {
     const extractAudio = vi.fn(async () => ({ success: true, fileSize: 4096 }));
-    const ensureAssetsFolder = vi.fn(async () => 'C:/vault/assets');
-    const registerVaultAsset = vi.fn(async () => ({
+    const ensureVaultStagingFolder = vi.fn(async () => 'C:/vault/.staging');
+    const finalizeAsset = vi.fn(async () => ({
       success: true,
-      vaultPath: 'C:/vault/assets/derived.wav',
-      relativePath: 'assets/derived.wav',
+      vaultPath: 'C:/vault/assets/aud_hash.wav',
+      relativePath: 'assets/aud_hash.wav',
       hash: 'abc',
       isDuplicate: false,
     }));
     Object.defineProperty(window, 'electronAPI', {
       value: {
         extractAudio,
-        ensureAssetsFolder,
-        isPathInVault: vi.fn(async () => true),
+        ensureVaultStagingFolder,
         getFileInfo: vi.fn(async () => ({ size: 4096 })),
         vaultGateway: {
-          registerVaultAsset,
+          finalizeAsset,
         },
       },
       writable: true,
@@ -184,16 +183,17 @@ describe('cut actions', () => {
 
     expect(result.success).toBe(true);
     expect(extractAudio).toHaveBeenCalledTimes(1);
-    expect(registerVaultAsset).toHaveBeenCalledTimes(1);
+    expect(finalizeAsset).toHaveBeenCalledTimes(1);
+    expect(result.outputPath).toBe('C:/vault/assets/aud_hash.wav');
   });
 
   it('uses source path basename for derived filenames when display name is noisy', async () => {
     const finalizeClip = vi.fn(async (_options: { outputPath: string }) => ({ success: true, fileSize: 1024 }));
-    const ensureAssetsFolder = vi.fn(async () => 'C:/vault/assets');
+    const ensureVaultStagingFolder = vi.fn(async () => 'C:/vault/.staging');
     Object.defineProperty(window, 'electronAPI', {
       value: {
         finalizeClip,
-        ensureAssetsFolder,
+        ensureVaultStagingFolder,
       },
       writable: true,
     });

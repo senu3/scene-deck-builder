@@ -99,6 +99,11 @@ export interface VaultImportResult {
   error?: string;
 }
 
+export interface FinalizeVaultAssetOptions {
+  originalName?: string;
+  originalPath?: string;
+}
+
 export interface MoveToTrashResult {
   success: boolean;
   trashedPath?: string;
@@ -114,6 +119,12 @@ export interface VaultVerifyResult {
 }
 
 export interface VaultGatewayAPI {
+  finalizeAsset: (
+    sourcePath: string,
+    vaultPath: string,
+    assetId: string,
+    options?: FinalizeVaultAssetOptions,
+  ) => Promise<VaultImportResult>;
   importAndRegisterAsset: (sourcePath: string, vaultPath: string, assetId: string) => Promise<VaultImportResult>;
   registerVaultAsset: (filePath: string, vaultPath: string, assetId: string) => Promise<VaultImportResult>;
   saveAssetIndex: (vaultPath: string, index: AssetIndex) => Promise<boolean>;
@@ -444,6 +455,9 @@ const electronAPI = {
   ensureAssetsFolder: (vaultPath: string): Promise<string | null> =>
     ipcRenderer.invoke('ensure-assets-folder', vaultPath),
 
+  ensureVaultStagingFolder: (vaultPath: string): Promise<string | null> =>
+    ipcRenderer.invoke('ensure-vault-staging-folder', vaultPath),
+
   readAssetIndex: (vaultPath: string): Promise<AssetIndexReadResult> =>
     ipcRenderer.invoke('read-asset-index', vaultPath),
 
@@ -461,6 +475,13 @@ const electronAPI = {
 
   // Vault gateway (single write entry)
   vaultGateway: {
+    finalizeAsset: (
+      sourcePath: string,
+      vaultPath: string,
+      assetId: string,
+      options?: FinalizeVaultAssetOptions,
+    ): Promise<VaultImportResult> =>
+      ipcRenderer.invoke('vault-gateway-finalize-asset', sourcePath, vaultPath, assetId, options),
     importAndRegisterAsset: (sourcePath: string, vaultPath: string, assetId: string): Promise<VaultImportResult> =>
       ipcRenderer.invoke('vault-gateway-import-asset', sourcePath, vaultPath, assetId),
     registerVaultAsset: (filePath: string, vaultPath: string, assetId: string): Promise<VaultImportResult> =>

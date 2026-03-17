@@ -42,19 +42,20 @@ describe('assetPath', () => {
   it('keeps filename when source is already inside vault assets', async () => {
     resetElectronMocks();
     const electronAPI = window.electronAPI as any;
-    electronAPI.isPathInVault.mockResolvedValueOnce(true);
-    electronAPI.vaultGateway.registerVaultAsset.mockResolvedValueOnce({
+    electronAPI.vaultGateway.finalizeAsset.mockResolvedValueOnce({
       success: true,
-      vaultPath: 'C:/vault/assets/original.png',
-      relativePath: 'assets/original.png',
+      vaultPath: 'C:/vault/assets/img_hashoriginal.png',
+      relativePath: 'assets/img_hashoriginal.png',
       hash: 'hash-original',
       isDuplicate: false,
     });
     const result = await importFileToVault('C:/vault/assets/original.png', 'C:/vault', 'asset-1');
-    expect(result?.vaultRelativePath).toBe('assets/original.png');
-    expect(result?.path).toBe('C:/vault/assets/original.png');
-    expect(electronAPI.vaultGateway.importAndRegisterAsset).not.toHaveBeenCalled();
-    expect(electronAPI.vaultGateway.registerVaultAsset).toHaveBeenCalledWith('C:/vault/assets/original.png', 'C:/vault', 'asset-1');
+    expect(result?.vaultRelativePath).toBe('assets/img_hashoriginal.png');
+    expect(result?.path).toBe('C:/vault/assets/img_hashoriginal.png');
+    expect(electronAPI.vaultGateway.finalizeAsset).toHaveBeenCalledWith('C:/vault/assets/original.png', 'C:/vault', 'asset-1', {
+      originalName: undefined,
+      originalPath: 'C:/vault/assets/original.png',
+    });
     expect(electronAPI.vaultGateway.saveAssetIndex).not.toHaveBeenCalled();
   });
 
