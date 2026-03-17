@@ -29,7 +29,6 @@ function cut(input: Partial<Cut> & Pick<Cut, 'id' | 'assetId' | 'displayTime' | 
     outPoint: input.outPoint,
     groupId: input.groupId,
     useEmbeddedAudio: input.useEmbeddedAudio,
-    isLipSync: input.isLipSync,
     audioBindings: input.audioBindings || [],
     framing: input.framing,
   };
@@ -95,34 +94,6 @@ describe('buildSequencePlan', () => {
     expect(plan.exportItemByCutId.has('cut-1')).toBe(true);
     expect(plan.durationSec).toBeGreaterThan(0);
     expect(plan.warnings.some((warning) => warning.code === 'audio-only-cut-skipped')).toBe(true);
-  });
-
-  it('adds temporary warning for lipsync cuts', () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
-    const cuts: Cut[] = [
-      cut({
-        id: 'cut-lipsync',
-        assetId: 'video-1',
-        displayTime: 1,
-        order: 0,
-        isLipSync: true,
-      }),
-    ];
-    const assets = new Map<string, Asset>([['video-1', VIDEO_ASSET]]);
-
-    const plan = buildSequencePlan({
-      scenes: [{ id: 'scene-1', name: 'Scene 1', cuts, notes: [] }],
-      sceneOrder: ['scene-1'],
-    }, {
-      metadataStore: null,
-      getAssetById: (assetId) => assets.get(assetId),
-    });
-
-    expect(plan.warnings.some((warning) => warning.code === 'lipsync-temporary-route')).toBe(true);
-    expect(plan.warnings.some((warning) => warning.code === 'lipsync-export-fallback')).toBe(true);
-    expect(warnSpy).not.toHaveBeenCalled();
-    expect(infoSpy).not.toHaveBeenCalled();
   });
 
   it('routes framing debug through plan warnings instead of console logging', () => {

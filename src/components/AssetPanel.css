@@ -356,10 +356,6 @@
   background-color: rgba(var(--accent-video-rgb), 0.9);
 }
 
-.asset-type-badge.lipsync {
-  background: linear-gradient(135deg, #ec4899, #8b5cf6);
-}
-
 .asset-type-badge.audio {
   background-color: rgba(var(--accent-audio-rgb), 0.9);
 }

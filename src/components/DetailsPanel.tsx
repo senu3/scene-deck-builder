@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import {
   Settings,
-  Mic,
   Link,
   Music,
   Trash2,
@@ -44,6 +43,7 @@ import {
   selectUpdateCutAudioOffset,
   selectSetCutUseEmbeddedAudio,
   selectCreateStoreEventOperation,
+  selectRelinkCutAsset,
 } from "../store/selectors";
 import { useHistoryStore } from "../store/historyStore";
 import {
@@ -64,7 +64,6 @@ import {
   resolveCutThumbnailFromCache,
 } from "../features/thumbnails/api";
 import { selectAndImportAssetToVault } from "../features/asset/import";
-import { relinkCutAssetWithLipSyncCleanup } from "../features/metadata/lipSyncActions";
 import { useAssetMetadataHydration } from "../features/metadata/useAssetMetadataHydration";
 import {
   ensureAssetsFolderBridge,
@@ -73,15 +72,13 @@ import {
 } from "../features/platform/electronGateway";
 import { clearPreviewClipPoints, savePreviewClipPoints } from "../features/cut/previewClipUpdate";
 import { resolveCutAsset } from "../utils/assetResolve";
-import { getLipSyncFrameAssetIds } from "../utils/lipSyncUtils";
 import { importFileToVault } from "../utils/assetPath";
 // Note: getAudioDuration was removed - duration comes from asset.duration after import
 import PreviewModal from "./PreviewModal";
-import LipSyncModal from "./LipSyncModal";
 import AssetModal from "./AssetModal";
 import type { Asset } from "../types";
 import { v4 as uuidv4 } from "uuid";
-import { Toggle, useDialog } from "../ui";
+import { Toggle } from "../ui";
 import "./DetailsPanel.css";
 
 export default function DetailsPanel() {
@@ -106,21 +103,17 @@ export default function DetailsPanel() {
   const updateCutAudioOffset = useStore(selectUpdateCutAudioOffset);
   const setCutUseEmbeddedAudio = useStore(selectSetCutUseEmbeddedAudio);
   const createStoreEventOperation = useStore(selectCreateStoreEventOperation);
+  const relinkCutAsset = useStore(selectRelinkCutAsset);
 
   const { executeCommand } = useHistoryStore();
-  const { confirm } = useDialog();
-
   const [thumbnail, setThumbnail] = useState<string | null>(null);
   const [localDisplayTime, setLocalDisplayTime] = useState("2.0");
   const [batchDisplayTime, setBatchDisplayTime] = useState("2.0");
   const [noteText, setNoteText] = useState("");
   const [showVideoPreview, setShowVideoPreview] = useState(false);
-  const [showLipSyncModal, setShowLipSyncModal] = useState(false);
   const [showAssetModal, setShowAssetModal] = useState(false);
   const [showSceneAudioModal, setShowSceneAudioModal] = useState(false);
   const [showGroupAudioModal, setShowGroupAudioModal] = useState(false);
-  const [pendingLipSyncOpen, setPendingLipSyncOpen] = useState(false);
-  const [lipSyncFrames, setLipSyncFrames] = useState<string[]>([]);
   const [groupThumbnail, setGroupThumbnail] = useState<string | null>(null);
 
   // Attached audio state
@@ -180,9 +173,6 @@ export default function DetailsPanel() {
   const attachedAudioSourceName =
     primaryAudioBinding?.sourceName || attachedAudio?.name || "Unknown";
   const hasAttachedAudio = !!primaryAudioBinding?.audioAssetId;
-  const lipSyncSettings = activeAsset?.id ? metadataStore?.metadata[activeAsset.id]?.lipSync : undefined;
-  const isLipSyncCut = !!cut?.isLipSync;
-  const showLipSyncDetails = isLipSyncCut && !!lipSyncSettings;
   const sceneAudioBinding = selectedScene ? metadataStore?.sceneMetadata?.[selectedScene.id]?.attachAudio : undefined;
   const attachedSceneAudio = selectedScene ? getAttachedAudioForScene(selectedScene.id) : undefined;
 
@@ -323,58 +313,6 @@ export default function DetailsPanel() {
     loadAssetData();
   }, [activeAsset?.id, activeAsset?.path, activeAsset?.type, preferredThumbnail]);
 
-  // Load lip sync frame thumbnails
-  useEffect(() => {
-    let isActive = true;
-    const loadLipSyncFrames = async () => {
-      setLipSyncFrames([]);
-
-      if (!lipSyncSettings) return;
-
-      const frameAssetIds = getLipSyncFrameAssetIds(lipSyncSettings);
-
-      const sources: string[] = [];
-      for (const frameAssetId of frameAssetIds) {
-        let src = "";
-        const frameAsset = getAsset(frameAssetId);
-        if (frameAsset?.thumbnail) {
-          src = frameAsset.thumbnail;
-        } else if (frameAsset?.path) {
-          try {
-            const cached = await getAssetThumbnail('details-panel', {
-              assetId: frameAsset.id,
-              path: frameAsset.path,
-              type: 'image',
-            });
-            if (cached) src = cached;
-          } catch {
-            // ignore
-          }
-        }
-        sources.push(src);
-      }
-
-      const baseFallback = sources[0] || thumbnail || "";
-      const resolved = sources.map((src) => src || baseFallback);
-
-      if (isActive) {
-        setLipSyncFrames(resolved);
-      }
-    };
-
-    void loadLipSyncFrames();
-    return () => {
-      isActive = false;
-    };
-  }, [lipSyncSettings, getAsset, thumbnail]);
-
-  const lipSyncFrameLabels = (() => {
-    const count = lipSyncFrames.length || (lipSyncSettings ? getLipSyncFrameAssetIds(lipSyncSettings).length : 0);
-    if (count === 4) return ["Closed", "Half 1", "Half 2", "Open"];
-    if (count <= 0) return [];
-    return Array.from({ length: count }, (_, index) => (index === 0 ? "Base" : `Frame ${index + 1}`));
-  })();
-
   const handleDisplayTimeChange = (value: string) => {
     if (isClipDurationLocked) return;
     setLocalDisplayTime(value);
@@ -495,7 +433,6 @@ export default function DetailsPanel() {
 
   // Attach audio handler - opens AssetModal with audio filter
   const handleAttachAudio = () => {
-    setPendingLipSyncOpen(false);
     if (hasAttachedAudio) {
       return;
     }
@@ -503,17 +440,7 @@ export default function DetailsPanel() {
   };
 
   const handleReplaceAudio = () => {
-    setPendingLipSyncOpen(false);
     setShowAssetModal(true);
-  };
-
-  const handleQuickLipSync = () => {
-    if (!hasAttachedAudio) {
-      setPendingLipSyncOpen(true);
-      setShowAssetModal(true);
-      return;
-    }
-    setShowLipSyncModal(true);
   };
 
   // Handle audio selection from AssetModal
@@ -522,15 +449,10 @@ export default function DetailsPanel() {
       attachAudioToCut(cutScene.id, cut.id, selectedAsset);
     }
     setShowAssetModal(false);
-    if (pendingLipSyncOpen) {
-      setPendingLipSyncOpen(false);
-      setShowLipSyncModal(true);
-    }
   };
 
   const handleAssetModalClose = () => {
     setShowAssetModal(false);
-    setPendingLipSyncOpen(false);
   };
 
   const handleSceneAttachAudio = () => {
@@ -576,34 +498,12 @@ export default function DetailsPanel() {
   // Detach audio handler
   const handleDetachAudio = async () => {
     if (!cutScene || !cut) return;
-    if (lipSyncSettings) {
-      const confirmed = await confirm({
-        title: "Clear attached audio?",
-        message: "Lip sync is configured for this cut. Clearing audio may disable lip sync playback.",
-        confirmLabel: "Clear Audio",
-        cancelLabel: "Cancel",
-      });
-      if (!confirmed) return;
-    }
     detachAudioFromCut(cutScene.id, cut.id);
   };
 
   // Relink file handler
   const handleRelinkFile = async () => {
     if (!cutScene || !cut || !vaultPath) return;
-    const hasLipSyncConfig = !!(cut.assetId && metadataStore?.metadata[cut.assetId]?.lipSync);
-    if (cut.isLipSync || hasLipSyncConfig) {
-      const confirmed = await confirm({
-        title: 'Relink and reset LipSync?',
-        message:
-          'Relinking this cut will reset LipSync and convert it back to a normal image cut.\n' +
-          'Generated LipSync frames for the current source will be cleaned up if no other LipSync cut uses them.',
-        variant: 'info',
-        confirmLabel: 'Relink and Reset',
-        cancelLabel: 'Cancel',
-      });
-      if (!confirmed) return;
-    }
 
     try {
       const importedAsset = await selectAndImportAssetToVault({
@@ -630,7 +530,7 @@ export default function DetailsPanel() {
       }
 
       // Relink cut to new asset
-      await relinkCutAssetWithLipSyncCleanup(cutScene.id, cut.id, newAsset, {
+      relinkCutAsset(cutScene.id, cut.id, newAsset, {
         eventContext: createStoreEventOperation('user'),
       });
     } catch (error) {
@@ -1173,7 +1073,7 @@ export default function DetailsPanel() {
   // Show cut details
   if (selectionType === "cut" && cut && activeAsset) {
     const isVideo = activeAsset.type === "video";
-    const previewImage = showLipSyncDetails ? lipSyncFrames[0] || thumbnail : thumbnail;
+    const previewImage = thumbnail;
 
     return (
       <aside className="details-panel">
@@ -1183,9 +1083,9 @@ export default function DetailsPanel() {
         </div>
 
         <div className="details-content">
-          <div className={`selected-info ${showLipSyncDetails ? "lipsync-info" : ""}`}>
+          <div className="selected-info">
             <span className="selected-label">
-              {showLipSyncDetails ? "LIP SYNC CUT" : "SELECTED"}
+              SELECTED
             </span>
             <span className="selected-value">
               {cutScene?.name} / Cut {(cut.order || 0) + 1}
@@ -1193,7 +1093,7 @@ export default function DetailsPanel() {
           </div>
 
           <div
-            className={`details-preview clickable ${showLipSyncDetails ? "lipsync-preview" : ""}`}
+            className="details-preview clickable"
             onClick={() => setShowVideoPreview(true)}
             title="Click to preview"
           >
@@ -1211,55 +1111,13 @@ export default function DetailsPanel() {
                 )}
               </>
             ) : (
-              showLipSyncDetails ? (
-                <div className="lipsync-preview-placeholder">
-                  <Mic size={48} />
-                  <span>
-                    {lipSyncFrames.length
-                      ? `${lipSyncFrames.length} Frames Registered`
-                      : "Frames not available"}
-                  </span>
-                </div>
-              ) : (
-                <div className="preview-placeholder">
-                  {isVideo ? <Film size={48} /> : <FileImage size={48} />}
-                </div>
-              )
+              <div className="preview-placeholder">
+                {isVideo ? <Film size={48} /> : <FileImage size={48} />}
+              </div>
             )}
           </div>
 
-          {showLipSyncDetails && (
-            <>
-              <div className="lipsync-frames-info">
-                <div className="lipsync-frames-header">
-                  <Mic size={14} />
-                  <span>Registered Frames</span>
-                </div>
-                <div className="lipsync-frames-grid">
-                  {(lipSyncFrames.length ? lipSyncFrames : new Array(4).fill("")).map((src, index) => {
-                    const label = lipSyncFrameLabels[index] || `Frame ${index + 1}`;
-                    return (
-                      <div key={`${label}-${index}`} className="lipsync-frame-item">
-                        <div className={`frame-thumb ${src ? "" : "placeholder"}`}>
-                          {src && <img src={src} alt={label} />}
-                        </div>
-                        <span>{label}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-            </>
-          )}
-
           <div className="details-info">
-            {isLipSyncCut && !lipSyncSettings && (
-              <div className="info-row">
-                <span className="info-label">Lip Sync:</span>
-                <span className="info-value">Settings missing</span>
-              </div>
-            )}
             <div className="info-row">
               <span className="info-label">
                 <Clock size={14} />
@@ -1424,10 +1282,6 @@ export default function DetailsPanel() {
           )}
 
           <div className="details-actions">
-            <button className="action-btn lip-sync" onClick={handleQuickLipSync}>
-              <Mic size={16} />
-              <span>{showLipSyncDetails ? "EDIT LIPSYNC" : "QUICK LIPSYNC"}</span>
-            </button>
             <button className="action-btn secondary" onClick={handleAttachAudio}>
               <Music size={16} />
               <span>ATTACH AUDIO</span>
@@ -1453,16 +1307,6 @@ export default function DetailsPanel() {
             onClipSave={isVideo ? handleSaveClip : undefined}
             onClipClear={isVideo ? handleClearClip : undefined}
             onFrameCapture={isVideo ? handleFrameCapture : undefined}
-          />
-        )}
-
-        {/* Lip Sync Modal */}
-        {showLipSyncModal && activeAsset && (
-          <LipSyncModal
-            asset={activeAsset}
-            sceneId={cutScene?.id || ""}
-            cutId={cut?.id}
-            onClose={() => setShowLipSyncModal(false)}
           />
         )}
 

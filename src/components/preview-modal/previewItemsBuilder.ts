@@ -1,6 +1,5 @@
-import type { Asset, Cut, LipSyncSettings, Scene } from '../../types';
+import type { Asset, Cut, Scene } from '../../types';
 import { resolveAssetThumbnailSource } from '../../features/thumbnails/api';
-import { getLipSyncFrameAssetIds } from '../../utils/lipSyncUtils';
 import { computeCanonicalStoryTimingsForCuts, type CanonicalDurationSec } from '../../utils/storyTiming';
 import { FALLBACK_CANONICAL_DURATION_SEC } from './constants';
 import type { PreviewItem } from './types';
@@ -23,7 +22,6 @@ interface BuildPreviewItemsInput {
   selectedSceneId: string | null;
   getAsset: (assetId: string) => Asset | undefined;
   getDisplayTimeForAsset: (assetId: string) => number | null;
-  getLipSyncSettingsForAsset: (assetId: string) => LipSyncSettings | undefined;
   focusCutData: FocusCutData | null;
   missingFocusedCut: boolean;
   sequenceCuts?: Cut[];
@@ -36,14 +34,8 @@ interface BuildPreviewItemsInput {
 async function resolvePreviewThumbnail(
   cut: Cut,
   cutAsset: Asset | null,
-  getAsset: (assetId: string) => Asset | undefined,
-  getLipSyncSettingsForAsset: (assetId: string) => LipSyncSettings | undefined,
   resolveClipSnapshotThumbnail: (cut: Cut | null | undefined) => string | null,
 ): Promise<string | null> {
-  const lipSyncSettings = cut.isLipSync && cutAsset?.id
-    ? getLipSyncSettingsForAsset(cutAsset.id)
-    : undefined;
-
   let thumbnail: string | null = resolveClipSnapshotThumbnail(cut) ?? null;
 
   if (cutAsset) {
@@ -52,19 +44,6 @@ async function resolvePreviewThumbnail(
       if (resolved) thumbnail = resolved;
     } catch {
       // ignore
-    }
-  }
-
-  if (lipSyncSettings) {
-    const firstFrameAssetId = getLipSyncFrameAssetIds(lipSyncSettings)[0];
-    const baseAsset = firstFrameAssetId ? getAsset(firstFrameAssetId) : undefined;
-    if (baseAsset) {
-      try {
-        const resolved = await resolveAssetThumbnailSource('sequence-preview', baseAsset);
-        if (resolved) thumbnail = resolved;
-      } catch {
-        // ignore
-      }
     }
   }
 
@@ -83,7 +62,6 @@ export async function buildPreviewItems(input: BuildPreviewItemsInput): Promise<
     selectedSceneId,
     getAsset,
     getDisplayTimeForAsset,
-    getLipSyncSettingsForAsset,
     focusCutData,
     missingFocusedCut,
     sequenceCuts,
@@ -99,15 +77,12 @@ export async function buildPreviewItems(input: BuildPreviewItemsInput): Promise<
 
   if (isSingleModeImage && asset) {
     const displayTime = getDisplayTimeForAsset(asset.id);
-    const lipSyncSettings = getLipSyncSettingsForAsset(asset.id);
     const singleCut: Cut = {
       id: `single-${asset.id}`,
       assetId: asset.id,
       asset,
       displayTime: displayTime ?? Number.NaN,
       order: 0,
-      isLipSync: !!lipSyncSettings,
-      lipSyncFrameCount: lipSyncSettings ? getLipSyncFrameAssetIds(lipSyncSettings).length : undefined,
     };
     const thumbnail = singleModeImageData ?? resolveClipSnapshotThumbnail(singleCut) ?? null;
 
@@ -142,8 +117,6 @@ export async function buildPreviewItems(input: BuildPreviewItemsInput): Promise<
       const thumbnail = await resolvePreviewThumbnail(
         cut,
         cutAsset,
-        getAsset,
-        getLipSyncSettingsForAsset,
         resolveClipSnapshotThumbnail,
       );
 
@@ -184,8 +157,6 @@ export async function buildPreviewItems(input: BuildPreviewItemsInput): Promise<
     const thumbnail = await resolvePreviewThumbnail(
       cut,
       cutAsset,
-      getAsset,
-      getLipSyncSettingsForAsset,
       resolveClipSnapshotThumbnail,
     );
 
@@ -225,8 +196,6 @@ export async function buildPreviewItems(input: BuildPreviewItemsInput): Promise<
       const thumbnail = await resolvePreviewThumbnail(
         cut,
         cutAsset,
-        getAsset,
-        getLipSyncSettingsForAsset,
         resolveClipSnapshotThumbnail,
       );
 

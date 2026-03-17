@@ -3,10 +3,9 @@ import {
   assessMetadataStore,
   loadMetadataStore,
   loadMetadataStoreWithReport,
-  syncSceneMetadata,
-  updateLipSyncSettings,
-  removeLipSyncSettings,
   removeAssetReferences,
+  saveMetadataStore,
+  syncSceneMetadata,
 } from '../metadataStore';
 
 const baseStore = {
@@ -49,9 +48,7 @@ describe('metadataStore', () => {
         },
       },
     };
-    const scenes = [
-      { id: 'scene-1', name: 'Scene 1', notes: [] },
-    ];
+    const scenes = [{ id: 'scene-1', name: 'Scene 1', notes: [] }];
 
     const synced = syncSceneMetadata(store as any, scenes as any);
     expect(synced.sceneMetadata?.['scene-1']?.attachAudio?.audioAssetId).toBe('aud-1');
@@ -98,60 +95,6 @@ describe('metadataStore', () => {
     const synced = syncSceneMetadata(store as any, scenes as any);
     expect(synced.sceneMetadata?.['scene-1']?.groupAudioBindings?.['group-1']?.audioAssetId).toBe('aud-g1');
     expect(synced.sceneMetadata?.['scene-1']?.groupAudioBindings?.['group-missing']).toBeUndefined();
-  });
-
-  it('sets and removes lip sync settings', () => {
-    const settings = {
-      baseImageAssetId: 'img-closed',
-      variantAssetIds: ['img-half1', 'img-half2', 'img-open'],
-      rmsSourceAudioAssetId: 'aud-1',
-      thresholds: { t1: 0.1, t2: 0.2, t3: 0.3 },
-      fps: 60,
-      version: 1,
-    };
-
-    const withLipSync = updateLipSyncSettings(baseStore, 'asset-1', settings as any);
-    expect(withLipSync.metadata['asset-1']?.lipSync?.baseImageAssetId).toBe('img-closed');
-    expect(withLipSync.metadata['asset-1']?.lipSync?.variantAssetIds.length).toBe(3);
-
-    const removed = removeLipSyncSettings(withLipSync, 'asset-1');
-    expect(removed.metadata['asset-1']).toBeUndefined();
-  });
-
-  it('removes lip sync metadata when required frame references are deleted', () => {
-    const withLipSync = updateLipSyncSettings(baseStore, 'asset-1', {
-      baseImageAssetId: 'img-closed',
-      variantAssetIds: ['img-half1', 'img-half2', 'img-open'],
-      compositedFrameAssetIds: ['img-closed-c', 'img-half1-c', 'img-half2-c', 'img-open-c'],
-      maskAssetId: 'mask-1',
-      rmsSourceAudioAssetId: 'audio-1',
-      thresholds: { t1: 0.1, t2: 0.2, t3: 0.3 },
-      fps: 60,
-      version: 2,
-    } as any);
-
-    const cleaned = removeAssetReferences(withLipSync, ['img-open']);
-    expect(cleaned.metadata['asset-1']).toBeUndefined();
-  });
-
-  it('keeps lip sync by dropping optional links only', () => {
-    const withLipSync = updateLipSyncSettings(baseStore, 'asset-1', {
-      baseImageAssetId: 'img-closed',
-      variantAssetIds: ['img-half1', 'img-half2', 'img-open'],
-      compositedFrameAssetIds: ['img-closed-c', 'img-half1-c', 'img-half2-c', 'img-open-c'],
-      maskAssetId: 'mask-1',
-      sourceVideoAssetId: 'video-1',
-      rmsSourceAudioAssetId: 'audio-1',
-      thresholds: { t1: 0.1, t2: 0.2, t3: 0.3 },
-      fps: 60,
-      version: 2,
-    } as any);
-
-    const cleaned = removeAssetReferences(withLipSync, ['mask-1', 'video-1', 'img-open-c']);
-    expect(cleaned.metadata['asset-1']?.lipSync).toBeDefined();
-    expect(cleaned.metadata['asset-1']?.lipSync?.maskAssetId).toBeUndefined();
-    expect(cleaned.metadata['asset-1']?.lipSync?.sourceVideoAssetId).toBeUndefined();
-    expect(cleaned.metadata['asset-1']?.lipSync?.compositedFrameAssetIds).toBeUndefined();
   });
 
   it('clears scene attach audio when referenced asset is removed', () => {
@@ -205,7 +148,7 @@ describe('metadataStore', () => {
     expect(cleaned.sceneMetadata?.['scene-1']?.groupAudioBindings?.['group-1']).toBeUndefined();
   });
 
-  it('normalizes legacy lipSync settings to composited-frame schema on load', async () => {
+  it('ignores legacy lipSync metadata on load', async () => {
     const pathExistsMock = vi.spyOn(window.electronAPI!, 'pathExists').mockResolvedValueOnce(true);
     const loadMock = vi.spyOn(window.electronAPI!, 'loadProjectFromPath').mockResolvedValueOnce({
       kind: 'success',
@@ -218,10 +161,6 @@ describe('metadataStore', () => {
             lipSync: {
               baseImageAssetId: 'img-closed',
               variantAssetIds: ['img-half1', 'img-half2', 'img-open'],
-              rmsSourceAudioAssetId: 'audio-1',
-              thresholds: { t1: 0.1, t2: 0.2, t3: 0.3 },
-              fps: 60,
-              version: 1,
             },
           },
         },
@@ -230,36 +169,41 @@ describe('metadataStore', () => {
     });
 
     const loaded = await loadMetadataStore('C:/vault');
-    expect(loaded.metadata['asset-1']?.lipSync?.compositedFrameAssetIds).toEqual([
-      'img-closed',
-      'img-half1',
-      'img-half2',
-      'img-open',
-    ]);
-    expect(loaded.metadata['asset-1']?.lipSync?.version).toBe(2);
+    expect(loaded.metadata['asset-1']).toEqual({ assetId: 'asset-1' });
 
     pathExistsMock.mockRestore();
     loadMock.mockRestore();
   });
 
-  it('reports orphan metadata and normalization during dry-run assessment', () => {
+  it('does not write lipSync to metadata save output', async () => {
+    const saveSpy = vi.spyOn(window.electronAPI!, 'saveProject').mockResolvedValueOnce('C:/vault/.metadata.json');
+
+    await saveMetadataStore('C:/vault', {
+      version: 1,
+      metadata: {
+        'asset-1': {
+          assetId: 'asset-1',
+          displayTime: 2,
+          lipSync: { legacy: true },
+        } as any,
+      },
+      sceneMetadata: {},
+    });
+
+    expect(saveSpy).toHaveBeenCalledTimes(1);
+    const payload = saveSpy.mock.calls[0]?.[0];
+    expect(payload).toContain('"displayTime": 2');
+    expect(payload).not.toContain('lipSync');
+
+    saveSpy.mockRestore();
+  });
+
+  it('reports orphan metadata during dry-run assessment', () => {
     const assessed = assessMetadataStore({
       version: 1,
       metadata: {
-        'asset-live': {
-          assetId: 'asset-live',
-          lipSync: {
-            baseImageAssetId: 'img-closed',
-            variantAssetIds: ['img-half1', 'img-half2', 'img-open'],
-            rmsSourceAudioAssetId: 'audio-1',
-            thresholds: { t1: 0.1, t2: 0.2, t3: 0.3 },
-            fps: 60,
-            version: 1,
-          } as any,
-        },
-        'asset-orphan': {
-          assetId: 'asset-orphan',
-        } as any,
+        'asset-live': { assetId: 'asset-live' },
+        'asset-orphan': { assetId: 'asset-orphan' },
       },
       sceneMetadata: {
         'scene-live': {
@@ -283,8 +227,7 @@ describe('metadataStore', () => {
     expect(assessed.report.orphanMetadataCount).toBe(2);
     expect(assessed.report.orphanSceneMetadataCount).toBe(1);
     expect(assessed.report.orphanAssetMetadataCount).toBe(1);
-    expect(assessed.report.normalizedLipSyncCount).toBe(1);
-    expect(assessed.report.normalized).toBe(true);
+    expect(assessed.report.normalized).toBe(false);
   });
 
   it('reports invalid metadata roots without failing load', async () => {

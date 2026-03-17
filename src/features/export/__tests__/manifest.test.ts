@@ -20,7 +20,6 @@ describe('export manifest', () => {
       isClip: true,
       inPoint: 0.5,
       outPoint: 2.5,
-      isLipSync: true,
     },
   ];
 
@@ -47,7 +46,7 @@ describe('export manifest', () => {
     expect(text).toContain('Scene01');
     expect(text).toContain('img.png');
     expect(text).toContain('clip.mp4');
-    expect(text).toContain('[lipsync]');
+    expect(text).toContain('clip(0.50-2.50)');
   });
 
   it('creates manifest json text', () => {

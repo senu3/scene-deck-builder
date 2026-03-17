@@ -14,9 +14,7 @@ export type SequencePlanWarningCode =
   | 'missing-asset'
   | 'audio-only-cut-skipped'
   | 'non-canonical-cut-adjusted'
-  | 'debug-framing-resolved'
-  | 'lipsync-temporary-route'
-  | 'lipsync-export-fallback';
+  | 'debug-framing-resolved';
 
 export interface SequencePlanWarning {
   code: SequencePlanWarningCode;
@@ -90,7 +88,6 @@ export interface BuildSequencePlanOptions {
   getAssetById: (assetId: string) => Asset | undefined;
   framingDefaults?: BuildExportSequenceOptions['framingDefaults'];
   debugFraming?: boolean;
-  strictLipSync?: boolean;
   resolveInternalAssetKind?: (assetId: string, cut: Cut) => string | undefined;
   resolveCutRuntimeById?: (cutId: string) => CutRuntimeState | undefined;
 }
@@ -102,7 +99,6 @@ interface BuildSequencePlanFromCutsInput {
   resolveSceneIdByCutId?: (cutId: string) => string | undefined;
   framingDefaults?: BuildExportSequenceOptions['framingDefaults'];
   debugFraming?: boolean;
-  strictLipSync?: boolean;
   resolveInternalAssetKind?: (assetId: string, cut: Cut) => string | undefined;
   resolveCutRuntimeById?: (cutId: string) => CutRuntimeState | undefined;
 }
@@ -235,7 +231,6 @@ function buildSequencePlanFromCuts(input: BuildSequencePlanFromCutsInput): Seque
     resolveSceneIdByCutId,
     framingDefaults,
     debugFraming = false,
-    strictLipSync = false,
     resolveInternalAssetKind,
     resolveCutRuntimeById,
   } = input;
@@ -264,31 +259,13 @@ function buildSequencePlanFromCuts(input: BuildSequencePlanFromCutsInput): Seque
         message: `Framing resolved for cut ${cut.id}: mode=${framing.mode} anchor=${framing.anchor} source=${framing.source}.`,
       });
     }
-    if (!cut.isLipSync) continue;
-    pushWarning({
-      code: 'lipsync-temporary-route',
-      cutId: cut.id,
-      assetId: cut.assetId,
-      message: `Cut ${cut.id} is LipSync; handled through temporary route in Phase 1.`,
-    });
   }
 
   const exportItems = buildSequenceItemsForCuts(canonicalized.cuts, {
     framingDefaults,
     metadataByAssetId: metadataStore?.metadata,
     resolveAssetById: getAssetById,
-    strictLipSync,
-    onWarning: (warning: ExportSequenceBuildWarning) => {
-      if (warning.code !== 'lipsync-export-fallback') {
-        return;
-      }
-      pushWarning({
-        code: 'lipsync-export-fallback',
-        cutId: warning.cutId,
-        assetId: warning.assetId,
-        message: warning.message,
-      });
-    },
+    onWarning: (_warning: ExportSequenceBuildWarning) => {},
   });
 
   const audioPlan = buildExportAudioPlan({
@@ -423,7 +400,6 @@ function buildSequencePlanFromCuts(input: BuildSequencePlanFromCutsInput): Seque
         inPoint: holdSrcInSec,
         outPoint: holdSrcOutSec,
         holdDurationSec,
-        lipSync: undefined,
         flags: {
           ...exportItem.flags,
           isClip: !!cut.isClip,
@@ -487,7 +463,6 @@ export function buildSequencePlan(
     resolveSceneIdByCutId,
     framingDefaults: options.framingDefaults,
     debugFraming: options.debugFraming,
-    strictLipSync: options.strictLipSync,
     resolveInternalAssetKind: options.resolveInternalAssetKind,
     resolveCutRuntimeById: options.resolveCutRuntimeById,
   });

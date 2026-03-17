@@ -88,11 +88,6 @@ export function usePreviewItemsState({
     return displayTime;
   }, [metadataStore]);
 
-  const getLipSyncSettingsForAsset = useCallback((assetId: string) => {
-    if (!metadataStore) return undefined;
-    return metadataStore.metadata[assetId]?.lipSync;
-  }, [metadataStore]);
-
   useEffect(() => {
     let cancelled = false;
     void buildPreviewItems({
@@ -106,7 +101,6 @@ export function usePreviewItemsState({
       selectedSceneId,
       getAsset,
       getDisplayTimeForAsset,
-      getLipSyncSettingsForAsset,
       focusCutData,
       missingFocusedCut,
       sequenceCuts,
@@ -132,7 +126,6 @@ export function usePreviewItemsState({
     selectedSceneId,
     getAsset,
     getDisplayTimeForAsset,
-    getLipSyncSettingsForAsset,
     focusCutData,
     missingFocusedCut,
     sequenceCuts,

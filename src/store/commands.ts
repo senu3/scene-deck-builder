@@ -30,7 +30,6 @@ function restoreCutState(
     store.updateCutClipPoints(sceneId, cutId, sourceCut.inPoint, sourceCut.outPoint);
   }
 
-  store.updateCutLipSync(sceneId, cutId, !!sourceCut.isLipSync, sourceCut.lipSyncFrameCount);
   store.setCutAudioBindings(sceneId, cutId, sourceCut.audioBindings || []);
   store.setCutUseEmbeddedAudio(sceneId, cutId, sourceCut.useEmbeddedAudio ?? true);
 }
@@ -1017,8 +1016,6 @@ export class AutoClipSimpleCommand implements Command {
       inPoint: sourceStart + range.start,
       outPoint: sourceStart + range.end,
       isClip: true,
-      isLipSync: false,
-      lipSyncFrameCount: undefined,
     }));
 
     if (sourceAsset.path) {

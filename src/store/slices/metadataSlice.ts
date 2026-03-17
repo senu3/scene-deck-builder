@@ -1,10 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { LipSyncSettings } from '../../types';
 import {
   loadMetadataStore,
   updateAudioAnalysis,
-  updateLipSyncSettings,
-  removeLipSyncSettings,
   syncSceneMetadata,
   updateSceneAudioBinding,
   updateGroupAudioBinding,
@@ -265,112 +262,6 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
       return state.assetCache.get(binding.audioAssetId);
     },
 
-    setLipSyncForAsset: (assetId, settings) => {
-      set((state) => {
-        const store = state.metadataStore || { version: 1, metadata: {}, sceneMetadata: {} };
-        const previous = store.metadata[assetId]?.lipSync;
-        const nextSettings: LipSyncSettings = {
-          ...settings,
-          ownerAssetId: settings.ownerAssetId || assetId,
-        };
-
-        const previousIsSameOwner = !!previous && (!previous.ownerAssetId || previous.ownerAssetId === assetId);
-        const previousOwned = previousIsSameOwner
-          ? previous.ownedGeneratedAssetIds && previous.ownedGeneratedAssetIds.length > 0
-            ? previous.ownedGeneratedAssetIds
-            : [
-                ...(previous.maskAssetId ? [previous.maskAssetId] : []),
-                ...(previous.compositedFrameAssetIds || []),
-              ]
-          : [];
-        const nextOwned = nextSettings.ownedGeneratedAssetIds || [];
-        const inheritedOrphans = previousIsSameOwner ? previous.orphanedGeneratedAssetIds || [] : [];
-        const nextOrphans = Array.from(
-          new Set([...inheritedOrphans, ...previousOwned.filter((id) => !nextOwned.includes(id))])
-        ).filter((id) => !nextOwned.includes(id));
-
-        if (nextOrphans.length > 0) {
-          nextSettings.orphanedGeneratedAssetIds = nextOrphans;
-        } else {
-          delete nextSettings.orphanedGeneratedAssetIds;
-        }
-
-        const updated = updateLipSyncSettings(store, assetId, nextSettings);
-        return { metadataStore: updated };
-      });
-    },
-
-    clearLipSyncForAsset: (assetId) => {
-      set((state) => {
-        if (!state.metadataStore) return state;
-        const updated = removeLipSyncSettings(state.metadataStore, assetId);
-        return { metadataStore: updated };
-      });
-    },
-
-    cleanupLipSyncAssetsForDeletedCut: async (assetId) => {
-      const state = get();
-      if (!assetId || !state.metadataStore) return;
-
-      const hasRemainingLipSyncCut = state.scenes.some((scene) =>
-        scene.cuts.some((cut) => cut.assetId === assetId && !!cut.isLipSync)
-      );
-      if (hasRemainingLipSyncCut) return;
-
-      const lipSync = state.metadataStore.metadata[assetId]?.lipSync;
-      if (!lipSync) return;
-
-      const generatedAssetIds = Array.from(new Set([
-        ...(lipSync.ownedGeneratedAssetIds || []),
-        ...(lipSync.orphanedGeneratedAssetIds || []),
-      ])).filter(Boolean);
-
-      // Remove lipsync metadata first so generated assets are no longer treated as in-use references.
-      get().clearLipSyncForAsset(assetId);
-      await persistMetadataStore();
-
-      if (generatedAssetIds.length === 0) {
-        return;
-      }
-
-      const latestState = get();
-      const assetPathById = new Map<string, string>();
-
-      for (const generatedId of generatedAssetIds) {
-        const cached = latestState.getAsset(generatedId);
-        if (cached?.path) {
-          assetPathById.set(generatedId, cached.path);
-        }
-      }
-
-      if (latestState.vaultPath) {
-        try {
-          const unresolvedAssetIds = generatedAssetIds.filter((id) => !assetPathById.has(id));
-          const hydratedAssets = await hydrateAssetsByIdsFromIndex(latestState.vaultPath, unresolvedAssetIds);
-          for (const asset of hydratedAssets) {
-            if (!asset.path || assetPathById.has(asset.id)) continue;
-            assetPathById.set(asset.id, asset.path);
-          }
-        } catch (error) {
-          console.warn('[LipSync] Failed to resolve generated asset paths from index:', error);
-        }
-      }
-
-      for (const generatedId of generatedAssetIds) {
-        const generatedPath = assetPathById.get(generatedId);
-        if (!generatedPath) continue;
-        const result = await get().deleteAssetWithPolicy({
-          assetPath: generatedPath,
-          assetIds: [generatedId],
-          reason: 'lipsync-generated-cleanup',
-        });
-        if (!result.success || result.reason === 'index-sync-failed') {
-          const level = result.success ? 'warning' : 'failed';
-          console.warn(`[LipSync] Generated asset cleanup ${level}:`, result.reason, generatedId);
-        }
-      }
-    },
-
     removeAssetReferences: (assetIds) => {
       const targets = Array.from(new Set(assetIds.filter(Boolean)));
       if (targets.length === 0) return;
@@ -475,14 +366,9 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
         .find((s) => s.id === sceneId)
         ?.cuts.find((c) => c.id === cutId);
       const previousAssetId = previousCut?.assetId;
-      const hadLipSyncSettings = !!(previousAssetId && state.metadataStore?.metadata[previousAssetId]?.lipSync);
 
       get().cacheAsset(newAsset);
       get().updateCutWithAsset(sceneId, cutId, newAsset);
-
-      if (previousCut?.isLipSync) {
-        get().updateCutLipSync(sceneId, cutId, false);
-      }
 
       const emit = () =>
         get().emitCutRelinked({
@@ -496,10 +382,6 @@ export function createMetadataSlice(set: SliceSet, get: SliceGet): MetadataSlice
         void get().runWithStoreEventContext(context, emit);
       } else {
         emit();
-      }
-
-      if (hadLipSyncSettings && previousAssetId && previousAssetId !== newAsset.id) {
-        // Cleanup is handled by the feature entry so relink remains a pure store mutation path.
       }
 
       if (!previousCut) return;

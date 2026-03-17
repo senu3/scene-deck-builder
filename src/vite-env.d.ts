@@ -192,18 +192,6 @@ interface CropImageResult {
   error?: string;
 }
 
-interface PrecomposeLipSyncFramesOptions {
-  baseImagePath: string;
-  frameImagePaths: string[];
-  maskImagePath: string;
-}
-
-interface PrecomposeLipSyncFramesResult {
-  success: boolean;
-  frameDataUrls?: string[];
-  error?: string;
-}
-
 interface SequenceItem {
   type: 'image' | 'video' | 'audio';
   path: string;
@@ -222,13 +210,6 @@ interface SequenceItem {
     | 'bottom-left'
     | 'bottom'
     | 'bottom-right';
-  lipSync?: {
-    framePaths: string[];
-    rms: number[];
-    rmsFps: number;
-    thresholds: { t1: number; t2: number; t3: number };
-    audioOffsetSec: number;
-  };
   flags?: {
     isClip?: boolean;
     isMuted?: boolean;
@@ -409,7 +390,6 @@ interface ElectronAPI {
   // Video frame extraction
   extractVideoFrame: (options: ExtractFrameOptions) => Promise<ExtractFrameResult>;
   cropImageToAspect: (options: CropImageOptions) => Promise<CropImageResult>;
-  precomposeLipSyncFrames: (options: PrecomposeLipSyncFramesOptions) => Promise<PrecomposeLipSyncFramesResult>;
 
   // Sequence export
   showSaveSequenceDialog: (defaultName: string) => Promise<string | null>;

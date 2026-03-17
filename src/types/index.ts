@@ -94,9 +94,6 @@ export interface Cut {
   inPoint?: number;   // Start time in seconds
   outPoint?: number;  // End time in seconds
   isClip?: boolean;   // True if this cut has custom IN/OUT points
-  // Lip sync fields
-  isLipSync?: boolean;  // True if this is a lip sync cut
-  lipSyncFrameCount?: number; // Number of registered frames (e.g., 4)
 }
 
 export interface CutRuntimeState {
@@ -255,7 +252,6 @@ export interface AssetMetadata {
   // Future expansion
   attachedImageIds?: string[];  // Multiple image attachments
   audioAnalysis?: AudioAnalysis; // Precomputed audio analysis data
-  lipSync?: LipSyncSettings;     // Lip sync settings (assetId-based)
 }
 
 export interface AudioAnalysis {
@@ -265,21 +261,6 @@ export interface AudioAnalysis {
   sampleRate: number;
   channels: number;
   hash?: string;
-}
-
-export interface LipSyncSettings {
-  baseImageAssetId: string;     // Closed frame (base)
-  variantAssetIds: string[];    // [half1, half2, open]
-  maskAssetId?: string;         // Optional mouth mask
-  compositedFrameAssetIds?: string[]; // Optional precomposited [closed, half1, half2, open]
-  ownerAssetId?: string;        // Owner asset ID for generated bundle management
-  ownedGeneratedAssetIds?: string[]; // Generated assets managed as this owner's bundle
-  orphanedGeneratedAssetIds?: string[]; // Old generated assets from previous registrations
-  rmsSourceAudioAssetId: string; // Audio asset used for RMS
-  thresholds: { t1: number; t2: number; t3: number };
-  fps: number;
-  sourceVideoAssetId?: string;  // Source video asset for edit preview
-  version?: 1 | 2;
 }
 
 // Metadata store (file structure)

@@ -86,8 +86,10 @@ function parseLoadedScenesInput(scenes: LoadedProjectData['scenes']): { scenes: 
             if (!hasOrder) report.assignedCutOrderCount += 1;
             if (!hasAudioBindings) report.normalizedCutAudioBindingsCount += 1;
           }
+          const { isLipSync: _legacyIsLipSync, lipSyncFrameCount: _legacyLipSyncFrameCount, ...rest } =
+            (cut || {}) as Scene['cuts'][number] & { isLipSync?: unknown; lipSyncFrameCount?: unknown };
           return {
-            ...cut,
+            ...rest,
             order: hasOrder ? cut.order : index,
             audioBindings: Array.isArray(cut?.audioBindings) ? cut.audioBindings : undefined,
           };

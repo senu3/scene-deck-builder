@@ -194,8 +194,6 @@ interface SceneColumnProps {
     asset?: Asset;
     displayTime: number;
     order: number;
-    isLipSync?: boolean;
-    lipSyncFrameCount?: number;
   }>;
   groups: CutGroup[];
   isSelected: boolean;

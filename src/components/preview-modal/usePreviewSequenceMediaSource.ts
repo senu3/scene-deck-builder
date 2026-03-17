@@ -1,10 +1,8 @@
 import type React from 'react';
-import { useEffect, useRef, useState } from 'react';
-import { getAssetThumbnail } from '../../features/thumbnails/api';
+import { useEffect, useState } from 'react';
 import type { ExportSequenceItem } from '../../utils/exportSequence';
 import {
   createImageMediaSource,
-  createLipSyncImageMediaSource,
   createVideoHoldMediaSource,
   createVideoMediaSource,
   type MediaSource,
@@ -39,7 +37,6 @@ export function usePreviewSequenceMediaSource({
   videoRef,
 }: UsePreviewSequenceMediaSourceInput) {
   const [sequenceMediaElement, setSequenceMediaElement] = useState<JSX.Element | null>(null);
-  const lipSyncToastShownRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!usesSequenceController) {
@@ -53,72 +50,8 @@ export function usePreviewSequenceMediaSource({
 
     const currentItem = items[currentIndex];
     if (!currentItem) return;
-
     const currentSpec = previewSequenceItemByIndex.get(currentIndex);
-    if (currentSpec?.lipSync) {
-      let isActive = true;
-      const loadLipSyncSources = async () => {
-        const sources: string[] = [];
-        for (const framePath of currentSpec.lipSync!.framePaths) {
-          let src = '';
-          try {
-            const thumb = await getAssetThumbnail('sequence-preview', {
-              path: framePath,
-              type: 'image',
-            });
-            if (thumb) src = thumb;
-          } catch {
-            // ignore
-          }
-          sources.push(src);
-        }
-
-        const baseFallback = sources[0] || currentItem.thumbnail || '';
-        const resolvedSources = sources.map((src) => src || baseFallback);
-
-        if (!currentSpec.lipSync!.rms?.length) {
-          if (!lipSyncToastShownRef.current.has(currentItem.assetId)) {
-            lipSyncToastShownRef.current.add(currentItem.assetId);
-            showMiniToast('Lip sync RMS not available', 'warning');
-          }
-          const fallbackSource = createImageMediaSource({
-            src: baseFallback,
-            alt: `${currentItem.sceneName} - Cut ${currentItem.cutIndex + 1}`,
-            className: 'preview-media',
-            duration: currentSpec.duration,
-            onTimeUpdate: sequenceTick,
-            onEnded: () => sequenceGoToNext(currentIndex),
-          });
-          if (!isActive) return;
-          setSequenceSource(fallbackSource);
-          setSequenceMediaElement(fallbackSource.element);
-          return;
-        }
-
-        const lipSyncSource = createLipSyncImageMediaSource({
-          sources: resolvedSources,
-          alt: `${currentItem.sceneName} - Cut ${currentItem.cutIndex + 1}`,
-          className: 'preview-media',
-          duration: currentSpec.duration,
-          rms: currentSpec.lipSync!.rms,
-          rmsFps: currentSpec.lipSync!.rmsFps,
-          thresholds: currentSpec.lipSync!.thresholds,
-          getAbsoluteTime: getSequenceLiveAbsoluteTime,
-          audioOffsetSec: currentSpec.lipSync!.audioOffsetSec,
-          onTimeUpdate: sequenceTick,
-          onEnded: () => sequenceGoToNext(currentIndex),
-        });
-
-        if (!isActive) return;
-        setSequenceSource(lipSyncSource);
-        setSequenceMediaElement(lipSyncSource.element);
-      };
-
-      void loadLipSyncSources();
-      return () => {
-        isActive = false;
-      };
-    }
+    if (!currentSpec) return;
 
     if (currentItem.assetType === 'video') {
       if (!videoObjectUrl || videoObjectUrl.assetId !== currentItem.assetId) {

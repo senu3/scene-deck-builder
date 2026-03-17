@@ -185,18 +185,6 @@ export interface CropImageResult {
   error?: string;
 }
 
-export interface PrecomposeLipSyncFramesOptions {
-  baseImagePath: string;
-  frameImagePaths: string[];
-  maskImagePath: string;
-}
-
-export interface PrecomposeLipSyncFramesResult {
-  success: boolean;
-  frameDataUrls?: string[];
-  error?: string;
-}
-
 export interface SequenceItem {
   type: 'image' | 'video' | 'audio';
   path: string;
@@ -215,13 +203,6 @@ export interface SequenceItem {
     | 'bottom-left'
     | 'bottom'
     | 'bottom-right';
-  lipSync?: {
-    framePaths: string[];
-    rms: number[];
-    rmsFps: number;
-    thresholds: { t1: number; t2: number; t3: number };
-    audioOffsetSec: number;
-  };
   flags?: {
     isClip?: boolean;
     isMuted?: boolean;
@@ -509,10 +490,6 @@ const electronAPI = {
   // Image crop finalization
   cropImageToAspect: (options: CropImageOptions): Promise<CropImageResult> =>
     ipcRenderer.invoke('crop-image-to-aspect', options),
-
-  // LipSync precompose (ffmpeg)
-  precomposeLipSyncFrames: (options: PrecomposeLipSyncFramesOptions): Promise<PrecomposeLipSyncFramesResult> =>
-    ipcRenderer.invoke('precompose-lipsync-frames', options),
 
   // Sequence export
   showSaveSequenceDialog: (defaultName: string): Promise<string | null> =>

@@ -633,16 +633,6 @@
   transform: translateY(-1px);
 }
 
-.action-btn.lip-sync {
-  background: linear-gradient(135deg, var(--accent-pink) 0%, var(--accent-purple) 100%);
-  color: white;
-}
-
-.action-btn.lip-sync:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
-}
-
 .action-btn.create-group {
   background-color: var(--accent-group);
   color: white;
@@ -835,99 +825,6 @@
   border-color: var(--accent-audio);
 }
 
-/* === Lip Sync Cut Details === */
-.selected-info.lipsync-info .selected-label {
-  color: var(--accent-pink);
-}
-
-.selected-info.lipsync-info .selected-value {
-  background: linear-gradient(135deg, var(--accent-pink), var(--accent-purple));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.lipsync-preview {
-  background: linear-gradient(135deg, rgba(236, 72, 153, 0.1), rgba(139, 92, 246, 0.1));
-  border: 1px solid rgba(236, 72, 153, 0.3);
-}
-
-.lipsync-preview-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  color: var(--accent-pink);
-}
-
-.lipsync-preview-placeholder span {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-/* Lip Sync Frames Grid */
-.lipsync-frames-info {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 12px;
-  background: linear-gradient(135deg, rgba(236, 72, 153, 0.1), rgba(139, 92, 246, 0.1));
-  border: 1px solid rgba(236, 72, 153, 0.2);
-  border-radius: var(--radius-md);
-}
-
-.lipsync-frames-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--accent-pink);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-}
-
-.lipsync-frames-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.lipsync-frame-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.lipsync-frame-item .frame-thumb {
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  background-color: var(--bg-tertiary);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-}
-
-.lipsync-frame-item .frame-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.lipsync-frame-item .frame-thumb.placeholder {
-  background: linear-gradient(135deg, var(--bg-tertiary), var(--bg-secondary));
-}
-
-.lipsync-frame-item span {
-  font-size: 9px;
-  color: var(--text-muted);
-  text-align: center;
-}
-
 /* === Group Info Styles === */
 .selected-info.group-info .selected-label {
   color: var(--accent-group);
@@ -981,4 +878,3 @@
   max-height: 200px;
   overflow-y: auto;
 }
-

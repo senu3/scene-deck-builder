@@ -175,18 +175,6 @@ type CropImageResultLike = {
   error?: string;
 };
 
-type PrecomposeLipSyncFramesOptionsLike = {
-  baseImagePath: string;
-  frameImagePaths: string[];
-  maskImagePath: string;
-};
-
-type PrecomposeLipSyncFramesResultLike = {
-  success: boolean;
-  frameDataUrls?: string[];
-  error?: string;
-};
-
 type FileInfoLike = {
   name: string;
   path: string;
@@ -214,13 +202,6 @@ type SequenceItemLike = {
     | 'bottom-left'
     | 'bottom'
     | 'bottom-right';
-  lipSync?: {
-    framePaths: string[];
-    rms: number[];
-    rmsFps: number;
-    thresholds: { t1: number; t2: number; t3: number };
-    audioOffsetSec: number;
-  };
   flags?: {
     isClip?: boolean;
     isMuted?: boolean;
@@ -467,15 +448,6 @@ export async function cropImageToAspectBridge(
   options: CropImageOptionsLike
 ): Promise<CropImageResultLike> {
   return (await getElectronAPI()?.cropImageToAspect?.(options)) ?? {
-    success: false,
-    error: 'electron-unavailable',
-  };
-}
-
-export async function precomposeLipSyncFramesBridge(
-  options: PrecomposeLipSyncFramesOptionsLike
-): Promise<PrecomposeLipSyncFramesResultLike> {
-  return (await getElectronAPI()?.precomposeLipSyncFrames?.(options)) ?? {
     success: false,
     error: 'electron-unavailable',
   };

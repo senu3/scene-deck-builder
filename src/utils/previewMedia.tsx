@@ -1,5 +1,4 @@
 import type { MutableRefObject } from 'react';
-import { absoluteTimeToRmsIndex, rmsValueToVariantIndex, type LipSyncThresholds } from './lipSyncUtils';
 
 export type MediaSourceKind = 'video' | 'image';
 
@@ -42,17 +41,6 @@ interface ImageMediaSourceOptions extends BaseMediaSourceOptions {
   src: string;
   alt: string;
   duration: number;
-}
-
-interface LipSyncImageMediaSourceOptions extends BaseMediaSourceOptions {
-  sources: string[]; // [closed, half1, half2, open]
-  alt: string;
-  duration: number;
-  rms: number[];
-  rmsFps: number;
-  thresholds: LipSyncThresholds;
-  getAbsoluteTime: () => number;
-  audioOffsetSec?: number;
 }
 
 class PreviewClock {
@@ -414,82 +402,6 @@ export function createVideoHoldMediaSource(options: VideoHoldMediaSourceOptions)
         videoEl.load();
       }
       videoEl = null;
-    },
-  };
-}
-
-export function createLipSyncImageMediaSource(options: LipSyncImageMediaSourceOptions): MediaSource {
-  let imgEl: HTMLImageElement | null = null;
-  let activeIndex = -1;
-  const sources = options.sources.length > 0 ? options.sources : [''];
-
-  const getSourceForIndex = (index: number) => {
-    const fallback = sources[0] || '';
-    if (index < 0 || index >= sources.length) return fallback;
-    return sources[index] || fallback;
-  };
-
-  const updateFrame = () => {
-    if (!imgEl) return;
-    if (!options.rms || options.rms.length === 0 || options.rmsFps <= 0) {
-      const baseSrc = getSourceForIndex(0);
-      if (imgEl.src !== baseSrc) {
-        imgEl.src = baseSrc;
-        activeIndex = 0;
-      }
-      return;
-    }
-
-    const absoluteTime = options.getAbsoluteTime();
-    const rmsIndex = absoluteTimeToRmsIndex(absoluteTime, options.rmsFps, options.rms.length, options.audioOffsetSec ?? 0);
-    const value = options.rms[rmsIndex] ?? 0;
-    const nextIndex = rmsValueToVariantIndex(value, options.thresholds);
-    if (nextIndex !== activeIndex) {
-      activeIndex = nextIndex;
-      imgEl.src = getSourceForIndex(nextIndex);
-    }
-  };
-
-  const handleTimeUpdate = (localTime: number) => {
-    options.onTimeUpdate?.(localTime);
-    updateFrame();
-  };
-  const clock = new PreviewClock(options.duration, handleTimeUpdate, options.onEnded);
-
-  return {
-    kind: 'image',
-    element: (
-      <img
-        ref={(el) => {
-          imgEl = el;
-          if (imgEl) {
-            imgEl.src = getSourceForIndex(0);
-            activeIndex = 0;
-          }
-        }}
-        alt={options.alt}
-        className={options.className}
-      />
-    ),
-    play() {
-      clock.play();
-    },
-    pause() {
-      clock.pause();
-    },
-    seek(localTimeSec: number) {
-      clock.seek(localTimeSec);
-      updateFrame();
-    },
-    setRate(rate: number) {
-      clock.setRate(rate);
-    },
-    getCurrentTime() {
-      return clock.getCurrentTime();
-    },
-    dispose() {
-      clock.dispose();
-      imgEl = null;
     },
   };
 }

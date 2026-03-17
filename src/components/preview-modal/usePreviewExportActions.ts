@@ -49,7 +49,6 @@ export function usePreviewExportActions({
         getAssetById: getAsset,
         resolveCutRuntimeById: getCutRuntime,
         framingDefaults: EXPORT_FRAMING_DEFAULTS,
-        strictLipSync: false,
       });
 
       if (onExportSequence) {

@@ -8,7 +8,6 @@ import type {
   FavoriteFolder,
   SceneAudioBinding,
   GroupAudioBinding,
-  LipSyncSettings,
   PlaybackMode,
   PreviewMode,
   Project,
@@ -85,7 +84,6 @@ export interface CutTimelineSliceContract {
   updateCutClipPoints: (sceneId: string, cutId: string, inPoint: number, outPoint: number) => void;
   clearCutClipPoints: (sceneId: string, cutId: string) => void;
   updateCutAsset: (sceneId: string, cutId: string, assetUpdates: Partial<Asset>) => void;
-  updateCutLipSync: (sceneId: string, cutId: string, isLipSync: boolean, frameCount?: number) => void;
   setCutAudioBindings: (sceneId: string, cutId: string, bindings: CutAudioBinding[]) => void;
   setCutUseEmbeddedAudio: (sceneId: string, cutId: string, enabled: boolean) => void;
   reorderCuts: (sceneId: string, cutId: string, newIndex: number, fromSceneId: string, oldIndex: number) => void;
@@ -150,9 +148,6 @@ export interface MetadataSliceContract {
   detachAudioFromGroup: (sceneId: string, groupId: string) => void;
   getGroupAudioBinding: (sceneId: string, groupId: string) => GroupAudioBinding | undefined;
   getAttachedAudioForGroup: (sceneId: string, groupId: string) => Asset | undefined;
-  setLipSyncForAsset: (assetId: string, settings: LipSyncSettings) => void;
-  clearLipSyncForAsset: (assetId: string) => void;
-  cleanupLipSyncAssetsForDeletedCut: (assetId: string) => Promise<void>;
   removeAssetReferences: (assetIds: string[]) => void;
   deleteAssetWithPolicy: (params: {
     assetPath: string;

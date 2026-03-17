@@ -13,10 +13,10 @@ export interface ResolvedCutAudioBinding {
   muteEmbedded: boolean;
 }
 
-const AUDIO_KIND_PRIORITY: Record<'voice.lipsync' | 'voice.other' | 'se', number> = {
+const AUDIO_KIND_PRIORITY: Record<CutAudioBinding['kind'], number> = {
   'voice.lipsync': 0,
-  'voice.other': 1,
-  se: 2,
+  'voice.other': 0,
+  se: 1,
 };
 
 function resolvePrimaryAudioBinding(cut: Cut | null | undefined): CutAudioBinding | undefined {

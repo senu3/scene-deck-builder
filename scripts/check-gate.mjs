@@ -113,7 +113,6 @@ const gate9AssetThumbnailDirectRefFiles = new Set([
   'src/components/AssetPanel.tsx',
   'src/components/Sidebar.tsx',
   'src/components/preview-modal/previewItemsBuilder.ts',
-  'src/components/LipSyncModal.tsx',
 ]);
 const gate9LowLevelThumbnailApis = new Set([
   'getThumbnail',

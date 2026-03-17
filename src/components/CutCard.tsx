@@ -1,7 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useState, useEffect, useRef } from 'react';
-import { Film, Image, Clock, Scissors, Loader2, Mic, Music } from 'lucide-react';
+import { Film, Image, Clock, Scissors, Loader2, Music } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import {
   selectSelectedCutId,
@@ -68,9 +68,6 @@ interface CutCardProps {
     inPoint?: number;
     outPoint?: number;
     isClip?: boolean;
-    // Lip sync fields
-    isLipSync?: boolean;
-    lipSyncFrameCount?: number;
     audioBindings?: CutAudioBinding[];
   };
   sceneId: string;
@@ -174,7 +171,6 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
   const isSelected = selectedCutIds.has(cut.id) || selectedCutId === cut.id;
   const isMultiSelected = selectedCutIds.size > 1 && selectedCutIds.has(cut.id);
   const isVideo = asset?.type === 'video';
-  const isLipSync = cut.isLipSync;
   const hasAttachedAudio = !!cut.audioBindings?.some((binding) => binding.enabled !== false);
 
   // Check if this cut is in a group
@@ -240,9 +236,8 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
 
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // LipSync cuts always use Sequence Mode, even when the source asset is video.
     if (asset) {
-      if (asset.type === 'video' && !cut.isLipSync) {
+      if (asset.type === 'video') {
         openVideoPreview(cut.id);
       } else {
         openSequencePreview(cut.id);
@@ -550,7 +545,7 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
       style={style}
       {...attributes}
       {...listeners}
-      className={`cut-card ${isSelected ? 'selected' : ''} ${isMultiSelected ? 'multi-selected' : ''} ${isDragging ? 'dragging' : ''} ${isLipSync ? 'lipsync' : ''}`}
+      className={`cut-card ${isSelected ? 'selected' : ''} ${isMultiSelected ? 'multi-selected' : ''} ${isDragging ? 'dragging' : ''}`}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
       onContextMenu={handleContextMenu}
@@ -564,9 +559,7 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
           />
         ) : (
           <div className="cut-thumbnail placeholder">
-            {isLipSync ? (
-              <Mic size={24} className="placeholder-icon" />
-            ) : isVideo ? (
+            {isVideo ? (
               <Film size={24} className="placeholder-icon" />
             ) : (
               <Image size={24} className="placeholder-icon" />
@@ -575,33 +568,23 @@ export default function CutCard({ cut, sceneId, index, isDragging, isHidden, cro
         )}
 
         {/* Asset type badge - icon only */}
-        <div className={`cut-type-badge ${isLipSync ? 'lipsync' : isVideo ? 'video' : 'image'}`}>
-          {isLipSync ? (
-            <Mic size={12} />
-          ) : isVideo ? (
+        <div className={`cut-type-badge ${isVideo ? 'video' : 'image'}`}>
+          {isVideo ? (
             <Film size={12} />
           ) : (
             <Image size={12} />
           )}
         </div>
 
-        {/* Lip sync frame count - top-left (card state indicator area) */}
-        {isLipSync && cut.lipSyncFrameCount && (
-          <div className="lipsync-frame-count">
-            <Image size={10} />
-            <span>{cut.lipSyncFrameCount}</span>
-          </div>
-        )}
-
         {/* Clip indicator for trimmed videos */}
-        {cut.isClip && !isLipSync && (
+        {cut.isClip && (
           <div className="clip-indicator" title={`Clip: ${cut.inPoint?.toFixed(1)}s - ${cut.outPoint?.toFixed(1)}s`}>
             <Scissors size={12} />
           </div>
         )}
 
         {/* Attached audio indicator */}
-        {hasAttachedAudio && !isLipSync && !cut.isClip && (
+        {hasAttachedAudio && !cut.isClip && (
           <div className="audio-attached-indicator" title="Audio Attached">
             <Music size={12} />
           </div>

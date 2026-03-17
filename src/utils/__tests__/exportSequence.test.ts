@@ -135,130 +135,8 @@ describe('buildSequenceItemsForExport', () => {
     expect(warnings).toEqual(['audio-only-cut-skipped']);
   });
 
-  it('attaches lipSync payload when metadata and frame assets are available', () => {
-    const lipOwner = {
-      id: 'asset-lip-owner',
-      name: 'lip.png',
-      path: '/tmp/lip.png',
-      type: 'image' as const,
-    };
-    const frames = [
-      { id: 'cmp-1', name: 'cmp-1.png', path: '/tmp/cmp-1.png', type: 'image' as const },
-      { id: 'cmp-2', name: 'cmp-2.png', path: '/tmp/cmp-2.png', type: 'image' as const },
-      { id: 'cmp-3', name: 'cmp-3.png', path: '/tmp/cmp-3.png', type: 'image' as const },
-      { id: 'cmp-4', name: 'cmp-4.png', path: '/tmp/cmp-4.png', type: 'image' as const },
-    ];
-    const assets = mapAssetsById([lipOwner, ...frames]);
-
-    const items = buildSequenceItemsForCuts(
-      [{
-        id: 'cut-lipsync',
-        assetId: lipOwner.id,
-        asset: lipOwner,
-        order: 0,
-        displayTime: 1,
-        isLipSync: true,
-        audioBindings: [{
-          id: 'b1',
-          audioAssetId: 'aud-1',
-          offsetSec: 0.2,
-          enabled: true,
-          kind: 'voice.lipsync',
-        }],
-      }],
-      {
-        metadataByAssetId: {
-          [lipOwner.id]: {
-            assetId: lipOwner.id,
-            lipSync: {
-              baseImageAssetId: 'cmp-1',
-              variantAssetIds: ['cmp-2', 'cmp-3', 'cmp-4'],
-              compositedFrameAssetIds: ['cmp-1', 'cmp-2', 'cmp-3', 'cmp-4'],
-              rmsSourceAudioAssetId: 'aud-1',
-              thresholds: { t1: 0.1, t2: 0.2, t3: 0.3 },
-              fps: 30,
-            },
-          },
-          'aud-1': {
-            assetId: 'aud-1',
-            audioAnalysis: {
-              fps: 30,
-              rms: [0, 0.12, 0.24, 0.5],
-              duration: 0.12,
-              sampleRate: 48000,
-              channels: 2,
-            },
-          },
-        },
-        resolveAssetById: (assetId) => assets.get(assetId),
-      }
-    );
-
-    expect(items).toHaveLength(1);
-    expect(items[0].lipSync).toBeDefined();
-    expect(items[0].lipSync?.framePaths).toEqual(frames.map((frame) => frame.path));
-    expect(items[0].lipSync?.audioOffsetSec).toBe(0.2);
-  });
-
-  it('throws when lipSync cut is missing required metadata by default (no silent fallback)', () => {
-    const lipOwner = {
-      id: 'asset-lip-owner',
-      name: 'lip.png',
-      path: '/tmp/lip.png',
-      type: 'image' as const,
-    };
-    expect(() => buildSequenceItemsForCuts([{
-      id: 'cut-lipsync-missing',
-      assetId: lipOwner.id,
-      asset: lipOwner,
-      order: 0,
-      displayTime: 1,
-      isLipSync: true,
-    }], {
-      resolveAssetById: (assetId) => (assetId === lipOwner.id ? lipOwner : undefined),
-    })).toThrow(/LipSync cut cut-lipsync-missing is missing lipSync settings/);
-  });
-
-  it('can opt out of strict lipSync errors', () => {
-    const warnings: string[] = [];
-    const lipOwner = {
-      id: 'asset-lip-owner',
-      name: 'lip.png',
-      path: '/tmp/lip.png',
-      type: 'image' as const,
-    };
-    const items = buildSequenceItemsForCuts([{
-      id: 'cut-lipsync-missing',
-      assetId: lipOwner.id,
-      asset: lipOwner,
-      order: 0,
-      displayTime: 1,
-      isLipSync: true,
-    }], {
-      strictLipSync: false,
-      resolveAssetById: (assetId) => (assetId === lipOwner.id ? lipOwner : undefined),
-      onWarning: (warning) => warnings.push(warning.code),
-    });
-
-    expect(items).toHaveLength(1);
-    expect(items[0].lipSync).toBeUndefined();
-    expect(warnings).toEqual(['lipsync-export-fallback']);
-  });
-
-  it('keeps timeline order and preserves clip/lipsync/framing in one export build', () => {
-    const lipOwner = {
-      id: 'asset-lip-owner',
-      name: 'lip.png',
-      path: '/tmp/lip.png',
-      type: 'image' as const,
-    };
-    const lipsyncFrames = [
-      { id: 'cmp-1', name: 'cmp-1.png', path: '/tmp/cmp-1.png', type: 'image' as const },
-      { id: 'cmp-2', name: 'cmp-2.png', path: '/tmp/cmp-2.png', type: 'image' as const },
-      { id: 'cmp-3', name: 'cmp-3.png', path: '/tmp/cmp-3.png', type: 'image' as const },
-      { id: 'cmp-4', name: 'cmp-4.png', path: '/tmp/cmp-4.png', type: 'image' as const },
-    ];
-    const assets = mapAssetsById([imageAsset, videoAsset, lipOwner, ...lipsyncFrames]);
+  it('keeps timeline order and preserves clip/framing in one export build', () => {
+    const assets = mapAssetsById([imageAsset, videoAsset]);
 
     const scenes: Scene[] = [
       {
@@ -287,21 +165,6 @@ describe('buildSequenceItemsForExport', () => {
         notes: [],
         cuts: [
           {
-            id: 'cut-lipsync',
-            assetId: lipOwner.id,
-            asset: lipOwner,
-            order: 1,
-            displayTime: 1.5,
-            isLipSync: true,
-            audioBindings: [{
-              id: 'ab-1',
-              audioAssetId: 'aud-1',
-              offsetSec: -0.1,
-              enabled: true,
-              kind: 'voice.lipsync',
-            }],
-          },
-          {
             id: 'cut-image',
             assetId: imageAsset.id,
             asset: imageAsset,
@@ -314,49 +177,20 @@ describe('buildSequenceItemsForExport', () => {
 
     const items = buildSequenceItemsForExport(scenes, ['scene-a', 'scene-b'], {
       framingDefaults: { mode: 'cover', anchor: 'center' },
-      metadataByAssetId: {
-        [lipOwner.id]: {
-          assetId: lipOwner.id,
-          lipSync: {
-            baseImageAssetId: 'cmp-1',
-            variantAssetIds: ['cmp-2', 'cmp-3', 'cmp-4'],
-            compositedFrameAssetIds: ['cmp-1', 'cmp-2', 'cmp-3', 'cmp-4'],
-            rmsSourceAudioAssetId: 'aud-1',
-            thresholds: { t1: 0.1, t2: 0.2, t3: 0.3 },
-            fps: 30,
-          },
-        },
-        'aud-1': {
-          assetId: 'aud-1',
-          audioAnalysis: {
-            fps: 30,
-            rms: [0, 0.2, 0.4, 0.15],
-            duration: 0.13,
-            sampleRate: 48000,
-            channels: 2,
-          },
-        },
-      },
       resolveAssetById: (assetId) => assets.get(assetId),
     });
 
     expect(items.map((item) => item.path)).toEqual([
       imageAsset.path,
-      lipOwner.path,
       videoAsset.path,
     ]);
 
     expect(items[0].framingMode).toBe('cover');
     expect(items[0].framingAnchor).toBe('center');
 
-    expect(items[1].lipSync?.framePaths).toEqual(lipsyncFrames.map((frame) => frame.path));
-    expect(items[1].lipSync?.audioOffsetSec).toBe(-0.1);
-    expect(items[1].framingMode).toBe('cover');
-    expect(items[1].framingAnchor).toBe('center');
-
-    expect(items[2].inPoint).toBe(1.25);
-    expect(items[2].outPoint).toBe(3.75);
-    expect(items[2].framingMode).toBe('fit');
-    expect(items[2].framingAnchor).toBe('bottom-right');
+    expect(items[1].inPoint).toBe(1.25);
+    expect(items[1].outPoint).toBe(3.75);
+    expect(items[1].framingMode).toBe('fit');
+    expect(items[1].framingAnchor).toBe('bottom-right');
   });
 });

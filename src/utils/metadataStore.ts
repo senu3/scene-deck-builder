@@ -19,7 +19,6 @@ export interface MetadataStoreReport {
   orphanMetadataCount: number;
   orphanSceneMetadataCount: number;
   orphanAssetMetadataCount: number;
-  normalizedLipSyncCount: number;
   invalidRootFallbackCount: number;
   normalized: boolean;
 }
@@ -37,61 +36,23 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-function normalizeLipSyncSettings(lipSync: AssetMetadata['lipSync']): { lipSync: AssetMetadata['lipSync']; changed: boolean } {
-  if (!lipSync) return { lipSync, changed: false };
-  const hasComposited = Array.isArray(lipSync.compositedFrameAssetIds) && lipSync.compositedFrameAssetIds.length > 0;
-  if (hasComposited && lipSync.version === 2) {
-    return { lipSync, changed: false };
-  }
-  const fallbackComposited = [lipSync.baseImageAssetId, ...lipSync.variantAssetIds].filter((id) => typeof id === 'string' && id.length > 0);
-  const normalized = {
-    ...lipSync,
-    compositedFrameAssetIds: hasComposited ? lipSync.compositedFrameAssetIds : fallbackComposited,
-    version: 2 as const,
-  };
-  return {
-    lipSync: normalized,
-    changed:
-      lipSync.version !== 2 ||
-      !hasComposited,
-  };
+function sanitizeLoadedAssetMetadata(metadata: AssetMetadata): AssetMetadata {
+  const { lipSync: _legacyLipSync, ...rest } = metadata as AssetMetadata & { lipSync?: unknown };
+  return rest;
 }
 
-function normalizeLoadedMetadataStore(store: MetadataStore): { store: MetadataStore; normalizedLipSyncCount: number } {
-  let normalizedLipSyncCount = 0;
-  const nextMetadata: Record<string, AssetMetadata> = {};
-  for (const [assetId, metadata] of Object.entries(store.metadata || {})) {
-    const normalizedLipSync = normalizeLipSyncSettings(metadata?.lipSync);
-    if (normalizedLipSync.changed) {
-      normalizedLipSyncCount += 1;
-      nextMetadata[assetId] = {
-        ...metadata,
-        lipSync: normalizedLipSync.lipSync,
-      };
-    } else {
-      nextMetadata[assetId] = metadata;
-    }
-  }
-  if (normalizedLipSyncCount === 0) {
-    return {
-      store,
-      normalizedLipSyncCount,
-    };
-  }
-  return {
-    store: {
-      ...store,
-      metadata: nextMetadata,
-    },
-    normalizedLipSyncCount,
-  };
+function sanitizeMetadataStoreEntries(
+  metadata: Record<string, AssetMetadata>
+): Record<string, AssetMetadata> {
+  return Object.fromEntries(
+    Object.entries(metadata).map(([assetId, entry]) => [assetId, sanitizeLoadedAssetMetadata(entry)])
+  );
 }
 
 function buildMetadataStoreReport(
   store: MetadataStore,
   options: MetadataStoreAssessmentOptions = {},
   extras: {
-    normalizedLipSyncCount?: number;
     invalidRootFallbackCount?: number;
   } = {}
 ): MetadataStoreReport {
@@ -117,7 +78,6 @@ function buildMetadataStoreReport(
   }
 
   const invalidRootFallbackCount = extras.invalidRootFallbackCount ?? 0;
-  const normalizedLipSyncCount = extras.normalizedLipSyncCount ?? 0;
   const orphanMetadataCount = orphanSceneMetadataCount + orphanAssetMetadataCount;
 
   return {
@@ -126,9 +86,8 @@ function buildMetadataStoreReport(
     orphanMetadataCount,
     orphanSceneMetadataCount,
     orphanAssetMetadataCount,
-    normalizedLipSyncCount,
     invalidRootFallbackCount,
-    normalized: normalizedLipSyncCount > 0,
+    normalized: false,
   };
 }
 
@@ -139,17 +98,14 @@ export function assessMetadataStore(
   const baseStore = rawStore
     ? {
         version: typeof rawStore.version === 'number' ? rawStore.version : CURRENT_VERSION,
-        metadata: rawStore.metadata || {},
+        metadata: sanitizeMetadataStoreEntries(rawStore.metadata || {}),
         sceneMetadata: rawStore.sceneMetadata || {},
       }
     : createEmptyMetadataStore();
-  const normalized = normalizeLoadedMetadataStore(baseStore);
 
   return {
-    store: normalized.store,
-    report: buildMetadataStoreReport(normalized.store, options, {
-      normalizedLipSyncCount: normalized.normalizedLipSyncCount,
-    }),
+    store: baseStore,
+    report: buildMetadataStoreReport(baseStore, options),
   };
 }
 
@@ -217,11 +173,15 @@ export async function saveMetadataStore(
   store: MetadataStore
 ): Promise<boolean> {
   const metadataPath = `${vaultPath}/${METADATA_FILE}`.replace(/\\/g, '/');
+  const sanitizedStore: MetadataStore = {
+    ...store,
+    metadata: sanitizeMetadataStoreEntries(store.metadata || {}),
+  };
 
   try {
     // Use saveProject which handles JSON stringification
     const result = await saveProjectBridge(
-      JSON.stringify(store, null, 2),
+      JSON.stringify(sanitizedStore, null, 2),
       metadataPath
     );
     return result !== null;
@@ -404,47 +364,6 @@ export function updateAudioAnalysis(
 }
 
 /**
- * Update lip sync settings for an asset (immutable)
- * @param store - Current MetadataStore
- * @param assetId - Target asset ID
- * @param lipSync - Lip sync settings
- * @returns New MetadataStore with updated lip sync settings
- */
-export function updateLipSyncSettings(
-  store: MetadataStore,
-  assetId: string,
-  lipSync: AssetMetadata['lipSync']
-): MetadataStore {
-  const existing = store.metadata[assetId] || { assetId };
-  return updateAssetMetadata(store, {
-    ...existing,
-    lipSync,
-  });
-}
-
-/**
- * Remove lip sync settings for an asset (immutable)
- * @param store - Current MetadataStore
- * @param assetId - Target asset ID
- * @returns New MetadataStore with lip sync settings removed
- */
-export function removeLipSyncSettings(
-  store: MetadataStore,
-  assetId: string
-): MetadataStore {
-  const existing = store.metadata[assetId];
-  if (!existing) return store;
-
-  const { lipSync: _, ...rest } = existing;
-
-  if (Object.keys(rest).length <= 1) {
-    return removeAssetMetadata(store, assetId);
-  }
-
-  return updateAssetMetadata(store, rest as AssetMetadata);
-}
-
-/**
  * Remove metadata for an asset (immutable)
  * @param store - Current MetadataStore
  * @param assetId - Asset ID to remove metadata for
@@ -468,7 +387,6 @@ function isMetadataEntryEmpty(metadata: AssetMetadata): boolean {
 /**
  * Remove references to deleted assets from metadata store.
  * - Drops metadata entries whose own assetId is deleted
- * - Clears/removes LipSync settings when required frame/audio references are deleted
  */
 export function removeAssetReferences(
   store: MetadataStore,
@@ -486,75 +404,7 @@ export function removeAssetReferences(
       continue;
     }
 
-    let next: AssetMetadata = { ...metadata };
-
-    const lipSync = next.lipSync;
-    if (lipSync) {
-      const baseRemoved = removed.has(lipSync.baseImageAssetId);
-      const variantRemoved = lipSync.variantAssetIds.some((id) => removed.has(id));
-      const rmsRemoved = removed.has(lipSync.rmsSourceAudioAssetId);
-
-      if (baseRemoved || variantRemoved || rmsRemoved) {
-        const { lipSync: _, ...rest } = next;
-        next = rest as AssetMetadata;
-        changed = true;
-      } else {
-        const nextLipSync = { ...lipSync };
-        let lipSyncChanged = false;
-
-        if (nextLipSync.maskAssetId && removed.has(nextLipSync.maskAssetId)) {
-          delete nextLipSync.maskAssetId;
-          lipSyncChanged = true;
-        }
-
-        if (nextLipSync.sourceVideoAssetId && removed.has(nextLipSync.sourceVideoAssetId)) {
-          delete nextLipSync.sourceVideoAssetId;
-          lipSyncChanged = true;
-        }
-
-        if (Array.isArray(nextLipSync.compositedFrameAssetIds) && nextLipSync.compositedFrameAssetIds.length > 0) {
-          const filtered = nextLipSync.compositedFrameAssetIds.filter((id) => !removed.has(id));
-          if (filtered.length !== nextLipSync.compositedFrameAssetIds.length) {
-            const requiredLength = 1 + nextLipSync.variantAssetIds.length;
-            if (filtered.length === requiredLength) {
-              nextLipSync.compositedFrameAssetIds = filtered;
-            } else {
-              delete nextLipSync.compositedFrameAssetIds;
-            }
-            lipSyncChanged = true;
-          }
-        }
-
-        if (Array.isArray(nextLipSync.ownedGeneratedAssetIds) && nextLipSync.ownedGeneratedAssetIds.length > 0) {
-          const filteredOwned = nextLipSync.ownedGeneratedAssetIds.filter((id) => !removed.has(id));
-          if (filteredOwned.length !== nextLipSync.ownedGeneratedAssetIds.length) {
-            if (filteredOwned.length > 0) {
-              nextLipSync.ownedGeneratedAssetIds = filteredOwned;
-            } else {
-              delete nextLipSync.ownedGeneratedAssetIds;
-            }
-            lipSyncChanged = true;
-          }
-        }
-
-        if (Array.isArray(nextLipSync.orphanedGeneratedAssetIds) && nextLipSync.orphanedGeneratedAssetIds.length > 0) {
-          const filteredOrphan = nextLipSync.orphanedGeneratedAssetIds.filter((id) => !removed.has(id));
-          if (filteredOrphan.length !== nextLipSync.orphanedGeneratedAssetIds.length) {
-            if (filteredOrphan.length > 0) {
-              nextLipSync.orphanedGeneratedAssetIds = filteredOrphan;
-            } else {
-              delete nextLipSync.orphanedGeneratedAssetIds;
-            }
-            lipSyncChanged = true;
-          }
-        }
-
-        if (lipSyncChanged) {
-          next.lipSync = nextLipSync;
-          changed = true;
-        }
-      }
-    }
+    const next: AssetMetadata = { ...metadata };
 
     if (!isMetadataEntryEmpty(next)) {
       nextMetadata[assetId] = next;

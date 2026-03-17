@@ -20,7 +20,6 @@ export interface ExportTimelineEntry {
   assetName: string;
   assetPath: string;
   assetType: 'image' | 'video' | 'audio';
-  isLipSync: boolean;
   isClip: boolean;
   inPoint?: number;
   outPoint?: number;
@@ -56,7 +55,6 @@ export function buildExportTimelineEntries(
       assetName: asset?.name || 'unknown',
       assetPath: asset?.path || '',
       assetType: asset?.type || 'image',
-      isLipSync: !!cut.isLipSync,
       isClip: !!cut.isClip,
       inPoint: cut.isClip ? cut.inPoint : undefined,
       outPoint: cut.isClip ? cut.outPoint : undefined,
@@ -76,8 +74,7 @@ export function buildTimelineText(entries: ExportTimelineEntry[]): string {
       const clipPart = entry.isClip && entry.inPoint !== undefined && entry.outPoint !== undefined
         ? ` clip(${entry.inPoint.toFixed(2)}-${entry.outPoint.toFixed(2)})`
         : '';
-      const lipPart = entry.isLipSync ? ' [lipsync]' : '';
-      return `${formatTimelineSec(entry.startSec)} - ${formatTimelineSec(entry.endSec)}  ${entry.sceneName} / Cut${String(entry.cutIndex + 1).padStart(2, '0')} / ${entry.assetName}${clipPart}${lipPart}`;
+      return `${formatTimelineSec(entry.startSec)} - ${formatTimelineSec(entry.endSec)}  ${entry.sceneName} / Cut${String(entry.cutIndex + 1).padStart(2, '0')} / ${entry.assetName}${clipPart}`;
     })
     .join('\n');
 }

@@ -22,21 +22,7 @@ describe('assetRefs', () => {
     ] as any;
     const metadataStore = {
       version: 1,
-      metadata: {
-        'img-1': {
-          assetId: 'img-1',
-          lipSync: {
-            baseImageAssetId: 'img-1',
-            variantAssetIds: ['img-2', 'img-3', 'img-4'],
-            maskAssetId: 'mask-1',
-            compositedFrameAssetIds: ['cmp-1', 'cmp-2', 'cmp-3', 'cmp-4'],
-            rmsSourceAudioAssetId: 'aud-1',
-            sourceVideoAssetId: 'vid-1',
-            thresholds: { t1: 0.1, t2: 0.2, t3: 0.3 },
-            fps: 60,
-          },
-        },
-      },
+      metadata: {},
       sceneMetadata: {
         'scene-1': {
           id: 'scene-1',
@@ -75,8 +61,6 @@ describe('assetRefs', () => {
     expect(refs.get('aud-scene-1')?.some((ref) => ref.kind === 'scene-audio')).toBe(true);
     expect(refs.get('aud-group-1')?.some((ref) => ref.kind === 'group-audio' && ref.groupId === 'group-1')).toBe(true);
     expect(refs.get('aud-group-disabled')).toBeUndefined();
-    expect(refs.get('mask-1')?.some((ref) => ref.kind === 'lipsync-mask')).toBe(true);
-    expect(refs.get('cmp-3')?.some((ref) => ref.kind === 'lipsync-composited')).toBe(true);
   });
 
   it('returns blocking refs and detects dangling refs', () => {

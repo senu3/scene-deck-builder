@@ -68,7 +68,6 @@ describe('project session', () => {
       orphanMetadataCount: 0,
       orphanSceneMetadataCount: 0,
       orphanAssetMetadataCount: 0,
-      normalizedLipSyncCount: 0,
       invalidRootFallbackCount: 0,
       normalized: false,
     },
@@ -565,9 +564,8 @@ describe('project session', () => {
         orphanMetadataCount: 1,
         orphanSceneMetadataCount: 1,
         orphanAssetMetadataCount: 0,
-        normalizedLipSyncCount: 1,
         invalidRootFallbackCount: 0,
-        normalized: true,
+        normalized: false,
       },
     });
 
@@ -589,6 +587,6 @@ describe('project session', () => {
     }
     expect(outcome.assessment.mode).toBe('repairable');
     expect(outcome.assessment.report.skippedMetadataCount).toBe(2);
-    expect(outcome.assessment.report.normalizationFlags.metadataNormalized).toBe(true);
+    expect(outcome.assessment.report.normalizationFlags.metadataNormalized).toBe(false);
   });
 });

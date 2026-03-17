@@ -167,7 +167,6 @@ export default function PreviewModal({
       getAssetById: getAsset,
       resolveCutRuntimeById: getCutRuntime,
       framingDefaults: EXPORT_FRAMING_DEFAULTS,
-      strictLipSync: false,
     });
   }, [focusCutData?.cut?.id, scenes, sceneOrder, metadataStore, getAsset, getCutRuntime]);
   const focusedPreviewWindow = useMemo(() => {

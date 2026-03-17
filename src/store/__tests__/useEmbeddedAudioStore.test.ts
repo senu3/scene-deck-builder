@@ -61,21 +61,23 @@ describe('useEmbeddedAudio store behavior', () => {
     expect(cut?.useEmbeddedAudio).toBe(true);
   });
 
-  it('preserves lip sync flags when pasting cuts', () => {
+  it('preserves clip flags when pasting cuts', () => {
     useStore.setState({
       clipboard: [{
         assetId: 'asset-1',
         asset: TEST_IMAGE_ASSET,
         displayTime: 1,
         audioBindings: [],
-        isLipSync: true,
-        lipSyncFrameCount: 4,
+        isClip: true,
+        inPoint: 0.2,
+        outPoint: 1.2,
       }],
     }, false);
 
     const [cutId] = useStore.getState().pasteCuts('scene-1');
     const cut = useStore.getState().scenes[0]?.cuts.find((c) => c.id === cutId);
-    expect(cut?.isLipSync).toBe(true);
-    expect(cut?.lipSyncFrameCount).toBe(4);
+    expect(cut?.isClip).toBe(true);
+    expect(cut?.inPoint).toBe(0.2);
+    expect(cut?.outPoint).toBe(1.2);
   });
 });

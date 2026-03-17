@@ -1,6 +1,5 @@
 import type { Asset, AssetMetadata, Cut, FramingAnchor, FramingMode, Scene } from '../types';
 import { getScenesAndCutsInTimelineOrder } from './timelineOrder';
-import { getLipSyncFrameAssetIds, normalizeThresholds } from './lipSyncUtils';
 import { resolveCutAsset } from './assetResolve';
 import { computeCanonicalStoryTimingsForCuts } from './storyTiming';
 
@@ -18,20 +17,12 @@ export interface ExportSequenceItem {
     isMuted?: boolean;
     isHold?: boolean;
   };
-  lipSync?: {
-    framePaths: string[];
-    rms: number[];
-    rmsFps: number;
-    thresholds: { t1: number; t2: number; t3: number };
-    audioOffsetSec: number;
-  };
 }
 
 export type ExportSequenceBuildWarningCode =
   | 'missing-asset'
   | 'audio-only-cut-skipped'
-  | 'non-canonical-cut-adjusted'
-  | 'lipsync-export-fallback';
+  | 'non-canonical-cut-adjusted';
 
 export interface ExportSequenceBuildWarning {
   code: ExportSequenceBuildWarningCode;
@@ -50,7 +41,6 @@ export interface BuildExportSequenceOptions {
   framingDefaults?: ExportFramingDefaults;
   metadataByAssetId?: Record<string, AssetMetadata>;
   resolveAssetById?: (assetId: string) => Asset | undefined;
-  strictLipSync?: boolean;
   onWarning?: (warning: ExportSequenceBuildWarning) => void;
 }
 
@@ -144,7 +134,6 @@ function buildExportSequenceItemFromCut(
   }
 
   const framing = resolveFramingParams(cut, options.framingDefaults);
-  const lipSync = resolveLipSyncExport(cut, options, context);
   return {
     type: cutAsset?.type || 'image',
     path,
@@ -153,83 +142,6 @@ function buildExportSequenceItemFromCut(
     outPoint: cut.isClip ? cut.outPoint : undefined,
     framingMode: framing.mode,
     framingAnchor: framing.anchor,
-    lipSync: lipSync ?? undefined,
-  };
-}
-
-function getPrimaryAudioOffset(cut: Cut): number {
-  if (!cut.audioBindings?.length) return 0;
-  const enabledBindings = cut.audioBindings.filter((binding) => binding.enabled !== false);
-  if (enabledBindings.length === 0) {
-    return cut.audioBindings[0]?.offsetSec ?? 0;
-  }
-
-  const kindPriority: Record<'voice.lipsync' | 'voice.other' | 'se', number> = {
-    'voice.lipsync': 0,
-    'voice.other': 1,
-    'se': 2,
-  };
-  const binding = enabledBindings
-    .slice()
-    .sort((a, b) => kindPriority[a.kind] - kindPriority[b.kind])[0];
-  return binding?.offsetSec ?? 0;
-}
-
-function resolveLipSyncExport(
-  cut: Cut,
-  options: BuildExportSequenceOptions,
-  context: { sceneId?: string; cutId: string }
-): ExportSequenceItem['lipSync'] | null {
-  const strictLipSync = options.strictLipSync !== false;
-  const failLipSync = (message: string): null => {
-    if (strictLipSync) {
-      throw new Error(`[export] ${message}`);
-    }
-    emitWarning(options, {
-      code: 'lipsync-export-fallback',
-      cutId: context.cutId,
-      sceneId: context.sceneId,
-      assetId: cut.assetId,
-      message,
-    });
-    return null;
-  };
-
-  if (!cut.isLipSync) return null;
-
-  const cutAssetId = resolveAssetForExport(cut, options)?.id ?? cut.assetId;
-  const metadata = cutAssetId ? options.metadataByAssetId?.[cutAssetId] : undefined;
-  const lipSyncSettings = metadata?.lipSync;
-  if (!lipSyncSettings) {
-    return failLipSync(`LipSync cut ${context.cutId} is missing lipSync settings.`);
-  }
-
-  const analysis = options.metadataByAssetId?.[lipSyncSettings.rmsSourceAudioAssetId]?.audioAnalysis;
-  if (!analysis?.rms?.length || !Number.isFinite(analysis.fps) || analysis.fps <= 0) {
-    return failLipSync(`LipSync cut ${context.cutId} is missing RMS analysis.`);
-  }
-
-  if (!options.resolveAssetById) {
-    return failLipSync(`LipSync cut ${context.cutId} cannot resolve frame assets (resolver missing).`);
-  }
-
-  const frameIds = getLipSyncFrameAssetIds(lipSyncSettings);
-  const framePathsRaw = frameIds
-    .map((id) => options.resolveAssetById?.(id)?.path)
-    .filter((path): path is string => typeof path === 'string' && path.length > 0);
-  if (framePathsRaw.length === 0) {
-    return failLipSync(`LipSync cut ${context.cutId} has no resolvable frame paths.`);
-  }
-
-  const fallbackPath = framePathsRaw[0];
-  const framePaths = frameIds.map((id) => options.resolveAssetById?.(id)?.path || fallbackPath);
-
-  return {
-    framePaths,
-    rms: analysis.rms,
-    rmsFps: analysis.fps,
-    thresholds: normalizeThresholds(lipSyncSettings.thresholds),
-    audioOffsetSec: getPrimaryAudioOffset(cut),
   };
 }
 

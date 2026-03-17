@@ -11,7 +11,6 @@ import {
   Link2,
   Download,
   Check,
-  Mic,
   FolderOpen,
   Loader2,
   MoreVertical,
@@ -84,44 +83,6 @@ export interface AssetInfo {
   usageCount: number;
   usageType: 'cut' | 'audio' | 'both' | null;
   linkedAssetIds: string[]; // All assetIds that map to this file (duplicates)
-  hasLipSync: boolean;
-}
-
-export function buildLipSyncAssetSets(
-  metadataStore: ReturnType<typeof selectMetadataStore>
-): { lipSyncGeneratedAssetIds: Set<string>; lipSyncOwnerAssetIds: Set<string> } {
-  const generated = new Set<string>();
-  const owners = new Set<string>();
-  const metadata = metadataStore?.metadata || {};
-
-  for (const [ownerAssetId, assetMeta] of Object.entries(metadata)) {
-    const lipSync = assetMeta?.lipSync;
-    if (!lipSync) continue;
-
-    owners.add(ownerAssetId);
-
-    const protectedIds = new Set<string>([
-      ownerAssetId,
-      lipSync.baseImageAssetId,
-      ...(lipSync.variantAssetIds || []),
-      lipSync.rmsSourceAudioAssetId,
-      lipSync.sourceVideoAssetId || '',
-    ].filter(Boolean));
-
-    const generatedCandidates = [
-      ...(lipSync.ownedGeneratedAssetIds || []),
-      ...(lipSync.orphanedGeneratedAssetIds || []),
-      ...(lipSync.maskAssetId ? [lipSync.maskAssetId] : []),
-      ...(lipSync.compositedFrameAssetIds || []),
-    ];
-
-    for (const id of generatedCandidates) {
-      if (!id || protectedIds.has(id)) continue;
-      generated.add(id);
-    }
-  }
-
-  return { lipSyncGeneratedAssetIds: generated, lipSyncOwnerAssetIds: owners };
 }
 
 export interface AssetPanelProps {
@@ -271,11 +232,6 @@ export default function AssetPanel({
     () => buildLinkedAssetIds(assetRefs),
     [assetRefs]
   );
-  const { lipSyncGeneratedAssetIds, lipSyncOwnerAssetIds } = useMemo(
-    () => buildLipSyncAssetSets(metadataStore),
-    [metadataStore]
-  );
-
   // Load asset index from .index.json
   const loadAssetIndex = useCallback(async (): Promise<Map<string, AssetIndexEntry[]>> => {
     const indexMap = new Map<string, AssetIndexEntry[]>();
@@ -378,10 +334,6 @@ export default function AssetPanel({
               const fallbackAssetId = `asset-${item.path.replace(/[^a-zA-Z0-9]/g, '-')}`;
               const linkedIds = indexEntries?.length ? indexEntries.map((entry) => entry.id) : [fallbackAssetId];
               const primaryAssetId = linkedIds[0] || fallbackAssetId;
-              if (linkedIds.some((id) => lipSyncGeneratedAssetIds.has(id))) {
-                continue;
-              }
-
               // Check if asset is cached
               const cachedAsset = linkedIds
                 .map((id) => assetCache.get(id))
@@ -398,7 +350,6 @@ export default function AssetPanel({
                 usageCount: usage.count,
                 usageType: usage.type,
                 linkedAssetIds: linkedIds,
-                hasLipSync: linkedIds.some((id) => lipSyncOwnerAssetIds.has(id)),
               });
             }
           }
@@ -412,7 +363,7 @@ export default function AssetPanel({
     } finally {
       setIsLoading(false);
     }
-  }, [vaultPath, assetCache, usedAssetsMap, loadAssetIndex, lipSyncGeneratedAssetIds, lipSyncOwnerAssetIds]);
+  }, [vaultPath, assetCache, usedAssetsMap, loadAssetIndex]);
 
   // Load assets on mount
   useEffect(() => {
@@ -570,7 +521,7 @@ export default function AssetPanel({
       result = result.filter((a) => a.type === filterType);
     }
 
-    // In drawer mode, hide linked-only non-audio assets (e.g. LipSync generated images).
+    // In drawer mode, hide linked-only non-audio assets.
     if (mode === 'drawer') {
       result = result.filter((a) => {
         if (a.type === 'audio') return true;
@@ -1271,11 +1222,7 @@ function AssetCard({
         )}
 
         {/* Type badge */}
-        {asset.hasLipSync ? (
-          <div className="asset-type-badge lipsync" title="LipSync source asset">
-            <Mic size={10} />
-          </div>
-        ) : asset.type === 'video' && (
+        {asset.type === 'video' && (
           <div className="asset-type-badge video">
             <Film size={10} />
           </div>

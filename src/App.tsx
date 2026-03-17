@@ -810,7 +810,6 @@ function App() {
         getAssetById: getAsset,
         resolveCutRuntimeById: getCutRuntime,
         framingDefaults: EXPORT_FRAMING_DEFAULTS,
-        strictLipSync: false,
       });
 
       const exportMasterWithAudio = plan.exportMasterWithAudio && sequencePlan.audioPlan.events.length > 0;

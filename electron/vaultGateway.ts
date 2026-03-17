@@ -420,7 +420,7 @@ export async function importDataUrlToVaultInternal(
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
     }
-    const tempPath = path.join(tempDir, `lipsync_${assetId}${ext}`);
+    const tempPath = path.join(tempDir, `import_${assetId}${ext}`);
     const buffer = Buffer.from(base64Data, 'base64');
     fs.writeFileSync(tempPath, buffer);
 

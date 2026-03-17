@@ -8,14 +8,12 @@ import type { PreviewSequencePlaybackItem } from '../types';
 
 const previewMediaMocks = vi.hoisted(() => ({
   createImageMediaSource: vi.fn(() => ({ element: <div>image</div> })),
-  createLipSyncImageMediaSource: vi.fn(() => ({ element: <div>lipsync</div> })),
   createVideoHoldMediaSource: vi.fn(() => ({ element: <div>hold</div> })),
   createVideoMediaSource: vi.fn(() => ({ element: <div>video</div> })),
 }));
 
 vi.mock('../../../utils/previewMedia', () => ({
   createImageMediaSource: previewMediaMocks.createImageMediaSource,
-  createLipSyncImageMediaSource: previewMediaMocks.createLipSyncImageMediaSource,
   createVideoHoldMediaSource: previewMediaMocks.createVideoHoldMediaSource,
   createVideoMediaSource: previewMediaMocks.createVideoMediaSource,
 }));
@@ -26,12 +24,10 @@ vi.mock('../../../features/thumbnails/api', () => ({
 
 interface HarnessProps {
   items: PreviewSequencePlaybackItem[];
-  previewSequenceItemByIndex?: Map<number, ExportSequenceItem>;
+  previewSequenceItemByIndex: Map<number, ExportSequenceItem>;
 }
 
-const emptySequenceItemByIndex = new Map<number, ExportSequenceItem>();
-
-function Harness({ items, previewSequenceItemByIndex = emptySequenceItemByIndex }: HarnessProps) {
+function Harness({ items, previewSequenceItemByIndex }: HarnessProps) {
   const setSequenceSource = useMemo(() => vi.fn(), []);
   const sequenceTick = useMemo(() => vi.fn(), []);
   const sequenceGoToNext = useMemo(() => vi.fn(), []);
@@ -82,9 +78,21 @@ describe('usePreviewSequenceMediaSource', () => {
   it('uses plan-derived clip timing for video playback', async () => {
     const host = document.createElement('div');
     const root = createRoot(host);
+    const previewSequenceItemByIndex = new Map<number, ExportSequenceItem>([[
+      0,
+      {
+        type: 'video',
+        path: baseItem.sourcePath,
+        duration: baseItem.normalizedDisplayTime,
+        inPoint: baseItem.srcInSec,
+        outPoint: baseItem.srcOutSec,
+        framingMode: 'cover',
+        framingAnchor: 'center',
+      },
+    ]]);
 
     await act(async () => {
-      root.render(<Harness items={[baseItem]} />);
+      root.render(<Harness items={[baseItem]} previewSequenceItemByIndex={previewSequenceItemByIndex} />);
     });
 
     expect(previewMediaMocks.createVideoMediaSource).toHaveBeenCalledWith(expect.objectContaining({
@@ -101,6 +109,19 @@ describe('usePreviewSequenceMediaSource', () => {
   it('uses hold playback source when the plan marks the item as hold', async () => {
     const host = document.createElement('div');
     const root = createRoot(host);
+    const previewSequenceItemByIndex = new Map<number, ExportSequenceItem>([[
+      0,
+      {
+        type: 'video',
+        path: baseItem.sourcePath,
+        duration: 1.2,
+        inPoint: baseItem.srcInSec,
+        outPoint: 3.0,
+        holdDurationSec: 1.2,
+        framingMode: 'cover',
+        framingAnchor: 'center',
+      },
+    ]]);
 
     await act(async () => {
       root.render(<Harness items={[{
@@ -108,7 +129,7 @@ describe('usePreviewSequenceMediaSource', () => {
         isHold: true,
         normalizedDisplayTime: asCanonicalDurationSec(1.2),
         srcOutSec: 3.0,
-      }]} />);
+      }]} previewSequenceItemByIndex={previewSequenceItemByIndex} />);
     });
 
     expect(previewMediaMocks.createVideoHoldMediaSource).toHaveBeenCalledWith(expect.objectContaining({

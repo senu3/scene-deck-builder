@@ -5,13 +5,7 @@ export type AssetRefKind =
   | 'cut'
   | 'cut-audio-binding'
   | 'scene-audio'
-  | 'group-audio'
-  | 'lipsync-base'
-  | 'lipsync-variant'
-  | 'lipsync-mask'
-  | 'lipsync-composited'
-  | 'lipsync-rms-audio'
-  | 'lipsync-source-video';
+  | 'group-audio';
 
 export interface AssetRef {
   assetId: string;
@@ -60,56 +54,6 @@ export function collectAssetRefs(scenes: Scene[], metadataStore: MetadataStore |
   }
 
   collectAudioAssetRefs(refs, metadataStore);
-  if (!metadataStore) return refs;
-
-  for (const [ownerAssetId, meta] of Object.entries(metadataStore.metadata)) {
-    const lipSync = meta.lipSync;
-    if (!lipSync) continue;
-
-    pushRef(refs, {
-      assetId: lipSync.baseImageAssetId,
-      kind: 'lipsync-base',
-      ownerAssetId,
-    });
-
-    for (const variantId of lipSync.variantAssetIds || []) {
-      pushRef(refs, {
-        assetId: variantId,
-        kind: 'lipsync-variant',
-        ownerAssetId,
-      });
-    }
-
-    for (const compositedId of lipSync.compositedFrameAssetIds || []) {
-      pushRef(refs, {
-        assetId: compositedId,
-        kind: 'lipsync-composited',
-        ownerAssetId,
-      });
-    }
-
-    if (lipSync.maskAssetId) {
-      pushRef(refs, {
-        assetId: lipSync.maskAssetId,
-        kind: 'lipsync-mask',
-        ownerAssetId,
-      });
-    }
-
-    pushRef(refs, {
-      assetId: lipSync.rmsSourceAudioAssetId,
-      kind: 'lipsync-rms-audio',
-      ownerAssetId,
-    });
-
-    if (lipSync.sourceVideoAssetId) {
-      pushRef(refs, {
-        assetId: lipSync.sourceVideoAssetId,
-        kind: 'lipsync-source-video',
-        ownerAssetId,
-      });
-    }
-  }
 
   return refs;
 }
