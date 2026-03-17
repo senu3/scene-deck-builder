@@ -61,8 +61,8 @@
 | **アセット** | `Asset` は `id/name/path/type/thumbnail/duration/metadata/vaultRelativePath/originalPath/hash` を持つメディア単位。 | **含む:** vault 同期に必要な fields。**含まない:** displayTime や clip。 | **同期/インポート:** `importFileToVault` / `prepareAssetForSave` / `prepareAssetForLoad`。 | `Asset`、`assetPath.ts`、`Sidebar.tsx` |
 | **Asset Index** | `assets/.index.json` に保存されるインデックス（`AssetIndex`）。人間向けには asset usage の recovery clue も担う。 | **含む:** version/assets、human-readable usage summary。**含まない:** 画像/音声のメタ本体、full timeline 復元情報。 | **読み書き:** `readAssetIndex` / `vaultGateway.saveAssetIndex`。 | `AssetIndex`、`src/vite-env.d.ts` |
 | **Metadata Store** | `.metadata.json` に保存されるアセット/シーンの付随情報。 | **含む:** assetId→`AssetMetadata`、sceneId→`SceneMetadata`（scene/group attachAudio を含む）。 | **読み書き:** `loadMetadataStore` / `saveMetadataStore`。 | `MetadataStore`、`metadataStore.ts` |
-| **Asset Metadata** | `AssetMetadata` は displayTime/analysis/lipSync を保持する。 | **含む:** `displayTime` / `audioAnalysis` / `lipSync`。`lipSync.ownedGeneratedAssetIds` / `orphanedGeneratedAssetIds` は生成物ID（mask/composited等）のみを持つ。 | **更新:** `updateAudioAnalysis` / `setLipSyncForAsset`。 | `AssetMetadata`、`metadataStore.ts` |
-| **Asset Reference Graph** | `collectAssetRefs` が scenes + metadata から参照種別付きの asset 参照集合を構築。 | **含む:** `cut` / `cut-audio-binding` / `scene-audio` / `group-audio` / `lipsync-*`。**含まない:** 物理ファイル一覧。 | **利用:** usage算出 / 削除可否判定 / 保存前検証。 | `assetRefs.ts` |
+| **Asset Metadata** | `AssetMetadata` は asset 単位の補助情報を保持する。 | **含む:** `displayTime` / `audioAnalysis`。**含まない:** LipSync 設定や generated asset 所有情報。 | **更新:** `updateAudioAnalysis`。 | `AssetMetadata`、`metadataStore.ts` |
+| **Asset Reference Graph** | `collectAssetRefs` が scenes + metadata から参照種別付きの asset 参照集合を構築。 | **含む:** `cut` / `cut-audio-binding` / `scene-audio` / `group-audio`。**含まない:** 物理ファイル一覧、LipSync generated asset。 | **利用:** usage算出 / 削除可否判定 / 保存前検証。 | `assetRefs.ts` |
 | **Asset Delete Policy** | `deleteAssetWithPolicy` は asset 削除責務の単一入口。 | **含む:** 参照チェック + trash移動 + index/metadata整合更新。 | **呼び出し:** `assetActions.runAssetDelete` から store 経由。 | `useStore.ts`, `features/asset/actions.ts` |
 | **Scene Metadata** | `.metadata.json` 内の `SceneMetadata`（scene notes/labels/attachAudio の永続化）。 | **含む:** シーン名・ノート・`attachAudio`・`groupAudioBindings`。 | **更新:** scene同期（`syncSceneMetadata`）+ Scene/Group Audio更新（`setSceneAudioBinding` / `setGroupAudioBinding`）。 | `SceneMetadata`、`metadataStore.ts` |
 | **ソースパネル状態** | `SourcePanelState` は source panel の folders/expanded/viewMode を保持。 | **含む:** ユーザが追加した外部フォルダ。 | **初期化/取得:** `initializeSourcePanel` / `getSourcePanelState`（`Project.sourcePanel` に保存）。 | `SourcePanelState`、`useStore.ts` |
@@ -82,7 +82,7 @@
 | **プレビューメディアソース** | `MediaSource` は Preview再生専用の app-specific abstraction（Web APIの `MediaSource` とは別）。 | **含む:** play/pause/seek/setRate/getCurrentTime/dispose と JSX 要素。 | **生成:** `createVideoMediaSource` / `createImageMediaSource`。 | `previewMedia.tsx` |
 | **シーケンス計画** | `SequencePlan` は cut 列から組み立てる Preview/Export 共通の canonical sequence assembly。 | **含む:** `videoItems` / `audioItems` / `exportItems` / `audioPlan` / warnings。**含まない:** UI state、ffmpeg settings。 | **生成:** `buildSequencePlan(project, opts)`。 | `sequencePlan.ts` |
 | **エクスポート実行計画** | `ExportPlan` は出力実行パラメータを保持する。 | **含む:** `Mp4ExportPlan`。**含まない:** Preview再生状態。 | **生成:** `resolveExportPlan`。 | `src/features/export/plan.ts` |
-| **エクスポート出力シーケンス** | `ExportSequenceItem` は export 実行用 wire payload。 | **含む:** path/duration/clip/framing/lipSync payload。**含まない:** UI状態。 | **主経路:** `SequencePlan.exportItems`。**補助:** `buildSequenceItemsForCuts` / `buildSequenceItemsForExport`。 | `src/utils/exportSequence.ts` |
+| **エクスポート出力シーケンス** | `ExportSequenceItem` は export 実行用 wire payload。 | **含む:** path/duration/clip/framing。**含まない:** UI状態、LipSync payload。 | **主経路:** `SequencePlan.exportItems`。**補助:** `buildSequenceItemsForCuts` / `buildSequenceItemsForExport`。 | `src/utils/exportSequence.ts` |
 
 ## Vault / Sync
 

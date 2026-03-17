@@ -45,13 +45,7 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
 - （active item なし）
 
 ## Breaking Track
-- `TODO-BREAKING-001` LipSync generated IDs の正規化を保存/読み込みに導入する（過去データ migration を含む）
-  - Track: `Breaking`
-  - Status: `backlog`
-  - StartWhen: LipSync ID migration の作業枠を切るとき
-  - BlockedBy: なし
-  - DoneWhen: migration + 後方互換 + docs 更新が完了
-  - 関連: `docs/guides/lip-sync.md`
+- （active item なし）
 
 ## Nice-to-have Track
 - `TODO-NICE-001` Autosave 設定 UI の interval/保存先連動を実装へ接続する
@@ -73,17 +67,10 @@ ID は当面維持（`TODO-DEBT-*` など）し、優先度と着手条件は `T
   - Status: `ready`
   - StartWhen: Vault index/trash の改善に着手するとき
   - BlockedBy: なし
-  - DoneWhen: `.index.json` の usage summary が cut/audio/lipSync の主要参照を表し、scene/cut の ID 系 clue と秒ベース timing を読めるようになり、`.trash/.trash.json` の entry shape が単純化され、project 破損時に index/metadata/trash から recovery import 用の clue collection を組み立てられる
+  - DoneWhen: `.index.json` の usage summary が cut/audio の主要参照を表し、scene/cut の ID 系 clue と秒ベース timing を読めるようになり、`.trash/.trash.json` の entry shape が単純化され、project 破損時に index/metadata/trash から recovery import 用の clue collection を組み立てられる
   - 関連: `docs/guides/vault-assets.md`, `docs/notes/index-trash-human-readable-plan-2026-03-12.md`
 
 ## Investigation Track
-- `TODO-INVEST-009` LipSync 見直し計画（課題再棚卸し + v2設計 + 段階移行）を確定する
-  - Track: `Investigation`
-  - Status: `ready`
-  - StartWhen: LipSync v2 の設計整理に着手するとき
-  - BlockedBy: なし
-  - DoneWhen: LipSync 課題一覧（再現条件/優先度/フェーズ）が確定し、v2移行方針が docs で固定される
-  - 関連: `docs/notes/lipsync-reassessment-plan-2026-03-06.md`
 - `TODO-INVEST-001` Sequence preview で同一ソース連続 clip 切替時の一瞬の buffering を低減する
   - Track: `Investigation`
   - Status: `backlog`

@@ -52,7 +52,7 @@
   - repair は全再生成ではなく、referenced entry 補修と `usageRefs` 再構成に留める。
   - 保持情報例: assetId / filename / hash / type / importedAt / human-readable usage summary
   - `usage` は flat な JSON を優先し、1-based の scene/cut index、scene 名、参照 role、必要時の timing 秒数を持てる形を許容する。
-  - `usage` は cut 参照だけに閉じず、cut audio / scene audio / group audio / lipSync 系参照も段階的に扱ってよい。
+  - `usage` は cut 参照だけに閉じず、cut audio / scene audio / group audio も段階的に扱ってよい。
   - 注意: `.index.json` 単独では group / notes / full timeline の完全復元は保証しない
 - `.metadata.json`:
   - Asset/Scene の補助メタ情報を保持する。

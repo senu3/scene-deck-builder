@@ -16,7 +16,7 @@
 
 - ワークスペースは `vault/` 配下の実フォルダと同期します
 - アセットは `vault/assets` に保存され、`assets/.index.json` で一元管理されます
-- 表示時間や LipSync 設定、シーンノートなどの付随情報は `.metadata.json` に保存されます
+- 表示時間、音声解析、シーンノートなどの付随情報は `.metadata.json` に保存されます
 - 削除したアセットは `.trash/.trash.json` で管理され、あとから復元できます
 
 ### Storyline 編集（シーン／カット）

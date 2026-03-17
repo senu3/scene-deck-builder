@@ -58,7 +58,7 @@
   - `getThumbnail(...)` の profile 未指定検出
   - `thumbnailCache` 低レベルAPI（`getThumbnail/getCachedThumbnail/removeThumbnailCache`）のFacade外import検出
   - `assetResolve` からの `resolveCutThumbnail` import 検出（cutサムネは api.ts 正規入口へ統一）
-  - 主要UI（`AssetPanel` / `Sidebar` / `previewItemsBuilder` / `LipSyncModal`）の `asset.thumbnail` 直参照検出
+  - 主要UI（`AssetPanel` / `Sidebar` / `previewItemsBuilder`）の `asset.thumbnail` 直参照検出
 - Gate 10:
   - ホットパスファイルでの node/fs/process import 検出
   - `tick`/`update` ブロック内の重処理API検出

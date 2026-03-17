@@ -40,12 +40,6 @@
 | Asset cache | `src/store/useStore.ts` | `Map<string, Asset>` (thumbnail含む) | thumbnail base64 + metadata | グローバルストア | `clearProject()` 等で更新（明示上限なし） |
 | Thumbnail cache (LRU) | `src/utils/thumbnailCache.ts` | `Map<string, { data, bytes }>` (base64) | base64≈4/3倍 | module-level LRU | `clearThumbnailCache()` / LRU eviction |
 | Cut/Details thumbnails | `src/components/CutCard.tsx`, `CutGroupCard.tsx`, `DetailsPanel.tsx` | base64 data URL | base64≈4/3倍 | 各コンポーネント state | component lifecycle |
-| LipSync frames | `src/components/LipSyncModal.tsx` | base64 data URL | base64≈4/3倍 | `frames` state / `maskDataUrl` | component lifecycle |
-| LipSync precompose result | `electron/main.ts` (`precompose-lipsync-frames`) | PNG `Buffer` → base64 data URL array | 合成フレーム数に比例 | main 側一時配列 `frameDataUrls[]` | IPC返却後 + GC |
-| MaskPaint canvases | `src/components/MaskPaintModal.tsx` | Canvas backing store (3枚) | 3 * width * height * 4 bytes | refsに保持 | component lifecycle |
-| MaskPaint undo/redo | `src/components/MaskPaintModal.tsx` | `ImageData` | width * height * 4 bytes / entry | `useState(undoState/redoState)` | 1段階のみ。上書きで解放 |
-| Mask export | `src/components/MaskPaintModal.tsx` | `ImageData` + base64 | ImageData + base64≈4/3倍 | 一時生成 | GC（関数終了） |
-| LipSync frame capture | `src/components/LipSyncModal.tsx` | Canvas backing store + base64 | width * height * 4 bytes / base64≈4/3倍 | base64は `frames` に保持 | component lifecycle |
 
 ※ base64文字列はJS内ではUTF-16で保持されるため、実メモリは **バイト数 × 約2**（目安）。
 
@@ -55,7 +49,7 @@
 
 ### 1) Buffer / ArrayBuffer / Uint8Array
 - Node Buffer（mainプロセス）
-- `read-file-as-base64`, `read-audio-file`, `read-audio-pcm`, `read-image-metadata`, `generate-thumbnail`, `precompose-lipsync-frames`, `vaultGateway` のハッシュ計算などで Buffer 生成が発生。
+- `read-file-as-base64`, `read-audio-file`, `read-audio-pcm`, `read-image-metadata`, `generate-thumbnail`, `vaultGateway` のハッシュ計算などで Buffer 生成が発生。
 - Renderer Uint8Array
 - `readAudioPcm` の戻りを `Uint8Array` 化し `AudioBuffer` を生成。
 - `analyzeAudioRms` でも PCM を `Uint8Array` として保持し、RMS配列を生成。
@@ -96,11 +90,6 @@
 - `inFlight: Map<key, Promise>`（同一取得の重複抑制）
 - `src/store/useStore.ts`
 - `assetCache: Map<assetId, Asset>`（thumbnail含む）
-- `src/components/LipSyncModal.tsx`
-- `frames` / `maskDataUrl`（base64）
-- `src/components/MaskPaintModal.tsx`
-- `undoState` / `redoState`（ImageData）
-
 ※ サムネイル取得は `getThumbnail()` に集約（単一入口）。LRUは「総バイト + 件数」の二重ガード。
 
 ---
@@ -126,7 +115,7 @@
 
 ### 4) base64 保持（data URL の膨張）
 - 該当あり。
-- `PreviewModal` / `CutCard` / `CutGroupCard` / `DetailsPanel` / `AssetPanel` / `Sidebar` / `LipSyncModal`
+- `PreviewModal` / `CutCard` / `CutGroupCard` / `DetailsPanel` / `AssetPanel` / `Sidebar`
 - 対策案。
 - サムネイルは ffmpeg 縮小 + tmpディスクキャッシュを維持する。
 - 大きい画像は base64 ではなく `media://` or Blob URL を検討。
@@ -148,4 +137,3 @@
 - 音声は PCM + AudioBuffer の二重保持が起きるため、長尺ではメモリが急増しやすい。
 - サムネイルは単一入口（getThumbnail）+ LRU に統一。
 - `read-file-as-base64` は完全な legacy ではなく、画像 preview/fallback 系の現行経路でも残っている。
-- LipSync の precompose 経路は一時的に PNG Buffer と data URL 配列を持つため、フレーム数が多い入力ではピークメモリに注意する。

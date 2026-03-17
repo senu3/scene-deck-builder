@@ -20,7 +20,7 @@ Amended (2026-02-28, TODO-DEBT-008 方針反映)
 
 ### 2) Export
 - 通常cutは該当itemを skip し、warning を残す。
-- LipSync など strict 条件（`strictLipSync`）では例外を許可する。
+- 特別な strict 条件を持ち込まず、通常の warning/skip ポリシーで統一する。
 
 ### 3) Load / Recovery
 - まず `assetId` で index 補完を試行する。

@@ -60,7 +60,7 @@
 
 ## 現状の課題
 ### 1. `.index.json`
-- 現在の `usageRefs` は cut 本体の参照中心で、scene audio / group audio / cut audio / lipSync 系参照が弱い。
+- 現在の `usageRefs` は cut 本体の参照中心で、scene audio / group audio / cut audio 参照が弱い。
 - `sceneName` / `sceneIndex` / `cutIndex` は人間には分かりやすいが、復元器にとっては ID 手掛かりが不足している。
 - clip `in/out` や hold が足りず、同一 asset の usage 差分が読みづらい。
 - order 系の clue が薄いと、scene/cut 再構成で詰まりやすい。
@@ -75,15 +75,9 @@
 - `assets[]` の root は shallow に保つ。
 - `usageRefs` は asset ref graph ベースで再構成し、最低限次の role を扱えるようにする。
   - `cut`
-  - `cut-audio`
+  - `cut-audio-binding`
   - `scene-audio`
   - `group-audio`
-  - `lipsync-base`
-  - `lipsync-variant`
-  - `lipsync-mask`
-  - `lipsync-composited`
-  - `lipsync-rms-audio`
-  - `lipsync-source-video`
 - usage には人間向けと機械向けの両方を持てるようにする。
   - 人間向け: `sceneName`, `sceneIndex`, `cutIndex`
   - 機械向け: `sceneId`, `cutId`, `groupId`, `order`

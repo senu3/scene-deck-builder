@@ -1,6 +1,6 @@
 # Gate9 provider統一 更新メモ（2026-02-28）
 
-> Archived (2026-03-06): このノートは `TODO-DEBT-011` の単独追跡を終了し、LipSync 見直し計画へ統合したため履歴保管に移行。後継: `docs/notes/lipsync-reassessment-plan-2026-03-06.md`
+> Archived (2026-03-06): このノートは `TODO-DEBT-011` の単独追跡を終了し、LipSync 見直し計画へ統合したため履歴保管に移行。履歴: `docs/notes/archive/lipsync-reassessment-plan-2026-03-06.md`
 
 ## TL;DR
 - `TODO-DEBT-009` の主要経路（AssetPanel / Sidebar / Preview / LipSyncModal入口集約）を `src/features/thumbnails/api.ts` 経由へ統一。

@@ -3,7 +3,7 @@
 ## TL;DR
 - Preview/Export が `buildSequencePlan(project, opts)` を共通入口として使う Phase A は完了した。
 - Phase A の対象は `normal/clip/hold/mute` とし、`VIDEO_HOLD` を canonical sequence 解釈へ統合した。
-- LIPSync v2 は本ノートから切り離し、`lipsync-reassessment-plan-2026-03-06.md` 側の Phase B に移した。
+- LIPSync v2 は本ノートから切り離し、当時は `docs/notes/archive/lipsync-reassessment-plan-2026-03-06.md` 側の Phase B に移した。
 
 ## 完了内容
 - `buildSequencePlan(project, opts)` を Preview/Export の共通入口として固定した。
@@ -26,4 +26,4 @@
 - project 保存では `cutRuntimeById` 全体を永続化せず、`hold` のみを抽出して保存/復元する。
 
 ## 後続
-- LIPSync v2 は `docs/notes/lipsync-reassessment-plan-2026-03-06.md` で継続する。
+- 当時の継続メモは `docs/notes/archive/lipsync-reassessment-plan-2026-03-06.md`。現行方針は `docs/DECISIONS/ADR-0007-lipsync-deprecation.md` を参照。
