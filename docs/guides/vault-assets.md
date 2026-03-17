@@ -23,12 +23,15 @@
 - Must: 削除時は asset を `.trash/` へ移動し `.trash.json` に履歴を残す。
 - Must: trash move write path は、`assetId` が与えられた場合に index からの除去結果を呼び出し元へ返す。
 - Must: asset index は asset 解決（`assetId -> filename`）の正本として扱う。
+- Must: Vault への正式登録は finalize transaction 相当の単一 gateway write 入口でのみ行う。
+- Must: managed asset の at-rest filename は hash を正本とし、UI 表示名は `originalName` を正本とする。
 - Must: `.index.json` / `.trash.json` は、program 用の内部 dump ではなく、人間が読める recovery clue を優先する。
 - Must: `.index.json` の usage 情報は、scene/cut の位置だけでなく asset ref graph に含まれる主要参照種別を要約できる形を目指す。
 - Must: 人間向け timing 情報が必要な場合は、`inPointSec` / `outPointSec` / `holdSec` / `displayTimeSec` のような秒ベースの flat field を使う。
 - Must: `.trash/.trash.json` は、削除時点の構成推測に必要な最小情報を 1 entry で読める形を維持する。
 - Must Not: `.metadata.json` を asset index の代替として使わない。
 - Must Not: Vault 内 asset を再コピーして二重登録しない。
+- Must Not: generated asset を直接 `assets/` へ書き込んで正式登録済み扱いにしない。
 - Must Not: renderer が trash move 後に delete 用の index 更新を二重実行しない。
 - Must Not: `.index.json` / `.trash.json` を、内部都合の field 名や多重ネストで人間に読みづらくしない。
 - Must Not: `.index.json` を timeline 完全復元の正本として案内しない。
@@ -71,6 +74,13 @@
 - `.index.json` の人間向け usage summary は、save 時に再構成される派生情報として扱う。
 - `.trash/.trash.json` は削除時点の index snapshot を保持してよいが、読みやすさを損なう冗長 field は増やさない。
 
+## 実装ルール
+- formal register は finalize 経由のみとする。
+- generated asset は hidden staging を経由し、`assets/` へ直書きしない。
+- hidden staging は management area とし、detect/UI 候補に含めない。
+- managed asset の at-rest filename は hash とし、UI 表示名は `originalName` から出す。
+- `originalPath` は recovery clue として扱い、表示名の主経路にしない。
+
 ## 境界ルール
 - VaultGateway が担当:
   - index/trash の更新
@@ -85,5 +95,6 @@
 ## 関連ガイド
 - Export canonical flow の正本: `docs/guides/export.md`
 - media I/O と queue 運用: `docs/guides/media-handling.md`
+- Vault ingest policy: `docs/DECISIONS/ADR-0008-vault-ingest-finalize-policy.md`
 - store/UI/feature にじみ防止の移行計画: `docs/notes/archive/store-ui-feature-effects-migration-plan-implemented-2026-03-05.md`
 - 詳細運用・経緯メモ: `docs/notes/`
