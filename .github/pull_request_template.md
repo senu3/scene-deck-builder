@@ -31,7 +31,6 @@
 - [ ] `displayTime`
 - [ ] Framing
 - [ ] 音声ミックス
-- [ ] LipSync
 
 ## Parity Check: Preview/Export (If Applicable)
 - [ ] 影響なし

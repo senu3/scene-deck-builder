@@ -23,7 +23,7 @@
 - 単一選択は `--accent-primary` (`#00b4d8`)、複数選択と group は `--accent-group` (`#14b8a6`) を使う。
 - Video 系は `--accent-video` (`#6366f1`)、Audio 系は `--accent-audio` (`#a855f7`) を使い、media type の意味を他用途へ流用しない。
 - 成功操作は `--accent-success` (`#10b981`)、警告は `--accent-warning` (`#f59e0b`)、削除や破壊操作は `--accent-danger` (`#ef4444`) を使う。
-- Lip Sync 系の強調は `--accent-pink` (`#ec4899`) から `--accent-purple` (`#8b5cf6`) への gradient を使う。
+- `--accent-pink` (`#ec4899`) と `--accent-purple` (`#8b5cf6`) は secondary accent や decorative gradient に使い、機能固有の意味色として固定しない。
 
 ### Scene / Timeline / Primary Actions
 - `SceneDurationBar` と Storyline の scene segment は `--timeline-scene-1` から `--timeline-scene-5` を循環利用し、scene 固有色を個別定義しない。
