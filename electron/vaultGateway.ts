@@ -150,8 +150,12 @@ function ensureAssetsPath(vaultPath: string): string {
   return assetsPath;
 }
 
+function getVaultStagingPath(vaultPath: string): string {
+  return path.join(vaultPath, VAULT_STAGING_DIR_NAME);
+}
+
 export function ensureVaultStagingPath(vaultPath: string): string {
-  const stagingPath = path.join(vaultPath, VAULT_STAGING_DIR_NAME);
+  const stagingPath = getVaultStagingPath(vaultPath);
   if (!fs.existsSync(stagingPath)) {
     fs.mkdirSync(stagingPath, { recursive: true });
   }
@@ -264,7 +268,7 @@ function isPathInsideAssets(vaultPath: string, filePath: string): boolean {
 }
 
 function isPathInsideStaging(vaultPath: string, filePath: string): boolean {
-  const stagingPath = path.resolve(ensureVaultStagingPath(vaultPath));
+  const stagingPath = path.resolve(getVaultStagingPath(vaultPath));
   const targetPath = path.resolve(filePath);
   const relative = path.relative(stagingPath, targetPath);
   return relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative);

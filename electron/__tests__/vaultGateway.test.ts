@@ -154,6 +154,30 @@ describe('finalizeAssetIntoVaultInternal', () => {
       originalPath: 'assets/captured-frame.png',
     })]);
   });
+
+  it('does not cleanup unrelated stale staging files during finalize', async () => {
+    const { vaultPath } = mkVaultFixture();
+    const sourcePath = path.join(path.dirname(vaultPath), 'source.png');
+    fs.writeFileSync(sourcePath, 'image-data');
+
+    const stagingPath = ensureVaultStagingPath(vaultPath);
+    const staleFile = path.join(stagingPath, 'old.tmp');
+    fs.writeFileSync(staleFile, 'old');
+    const staleDate = new Date(Date.now() - (48 * 60 * 60 * 1000));
+    fs.utimesSync(staleFile, staleDate, staleDate);
+
+    // Recreate the stale file after the explicit staging access cleanup above.
+    fs.writeFileSync(staleFile, 'old');
+    fs.utimesSync(staleFile, staleDate, staleDate);
+
+    const result = await finalizeAssetIntoVaultInternal(sourcePath, vaultPath, 'asset-2', {
+      originalName: 'display.png',
+      originalPath: sourcePath,
+    });
+
+    expect(result.success).toBe(true);
+    expect(fs.existsSync(staleFile)).toBe(true);
+  });
 });
 
 describe('ensureVaultStagingPath', () => {
