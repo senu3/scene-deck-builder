@@ -121,6 +121,13 @@ interface VaultVerifyResult {
   valid: boolean;
   missing: string[];
   orphaned: string[];
+  orphanedEntries?: Array<{
+    name: string;
+    absolutePath: string;
+    relativePath: string;
+    kind: 'file' | 'directory';
+    mediaType: 'image' | 'video' | 'audio' | null;
+  }>;
   error?: string;
 }
 

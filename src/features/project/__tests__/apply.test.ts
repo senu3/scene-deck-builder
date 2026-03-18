@@ -61,6 +61,7 @@ function createDeps() {
       await run();
     }),
     emitCutRelinked: vi.fn(),
+    syncUnregisteredAssets: vi.fn(async () => null as any),
   };
 }
 
@@ -319,6 +320,95 @@ describe('project apply', () => {
       path: project.projectPath,
     }));
     expect(result.assessment.mode).toBe('full');
+  });
+
+  it('runs the optional unregistered asset sync hook before initialization', async () => {
+    const project = {
+      name: 'Loaded Project',
+      vaultPath: '/vault',
+      scenes: [{
+        id: 'scene-1',
+        name: 'Scene 1',
+        notes: [],
+        cuts: [],
+      }],
+      sceneOrder: ['scene-1'],
+      cutRuntimeById: {},
+      sourcePanelState: undefined,
+      projectPath: '/vault/project.sdp',
+    };
+    vi.mocked(planRecoverySceneChanges).mockResolvedValue({ scenes: project.scenes, relinks: [] });
+    vi.mocked(commitRecoverySceneChanges).mockResolvedValue({
+      status: 'success',
+      scenes: project.scenes,
+      committedRelinks: [],
+      failedRelinks: [],
+      errors: [],
+    });
+    vi.mocked(collectRecoveryRelinkEventCandidates).mockReturnValue([]);
+    vi.mocked(regenerateCutClipThumbnails).mockResolvedValue(project.scenes);
+    const deps = createDeps();
+    deps.syncUnregisteredAssets.mockResolvedValueOnce({
+      detectedCount: 1,
+      registeredCount: 1,
+      failedCount: 0,
+      skippedCount: 0,
+      confirmed: true,
+      failedFiles: [],
+      files: [],
+    });
+
+    const result = await applyPendingProjectToStore(project, deps);
+
+    expect(deps.syncUnregisteredAssets).toHaveBeenCalledWith({
+      project,
+      scenes: project.scenes,
+      diagnosis: expect.objectContaining({
+        scenes: project.scenes,
+      }),
+      assessment: expect.objectContaining({
+        mode: 'full',
+      }),
+    });
+    expect(result.unregisteredAssetSync).toEqual(expect.objectContaining({
+      detectedCount: 1,
+      registeredCount: 1,
+    }));
+    expect(deps.initializeProject).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not abort project load when the unregistered asset sync hook throws', async () => {
+    const project = {
+      name: 'Loaded Project',
+      vaultPath: '/vault',
+      scenes: [{
+        id: 'scene-1',
+        name: 'Scene 1',
+        notes: [],
+        cuts: [],
+      }],
+      sceneOrder: ['scene-1'],
+      cutRuntimeById: {},
+      sourcePanelState: undefined,
+      projectPath: '/vault/project.sdp',
+    };
+    vi.mocked(planRecoverySceneChanges).mockResolvedValue({ scenes: project.scenes, relinks: [] });
+    vi.mocked(commitRecoverySceneChanges).mockResolvedValue({
+      status: 'success',
+      scenes: project.scenes,
+      committedRelinks: [],
+      failedRelinks: [],
+      errors: [],
+    });
+    vi.mocked(collectRecoveryRelinkEventCandidates).mockReturnValue([]);
+    vi.mocked(regenerateCutClipThumbnails).mockResolvedValue(project.scenes);
+    const deps = createDeps();
+    deps.syncUnregisteredAssets.mockRejectedValueOnce(new Error('boom'));
+
+    const result = await applyPendingProjectToStore(project, deps);
+
+    expect(result.unregisteredAssetSync).toBeNull();
+    expect(deps.initializeProject).toHaveBeenCalledTimes(1);
   });
 
   it('preserves existing recent projects when post-load diagnosis recommends abort', () => {

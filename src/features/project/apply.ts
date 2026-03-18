@@ -21,6 +21,7 @@ import {
 } from './session';
 import type { RecoveryAssessment } from './recoveryAssessment';
 import { upsertRecentProjectEntry } from './recentProjects';
+import type { ProjectUnregisteredAssetSyncResult } from './unregisteredAssets';
 
 export interface ProjectLoadApplyDeps {
   initializeProject: (project: {
@@ -48,6 +49,12 @@ export interface ProjectLoadApplyDeps {
     previousAssetId?: string;
     nextAssetId: string;
   }) => void;
+  syncUnregisteredAssets?: (input: {
+    project: PendingProject;
+    scenes: Scene[];
+    diagnosis: ProjectOpenDiagnosis;
+    assessment: RecoveryAssessment;
+  }) => Promise<ProjectUnregisteredAssetSyncResult | null | undefined>;
 }
 
 export interface ProjectLoadPersistencePlan {
@@ -59,6 +66,7 @@ export interface FinalizeProjectLoadResult {
   missingAssets: MissingAssetInfo[];
   diagnosis: ProjectOpenDiagnosis;
   assessment: RecoveryAssessment;
+  unregisteredAssetSync: ProjectUnregisteredAssetSyncResult | null;
   persistencePlan: ProjectLoadPersistencePlan;
   recentSaveResult: AppEffectDispatchResult;
 }
@@ -68,6 +76,7 @@ export interface ApplyPendingProjectResult {
   missingAssets: MissingAssetInfo[];
   diagnosis: ProjectOpenDiagnosis;
   assessment: RecoveryAssessment;
+  unregisteredAssetSync: ProjectUnregisteredAssetSyncResult | null;
 }
 
 export async function applyPendingProjectToStore(
@@ -88,6 +97,22 @@ export async function applyPendingProjectToStore(
     projectSchemaVersion: 3,
   });
   finalScenes = postRecoveryDiagnosis.scenes;
+  let unregisteredAssetSync: ProjectUnregisteredAssetSyncResult | null = null;
+  if (deps.syncUnregisteredAssets) {
+    try {
+      unregisteredAssetSync = await deps.syncUnregisteredAssets({
+        project,
+        scenes: finalScenes,
+        diagnosis: postRecoveryDiagnosis,
+        assessment: postRecoveryDiagnosis.assessment,
+      }) ?? null;
+    } catch (error) {
+      console.warn('[ProjectLoad] Failed to run unregistered asset sync step.', {
+        vaultPath: project.vaultPath,
+        error,
+      });
+    }
+  }
   const recoveryRelinks = collectRecoveryRelinkEventCandidates(beforeRecoveryScenes, finalScenes, recoveryDecisions);
   const finalCutIds = new Set(
     finalScenes.flatMap((scene) => scene.cuts.map((cut) => cut.id))
@@ -127,6 +152,7 @@ export async function applyPendingProjectToStore(
     missingAssets: postRecoveryDiagnosis.missingAssets,
     diagnosis: postRecoveryDiagnosis,
     assessment: postRecoveryDiagnosis.assessment,
+    unregisteredAssetSync,
   };
 }
 
@@ -156,6 +182,7 @@ export async function finalizePendingProjectLoad(
     missingAssets: applied.missingAssets,
     diagnosis: applied.diagnosis,
     assessment: applied.assessment,
+    unregisteredAssetSync: applied.unregisteredAssetSync,
     persistencePlan,
     recentSaveResult,
   };

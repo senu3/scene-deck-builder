@@ -1685,43 +1685,77 @@ ipcMain.handle('verify-vault-assets', async (_, vaultPath: string) => {
     const indexPath = path.join(assetsPath, '.index.json');
 
     if (!fs.existsSync(indexPath)) {
-      return { valid: true, missing: [], orphaned: [] };
+      return { valid: true, missing: [], orphaned: [], orphanedEntries: [] };
     }
 
     const index: AssetIndex = JSON.parse(fs.readFileSync(indexPath, 'utf-8'));
     const missing: string[] = [];
-    const existingFiles = new Set<string>();
 
     // Check each indexed asset
     for (const entry of index.assets) {
       const assetPath = path.join(assetsPath, entry.filename);
       if (!fs.existsSync(assetPath)) {
         missing.push(entry.filename);
-      } else {
-        existingFiles.add(entry.filename);
       }
     }
 
-    // Find orphaned files (not in index)
-    const orphaned: string[] = [];
-    if (fs.existsSync(assetsPath)) {
-      const files = fs.readdirSync(assetsPath);
-      for (const file of files) {
-        if (file === '.index.json') continue;
-        if (!existingFiles.has(file) && !index.assets.some(a => a.filename === file)) {
-          orphaned.push(file);
+    const indexedFilenames = new Set(index.assets.map((entry) => entry.filename));
+    const orphanedEntries: Array<{
+      name: string;
+      absolutePath: string;
+      relativePath: string;
+      kind: 'file' | 'directory';
+      mediaType: 'image' | 'video' | 'audio' | null;
+    }> = [];
+
+    const walkOrphanedEntries = (currentPath: string) => {
+      const dirents = fs.readdirSync(currentPath, { withFileTypes: true });
+      for (const dirent of dirents) {
+        const absolutePath = path.join(currentPath, dirent.name);
+        const relativePath = path.relative(vaultPath, absolutePath).replace(/\\/g, '/');
+        if (relativePath === 'assets/.index.json') continue;
+
+        if (dirent.isDirectory()) {
+          orphanedEntries.push({
+            name: dirent.name,
+            absolutePath,
+            relativePath,
+            kind: 'directory',
+            mediaType: null,
+          });
+          walkOrphanedEntries(absolutePath);
+          continue;
         }
+
+        if (!dirent.isFile()) continue;
+        if (relativePath === `assets/${dirent.name}` && indexedFilenames.has(dirent.name)) {
+          continue;
+        }
+        orphanedEntries.push({
+          name: dirent.name,
+          absolutePath,
+          relativePath,
+          kind: 'file',
+          mediaType: getMediaType(dirent.name),
+        });
       }
+    };
+
+    if (fs.existsSync(assetsPath)) {
+      walkOrphanedEntries(assetsPath);
     }
 
     return {
       valid: missing.length === 0,
       missing,
-      orphaned,
+      orphaned: orphanedEntries
+        .filter((entry) => entry.kind === 'file')
+        .map((entry) => path.basename(entry.relativePath)),
+      orphanedEntries,
     };
   } catch (error) {
     console.error('Failed to verify vault assets:', error);
-    return { valid: false, missing: [], orphaned: [], error: String(error) };
+    return { valid: false, missing: [], orphaned: [], orphanedEntries: [], error: String(error) };
   }
 });
 

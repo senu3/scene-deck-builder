@@ -16,6 +16,22 @@ type PathResolveResult = {
   error?: string;
 };
 
+export type VaultVerifyEntryLike = {
+  name: string;
+  absolutePath: string;
+  relativePath: string;
+  kind: 'file' | 'directory';
+  mediaType: 'image' | 'video' | 'audio' | null;
+};
+
+export type VaultVerifyResultLike = {
+  valid: boolean;
+  missing: string[];
+  orphaned: string[];
+  orphanedEntries?: VaultVerifyEntryLike[];
+  error?: string;
+};
+
 export type StartAssetDragOutResultLike = {
   ok: boolean;
   reason?:
@@ -419,6 +435,16 @@ export async function ensureAssetsFolderBridge(vaultPath: string): Promise<strin
 
 export async function ensureVaultStagingFolderBridge(vaultPath: string): Promise<string | null> {
   return getElectronAPI()?.ensureVaultStagingFolder?.(vaultPath) ?? null;
+}
+
+export async function verifyVaultAssetsBridge(vaultPath: string): Promise<VaultVerifyResultLike> {
+  return (await getElectronAPI()?.verifyVaultAssets?.(vaultPath)) ?? {
+    valid: false,
+    missing: [],
+    orphaned: [],
+    orphanedEntries: [],
+    error: 'electron-unavailable',
+  };
 }
 
 export async function finalizeClipBridge(

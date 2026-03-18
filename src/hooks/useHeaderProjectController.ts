@@ -39,6 +39,11 @@ import {
   formatProjectAssetIntegrityMessage,
 } from '../features/project/assetIntegrity';
 import { buildPersistedSnapshot } from '../features/project/persistedSnapshot';
+import {
+  buildUnregisteredAssetsConfirmDialog,
+  formatUnregisteredAssetSyncSummary,
+  syncUnregisteredAssetsForProjectLoad,
+} from '../features/project/unregisteredAssets';
 import { upsertRecentProjectEntry } from '../features/project/recentProjects';
 import {
   prepareProjectAssetIndexState,
@@ -383,6 +388,11 @@ export function useHeaderProjectController() {
       createStoreEventOperation,
       runWithStoreEventContext,
       emitCutRelinked,
+      syncUnregisteredAssets: async ({ project: pendingProject }) =>
+        syncUnregisteredAssetsForProjectLoad({
+          vaultPath: pendingProject.vaultPath,
+          confirm: async (files) => dialogConfirm(buildUnregisteredAssetsConfirmDialog(files)),
+        }),
     }, recoveryDecisions);
 
     logFeatureEffectWarnings('save-recent-projects', result.recentSaveResult);
@@ -400,10 +410,20 @@ export function useHeaderProjectController() {
         variant: 'warning',
       });
     }
+    if (result.unregisteredAssetSync?.failedCount) {
+      await dialogAlert({
+        title: 'Some Assets Were Not Added',
+        message: formatUnregisteredAssetSyncSummary(result.unregisteredAssetSync),
+        variant: 'warning',
+      });
+    } else if (result.unregisteredAssetSync?.registeredCount) {
+      toast.info('Assets Added', formatUnregisteredAssetSyncSummary(result.unregisteredAssetSync));
+    }
     setLastPersistedSnapshot(buildPersistedSnapshot(useStore.getState()));
   }, [
     createStoreEventOperation,
     dialogAlert,
+    dialogConfirm,
     emitCutRelinked,
     initializeProject,
     initializeSourcePanel,
@@ -412,6 +432,7 @@ export function useHeaderProjectController() {
     setCutRuntimeHold,
     setLastPersistedSnapshot,
     setProjectPath,
+    toast,
   ]);
 
   const handleRecoveryComplete = useCallback(async (decisions: RecoveryDecision[]) => {

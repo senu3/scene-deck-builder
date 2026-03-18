@@ -68,6 +68,11 @@ import {
   readFolderContentsForSourcePanel,
   selectSourceFolderForSourcePanel,
 } from '../features/project/sourcePanelProvider';
+import {
+  buildUnregisteredAssetsConfirmDialog,
+  formatUnregisteredAssetSyncSummary,
+  syncUnregisteredAssetsInVault,
+} from '../features/project/unregisteredAssets';
 import './AssetPanel.css';
 
 export type SortMode = 'name' | 'type' | 'used' | 'unused';
@@ -210,6 +215,7 @@ export default function AssetPanel({
     current: number;
     total: number;
   }>({ isActive: false, current: 0, total: 0 });
+  const [isSyncingUnregistered, setIsSyncingUnregistered] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -313,50 +319,43 @@ export default function AssetPanel({
         return { count: totalCount, type: usageType };
       };
 
-      // Flatten folder structure and get all files
-      const processItems = (items: Array<{ name: string; path: string; isDirectory: boolean; children?: unknown[] }>) => {
-        for (const item of items) {
-          if (item.isDirectory) {
-            if (item.children) {
-              processItems(item.children as Array<{ name: string; path: string; isDirectory: boolean; children?: unknown[] }>);
-            }
-          } else {
-            // Skip .index.json
-            if (item.name === '.index.json') continue;
+      const managedFiles = new Map<string, { path: string; mediaType: Asset['type'] }>();
+      for (const item of structure) {
+        if (item.isDirectory) continue;
+        if (item.name === '.index.json' || item.name === '.metadata.json') continue;
+        const mediaType = getMediaType(item.name);
+        if (!mediaType) continue;
+        managedFiles.set(item.name, {
+          path: item.path,
+          mediaType,
+        });
+      }
 
-            const mediaType = getMediaType(item.name);
-            if (mediaType) {
-              // Look up source name(s) from index (handle duplicates)
-              const indexEntries = assetIndex.get(item.name);
-              const sourceName = pickDisplayName(indexEntries, item.name);
+      for (const [filename, indexEntries] of assetIndex.entries()) {
+        const managedFile = managedFiles.get(filename);
+        if (!managedFile || indexEntries.length === 0) continue;
 
-              // Use asset IDs from index if available
-              const fallbackAssetId = `asset-${item.path.replace(/[^a-zA-Z0-9]/g, '-')}`;
-              const linkedIds = indexEntries?.length ? indexEntries.map((entry) => entry.id) : [fallbackAssetId];
-              const primaryAssetId = linkedIds[0] || fallbackAssetId;
-              // Check if asset is cached
-              const cachedAsset = linkedIds
-                .map((id) => assetCache.get(id))
-                .find((asset) => !!asset);
-              const usage = aggregateUsage(linkedIds);
+        const linkedIds = indexEntries.map((entry) => entry.id).filter(Boolean);
+        if (linkedIds.length === 0) continue;
 
-              assetList.push({
-                id: cachedAsset?.id || primaryAssetId,
-                name: item.name,
-                sourceName,
-                path: item.path,
-                type: mediaType,
-                thumbnail: cachedAsset?.thumbnail,
-                usageCount: usage.count,
-                usageType: usage.type,
-                linkedAssetIds: linkedIds,
-              });
-            }
-          }
-        }
-      };
+        const cachedAsset = linkedIds
+          .map((id) => assetCache.get(id))
+          .find((asset) => !!asset);
+        const usage = aggregateUsage(linkedIds);
 
-      processItems(structure);
+        assetList.push({
+          id: cachedAsset?.id || linkedIds[0],
+          name: filename,
+          sourceName: pickDisplayName(indexEntries, filename),
+          path: managedFile.path,
+          type: cachedAsset?.type || managedFile.mediaType,
+          thumbnail: cachedAsset?.thumbnail,
+          usageCount: usage.count,
+          usageType: usage.type,
+          linkedAssetIds: linkedIds,
+        });
+      }
+
       setAssets(assetList);
     } catch (error) {
       console.error('Failed to load assets:', error);
@@ -467,6 +466,42 @@ export default function AssetPanel({
     // Reload asset list
     loadAssets();
   }, [vaultPath, toast, loadAssets]);
+
+  const handleSyncUnregistered = useCallback(async () => {
+    if (!vaultPath) {
+      toast.warning('Vault path not set', 'Please set up a vault first.');
+      return;
+    }
+
+    setIsSyncingUnregistered(true);
+    try {
+      const result = await syncUnregisteredAssetsInVault({
+        vaultPath,
+        confirm: async (files) => dialogConfirm(buildUnregisteredAssetsConfirmDialog(files)),
+      });
+
+      if (result.detectedCount === 0) {
+        toast.info('No Unregistered Media', 'No unregistered media files were found in assets/.');
+        return;
+      }
+
+      if (result.failedCount > 0) {
+        await dialogAlert({
+          title: 'Some Assets Were Not Added',
+          message: formatUnregisteredAssetSyncSummary(result),
+          variant: 'warning',
+        });
+      } else if (result.registeredCount > 0) {
+        toast.info('Assets Added', formatUnregisteredAssetSyncSummary(result));
+      }
+
+      if (result.confirmed) {
+        await loadAssets();
+      }
+    } finally {
+      setIsSyncingUnregistered(false);
+    }
+  }, [dialogAlert, dialogConfirm, loadAssets, toast, vaultPath]);
 
   // Load thumbnail for an asset (uses shared cache)
   const loadThumbnail = useCallback(async (asset: AssetInfo) => {
@@ -998,7 +1033,7 @@ export default function AssetPanel({
                   onClick={() => setShowMoreMenu(!showMoreMenu)}
                   title="More actions"
                 >
-                  {bulkImportProgress.isActive ? (
+                  {bulkImportProgress.isActive || isSyncingUnregistered ? (
                     <Loader2 size={16} className="spin" />
                   ) : (
                     <MoreVertical size={16} />
@@ -1011,7 +1046,7 @@ export default function AssetPanel({
                         setShowMoreMenu(false);
                         handleBulkImport();
                       }}
-                      disabled={bulkImportProgress.isActive}
+                      disabled={bulkImportProgress.isActive || isSyncingUnregistered}
                     >
                       <FolderOpen size={14} />
                       {bulkImportProgress.isActive
@@ -1021,8 +1056,19 @@ export default function AssetPanel({
                     <button
                       onClick={() => {
                         setShowMoreMenu(false);
+                        handleSyncUnregistered();
+                      }}
+                      disabled={bulkImportProgress.isActive || isSyncingUnregistered}
+                    >
+                      <Link2 size={14} />
+                      {isSyncingUnregistered ? 'Syncing Media...' : 'Sync Media...'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowMoreMenu(false);
                         loadAssets();
                       }}
+                      disabled={bulkImportProgress.isActive || isSyncingUnregistered}
                     >
                       <RefreshCw size={14} />
                       Refresh

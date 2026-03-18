@@ -48,10 +48,15 @@ import {
 import { buildProjectAssetIndexRepairMessage } from '../features/project/assetIntegrity';
 import { buildPersistedSnapshot } from '../features/project/persistedSnapshot';
 import {
+  buildUnregisteredAssetsConfirmDialog,
+  formatUnregisteredAssetSyncSummary,
+  syncUnregisteredAssetsForProjectLoad,
+} from '../features/project/unregisteredAssets';
+import {
   removeRecentProjectsByPath,
 } from '../features/project/recentProjects';
 import { hasElectronBridge } from '../features/platform/electronGateway';
-import { PathField, useDialog } from '../ui';
+import { PathField, useDialog, useToast } from '../ui';
 import './StartupModal.css';
 
 function logFeatureEffectWarnings(scope: string, result: AppEffectDispatchResult): void {
@@ -66,6 +71,7 @@ function hasFailedEffect(result: AppEffectDispatchResult, effectType: string): b
 
 export default function StartupModal() {
   const { alert: dialogAlert, confirm: dialogConfirm } = useDialog();
+  const { toast } = useToast();
   const {
     initializeProject,
     setRootFolder,
@@ -261,6 +267,11 @@ export default function StartupModal() {
       createStoreEventOperation,
       runWithStoreEventContext,
       emitCutRelinked,
+      syncUnregisteredAssets: async ({ project: pendingProject }) =>
+        syncUnregisteredAssetsForProjectLoad({
+          vaultPath: pendingProject.vaultPath,
+          confirm: async (files) => dialogConfirm(buildUnregisteredAssetsConfirmDialog(files)),
+        }),
     }, recoveryDecisions);
     setLastPersistedSnapshot(buildPersistedSnapshot(useStore.getState()));
 
@@ -279,6 +290,15 @@ export default function StartupModal() {
         message: formatRecoveryAssessmentSummary(result.assessment, 'load'),
         variant: 'warning',
       });
+    }
+    if (result.unregisteredAssetSync?.failedCount) {
+      await dialogAlert({
+        title: 'Some Assets Were Not Added',
+        message: formatUnregisteredAssetSyncSummary(result.unregisteredAssetSync),
+        variant: 'warning',
+      });
+    } else if (result.unregisteredAssetSync?.registeredCount) {
+      toast.info('Assets Added', formatUnregisteredAssetSyncSummary(result.unregisteredAssetSync));
     }
   };
 
