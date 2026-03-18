@@ -76,10 +76,13 @@
 
 ## 実装ルール
 - formal register は finalize 経由のみとする。
+- unregistered media の detect は read-only に留め、confirm 後のみ finalize で正式登録する。
+- unregistered media の sync UI は auto prompt か explicit action のどちらでもよいが、write は confirm 後のみ行う。
 - generated asset は hidden staging を経由し、`assets/` へ直書きしない。
 - hidden staging は management area とし、detect/UI 候補に含めない。
 - managed asset の at-rest filename は hash とし、UI 表示名は `originalName` から出す。
 - `originalPath` は recovery clue として扱い、表示名の主経路にしない。
+- Asset inventory UI は registered asset を主対象とし、`assets/` 直スキャンで pseudo asset を組み立てない。
 
 ## 境界ルール
 - VaultGateway が担当:
