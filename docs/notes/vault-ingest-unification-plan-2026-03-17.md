@@ -32,9 +32,12 @@
 3. recovery / unregistered sync / UI helper を finalize 前提へ揃え、`AssetPanel` の疑似 asset 扱いを整理する。
 
 ## Follow-up
-- hidden staging を導入するなら、stale staging file の cleanup policy を先に決める必要がある。
-- `originalPath` 依存の表示ロジックが一部に残っているため、display name の正本を `originalName` へ寄せる移行が必要になる。
-- `AssetPanel` だけでなく、drag/import 系 helper も「vault にあるが未登録」の扱いを finalize 契約へ揃える必要がある。
+
+## Hidden Staging Policy
+- `.staging` は finalize 前の短命な一時置き場であり、中断復帰を保証する inventory ではない。
+- retention は 24h を上限目安とし、これを超えた stale file は削除対象にしてよい。
+- cleanup は read-path ではなく、explicit な staging access / write / finalize の入口でだけ best-effort に行う。
+- file-in-use や permission error を含む cleanup failure は fatal にせず、warning に留めて次回 access 時の再試行を許容する。
 
 ## 非スコープ
 - `.index.json` を完全 DB 化すること。
