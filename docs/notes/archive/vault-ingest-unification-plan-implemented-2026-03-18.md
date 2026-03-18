@@ -1,8 +1,9 @@
-# Vault Ingest Unification Plan (2026-03-17)
+# Vault Ingest Unification Plan (Implemented 2026-03-18)
 
 ## TL;DR
 - コア方針は ADR-0008 に移し、この note では実装整理と follow-up だけを扱う。
 - Vault ingest の再設計は write model の置換を対象とし、load/recovery 境界は広げない。
+- scoped work は完了し、現行ルールは ADR-0008 と `vault-assets.md` を正本とする。
 
 ## 目的
 - Vault ingest の再設計で触る実装面を整理し、ADR と L1 guide の外に残す論点を記録する。
@@ -31,13 +32,15 @@
 2. generated asset を staging 出力へ切り替え、`assets/` 直書きをやめる。
 3. recovery / unregistered sync / UI helper を finalize 前提へ揃え、`AssetPanel` の疑似 asset 扱いを整理する。
 
-## Follow-up
-
 ## Hidden Staging Policy
 - `.staging` は finalize 前の短命な一時置き場であり、中断復帰を保証する inventory ではない。
 - retention は 24h を上限目安とし、これを超えた stale file は削除対象にしてよい。
 - cleanup は read-path ではなく、explicit な staging access / write / finalize の入口でだけ best-effort に行う。
 - file-in-use や permission error を含む cleanup failure は fatal にせず、warning に留めて次回 access 時の再試行を許容する。
+
+## 状態
+- scoped work は完了したため archive へ移動した。
+- 現行ルールの正本は `docs/DECISIONS/ADR-0008-vault-ingest-finalize-policy.md` と `docs/guides/vault-assets.md` を参照する。
 
 ## 非スコープ
 - `.index.json` を完全 DB 化すること。

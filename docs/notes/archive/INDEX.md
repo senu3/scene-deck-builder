@@ -34,6 +34,7 @@
 - `docs/notes/archive/group-audio-continuous-playback-plan-implemented-2026-03-10.md`
 - `docs/notes/archive/electron40-smoke-observability-archived-2026-03-12.md`
 - `docs/notes/archive/recovery-flow-minimum-plan-implemented-2026-03-12.md`
+- `docs/notes/archive/vault-ingest-unification-plan-implemented-2026-03-18.md`
 
 ## ルール
 - 現在進行中の意思決定は `docs/notes/` 直下に置く。
