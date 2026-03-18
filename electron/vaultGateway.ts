@@ -514,7 +514,7 @@ export async function importDataUrlToVaultInternal(
       return { success: false, error: `Unsupported image type: ${mimeType}` };
     }
 
-    const tempDir = path.join(os.tmpdir(), 'ai-scene-deck');
+    const tempDir = path.join(os.tmpdir(), 'scene-deck-builder');
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
     }

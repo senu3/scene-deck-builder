@@ -15,7 +15,7 @@ export function createSaveProjectHandler({ dialog, fs, getMainWindow }: SaveProj
       const mainWindow = getMainWindow();
       if (!mainWindow) return null;
       const result = await dialog.showSaveDialog(mainWindow, {
-        filters: [{ name: 'Scene Deck Project', extensions: ['sdp'] }],
+        filters: [{ name: 'Scene Deck Builder Project', extensions: ['sdp'] }],
       });
 
       if (result.canceled || !result.filePath) {

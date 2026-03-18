@@ -992,7 +992,7 @@ export default function EnvironmentSettingsModal({
                 <div className={styles.panelContent}>
                   <div className={styles.aboutGrid}>
                     <span className={styles.aboutLabel}>Application</span>
-                    <span className={styles.aboutValue}>AI-Scene-Deck</span>
+                    <span className={styles.aboutValue}>Scene Deck Builder</span>
                     <span className={styles.aboutLabel}>Version</span>
                     <span className={styles.aboutValue}>1.0.0</span>
                     <span className={styles.aboutLabel}>Electron</span>

@@ -1436,7 +1436,7 @@ ipcMain.handle('save-project', createSaveProjectHandler({
 ipcMain.handle('load-project', async () => {
   writeRuntimeLog('INFO', 'load-project-dialog-open');
   const result = await dialog.showOpenDialog(mainWindow!, {
-    filters: [{ name: 'Scene Deck Project', extensions: ['sdp'] }],
+    filters: [{ name: 'Scene Deck Builder Project', extensions: ['sdp'] }],
     properties: ['openFile'],
   });
 

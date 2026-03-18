@@ -581,7 +581,7 @@ export default function StartupModal() {
           <div className="info-panel-content">
             <div className="hero-brand">
               <Clapperboard size={48} className="hero-logo" />
-              <h1>AI Scene Deck</h1>
+              <h1>Scene Deck Builder</h1>
               <p className="hero-tagline">
                 Build story structure from your media with simple, local project files.
               </p>

@@ -1,7 +1,8 @@
 {
-  "name": "ai-scene-deck",
+  "name": "scene-deck-builder",
   "version": "1.0.0",
-  "description": "AI Scene Manager - Intuitive asset management and slideshow preview tool for AI-generated content",
+  "description": "Scene Deck Builder - Local asset management and storyboard preview tool for media projects",
+  "productName": "Scene Deck Builder",
   "main": "dist/main/main.js",
   "scripts": {
     "dev": "concurrently \"npm run dev:renderer\" \"wait-on http://localhost:5173 && npm run dev:main\"",
@@ -91,7 +92,7 @@
     "electron",
     "react",
     "typescript",
-    "ai",
+    "scene-deck-builder",
     "scene-manager",
     "slideshow",
     "asset-management"

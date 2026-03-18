@@ -213,7 +213,7 @@ export default function Header({ onOpenSettings, onPreview, onExport, isExportin
             <div className="header-logo">
               <Clapperboard size={22} className="logo-icon" />
               <div className="header-title-group">
-                <span className="logo-text">AI Scene Manager</span>
+                <span className="logo-text">Scene Deck Builder</span>
                 <span className="project-subtitle">{projectName}</span>
               </div>
             </div>

@@ -87,7 +87,7 @@ export function createThumbnailService(
     getStderrMaxBytes?: () => number;
   }
 ) {
-  const cacheDir = path.join(os.tmpdir(), 'ai-scene-deck', 'thumb-cache');
+  const cacheDir = path.join(os.tmpdir(), 'scene-deck-builder', 'thumb-cache');
   fs.mkdirSync(cacheDir, { recursive: true });
 
   const generateThumbnail = async (request: GenerateThumbnailRequest): Promise<GenerateThumbnailResponse> => {

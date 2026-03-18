@@ -1,4 +1,4 @@
-# AI Scene Deck
+# Scene Deck Builder
 
 動画制作のためのアセット管理・ストーリーボード編集アプリです。  
 素材をシーン／カット単位で整理しながら、映像全体の流れをリアルタイムにプレビューして制作を進められます。
@@ -82,7 +82,7 @@ npm test               # テスト実行
 ## ディレクトリ構成
 
 ```text
-AI-Scene-Deck/
+scene-deck-builder/
 ├── electron/           # Electron Main / Preload
 ├── src/                # React Renderer
 ├── dist/               # ビルド出力
