@@ -85,6 +85,8 @@ interface TrashIndex {
 const TRASH_INDEX_NAME = '.trash.json';
 const DEFAULT_TRASH_RETENTION_DAYS = 30;
 const VAULT_STAGING_DIR_NAME = '.staging';
+const DEFAULT_STAGING_RETENTION_HOURS = 24;
+const DEFAULT_STAGING_RETENTION_MS = DEFAULT_STAGING_RETENTION_HOURS * 60 * 60 * 1000;
 
 export async function calculateFileHashStream(filePath: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -153,7 +155,60 @@ export function ensureVaultStagingPath(vaultPath: string): string {
   if (!fs.existsSync(stagingPath)) {
     fs.mkdirSync(stagingPath, { recursive: true });
   }
+  cleanupStaleStagingEntries(stagingPath);
   return stagingPath;
+}
+
+function cleanupStaleStagingEntries(stagingPath: string, now = Date.now()) {
+  const walk = (currentPath: string, isRoot = false): boolean => {
+    let dirents: fs.Dirent[];
+    try {
+      dirents = fs.readdirSync(currentPath, { withFileTypes: true });
+    } catch (error) {
+      console.warn('[VaultGateway] Failed to read staging directory during cleanup.', {
+        currentPath,
+        error,
+      });
+      return false;
+    }
+
+    for (const dirent of dirents) {
+      const entryPath = path.join(currentPath, dirent.name);
+      try {
+        if (dirent.isDirectory()) {
+          const isEmptyAfterCleanup = walk(entryPath);
+          if (isEmptyAfterCleanup) {
+            fs.rmdirSync(entryPath);
+          }
+          continue;
+        }
+        if (!dirent.isFile()) {
+          continue;
+        }
+
+        const stats = fs.statSync(entryPath);
+        if (now - stats.mtimeMs > DEFAULT_STAGING_RETENTION_MS) {
+          fs.unlinkSync(entryPath);
+        }
+      } catch (error) {
+        console.warn('[VaultGateway] Failed to cleanup staging entry.', {
+          entryPath,
+          error,
+        });
+      }
+    }
+
+    if (isRoot) {
+      return false;
+    }
+    try {
+      return fs.readdirSync(currentPath).length === 0;
+    } catch {
+      return false;
+    }
+  };
+
+  walk(stagingPath, true);
 }
 
 function getAssetIndexPath(vaultPath: string): string {

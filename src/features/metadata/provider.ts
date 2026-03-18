@@ -118,6 +118,7 @@ function toAssetFromIndexEntry(vaultPath: string, entry: AssetIndexEntryLike, ab
   return {
     id: entry.id,
     name: entry.originalName || entry.filename || entry.id,
+    originalName: entry.originalName || entry.filename || entry.id,
     path: absolutePath || `${vaultPath}/${vaultRelativePath}`.replace(/\\/g, '/'),
     type: entry.type,
     vaultRelativePath,

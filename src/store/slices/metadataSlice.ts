@@ -20,14 +20,7 @@ import {
 import type { MetadataStore } from '../../types';
 import type { MetadataSliceContract } from '../contracts';
 import type { SliceGet, SliceSet } from './sliceTypes';
-
-function getAssetDisplayName(audioAsset: { name: string; originalPath?: string }): string {
-  if (audioAsset.originalPath) {
-    const originalName = audioAsset.originalPath.split(/[/\\]/).pop();
-    if (originalName) return originalName;
-  }
-  return audioAsset.name;
-}
+import { getAssetDisplayName } from '../../utils/assetDisplayName';
 
 function collectSceneAudioAssetIds(store: MetadataStore | null): string[] {
   if (!store?.sceneMetadata) return [];

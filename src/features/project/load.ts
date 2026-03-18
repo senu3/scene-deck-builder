@@ -161,6 +161,7 @@ export async function resolveScenesAssets(
       ...(fallback || {}),
       id: assetId,
       name: fallback?.name || indexEntry.originalName || indexEntry.filename || assetId,
+      originalName: fallback?.originalName || indexEntry.originalName || indexEntry.filename || assetId,
       path: absolutePath || vaultRelativePath,
       type: fallback?.type || indexEntry.type,
       vaultRelativePath,

@@ -23,7 +23,6 @@ import {
   selectSceneOrder,
   selectMetadataStore,
   selectSelectedSceneId,
-  selectCreateCutFromImport,
   selectAssetCache,
   selectSelectedCutId,
   selectDeleteAssetWithPolicy,
@@ -50,6 +49,8 @@ import {
   runAssetExtractAudio,
   runAssetFinalize,
 } from '../features/asset/actions';
+import { useHistoryStore } from '../store/historyStore';
+import { AddCutCommand } from '../store/commands';
 import {
   loadAssetIndexEntries,
   resolveVideoDurationForPath,
@@ -84,6 +85,7 @@ export interface AssetInfo {
   sourceName: string;     // Original name from .index.json (display name)
   path: string;
   type: 'image' | 'video' | 'audio';
+  duration?: number;
   thumbnail?: string;
   usageCount: number;
   usageType: 'cut' | 'audio' | 'both' | null;
@@ -187,11 +189,11 @@ export default function AssetPanel({
   const sceneOrder = useStore(selectSceneOrder);
   const metadataStore = useStore(selectMetadataStore);
   const selectedSceneId = useStore(selectSelectedSceneId);
-  const createCutFromImport = useStore(selectCreateCutFromImport);
   const assetCache = useStore(selectAssetCache);
   const selectedCutId = useStore(selectSelectedCutId);
   const deleteAssetWithPolicy = useStore(selectDeleteAssetWithPolicy);
   const closeDetailsPanel = useStore(selectCloseDetailsPanel);
+  const { executeCommand } = useHistoryStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('name');
@@ -349,6 +351,7 @@ export default function AssetPanel({
           sourceName: pickDisplayName(indexEntries, filename),
           path: managedFile.path,
           type: cachedAsset?.type || managedFile.mediaType,
+          duration: cachedAsset?.duration,
           thumbnail: cachedAsset?.thumbnail,
           usageCount: usage.count,
           usageType: usage.type,
@@ -664,6 +667,17 @@ export default function AssetPanel({
     toast.error('Extract Audio failed', result.error || 'Unknown error');
   };
 
+  const buildRegisteredAssetForTimeline = useCallback((asset: AssetInfo): Asset => ({
+    id: asset.id,
+    name: asset.sourceName,
+    originalName: asset.sourceName,
+    path: asset.path,
+    type: asset.type,
+    duration: asset.duration,
+    thumbnail: resolveAssetThumbnailFromCache('asset-grid', asset) || undefined,
+    vaultRelativePath: `assets/${asset.name}`,
+  }), []);
+
   const handleAssetMenuFinalize = async () => {
     if (!assetContextMenu) return;
     banner.show({
@@ -907,12 +921,14 @@ export default function AssetPanel({
     }
     const dragThumbnail = resolveAssetThumbnailFromCache('asset-grid', asset) || undefined;
     const dragAsset: Asset = {
-      id: uuidv4(),
+      id: asset.id,
       name: asset.sourceName, // Use source name
+      originalName: asset.sourceName,
       path: asset.path,
       type: asset.type,
+      duration: asset.duration,
       thumbnail: dragThumbnail,
-      originalPath: asset.path,
+      vaultRelativePath: `assets/${asset.name}`,
     };
     e.dataTransfer.setData('application/json', JSON.stringify(dragAsset));
     e.dataTransfer.setData('text/scene-deck-asset', '1');
@@ -965,15 +981,20 @@ export default function AssetPanel({
     const targetSceneId = selectedSceneId || getFirstSceneId(scenes, sceneOrder);
     if (!targetSceneId) return;
 
-    const assetId = uuidv4();
     try {
-      await createCutFromImport(targetSceneId, {
-        assetId,
-        name: asset.sourceName, // Use source name
-        sourcePath: asset.path,
-        type: asset.type,
-        preferredThumbnail: resolveAssetThumbnailFromCache('asset-grid', asset) || undefined,
-      });
+      const resolvedDuration = asset.type === 'video'
+        ? (asset.duration ?? await resolveAssetDuration(asset.path, asset.linkedAssetIds) ?? undefined)
+        : undefined;
+      await executeCommand(
+        new AddCutCommand(
+          targetSceneId,
+          {
+            ...buildRegisteredAssetForTimeline(asset),
+            duration: resolvedDuration,
+          },
+          asset.type === 'video' ? resolvedDuration : undefined,
+        )
+      );
     } catch (error) {
       console.error('Failed to add asset to timeline:', error);
     }

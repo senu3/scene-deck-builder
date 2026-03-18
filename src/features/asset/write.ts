@@ -62,6 +62,7 @@ export async function registerAssetFile({
       ...existingAsset,
       id: assetId,
       name: getDisplayName(sourcePath, existingAsset),
+      originalName: existingAsset?.originalName || getDisplayName(sourcePath, existingAsset),
       path: result.vaultPath || sourcePath,
       type,
       thumbnail: existingAsset?.thumbnail,

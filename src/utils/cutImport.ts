@@ -67,6 +67,7 @@ export async function buildAssetForCut(
   const asset: Asset = resolvedAsset ?? {
     id: source.assetId,
     name: baseAsset.name || source.name,
+    originalName: baseAsset.originalName || baseAsset.name || source.name,
     path: baseAsset.path || source.sourcePath,
     type: baseAsset.type || source.type,
     thumbnail,

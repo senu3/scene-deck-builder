@@ -31,6 +31,7 @@ export interface Asset {
   name: string;
   path: string;
   type: 'image' | 'video' | 'audio';
+  originalName?: string;
   thumbnail?: string;
   duration?: number;
   metadata?: ImageMetadata;

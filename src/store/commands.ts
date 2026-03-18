@@ -17,6 +17,7 @@ import { hydrateAssetWithCanonicalMetadata } from '../features/metadata/assetHyd
 import { resolveCutAsset as resolveCutAssetById } from '../utils/assetResolve';
 import type { ThumbnailProfile } from '../utils/thumbnailCache';
 import { normalizeGroupsInScenes } from '../utils/cutGroupOps';
+import { getAssetDisplayName } from '../utils/assetDisplayName';
 
 function restoreCutState(
   store: ReturnType<typeof useStore.getState>,
@@ -36,14 +37,6 @@ function restoreCutState(
 
 function resolveCutAsset(store: ReturnType<typeof useStore.getState>, cut: Cut): Asset | undefined {
   return resolveCutAssetById(cut, store.getAsset) ?? undefined;
-}
-
-function getAssetDisplayName(asset: Asset): string {
-  if (asset.originalPath) {
-    const originalName = asset.originalPath.split(/[/\\]/).pop();
-    if (originalName) return originalName;
-  }
-  return asset.name;
 }
 
 function addCutFromReference(

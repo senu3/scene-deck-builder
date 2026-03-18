@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { finalizeAssetIntoVaultInternal, moveToTrashInternal } from '../vaultGateway';
+import { ensureVaultStagingPath, finalizeAssetIntoVaultInternal, moveToTrashInternal } from '../vaultGateway';
 
 const tempDirs: string[] = [];
 
@@ -153,5 +153,32 @@ describe('finalizeAssetIntoVaultInternal', () => {
       originalName: 'Captured Frame',
       originalPath: 'assets/captured-frame.png',
     })]);
+  });
+});
+
+describe('ensureVaultStagingPath', () => {
+  it('purges stale staging files while keeping recent ones', () => {
+    const { vaultPath } = mkVaultFixture();
+    const stagingPath = ensureVaultStagingPath(vaultPath);
+    const staleFile = path.join(stagingPath, 'old.tmp');
+    const freshFile = path.join(stagingPath, 'recent.tmp');
+    const nestedDir = path.join(stagingPath, 'nested');
+    const nestedStaleFile = path.join(nestedDir, 'nested-old.tmp');
+    fs.mkdirSync(nestedDir, { recursive: true });
+    fs.writeFileSync(staleFile, 'old');
+    fs.writeFileSync(freshFile, 'recent');
+    fs.writeFileSync(nestedStaleFile, 'nested-old');
+
+    const now = new Date();
+    const staleDate = new Date(now.getTime() - (48 * 60 * 60 * 1000));
+    fs.utimesSync(staleFile, staleDate, staleDate);
+    fs.utimesSync(nestedStaleFile, staleDate, staleDate);
+
+    ensureVaultStagingPath(vaultPath);
+
+    expect(fs.existsSync(staleFile)).toBe(false);
+    expect(fs.existsSync(nestedStaleFile)).toBe(false);
+    expect(fs.existsSync(nestedDir)).toBe(false);
+    expect(fs.existsSync(freshFile)).toBe(true);
   });
 });
